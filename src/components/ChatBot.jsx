@@ -2246,12 +2246,15 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const fetchWorkspaceFiles = async () => {
     try {
       const response = await fetch('/api/cloud/files');
-      const data = await response.json();
+      if (!response.ok) return;
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) return;
+      const data = JSON.parse(text);
       if (data.success && data.files) {
         setWorkspaceFiles(data.files);
       }
     } catch (error) {
-      console.error('Error fetching workspace files:', error);
+      console.warn('Workspace files fetch skipped (non-JSON response):', error.message);
     }
   };
 
