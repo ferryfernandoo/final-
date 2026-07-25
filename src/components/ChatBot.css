@@ -2776,10 +2776,11 @@
 }
 
 .message.user .message-content {
-  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
-  color: white;
+  background: #fff7ed;
+  color: #7c2d12;
+  border: 1.5px solid #fdba74;
   border-radius: 12px 3px 12px 12px;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.18);
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.08);
   padding: 8px 12px;
   margin-right: 0;
   margin-left: 0;
@@ -4378,41 +4379,43 @@
   position: fixed;
   bottom: 115px;
   right: 32px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #ffb86b 0%, #fb923c 100%);
-  color: #2b1a12;
-  border: none;
+  padding: 8px 16px;
+  background: #ffffff;
+  color: #ea580c;
+  border: 1.5px solid #f97316;
   border-radius: 24px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
+  transition: all 0.25s ease;
   z-index: 200;
   animation: slideUpIn 0.3s ease-out;
   white-space: nowrap;
 }
 
 .show-previous-btn:hover {
-  background: linear-gradient(135deg, #ffd19a 0%, #fb923c 100%);
-  box-shadow: 0 6px 16px rgba(251, 146, 60, 0.4);
-  transform: translateY(-2px);
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #ea580c;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+  transform: translateY(-1px);
 }
 
 /* Inline version - inside messages container at the top */
 .show-previous-btn-inline {
   display: block;
-  margin: 0 auto 4px auto;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #ffb86b 0%, #fb923c 100%);
-  color: #2b1a12;
-  border: none;
+  margin: 0 auto 6px auto;
+  padding: 6px 16px;
+  background: #ffffff;
+  color: #ea580c;
+  border: 1.5px solid #f97316;
   border-radius: 24px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
+  transition: all 0.25s ease;
   white-space: nowrap;
   animation: fadeIn 0.3s ease-out;
   position: sticky;
@@ -4422,12 +4425,15 @@
 }
 
 .show-previous-btn-inline:hover {
-  background: linear-gradient(135deg, #ffd19a 0%, #fb923c 100%);
-  box-shadow: 0 6px 16px rgba(251, 146, 60, 0.4);
-  transform: translateY(-2px);
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #ea580c;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+  transform: translateY(-1px);
 }
 
-.show-previous-btn:active {
+.show-previous-btn:active,
+.show-previous-btn-inline:active {
   transform: translateY(0px);
 }
 
