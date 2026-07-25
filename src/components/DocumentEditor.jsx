@@ -593,18 +593,9 @@ Anda dapat membatalkan tindakan ini kapan saja dengan mengetik \`/undo\` atau me
     }
   }, [editorType]);
 
+  // Do not auto-focus pageRef on mount to prevent mobile virtual keyboard from popping up automatically
   useEffect(() => {
-    if (editorType === 'docx' && pageRef.current) {
-      setTimeout(() => {
-        pageRef.current?.focus();
-        const range = document.createRange();
-        const sel = window.getSelection();
-        range.setStart(pageRef.current, 0);
-        range.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-      }, 100);
-    }
+    // Canvas is ready for user tap/click, keyboard will only open when explicitly tapped
   }, [editorType]);
 
   // ===== DRAWING CANVAS UTILITIES =====
@@ -974,7 +965,9 @@ Anda dapat membatalkan tindakan ini kapan saja dengan mengetik \`/undo\` atau me
         const cleaned = cleanAiResponse(continuation);
         const htmlCont = convertMarkdownToHtml(cleaned);
         
-        pageRef.current.focus();
+        if (document.activeElement === pageRef.current) {
+          pageRef.current.focus();
+        }
         const sel = window.getSelection();
         if (sel && sel.rangeCount > 0) {
           const range = sel.getRangeAt(0);
@@ -6749,12 +6742,15 @@ Bungkus konten dokumen final Anda di dalam tag [CONTENT_START] dan [CONTENT_END]
   const fetchCloudFiles = async () => {
     try {
       const response = await fetch('/api/cloud/files');
-      const data = await response.json();
+      if (!response.ok) return;
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) return;
+      const data = JSON.parse(text);
       if (data.success) {
         setCloudFiles(data.files || []);
       }
     } catch (error) {
-      console.warn('Gagal mengambil daftar file cloud:', error);
+      console.warn('Gagal mengambil daftar file cloud:', error.message);
     }
   };
 
