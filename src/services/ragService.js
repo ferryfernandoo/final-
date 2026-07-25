@@ -319,7 +319,10 @@ class RagService {
       const response = await fetch(datasource);
       if (!response.ok) return false;
       
-      const data = await response.json();
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) return false;
+      
+      const data = JSON.parse(text);
       if (!Array.isArray(data)) return false;
       
       // Clear existing knowledge base docs to avoid duplication
@@ -337,7 +340,7 @@ class RagService {
       console.log(`✅ RAG: Ingested ${docsToIndex.length} knowledge base documents`);
       return true;
     } catch (e) {
-      console.error('Failed to ingest knowledge base:', e);
+      console.warn('RAG knowledge base dataset skipped (non-JSON response):', e.message);
       return false;
     }
   }
