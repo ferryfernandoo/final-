@@ -143,8 +143,10 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
 
             <form className="auth-form" onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Email</label>
+                <label htmlFor="login-email">Email</label>
                 <input
+                  id="login-email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -157,9 +159,11 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
               </div>
 
               <div className="form-group">
-                <label>Password</label>
+                <label htmlFor="login-password">Password</label>
                 <div className="password-input-wrapper">
                   <input
+                    id="login-password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
