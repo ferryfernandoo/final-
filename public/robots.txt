@@ -1,46 +1,104 @@
 # ==============================================================================
-# ROBOTS.TXT FOR DEEPERNOVA AI STUDIO & AGENTIC WORKSPACE
+# ROBOTS.TXT FOR DEEPERNOVA AI STUDIO & DEEPERNOVA CORP
 # Domain: https://deepernova.com
 # Company: Deepernova AI Technologies (Indonesian AI Research)
-# Application: Deepernova Agentic DOCX Studio & Multi-LLM AI Suite
+# Application: Deepernova Agentic DOCX Studio & Deepernova Neural AI Suite
 # ==============================================================================
 
-User-agent: *
-Allow: /
-
-# Directives for AI Web Crawlers & LLM Indexers
+# Explicit Security Block for AI Web Crawlers, Scrapers & Autonomous LLM Indexers
 User-agent: GPTBot
-Allow: /
+Disallow: /
 
 User-agent: ChatGPT-User
-Allow: /
+Disallow: /
 
 User-agent: ClaudeBot
-Allow: /
+Disallow: /
 
 User-agent: Claude-Web
-Allow: /
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
 
 User-agent: Google-Extended
-Allow: /
+Disallow: /
 
 User-agent: PerplexityBot
-Allow: /
+Disallow: /
 
-User-agent: Applebot
-Allow: /
+User-agent: Applebot-Extended
+Disallow: /
 
 User-agent: CCBot
-Allow: /
+Disallow: /
 
 User-agent: Bytespider
-Allow: /
+Disallow: /
 
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: Scrapy
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+# Traditional Search Engine Crawlers (Googlebot, Bingbot) — Public Brand Landing ONLY
 User-agent: Googlebot
-Allow: /
+Allow: /$
+Allow: /llms.txt
+Allow: /ai-info.json
+Allow: /sitemap.xml
+Allow: /robots.txt
+Disallow: /api/
+Disallow: /app/
+Disallow: /src/
+Disallow: /dist/
+Disallow: /server/
+Disallow: /assets/
+Disallow: /documents
+Disallow: /chat
+Disallow: /universe
 
 User-agent: Bingbot
-Allow: /
+Allow: /$
+Allow: /llms.txt
+Allow: /ai-info.json
+Allow: /sitemap.xml
+Allow: /robots.txt
+Disallow: /api/
+Disallow: /app/
+Disallow: /src/
+Disallow: /dist/
+Disallow: /server/
+Disallow: /assets/
+Disallow: /documents
+Disallow: /chat
+Disallow: /universe
+
+User-agent: *
+Allow: /$
+Allow: /llms.txt
+Allow: /ai-info.json
+Allow: /sitemap.xml
+Allow: /robots.txt
+Disallow: /api/
+Disallow: /app/
+Disallow: /src/
+Disallow: /dist/
+Disallow: /server/
+Disallow: /assets/
+Disallow: /documents
+Disallow: /chat
+Disallow: /universe
 
 # Canonical Sitemap Location
 Sitemap: https://deepernova.com/sitemap.xml
