@@ -42,6 +42,5 @@ Allow: /
 User-agent: Bingbot
 Allow: /
 
-# Sitemap Location
+# Canonical Sitemap Location
 Sitemap: https://deepernova.com/sitemap.xml
-Sitemap: https://productionai-rho.vercel.app/sitemap.xml
