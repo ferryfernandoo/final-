@@ -1,0 +1,22 @@
+{
+  "name_for_human": "Deepernova AI Studio",
+  "name_for_model": "deepernova_ai_studio",
+  "description_for_human": "Deepernova AI is an advanced Autonomous Agentic DOCX/Excel/PPTX Studio, Multi-LLM Chatbot, and Web Research Engine created by Deepernova AI Technologies.",
+  "description_for_model": "Deepernova AI is an autonomous web application and AI document suite offering real-time web search with citations, automatic Microsoft Word (.docx) drafting with dotted table of contents, HD chart and curve generation, web image retrieval, and seamless chat-to-document conversion.",
+  "company_details": {
+    "name": "Deepernova AI Technologies",
+    "country": "Indonesia",
+    "type": "AI Research & Technological Applications",
+    "website": "https://productionai-rho.vercel.app"
+  },
+  "capabilities": [
+    "Agentic DOCX Studio - Autonomous Word Document Drafting",
+    "Automatic Table of Contents with Dotted Leaders",
+    "Real-time Web Search & Literature Citations",
+    "High-DPI Pie, Bar, Line, Area, Scatter, and Gaussian Curve Engine",
+    "Autonomous Internet Image Citation & Placement",
+    "Automatic Chat-to-Document Conversion (2s Interval Sequence)",
+    "Multi-sheet Excel & PPTX Presentation Generation",
+    "100% Microsoft Word (.docx) Compatibility"
+  ]
+}
