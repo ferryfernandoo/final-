@@ -217,9 +217,9 @@ class ReminderService {
   }
 
   /**
-   * Directly launches or exports to native Device Calendar
-   * Android: Google Calendar URL (paling reliable, pasti buka app Google Calendar)
-   * iOS: data URI text/calendar (trigger Apple Calendar)
+   * Directly launches NATIVE device Calendar app (Xiaomi Calendar, Samsung Calendar, dll)
+   * Android: Intent URI → buka app Kalender bawaan HP langsung, pre-fill event
+   * iOS: data URI text/calendar → trigger Apple Calendar
    * Desktop: download .ics
    */
   syncToDeviceCalendar(reminder) {
@@ -232,12 +232,27 @@ class ReminderService {
       const dataUri = 'data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent);
       window.location.href = dataUri;
     } else if (isAndroid) {
-      // Android: Google Calendar URL is the ONLY reliable method from web browser
-      // .ics download doesn't auto-open on Android Chrome — it just sits in Downloads
-      const url = this.getGoogleCalendarUrl(reminder);
-      window.open(url, '_blank');
+      // Android: Intent URI langsung buka app Kalender bawaan HP (Xiaomi, Samsung, OPPO, dll)
+      // Format: intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.item/event;...;end
+      const startDate = new Date(reminder.datetime);
+      const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+
+      const intentUri = [
+        'intent:#Intent',
+        'action=android.intent.action.INSERT',
+        'type=vnd.android.cursor.item/event',
+        `S.title=${encodeURIComponent(reminder.title)}`,
+        `l.beginTime=${startDate.getTime()}`,
+        `l.endTime=${endDate.getTime()}`,
+        `S.description=${encodeURIComponent(reminder.description || 'Dibuat via Deepernova AI')}`,
+        reminder.location ? `S.eventLocation=${encodeURIComponent(reminder.location)}` : '',
+        'end',
+      ].filter(Boolean).join(';');
+
+      // Try intent URI first (works on Chrome Android → opens native calendar)
+      window.location.href = intentUri;
     } else {
-      // Desktop: .ics download works fine on desktop OS
+      // Desktop: .ics download
       this.downloadICS(reminder);
     }
 
@@ -245,14 +260,13 @@ class ReminderService {
   }
 
   /**
-   * Auto-sync: called after AI creates a reminder.
-   * Opens Google Calendar (Android) or Apple Calendar (iOS) automatically.
+   * Auto-sync: otomatis buka Kalender HP saat AI bikin pengingat
    */
   autoSyncToCalendar(reminder) {
-    // Small delay so UI card renders first
+    // Delay sedikit supaya card render dulu, baru buka kalender HP
     setTimeout(() => {
       this.syncToDeviceCalendar(reminder);
-    }, 1000);
+    }, 1200);
   }
 
   /**
