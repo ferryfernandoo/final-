@@ -217,74 +217,32 @@ class ReminderService {
   }
 
   /**
-   * Directly launches NATIVE device Calendar app via Web Share API or Intent URI
-   * Android: Share .ics file → Android share sheet → user pilih Kalender HP (Xiaomi, Samsung, dll)
-   * iOS: data URI text/calendar → trigger Apple Calendar
-   * Desktop: download .ics
+   * Open device calendar app with reminder event
+   * Key trick: <a> tag + blob URL WITHOUT download attribute
+   * → Android Chrome shows "Open with" dialog → user picks Calendar app
    */
-  async syncToDeviceCalendar(reminder) {
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isAndroid = /Android/i.test(navigator.userAgent);
+  syncToDeviceCalendar(reminder) {
     const icsContent = this.generateICSFile(reminder);
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
 
-    if (isIOS) {
-      // iOS Safari: data URI triggers Apple Calendar app
-      const dataUri = 'data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent);
-      window.location.href = dataUri;
-      return true;
-    }
+    // Create <a> WITHOUT download attribute — this makes Android ask "Open with?"
+    // instead of silently downloading to Downloads folder
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    // NO a.download — this is intentional!
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
 
-    if (isAndroid) {
-      // === STRATEGY 1: Web Share API with .ics file ===
-      // This shows Android share sheet → user picks Calendar app (Xiaomi, Samsung, Google Calendar)
-      // The .ics file type makes Calendar apps appear as share targets
-      try {
-        const blob = new Blob([icsContent], { type: 'text/calendar' });
-        const fileName = `${reminder.title.replace(/[^a-z0-9]/gi, '_')}.ics`;
-        const file = new File([blob], fileName, { type: 'text/calendar' });
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 3000);
 
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: reminder.title,
-            text: `📅 ${reminder.title}`,
-          });
-          return true;
-        }
-      } catch (err) {
-        // User cancelled share or share failed — try fallback
-        if (err.name === 'AbortError') return false; // user cancelled, don't fallback
-        console.warn('[ReminderService] Web Share failed, trying intent URI fallback:', err);
-      }
-
-      // === STRATEGY 2: Android Intent URI (fallback) ===
-      try {
-        const startDate = new Date(reminder.datetime);
-        const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
-        const intentUri = [
-          'intent:#Intent',
-          'action=android.intent.action.INSERT',
-          'type=vnd.android.cursor.item/event',
-          `S.title=${encodeURIComponent(reminder.title)}`,
-          `l.beginTime=${startDate.getTime()}`,
-          `l.endTime=${endDate.getTime()}`,
-          `S.description=${encodeURIComponent(reminder.description || 'Dibuat via Deepernova AI')}`,
-          'end',
-        ].join(';');
-        window.location.href = intentUri;
-        return true;
-      } catch (err2) {
-        console.warn('[ReminderService] Intent URI failed, using Google Calendar fallback');
-      }
-
-      // === STRATEGY 3: Google Calendar URL (last resort) ===
-      const url = this.getGoogleCalendarUrl(reminder);
-      window.open(url, '_blank');
-      return true;
-    }
-
-    // Desktop: download .ics file
-    this.downloadICS(reminder);
     return true;
   }
 
