@@ -18,6 +18,8 @@ import ChartGenerator from './ChartGenerator';
 import StepperComponent from './StepperComponent';
 import SavedImagesGallery from './SavedImagesGallery';
 import GlobalMemorySettings from './GlobalMemorySettings';
+import ReminderCard from './ReminderCard';
+import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import './ChatBot.css';
 
@@ -5995,9 +5997,23 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       setMessages((prev) => [...prev, userMessageForChat]);
       setCompactView(true);
+
+      // Auto-detect alarm / reminder / calendar creation intent
+      const reminderIntent = reminderService.parseReminderIntent(inputValue);
+      let createdReminder = null;
+      if (reminderIntent) {
+        createdReminder = reminderService.addReminder(reminderIntent);
+      }
       
       // Create bot placeholder for streaming response
       placeholderId = createBotPlaceholder();
+      if (createdReminder) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === placeholderId ? { ...msg, reminder: createdReminder } : msg
+          )
+        );
+      }
       currentMessageIdRef.current = placeholderId;
       lastSentPromptRef.current = inputValue;
       lastSentUserMessageIdRef.current = userMessageForChat.id;
@@ -7623,6 +7639,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
 
                   {message.text && formatMessageText(message.text, message.isStreaming, message.id)}
+                  {message.reminder && (
+                    <ReminderCard reminder={message.reminder} />
+                  )}
                 </>
               );
             })()}
