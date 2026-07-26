@@ -1,0 +1,146 @@
+/* Simplified Clean White & Orange Reminder Card */
+.reminder-card-container {
+  background: #ffffff;
+  border: 2px solid #ff6b00;
+  border-radius: 14px;
+  padding: 16px;
+  margin: 12px 0;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.12);
+  color: #ff6b00;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+.reminder-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.reminder-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #fff3eb;
+  color: #ff6b00;
+  border: 1px solid #ff6b00;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reminder-status-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #fff3eb;
+  color: #ff6b00;
+  border: 1px solid #ff6b00;
+}
+
+.reminder-status-tag.completed {
+  background: #e6f4ea;
+  color: #1e8e3e;
+  border-color: #1e8e3e;
+}
+
+.reminder-card-body {
+  margin-bottom: 14px;
+}
+
+.reminder-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #d95200;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.reminder-time-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fffaf7;
+  border: 1px solid #ffe3d1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #d95200;
+  font-weight: 600;
+}
+
+.reminder-time-icon {
+  font-size: 18px;
+}
+
+.reminder-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reminder-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.reminder-action-btn.primary-sync {
+  background: #ff6b00;
+  color: #ffffff;
+  border: 1.5px solid #ff6b00;
+  box-shadow: 0 2px 6px rgba(255, 107, 0, 0.2);
+}
+
+.reminder-action-btn.primary-sync:hover {
+  background: #e56000;
+  border-color: #e56000;
+}
+
+.reminder-btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.reminder-action-btn.secondary {
+  background: #ffffff;
+  color: #ff6b00;
+  border: 1.5px solid #ff6b00;
+}
+
+.reminder-action-btn.secondary:hover {
+  background: #fff3eb;
+}
+
+.reminder-action-btn.danger {
+  background: #ffffff;
+  color: #dc2626;
+  border: 1.5px solid #dc2626;
+}
+
+.reminder-action-btn.danger:hover {
+  background: #fef2f2;
+}
+
+.reminder-footer-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #e56000;
+  text-align: center;
+  font-weight: 500;
+}
