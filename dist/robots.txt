@@ -1,0 +1,104 @@
+# ==============================================================================
+# ROBOTS.TXT FOR DEEPERNOVA AI STUDIO & DEEPERNOVA CORP
+# Domain: https://deepernova.com
+# Company: Deepernova AI Technologies (Indonesian AI Research)
+# Application: Deepernova Agentic DOCX Studio & Deepernova Neural AI Suite
+# ==============================================================================
+
+# Explicit Security Block for AI Web Crawlers, Scrapers & Autonomous LLM Indexers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: Scrapy
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+# Traditional Search Engine Crawlers (Googlebot, Bingbot) — Public Brand Landing ONLY
+User-agent: Googlebot
+Allow: /$
+Allow: /llms.txt
+Allow: /ai-info.json
+Allow: /sitemap.xml
+Allow: /robots.txt
+Disallow: /api/
+Disallow: /app/
+Disallow: /src/
+Disallow: /dist/
+Disallow: /server/
+Disallow: /assets/
+Disallow: /documents
+Disallow: /chat
+Disallow: /universe
+
+User-agent: Bingbot
+Allow: /$
+Allow: /llms.txt
+Allow: /ai-info.json
+Allow: /sitemap.xml
+Allow: /robots.txt
+Disallow: /api/
+Disallow: /app/
+Disallow: /src/
+Disallow: /dist/
+Disallow: /server/
+Disallow: /assets/
+Disallow: /documents
+Disallow: /chat
+Disallow: /universe
+
+User-agent: *
+Allow: /$
+Allow: /llms.txt
+Allow: /ai-info.json
+Allow: /sitemap.xml
+Allow: /robots.txt
+Disallow: /api/
+Disallow: /app/
+Disallow: /src/
+Disallow: /dist/
+Disallow: /server/
+Disallow: /assets/
+Disallow: /documents
+Disallow: /chat
+Disallow: /universe
+
+# Canonical Sitemap Location
+Sitemap: https://deepernova.com/sitemap.xml
