@@ -9662,4 +9662,170 @@ pre.code-block code {
 }
 
 
+/* ============================================================
+   DESKTOP & WIDESCREEN WEB LAYOUT OVERHAUL (@media (min-width: 769px))
+   Dedicated widescreen browser view layout for ChatBot
+   ============================================================ */
+@media (min-width: 769px) {
+  /* App container layout */
+  .chatbot-app {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+    background-color: #f8fafc !important;
+  }
+
+  /* Desktop Permanent Left Sidebar */
+  .sidebar {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    height: 100% !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+    z-index: 10 !important;
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    border-right: 1px solid #e2e8f0 !important;
+    box-shadow: 2px 0 12px rgba(15, 23, 42, 0.03) !important;
+    background: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* When sidebar is explicitly closed on desktop (collapse gracefully) */
+  .sidebar.closed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    transform: translateX(-100%) !important;
+    border-right: none !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  /* No backdrop overlay on desktop widescreen */
+  .sidebar-backdrop {
+    display: none !important;
+  }
+
+  /* Main Desktop Chat Container */
+  .chatbot-container {
+    flex: 1 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    background: #ffffff !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Desktop Header Bar */
+  .chatbot-header {
+    padding: 12px 28px !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+  }
+
+  /* Desktop Messages Container: Centered max-width for optimal reading */
+  .messages-container {
+    flex: 1 !important;
+    width: 100% !important;
+    max-width: 900px !important;
+    margin: 0 auto !important;
+    padding: 28px 24px !important;
+    gap: 24px !important;
+  }
+
+  .message.user {
+    max-width: 75% !important;
+    align-self: flex-end !important;
+    border-radius: 20px 20px 4px 20px !important;
+    box-shadow: 0 4px 15px rgba(234, 88, 12, 0.15) !important;
+  }
+
+  .message.bot {
+    max-width: 88% !important;
+    align-self: flex-start !important;
+    border-radius: 20px 20px 20px 4px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid #f1f5f9 !important;
+  }
+
+  /* Desktop Floating Elevated Input Box */
+  .input-form {
+    width: 100% !important;
+    max-width: 880px !important;
+    margin: 0 auto !important;
+    padding: 16px 24px 24px 24px !important;
+    background: transparent !important;
+  }
+
+  .input-container {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 20px !important;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    padding: 12px 14px 12px 18px !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .input-container:focus-within {
+    border-color: #ea580c !important;
+    box-shadow: 0 12px 35px rgba(234, 88, 12, 0.12), 0 0 0 4px rgba(234, 88, 12, 0.08) !important;
+  }
+
+  /* Desktop Side-by-Side Workspace Panel (when active) */
+  .workspace-drawer {
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 480px !important;
+    min-width: 420px !important;
+    max-width: 600px !important;
+    height: 100% !important;
+    border-left: 1px solid #e2e8f0 !important;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.04) !important;
+    z-index: 20 !important;
+    background: #ffffff !important;
+  }
+
+  /* Desktop Quick Action Buttons hover effects */
+  .action-button:hover,
+  .file-upload-action-btn:hover,
+  .reason-button:hover {
+    transform: translateY(-2px) scale(1.05) !important;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.2) !important;
+  }
+}
+
+/* Widescreen 4K / Ultra-wide Desktop Tweaks (@media (min-width: 1400px)) */
+@media (min-width: 1400px) {
+  .sidebar {
+    width: 300px !important;
+    min-width: 300px !important;
+    max-width: 300px !important;
+  }
+
+  .messages-container {
+    max-width: 1000px !important;
+  }
+
+  .input-form {
+    max-width: 960px !important;
+  }
+}
+
+
+
 
