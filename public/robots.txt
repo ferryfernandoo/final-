@@ -34,6 +34,7 @@ Allow: /llms.txt
 Allow: /ai-info.json
 Allow: /.well-known/ai-plugin.json
 Allow: /sitemap.xml
+Allow: /google*.html
 
 # 2. Social Media & Messaging Crawlers (WhatsApp, Facebook, Twitter, Telegram, LinkedIn, Discord, Pinterest)
 User-agent: facebot
