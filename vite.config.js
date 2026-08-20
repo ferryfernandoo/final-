@@ -7,7 +7,22 @@ export default defineConfig({
   plugins: [react()],
   build: {
     emptyOutDir: true,
-    sourcemap: false, // Keep source code private and protected from crawlers
+    sourcemap: false, // Strict protection: Zero source maps generated
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Strips all console.log statements and debug messages
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+        passes: 2,
+      },
+      mangle: {
+        toplevel: true, // Heavily obfuscates top-level variable and function names
+      },
+      format: {
+        comments: false, // Completely eliminates all comments, credits, licenses from output
+      },
+    },
     rollupOptions: {
       input: './index.html'
     }
