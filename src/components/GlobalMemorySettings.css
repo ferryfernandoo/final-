@@ -1,0 +1,332 @@
+/* Clean Global White Theme for Fine-Tune AI & Memory Settings Modal */
+
+.global-memory-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: fadeInMemoryModal 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInMemoryModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.global-memory-modal-box {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 24px;
+  width: min(620px, 100%);
+  max-height: 85vh;
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  position: relative;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+}
+
+/* Fixed Header */
+.memory-modal-header {
+  padding: 20px 24px 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+}
+
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-icon {
+  font-size: 28px;
+}
+
+.memory-modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.memory-modal-header .subtitle {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.memory-modal-close-btn {
+  background: #f1f5f9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #64748b;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.memory-modal-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.memory-error-banner {
+  margin: 12px 24px 0 24px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 12px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Scrollable Main Body */
+.memory-modal-scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: #f8fafc;
+}
+
+/* Stats Chips */
+.memory-stats-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat-chip {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.chip-val {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+/* Editor Section */
+.memory-editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-label-bar {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.memory-custom-textarea {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #0f172a;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 160px;
+}
+
+.memory-custom-textarea:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.memory-custom-display {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  min-height: 140px;
+  max-height: 320px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.memory-pre-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #1e293b;
+  user-select: text;
+}
+
+.empty-memory-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+.empty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.empty-memory-box p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.memory-guide-box {
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.memory-guide-box p {
+  margin: 0;
+  font-size: 12px;
+  color: #c2410c;
+  line-height: 1.5;
+}
+
+/* Sticky Footer Action Bar (NEVER SINKS) */
+.memory-modal-footer {
+  padding: 16px 24px;
+  background: #ffffff;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-export-txt {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1.5px solid #ffedd5;
+  border-radius: 12px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-right: auto;
+  transition: all 0.2s;
+}
+
+.btn-export-txt:hover:not(:disabled) {
+  background: #ffedd5;
+  border-color: #f97316;
+}
+
+.btn-export-txt:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-memory-primary {
+  background: #f97316;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.25);
+  transition: background 0.2s;
+}
+
+.btn-memory-primary:hover:not(:disabled) {
+  background: #ea580c;
+}
+
+.btn-memory-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  border-radius: 12px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-memory-secondary:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.btn-memory-danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 12px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-memory-danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+@media (max-width: 600px) {
+  .global-memory-modal-box {
+    max-height: 92vh;
+    max-height: 92dvh;
+  }
+  .memory-modal-footer {
+    padding: 12px 16px;
+    gap: 6px;
+  }
+  .btn-export-txt {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 4px;
+  }
+}
