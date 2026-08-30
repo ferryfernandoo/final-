@@ -3854,7 +3854,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   // Helper: Set loading state for current conversation
   const setConvLoading = (isLoadingNow) => {
     setLoading(isLoadingNow); // Keep global loading for overall UI
-    setIsGenerating(isLoadingNow);
     if (!isLoadingNow) {
       setLoadingPhase(null);
       clearLoadingPhaseTimers();
@@ -3878,11 +3877,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
   };
 
-  // Helper: Get loading state for current conversation (must strictly be false when loading/generating is false)
+  // Helper: Derived active generating state - single source of truth from messages & generation flags
+  const isBotResponding = (loading || isGenerating) && messages.some(
+    (msg) => msg.sender === 'bot' && (msg.isStreaming || msg.isThinking || msg.isSearching || msg.isRecallingMemory || msg.isImageGenerating)
+  );
+
+  // Helper: Get loading state for current conversation (must strictly be false when no bot message is active)
   const getConvLoading = () => {
-    if (!loading && !isGenerating) return false;
-    const currentConv = conversations.find((c) => c.id === currentConversationId);
-    return currentConv ? (currentConv.isLoading && (loading || isGenerating)) : (loading || isGenerating);
+    return isBotResponding;
   };
 
 
@@ -4986,7 +4988,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     // IMMEDIATELY clear ALL generation state — no flicker, no delay, no retries
     setConvLoading(false);
     setLoading(false);
-    setIsGenerating(false);
     setLoadingPhase(null);
     isProcessingRef.current = false;
     currentMessageIdRef.current = null;
@@ -6864,7 +6865,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       console.warn('[ChatBot] Cannot send message: offline detected');
       isProcessingRef.current = false;
       setConvLoading(false);
-      setIsGenerating(false);
       setConnectionErrorMessage(
         userLanguage === 'id'
           ? 'Tidak ada koneksi internet. Pesan Anda tidak terkirim. Silakan periksa jaringan Anda.'
@@ -7230,7 +7230,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         }
         setConvLoading(false);
         setLoading(false);
-        setIsGenerating(false);
         setLoadingPhase(null);
         isProcessingRef.current = false;
         return;
@@ -7282,7 +7281,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       finishStreaming(placeholderId, fullText, streamUsage);
       setConvLoading(false);
       setLoading(false);
-      setIsGenerating(false);
       clearLoadingPhaseTimers();
 
       if (abortController.signal.aborted) {
@@ -7470,7 +7468,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setLastMessage(null);
       setLoading(false);
       setConvLoading(false); // Mark this conversation as done loading
-      setIsGenerating(false);
       clearLoadingPhaseTimers();
       abortControllerRef.current = null;
       // Clean up conversation-specific abort controller
@@ -7550,7 +7547,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         isProcessingRef.current = false;
         setConvLoading(false);
         setLoading(false);
-        setIsGenerating(false);
         setLoadingPhase(null);
         showErrorBanner(userLanguage === 'id' ? 'Permintaan dihentikan.' : 'Request stopped.');
         return;
@@ -7580,7 +7576,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           autoRetryCountRef.current = 0;
           setConvLoading(false);
-          setIsGenerating(false);
           isProcessingRef.current = false; // Clear lock only when giving up
         } else {
           // Auto-retry with exponential backoff
@@ -8987,7 +8982,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       setLoading(false);
       setConvLoading(false);
-      setIsGenerating(false);
       abortControllerRef.current = null;
       // Clean up conversation-specific abort controller
       if (currentConversationId) {
@@ -9016,7 +9010,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       isProcessingRef.current = false;
       console.log('[ChatBot] 🔓 Auto-retry processing lock cleared');
       setConvLoading(false);
-      setIsGenerating(false);
     }
   };
 
