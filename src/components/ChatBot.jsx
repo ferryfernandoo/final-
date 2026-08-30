@@ -2372,6 +2372,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const messagesEndRef = useRef(null);
   const streamingIntervalRef = useRef(null);
   const streamingStartTimeRef = useRef(null);
+  const smoothStreamTimerRef = useRef(null);
   const statusUpdateIntervalRef = useRef(null);
   const isPausedRef = useRef(false);
   const currentMessageIdRef = useRef(null);
@@ -2382,6 +2383,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const programmaticScrollRef = useRef(false);
   const abortControllerRef = useRef(null);
   const abortControllersMapRef = useRef(new Map()); // Per-conversation abort controllers
+  const isUserStoppedRef = useRef(false); // Tracks explicit user stop action to prevent retry loops
   const partialMessageIdRef = useRef(null);
   const autoRetryTimeoutRef = useRef(null);
   const autoRetryCountRef = useRef(0);
@@ -4898,6 +4900,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Handle stop streaming
   const handleStopStreaming = () => {
+    isUserStoppedRef.current = true;
+
+    // Clear any scheduled auto-retry timeouts immediately
+    if (autoRetryTimeoutRef.current) {
+      clearTimeout(autoRetryTimeoutRef.current);
+      autoRetryTimeoutRef.current = null;
+    }
+    autoRetryCountRef.current = 0;
+    partialMessageIdRef.current = null;
+
     // Abort every active stream controller so X always stops generation no matter what
     abortControllersMapRef.current.forEach((controller) => {
       try {
@@ -4922,6 +4934,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       clearInterval(streamingIntervalRef.current);
       streamingIntervalRef.current = null;
     }
+    if (smoothStreamTimerRef.current) {
+      clearInterval(smoothStreamTimerRef.current);
+      smoothStreamTimerRef.current = null;
+    }
     if (statusUpdateIntervalRef.current) {
       clearInterval(statusUpdateIntervalRef.current);
       statusUpdateIntervalRef.current = null;
@@ -4937,23 +4953,23 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       typingTimerRef.current = null;
     }
 
-    // If AI just started responding (still streaming, no content), restore prompt
-    if (currentMessageIdRef.current && lastSentPromptRef.current) {
-      const aiMessage = messages.find(m => m.id === currentMessageIdRef.current);
-      if (aiMessage && aiMessage.sender === 'bot' && (!aiMessage.text || aiMessage.text.trim().length === 0)) {
-        // Remove the unanswered AI message
-        setMessages(prev => prev.filter(m => m.id !== currentMessageIdRef.current));
-        // Restore the prompt to input
-        setInputValue(lastSentPromptRef.current);
-        lastSentPromptRef.current = '';
-      } else if (aiMessage) {
-        // AI has content, just mark as not streaming
-        finishStreaming(currentMessageIdRef.current, currentStreamingTextRef.current);
-        setAnimatingMessages((prev) => ({ 
-          ...prev, 
-          [currentMessageIdRef.current]: false 
-        }));
-      }
+    // Immediately stop streaming flag on active message
+    const targetMsgId = currentMessageIdRef.current;
+    if (targetMsgId) {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === targetMsgId
+            ? {
+                ...msg,
+                isStreaming: false,
+                isThinking: false,
+                isReasoning: false,
+                isReasoningComplete: true,
+              }
+            : msg
+        )
+      );
+      setAnimatingMessages((prev) => ({ ...prev, [targetMsgId]: false }));
     }
 
     setLoadingStatusMsg('Generasi dihentikan');
@@ -4961,7 +4977,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     isPausedRef.current = false;
     setIsPaused(false);
     
-    // IMMEDIATELY clear ALL generation state — no flicker, no delay
+    // IMMEDIATELY clear ALL generation state — no flicker, no delay, no retries
     setConvLoading(false);
     setLoading(false);
     setIsGenerating(false);
@@ -6886,6 +6902,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
 
     console.log('[DEBUG] fullMessage:', fullMessage.substring(0, 2000));
+    isUserStoppedRef.current = false;
 
     const userMessageForChat = {
       id: `user_${Date.now()}`,
@@ -7089,6 +7106,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       let smoothStreamTimer = null;
 
       const flushSmoothTick = () => {
+        // Bail immediately if aborted (stop button pressed)
+        if (abortController.signal.aborted) {
+          if (smoothStreamTimer) {
+            clearInterval(smoothStreamTimer);
+            smoothStreamTimer = null;
+            smoothStreamTimerRef.current = null;
+          }
+          return;
+        }
         let updated = false;
 
         // 1. Smoothly advance reasoning text
@@ -7131,6 +7157,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const startSmoothStreamer = () => {
         if (!smoothStreamTimer) {
           smoothStreamTimer = setInterval(flushSmoothTick, 18);
+          smoothStreamTimerRef.current = smoothStreamTimer;
         }
       };
 
@@ -7189,8 +7216,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }, abortController.signal);
       streamUsage = streamResult?.usage || null;
 
-      if (abortController.signal.aborted) {
-        if (smoothStreamTimer) clearInterval(smoothStreamTimer);
+      if (abortController.signal.aborted || isUserStoppedRef.current) {
+        if (smoothStreamTimer) {
+          clearInterval(smoothStreamTimer);
+          smoothStreamTimer = null;
+          smoothStreamTimerRef.current = null;
+        }
+        setConvLoading(false);
+        setLoading(false);
+        setIsGenerating(false);
+        setLoadingPhase(null);
+        isProcessingRef.current = false;
         return;
       }
 
@@ -7208,6 +7244,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (smoothStreamTimer) {
         clearInterval(smoothStreamTimer);
         smoothStreamTimer = null;
+        smoothStreamTimerRef.current = null;
       }
 
       displayedFullText = targetFullText;
@@ -7488,17 +7525,29 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         timeoutInternetCheckRef.current = null;
       }
 
-      if (err.name === 'AbortError') {
+      const isAborted = isUserStoppedRef.current ||
+                        abortController?.signal?.aborted ||
+                        err.name === 'AbortError' ||
+                        (err.message && /abort|cancel/i.test(err.message));
+
+      if (isAborted) {
         if (isSearchAbortedRef.current) {
-          // DON'T reset the flag here — the finally block checks it to preserve the lock.
-          // The search IIFE's own finally block will reset everything when done.
+          // DON'T reset the flag here — the search flow will handle it
           return;
         }
-        showErrorBanner('Permintaan dihentikan.');
+        if (autoRetryTimeoutRef.current) {
+          clearTimeout(autoRetryTimeoutRef.current);
+          autoRetryTimeoutRef.current = null;
+        }
         autoRetryCountRef.current = 0;
-        isProcessingRef.current = false; // Clear lock on manual abort
+        partialMessageIdRef.current = null;
+        isProcessingRef.current = false;
         setConvLoading(false);
+        setLoading(false);
         setIsGenerating(false);
+        setLoadingPhase(null);
+        showErrorBanner(userLanguage === 'id' ? 'Permintaan dihentikan.' : 'Request stopped.');
+        return;
       } else {
         const isNetworkErr = !navigator.onLine || 
           (err.message && /failed to fetch|network|offline|load failed|timeout/i.test(err.message));
