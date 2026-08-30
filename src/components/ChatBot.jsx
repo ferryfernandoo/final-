@@ -3853,8 +3853,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Helper: Set loading state for current conversation
   const setConvLoading = (isLoadingNow) => {
-    if (!currentConversationId) return;
     setLoading(isLoadingNow); // Keep global loading for overall UI
+    setIsGenerating(isLoadingNow);
+    if (!isLoadingNow) {
+      setLoadingPhase(null);
+      clearLoadingPhaseTimers();
+    }
+    if (!currentConversationId) return;
     setConversations((prev) =>
       prev.map((c) =>
         c.id === currentConversationId 
@@ -3873,10 +3878,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
   };
 
-  // Helper: Get loading state for current conversation
+  // Helper: Get loading state for current conversation (must strictly be false when loading/generating is false)
   const getConvLoading = () => {
+    if (!loading && !isGenerating) return false;
     const currentConv = conversations.find((c) => c.id === currentConversationId);
-    return currentConv?.isLoading || false;
+    return currentConv ? (currentConv.isLoading && (loading || isGenerating)) : (loading || isGenerating);
   };
 
 
@@ -7343,7 +7349,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         }
       }
 
-      finishStreaming(placeholderId, fullText, streamUsage);
+      // finishStreaming already executed at line ~7276
 
       if (createdReminder) {
         setMessages((prev) =>
