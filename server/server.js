@@ -1526,16 +1526,14 @@ app.post('/api/chat', async (req, res) => {
         const hasImagesInPayload = (req.body.uploadedImages && req.body.uploadedImages.length > 0) ||
           messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url)));
         
-        const requestedModel = req.body.model || 'gpt-5.6-luna';
-        let selectedModel = 'gpt-5.6-luna';
-        if (requestedModel === 'grok-4.1-fast-reasoning' || requestedModel === 'deepernova-4.6-giga') {
-          selectedModel = 'gpt-5.6-luna';
-        } else if (requestedModel === 'gpt-4o-mini' || requestedModel === 'deepernova-1.2-flash') {
-          selectedModel = 'gpt-5.6-luna';
-        } else if (requestedModel === 'gpt-4o' || requestedModel === 'deepernova-2.3-pro') {
-          selectedModel = 'gpt-5.6-luna';
-        } else if (requestedModel) {
-          selectedModel = requestedModel;
+        const requestedModel = req.body.model || 'deepseek-v4-flash-vision-exp';
+        let selectedModel = 'deepseek-v4-flash-vision-exp';
+        if (hasImagesInPayload) {
+          selectedModel = 'deepseek-v4-flash-vision-exp';
+        } else if (requestedModel && (requestedModel.includes('reasoner') || requestedModel.includes('r1'))) {
+          selectedModel = 'deepseek-reasoner';
+        } else {
+          selectedModel = 'deepseek-v4-flash-vision-exp';
         }
 
         console.log(`[CHAT] Streaming requested: ${shouldStream}, Requested Model: ${requestedModel}, Resolved Model: ${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
@@ -4436,11 +4434,11 @@ app.get('/generated/:filename', (req, res) => {
 
 // ============== VISION ANALYSIS API ==============
 
-const TOKENMIX_CHAT_URL = 'https://api.tokenmix.ai/v1/chat/completions';
+const TOKENMIX_CHAT_URL = process.env.TOKENMIX_CHAT_URL || DEEPSEEK_API_URL;
 
 /**
  * POST /api/vision/analyze
- * Analyze image content using Tokenmix grok-4.1-fast-reasoning
+ * Analyze image content using deepseek-v4-flash-vision-exp
  * Body: { imageUrl: string, question: string }
  */
 app.post('/api/vision/analyze', async (req, res) => {
@@ -4456,12 +4454,12 @@ app.post('/api/vision/analyze', async (req, res) => {
       return res.status(500).json({ error: 'Vision analysis service not configured' });
     }
 
-    console.log('[VISION] Analyzing image with grok-4.1-fast-reasoning');
+    console.log('[VISION] Analyzing image with deepseek-v4-flash-vision-exp');
     console.log('[VISION] Image input type:', imageUrl.substring(0, 20));
     console.log('[VISION] Question:', question.substring(0, 100));
     console.log('[VISION] API Key configured:', !!TOKENMIX_API_KEY);
 
-    // Build image content - Tokenmix accepts data URIs in image_url field
+    // Build image content - accepts data URIs in image_url field
     let imageContent = null;
     if (imageUrl.startsWith('data:')) {
       // Data URL format for base64
@@ -4481,8 +4479,7 @@ app.post('/api/vision/analyze', async (req, res) => {
       throw new Error('Image must be either base64 data URL or public HTTPS URL');
     }
 
-    // Try flat content format instead of nested array
-    // Some APIs prefer: { type: 'image_url', image_url: {...} } as separate item
+    // Flat content format
     const messageContent = [
       { type: 'text', text: question },
       imageContent
@@ -4490,16 +4487,16 @@ app.post('/api/vision/analyze', async (req, res) => {
 
     console.log('[VISION] Message content structure:', JSON.stringify(messageContent, null, 2));
 
-    // Call Tokenmix grok-4.1-fast-reasoning for vision analysis
+    // Call deepseek-v4-flash-vision-exp for vision analysis
     const payload = {
-      model: 'grok-4.1-fast-reasoning',
+      model: 'deepseek-v4-flash-vision-exp',
       messages: [
         {
           role: 'user',
           content: messageContent
         }
       ],
-      max_tokens: 200,
+      max_tokens: 1000,
       temperature: 0.5,
     };
 
@@ -4533,7 +4530,7 @@ app.post('/api/vision/analyze', async (req, res) => {
     res.json({
       success: true,
       analysis: analysis,
-      model: 'grok-4.1-fast-reasoning',
+      model: 'deepseek-v4-flash-vision-exp',
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
