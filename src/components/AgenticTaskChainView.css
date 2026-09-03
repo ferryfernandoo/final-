@@ -1,0 +1,477 @@
+/* ============================================================
+   ULTRA-MINIMALIST AGENTIC TASK CHAIN ENGINE
+   Clean, Elegant, High-Intelligence Typography (Cursor / Claude)
+   ============================================================ */
+
+.agentic-task-chain-container.minimalist-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: fadeIn 0.2s ease-out;
+  padding-bottom: 8px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 1. User Message Row */
+.agy-user-message-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.agy-user-bubble {
+  max-width: 88%;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 14px 14px 2px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  word-break: break-word;
+}
+
+.user-bubble-text {
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+
+/* 2. Compact Actions Stream */
+.agy-compact-steps-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 2px;
+}
+
+.minimal-step-item {
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.minimal-step-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.minimal-step-pill:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+}
+
+.step-pill-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.step-pill-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.step-pill-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.running-dot-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+  animation: pulse-dot 1s infinite alternate;
+}
+
+@keyframes pulse-dot {
+  from { opacity: 0.4; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+.done-check {
+  color: #34d399;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.error-x {
+  color: #f87171;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.step-expand-caret {
+  font-size: 10px;
+  color: #64748b;
+}
+
+/* Expandable Step Drawer */
+.minimal-step-drawer {
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: #121218;
+  border: 1px solid #23232f;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  animation: fadeIn 0.15s ease;
+}
+
+.step-drawer-thought pre {
+  margin: 0;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11px;
+  color: #a5b4fc;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.drawer-diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.diff-target-file {
+  font-weight: 700;
+  color: #38bdf8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.drawer-revert-btn, .drawer-open-btn {
+  background: transparent;
+  border: 1px solid #3b82f6;
+  color: #60a5fa;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.drawer-revert-btn:hover, .drawer-open-btn:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.drawer-diff-box {
+  background: #0a0a0f;
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.diff-row {
+  display: flex;
+  padding: 4px 8px;
+  gap: 8px;
+}
+
+.diff-row.removal {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.diff-row.addition {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.diff-row pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.term-drawer-cmd {
+  font-family: 'JetBrains Mono', monospace;
+  color: #4ade80;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.term-drawer-out {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: #94a3b8;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.search-match-item {
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+}
+
+.search-match-item:hover {
+  background: #1e2238;
+}
+
+.match-file {
+  color: #fb923c;
+  font-weight: 700;
+}
+
+.match-snippet {
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 3. Assistant Conversational Response Card */
+.agy-assistant-response-card {
+  display: flex;
+  flex-direction: column;
+  background: #18181f;
+  border: 1px solid #282836;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.2s ease;
+}
+
+.agy-assistant-response-card.is-streaming {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.assistant-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.assistant-brand-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c084fc;
+}
+
+.agent-sparkle-icon {
+  font-size: 12px;
+}
+
+.agent-thinking-pulse {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.pulse-dot-live {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+  animation: pulse-dot 0.8s infinite alternate;
+}
+
+.agent-done-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+/* Rich Markdown Typography */
+.assistant-markdown-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+.assistant-markdown-body p {
+  margin: 0 0 10px 0;
+}
+
+.assistant-markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.assistant-markdown-body h1,
+.assistant-markdown-body h2,
+.assistant-markdown-body h3,
+.assistant-markdown-body h4 {
+  color: #ffffff;
+  font-weight: 700;
+  margin: 12px 0 6px 0;
+  line-height: 1.3;
+}
+
+.assistant-markdown-body h1 { font-size: 15px; }
+.assistant-markdown-body h2 { font-size: 14px; }
+.assistant-markdown-body h3 { font-size: 13px; color: #38bdf8; }
+
+.assistant-markdown-body ul, 
+.assistant-markdown-body ol {
+  margin: 6px 0 10px 0;
+  padding-left: 20px;
+}
+
+.assistant-markdown-body li {
+  margin-bottom: 4px;
+}
+
+.assistant-markdown-body hr {
+  border: none;
+  border-top: 1px solid #2d2d3f;
+  margin: 12px 0;
+}
+
+.assistant-markdown-body strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.assistant-markdown-body em {
+  color: #a5b4fc;
+}
+
+/* Minimalist Code Block & Inline Code */
+.minimal-code-badge {
+  background: #111118;
+  border: 1px solid #2a2a38;
+  color: #fb923c;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.minimal-code-block {
+  background: #0e0e14;
+  border: 1px solid #252533;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #f1f5f9;
+}
+
+/* Minimal Table */
+.minimal-table-wrapper {
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.minimal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.minimal-table th {
+  background: #1e1e28;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 6px 10px;
+  border: 1px solid #2e2e3d;
+  text-align: left;
+}
+
+.minimal-table td {
+  padding: 6px 10px;
+  border: 1px solid #242433;
+  color: #cbd5e1;
+}
+
+.streaming-placeholder {
+  padding: 8px 0;
+}
+
+.shimmer-text {
+  font-size: 12px;
+  color: #818cf8;
+  font-style: italic;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Minimalist Action Pills */
+.minimal-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.minimal-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #111118;
+  border: 1px solid #2e2e42;
+  color: #93c5fd;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.minimal-action-pill:hover {
+  background: #1e293b;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.action-pill-arrow {
+  font-size: 10px;
+  color: #38bdf8;
+}
