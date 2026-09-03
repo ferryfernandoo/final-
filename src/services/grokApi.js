@@ -198,14 +198,14 @@ const TOKENMIX_API_KEYS = [
 const TOKENMIX_API_KEY = TOKENMIX_API_KEYS[0];
 const DEEPSEEK_API_KEY = TOKENMIX_API_KEY;
 
-// Deepernova Model Mapping to official ultra-fast DeepSeek backend
+// Deepernova Model Mapping to official ultra-fast DeepSeek backend with Vision
 const DEEPERNOVA_TEXT_MODEL_MAP = {
-  'deepernova 1.0super flash': 'deepseek-chat',
-  'deepernova-1.0-super-flash': 'deepseek-chat',
-  'deepernova 1.0 super flash': 'deepseek-chat',
-  'deepernova-1.2-flash': 'deepseek-chat',
-  'deepernova-2.3-pro': 'deepseek-chat',
-  'deepernova-4.6-giga': 'deepseek-reasoner',
+  'deepernova 1.0super flash': 'deepseek-v4-flash-vision-exp',
+  'deepernova-1.0-super-flash': 'deepseek-v4-flash-vision-exp',
+  'deepernova 1.0 super flash': 'deepseek-v4-flash-vision-exp',
+  'deepernova-1.2-flash': 'deepseek-v4-flash-vision-exp',
+  'deepernova-2.3-pro': 'deepseek-v4-flash-vision-exp',
+  'deepernova-4.6-giga': 'deepseek-v4-flash-vision-exp',
 };
 
 const normalizeDeepernovaModel = (deepernovaModel = 'deepernova 1.0super flash') => {
@@ -216,28 +216,39 @@ const normalizeDeepernovaModel = (deepernovaModel = 'deepernova 1.0super flash')
 
   if (trimmed.includes('deepernova')) {
     if (trimmed.includes('4.6') || trimmed.includes('giga') || trimmed.includes('reasoner')) return 'deepernova-4.6-giga';
+    if (trimmed.includes('2.3') || trimmed.includes('2.4') || trimmed.includes('pro')) return 'deepernova-2.3-pro';
     return 'deepernova 1.0super flash';
   }
 
   if (trimmed.includes('reasoner') || trimmed.includes('r1')) return 'deepseek-reasoner';
-  if (trimmed.includes('deepseek') || trimmed.includes('chat') || trimmed.includes('v3') || trimmed.includes('flash')) return 'deepseek-chat';
+  if (trimmed.includes('vision') || trimmed.includes('v4-flash-vision')) return 'deepseek-v4-flash-vision-exp';
+  if (trimmed.includes('deepseek') || trimmed.includes('chat') || trimmed.includes('v3') || trimmed.includes('flash')) return 'deepseek-v4-flash-vision-exp';
   return 'deepernova 1.0super flash';
 };
 
 export const resolveModelForRequest = (deepernovaModel = 'deepernova 1.0super flash', hasImages = false) => {
   const baseModel = normalizeDeepernovaModel(deepernovaModel);
-  return baseModel;
+  if (!hasImages) return baseModel;
+
+  if (baseModel === 'deepernova 1.0super flash') return 'deepernova-2.3-pro';
+  if (baseModel === 'deepernova-2.3-pro') return 'deepernova-4.6-giga';
+  return 'deepernova-4.6-giga';
 };
 
 // Helper function to get actual model name for DeepSeek chat API
 export const getTokenMixModel = (deepernovaModel = 'deepernova 1.0super flash', hasImages = false) => {
+  if (hasImages) {
+    return 'deepseek-v4-flash-vision-exp';
+  }
+
   const normalizedModel = normalizeDeepernovaModel(deepernovaModel);
   if (typeof normalizedModel === 'string' && normalizedModel.startsWith('deepernova')) {
-    return DEEPERNOVA_TEXT_MODEL_MAP[normalizedModel] || 'deepseek-chat';
+    return DEEPERNOVA_TEXT_MODEL_MAP[normalizedModel] || 'deepseek-v4-flash-vision-exp';
   }
 
   if (normalizedModel === 'deepseek-reasoner') return 'deepseek-reasoner';
-  return 'deepseek-chat';
+  if (normalizedModel.includes('vision') || normalizedModel.includes('v4-flash-vision')) return 'deepseek-v4-flash-vision-exp';
+  return DEEPERNOVA_TEXT_MODEL_MAP[normalizedModel] || 'deepseek-v4-flash-vision-exp';
 };
 
 // Backward compatibility alias
@@ -1086,7 +1097,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
           },
           signal: abortController?.signal,
           body: JSON.stringify({
-            model: resolvedModel || 'deepseek-chat',
+            model: resolvedModel || 'deepseek-v4-flash-vision-exp',
             messages: [
               {
                 role: 'system',
