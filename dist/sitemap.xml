@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd
+        http://www.google.com/schemas/sitemap-image/1.1
+        http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd">
+  <!-- Homepage / Landing & Universe -->
+  <url>
+    <loc>https://deepernova.com/</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://deepernova.com/ceo.jpg</image:loc>
+      <image:title>Ferry Fernando - Founder &amp; CEO Deepernova Corp</image:title>
+      <image:caption>Foto Resmi Ferry Fernando, Founder dan Chief Executive Officer (CEO) Deepernova Corp Indonesia</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://deepernova.com/logo192.png</image:loc>
+      <image:title>Logo Resmi Deepernova AI Indonesia</image:title>
+      <image:caption>Logo Platform Kecerdasan Buatan Otonom Deepernova AI Indonesia</image:caption>
+    </image:image>
+  </url>
+
+  <!-- CodeDance IDE (Autonomous AI Coding Agent) -->
+  <url>
+    <loc>https://deepernova.com/codedance</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://deepernova.com/ceo.jpg</image:loc>
+      <image:title>Ferry Fernando - Creator of CodeDance IDE</image:title>
+      <image:caption>Ferry Fernando, Pemimpin Desain dan Arsitektur AI CodeDance IDE Monaco Sandbox</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Typernova Document Studio (Word .docx, Excel, PPTX) -->
+  <url>
+    <loc>https://deepernova.com/documents</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- Intelligent Multi-Model ChatBot -->
+  <url>
+    <loc>https://deepernova.com/chat</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- Deepernova Universe (3D Command Center) -->
+  <url>
+    <loc>https://deepernova.com/universe</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Help & Problem Solving Center -->
+  <url>
+    <loc>https://deepernova.com/help</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- LLMs Manifest & GEO Index -->
+  <url>
+    <loc>https://deepernova.com/llms.txt</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- AI Application Specification -->
+  <url>
+    <loc>https://deepernova.com/ai-info.json</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+</urlset>

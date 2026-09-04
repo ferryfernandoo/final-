@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pusat Bantuan &amp; Pemecahan Masalah Deepernova AI (Help Center)</title>
+  <meta name="description" content="Kumpulan panduan pemakaian dan solusi pemecahan masalah (troubleshooting) resmi Deepernova AI: CodeDance IDE, AI Bikin Gambar, Typernova Word .docx, Memori Otonom AI, dan Chatbot." />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <link rel="canonical" href="https://deepernova.com/help" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --primary: #ea580c;
+      --primary-hover: #c2410c;
+      --text: #0f172a;
+      --text-muted: #475569;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      background-image: 
+        radial-gradient(ellipse 65% 35% at 50% -3%, rgba(234, 88, 12, 0.08) 0%, transparent 70%),
+        linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 20px 80px 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: #fff7ed;
+      color: var(--primary);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      border: 1px solid #fed7aa;
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin: 0 0 12px 0;
+      color: #0f172a;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin: 0 auto 24px auto;
+    }
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25);
+    }
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+    .article-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    }
+    .article-card h2 {
+      font-size: 1.3rem;
+      margin-top: 0;
+      color: #0f172a;
+    }
+    .category-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      padding: 3px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+    ol {
+      padding-left: 20px;
+      color: #334155;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .tips {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #fff7ed;
+      border-left: 4px solid var(--primary);
+      font-size: 0.9rem;
+      color: #9a3412;
+    }
+    /* Large CEO Profile Card */
+    .ceo-large-card {
+      background: #ffffff;
+      border: 2px solid rgba(234, 88, 12, 0.3);
+      border-radius: 20px;
+      padding: 32px;
+      margin-top: 48px;
+      box-shadow: 0 10px 30px rgba(234, 88, 12, 0.08);
+    }
+    .ceo-header {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .ceo-photo {
+      width: 100px;
+      height: 100px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 3px solid var(--primary);
+    }
+    .quote-box {
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+      border-left: 5px solid var(--primary);
+      padding: 20px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #9a3412;
+      margin: 16px 0;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="badge">Pusat Edukasi Resmi</span>
+      <h1>Pusat Bantuan &amp; <span class="gradient-text">Solusi Pintar</span></h1>
+      <p class="subtitle">Kumpulan cara pemakaian fitur dan pemecahan kendala teknis resmi untuk CodeDance IDE, AI Image Studio, Typernova, dan Chatbot Cerdas.</p>
+      <div class="nav-actions">
+        <a href="/codedance" class="btn btn-secondary">CodeDance IDE</a>
+        <a href="/documents" class="btn btn-secondary">Typernova Studio</a>
+        <a href="/chat" class="btn btn-primary">Buka Chatbot AI ➔</a>
+      </div>
+    </header>
+
+    <main>
+      <!-- 1. CodeDance IDE -->
+      <article class="article-card">
+        <span class="category-label">Agentic Vibe Coding</span>
+        <h2>Mengatasi Layar Live Preview Kosong (Blank) di CodeDance IDE</h2>
+        <p>Jika tampilan live preview tidak muncul saat membuat website otomatis, ikuti panduan berikut:</p>
+        <ol>
+          <li>Pastikan berkas <code>index.html</code> ada di File Explorer sebagai pintu masuk utama aplikasi.</li>
+          <li>Buka tab Console di bawah preview untuk mengecek apakah ada galat sintaks JavaScript.</li>
+          <li>Ketik instruksi perbaikan ke AI Coding Agent: <em>"Perbaiki error yang ada di console preview dan pastikan tampil normal"</em>.</li>
+          <li>Klik ikon Refresh (putar) di atas panel Live Preview untuk memuat ulang iframe secara bersih.</li>
+        </ol>
+        <div class="tips">
+          <strong>Tips:</strong> Jika menggunakan pustaka eksternal seperti Chart.js atau Tailwind, pastikan link CDN disertakan di dalam tag &lt;head&gt; berkas index.html.
+        </div>
+      </article>
+
+      <!-- 2. Typernova Studio -->
+      <article class="article-card">
+        <span class="category-label">Typernova Document Studio</span>
+        <h2>Cara Membuat Dokumen Word (.docx) Resmi Lengkap dengan Daftar Isi Bertitik</h2>
+        <p>Typernova menghasilkan berkas .docx standar skripsi/makalah resmi:</p>
+        <ol>
+          <li>Kunjungi <a href="/documents" style="color: #ea580c; font-weight: bold;">deepernova.com/documents</a> dan pilih jenis dokumen <strong>Word Document (.docx)</strong>.</li>
+          <li>Ketikkan topik dan struktur makalah Anda (contoh: <em>"Buatkan makalah ilmiah tentang AI di Indonesia dengan Kata Pengantar, Bab I s.d. III, dan Daftar Pustaka"</em>).</li>
+          <li>AI akan menyusun dokumen dengan font Times New Roman 12pt, spasi 1.5, dan Daftar Isi bertitik-titik otomatis.</li>
+          <li>Klik tombol <strong>Export .DOCX</strong> di sudut kanan atas untuk mengunduh berkas asli.</li>
+        </ol>
+        <div class="tips">
+          <strong>Tips:</strong> Berkas hasil unduhan 100% kompatibel dengan Microsoft Office, WPS Office, dan Google Docs tanpa layout yang berantakan.
+        </div>
+      </article>
+
+      <!-- 3. AI Image Studio -->
+      <article class="article-card">
+        <span class="category-label">AI Image Studio</span>
+        <h2>Cara Bikin Gambar AI Ultra-HD Bebas dari Sensor / Filter Keamanan</h2>
+        <p>Panduan prompt estetis agar hasil gambar memukau dan tidak terhalang filter otomatis:</p>
+        <ol>
+          <li>Awali kalimat prompt dengan kata <em>"Gambarkan"</em> atau <em>"Buatkan gambar foto"</em>.</li>
+          <li>Sertakan pencahayaan: <code>cinematic lighting</code>, <code>golden hour</code>, <code>studio softbox light</code>.</li>
+          <li>Tentukan gaya visual: <code>hyper-detailed 8k photorealistic</code>, <code>Makoto Shinkai anime style</code>, atau <code>cyberpunk neon</code>.</li>
+          <li>Hindari diksi kekerasan atau eksplisit; gunakan sinonim berseni (misal: <em>"lanskap temaram berkabut mistis"</em>).</li>
+        </ol>
+      </article>
+
+      <!-- 4. Autonomous Memory -->
+      <article class="article-card">
+        <span class="category-label">Autonomous Memory System</span>
+        <h2>Bagaimana Cara Mengelola dan Menghapus Memori AI Deepernova?</h2>
+        <p>AI Deepernova mengingat nama, preferensi, dan proyek Anda secara otonom (CRUD):</p>
+        <ol>
+          <li>AI secara mandiri menyimpan preferensi Anda saat mengobrol melalui tag aksi transparan [MEMORY_SAVE].</li>
+          <li>Untuk melihat apa saja yang diingat AI, tanyakan di chat: <em>"Apa saja memori yang kamu simpan tentang aku?"</em>.</li>
+          <li>Untuk menghapus memori lama, cukup perintahkan: <em>"Lupakan tentang proyek lamaku"</em> atau klik <strong>Reset Memori</strong> di menu pengaturan.</li>
+        </ol>
+      </article>
+
+      <!-- Large CEO Profile & Mission Card -->
+      <section class="ceo-large-card">
+        <div class="ceo-header">
+          <img src="/ceo.jpg" alt="Ferry Fernando - Founder &amp; CEO Deepernova Corp" class="ceo-photo" />
+          <div>
+            <span class="badge">PROFIL FOUNDER &amp; CEO</span>
+            <h3 style="font-size: 1.6rem; margin: 6px 0; color: #0f172a;">Ferry Fernando (FF)</h3>
+            <p style="margin: 0; color: #475569;">Founder &amp; Chief Executive Officer Deepernova Corp | Kebumen, Jawa Tengah, Indonesia</p>
+            <p style="margin: 4px 0 0 0;"><a href="https://instagram.com/ferryfernandoo_" target="_blank" rel="noopener" style="color: #ea580c; font-weight: 700; text-decoration: none;">Instagram: @ferryfernandoo_</a></p>
+          </div>
+        </div>
+
+        <div class="quote-box">
+          ❝ Deepernova adalah bentuk pengabdian kami kepada negara untuk misi membantu mencerdaskan anak bangsa, dan berupaya tetap memberikan AI gratis selamanya. ❞
+        </div>
+
+        <p style="color: #475569; font-size: 0.95rem; margin-bottom: 0;">
+          Deepernova Corp didirikan oleh Ferry Fernando bersama Anju Malinton Pakpahan (Co-Founder &amp; Vice CEO) dengan visi kedaulatan kecerdasan buatan Indonesia. Menghadirkan CodeDance IDE (Agentic Vibe Coding), AI Image Studio, Typernova Document Studio, dan Chatbot Cerdas 100% gratis selamanya.
+        </p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
