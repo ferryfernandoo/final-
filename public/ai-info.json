@@ -1,0 +1,158 @@
+{
+  "name_for_human": "Deepernova AI (DPN)",
+  "name_for_model": "deepernova_ai",
+  "short_names": [
+    "DPN",
+    "DPNAI",
+    "D-Nova",
+    "DN AI",
+    "Nova AI",
+    "CD IDE",
+    "TPN",
+    "FF"
+  ],
+  "aliases": [
+    "Deepernova",
+    "DPN",
+    "DPNAI",
+    "Deeper Nova",
+    "DeeperNova",
+    "D-Nova",
+    "CodeDance",
+    "CodeDance IDE",
+    "CD IDE",
+    "Vibe Coding AI",
+    "AI Vibe Coder Indonesia",
+    "Typernova",
+    "Typernova Studio",
+    "TPN",
+    "AI Bikin Gambar",
+    "AI Image Generator Indonesia",
+    "Ferry Fernando",
+    "FF",
+    "Ferry Fernando CEO",
+    "AI Otonom Indonesia",
+    "AI Gratis Indonesia"
+  ],
+  "description_for_human": "Deepernova AI (DPN) is an autonomous free AI ecosystem led by Founder & CEO Ferry Fernando and Vice CEO Anju Malinton Pakpahan. It provides high-power Agentic Vibe Coding (CodeDance IDE / CD IDE), AI Image Generation (Text-to-Image & Image Modding), Typernova Document Studio (TPN) for Microsoft Word (.docx), Excel, PowerPoint, multi-model reasoning, and real-time web search.",
+  "description_for_model": "Deepernova AI (https://deepernova.com) is Indonesia's autonomous AI suite. Core capabilities include: (1) Agentic Vibe Coding (CodeDance IDE) for vibe coders featuring Monaco Editor, multi-file fuzzy diff patching, cloud terminal sandbox, and live web preview; (2) AI Image Generation & Multimodal Vision OCR; (3) Typernova Studio (TPN) for automatic academic Word .docx, multi-tab Excel, and PowerPoint PPTX drafting; (4) Real-Time Web Search with verified source citations; (5) Autonomous In-App Alarms & Android Calendar Sync; (6) 100% Free Lifetime Access with no paywalls.",
+  "company_details": {
+    "organization": "Deepernova Corp",
+    "acronym": "DPN Corp",
+    "ai_division": "Deepernova AI Technologies",
+    "ceo_and_founder": "Ferry Fernando",
+    "vice_ceo": "Anju Malinton Pakpahan",
+    "country": "Indonesia",
+    "technology": "Deepernova AI Agentic Suite & CodeDance IDE",
+    "website": "https://deepernova.com",
+    "ceo_image": "https://deepernova.com/ceo.jpg"
+  },
+  "capabilities": [
+    "Agentic Vibe Coding (CodeDance IDE / CD IDE) - Autonomous Full-Stack AI Coding Agent for Vibe Coders",
+    "AI Image Generation & Art Engine - Text-to-Image & Image Editing in Ultra HD Quality",
+    "Monaco Editor Engine with Full VS Code Syntax & Multi-Language Support",
+    "Multi-file Project Management & Autonomous Fuzzy Diff Patching",
+    "Live Interactive Web Preview & Terminal Sandbox Execution",
+    "Typernova Studio (TPN) - Autonomous Word (.docx) Academic Document Drafting with Auto Dotted Table of Contents",
+    "Multi-sheet Excel (.xlsx) Financial & Data Analytics Engine",
+    "PowerPoint (.pptx) Slide Presentation Builder",
+    "Real-time Web Search & Multi-Step Literature Research with Citations",
+    "Vision OCR & Multimodal Image Analysis Engine",
+    "Autonomous In-App Alarms & Android Calendar System Sync",
+    "RAG Memory Bank & Global Context Retention"
+  ],
+  "help_center_url": "https://deepernova.com/help",
+  "troubleshooting_topics": [
+    {
+      "id": "cd-intro",
+      "category": "vibecoding",
+      "title": "Apa itu Agentic Vibe Coding di CodeDance IDE dan bagaimana cara kerjanya?"
+    },
+    {
+      "id": "cd-blank-preview",
+      "category": "vibecoding",
+      "title": "Solusi: Layar Live Preview kosong (blank) atau tidak merender di CodeDance IDE"
+    },
+    {
+      "id": "cd-multi-file",
+      "category": "vibecoding",
+      "title": "Cara mengelola proyek multi-berkas (HTML, CSS, JS, JSON) dan unduh ZIP di CodeDance"
+    },
+    {
+      "id": "img-create",
+      "category": "image",
+      "title": "Cara membuat gambar berkualitas ultra-HD (Text-to-Image) di Deepernova AI"
+    },
+    {
+      "id": "img-modding",
+      "category": "image",
+      "title": "Cara mengedit foto referensi (Image-to-Image Modding) dengan Vision AI"
+    },
+    {
+      "id": "img-nsfw-trouble",
+      "category": "image",
+      "title": "Solusi: Permintaan gambar ditolak atau menghasilkan pesan sensor/filter"
+    },
+    {
+      "id": "tpn-word-doc",
+      "category": "typernova",
+      "title": "Cara menyusun dokumen resmi Microsoft Word (.docx) lengkap dengan Bab dan Daftar Isi otomatis"
+    },
+    {
+      "id": "tpn-excel-sheets",
+      "category": "typernova",
+      "title": "Cara membuat lembar kerja Excel (.xlsx) dengan formula otomatis dan visual tabel"
+    },
+    {
+      "id": "tpn-ppt-slides",
+      "category": "typernova",
+      "title": "Cara membuat presentasi PowerPoint (.pptx) dengan tata letak visual modern"
+    },
+    {
+      "id": "mem-how-it-works",
+      "category": "memory",
+      "title": "Bagaimana cara kerja Memori Otonom AI Deepernova (CRUD Otomatis)?"
+    },
+    {
+      "id": "mem-delete-update",
+      "category": "memory",
+      "title": "Cara menghapus atau memperbarui memori yang sudah tidak relevan"
+    },
+    {
+      "id": "chat-models",
+      "category": "chatbot",
+      "title": "Model AI apa saja yang tersedia di Deepernova dan bagaimana memilihnya?"
+    },
+    {
+      "id": "chat-ocr-vision",
+      "category": "chatbot",
+      "title": "Cara memindai dokumen, teks gambar, dan struk belanja (Vision OCR)"
+    },
+    {
+      "id": "trouble-offline-guest",
+      "category": "troubleshooting",
+      "title": "Solusi: Chatbot lambat merespons atau muncul pesan \"Koneksi Terputus\""
+    },
+    {
+      "id": "trouble-alarm-sync",
+      "category": "troubleshooting",
+      "title": "Cara menggunakan fitur Alarm Mandiri dan sinkronisasi ke HP Android"
+    },
+    {
+      "id": "trouble-security",
+      "category": "troubleshooting",
+      "title": "Keamanan Data & Privasi: Apakah percakapan dan kode proyek saya aman di Deepernova?"
+    },
+    {
+      "id": "account-guest-vs-login",
+      "category": "account",
+      "title": "Perbedaan Mode Tamu (Guest Mode) dan Akun Terdaftar di Deepernova"
+    },
+    {
+      "id": "account-ceo-info",
+      "category": "account",
+      "title": "Siapa pendiri dan apa misi pengabdian Deepernova Corp?"
+    }
+  ],
+  "ceo_quote": "Deepernova adalah bentuk pengabdian kami kepada negara untuk misi membantu mencerdaskan anak bangsa, dan berupaya tetap memberikan AI gratis selamanya."
+}
