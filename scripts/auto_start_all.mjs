@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const SEARCH_DIR = 'F:\\deepernova-search-main';
+const SEARCH_DIR = fs.existsSync('C:\\deepernova-search-main') ? 'C:\\deepernova-search-main' : 'F:\\deepernova-search-main';
 
 const CLOUDFLARED_BIN = path.join(ROOT_DIR, 'bin', 'cloudflared.exe');
 
