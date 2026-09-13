@@ -847,10 +847,10 @@ const CodeBlockHolder = ({
   const hiddenLinesCount = Math.max(0, lineCount - 10);
 
   return (
-    <div className="modern-code-holder">
+    <div className="modern-code-holder" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#1e293b' }}>
       {/* Clean Top Header: Language on Left, Copy & Download Icons on Right */}
-      <div className="code-holder-header">
-        <span className="code-holder-lang-label">{langLabel}</span>
+      <div className="code-holder-header" style={{ background: '#ffffff', backgroundColor: '#ffffff' }}>
+        <span className="code-holder-lang-label" style={{ color: '#64748b' }}>{langLabel}</span>
         <div className="code-holder-actions">
           <button
             type="button"
@@ -886,9 +886,9 @@ const CodeBlockHolder = ({
       </div>
 
       {/* Code Body */}
-      <div className={`code-holder-body ${isCollapsed ? 'collapsed' : 'expanded'}`}>
-        <pre className={`modern-code-pre language-${language}`}>
-          <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+      <div className={`code-holder-body ${isCollapsed ? 'collapsed' : 'expanded'}`} style={{ background: '#ffffff', backgroundColor: '#ffffff' }}>
+        <pre className={`modern-code-pre language-${language}`} style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#1e293b' }}>
+          <code style={{ background: 'transparent', backgroundColor: 'transparent', color: '#1e293b' }} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
         </pre>
 
         {isCollapsed && hiddenLinesCount > 0 && (
