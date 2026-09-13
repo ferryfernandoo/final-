@@ -2,20 +2,10 @@
 const CLOUDFLARE_BACKEND_URL = 'https://concluded-kurt-charleston-harley.trycloudflare.com';
 
 const getApiBaseUrl = () => {
-  try {
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
-      return import.meta.env.VITE_API_URL;
-    }
-  } catch (e) {
-    // Ignore env access issues in non-Vite runtimes
-  }
-
-  // If in browser:
+  // 1. In browser, prioritize same-origin relative URL for known proxy hosts
+  // This leverages vercel.json rewrites so all requests are same-origin on Vercel deployments.
   if (typeof window !== 'undefined' && window.location) {
     const hostname = window.location.hostname;
-    // Localhost, 127.0.0.1, Vercel deployments (*.vercel.app), or production domains
-    // Using relative paths ('') leverages vercel.json rewrites so requests are same-origin.
-    // This completely eliminates CORS issues and ensures session cookies (connect.sid) persist flawlessly.
     if (
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
@@ -27,8 +17,18 @@ const getApiBaseUrl = () => {
     }
   }
 
-  // Fallback direct URL when loaded outside reverse-proxy domains
+  // 2. Custom environment override
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL;
+    }
+  } catch (e) {
+    // Ignore env access issues in non-Vite runtimes
+  }
+
+  // 3. Fallback direct URL when loaded outside reverse-proxy domains
   return CLOUDFLARE_BACKEND_URL;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
+
