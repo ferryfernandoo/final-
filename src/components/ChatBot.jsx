@@ -3471,7 +3471,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
         const recentMessages = updated
           .filter(m => m.text && m.sender)
-          .slice(-5)
+          .slice(-3)
           .map(m => ({
             role: m.sender === 'user' ? 'user' : 'assistant',
             content: m.text.substring(0, 300)

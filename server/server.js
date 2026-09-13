@@ -2499,13 +2499,27 @@ app.post('/api/chat', async (req, res) => {
     console.log('[DEBUG] Extracted userQuery:', userQuery.substring(0, 100));
 
     // 🧠 Model Token Context Optimization:
-    // Model context window is limited. Retain system messages (instructions, RAG, memory),
-    // and keep only the last 5 conversation messages (user & assistant).
+    // Maximize token savings: retain 1 consolidated system message,
+    // and keep only the last 3 conversation messages (user & assistant).
     const systemMsgs = messages.filter(m => m.role === 'system');
+    const consolidatedSystemMsgs = systemMsgs.length > 1 ? [systemMsgs[systemMsgs.length - 1]] : systemMsgs;
     const nonSystemMsgs = messages.filter(m => m.role !== 'system');
-    const recentNonSystemMsgs = nonSystemMsgs.slice(-5);
-    messages = [...systemMsgs, ...recentNonSystemMsgs];
-    console.log(`[CHAT CONTEXT OPTIMIZER] Preserved ${systemMsgs.length} system prompts + ${recentNonSystemMsgs.length} recent messages (capped at 5).`);
+    
+    // Cap past assistant messages length to 400 chars to avoid massive code blocks bloating context
+    const recentNonSystemMsgs = nonSystemMsgs.slice(-3).map((m, idx, arr) => {
+      // Don't truncate the latest message (which is being answered or is the final user prompt)
+      if (idx === arr.length - 1) return m;
+      if (m.role === 'assistant' && typeof m.content === 'string' && m.content.length > 400) {
+        return {
+          ...m,
+          content: m.content.substring(0, 400) + '... [ringkasan respon sebelumnya]'
+        };
+      }
+      return m;
+    });
+
+    messages = [...consolidatedSystemMsgs, ...recentNonSystemMsgs];
+    console.log(`[CHAT CONTEXT OPTIMIZER] Preserved ${consolidatedSystemMsgs.length} system prompt + ${recentNonSystemMsgs.length} recent messages (capped at 3 for max token saving).`);
 
     // Check if streaming is requested
     const shouldStream = req.body.stream === true;

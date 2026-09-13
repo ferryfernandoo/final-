@@ -918,20 +918,25 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
   const result = [];
   if (!Array.isArray(conversationHistory)) return result;
 
-  // Model token context is limited: keep only the last 5 messages, rely on long-term memory for the rest
-  const recentHistory = conversationHistory.slice(-5);
+  // Model token context is limited: keep only the last 3 messages to maximize token savings
+  const recentHistory = conversationHistory.slice(-3);
 
   for (let i = 0; i < recentHistory.length; i++) {
     const msg = recentHistory[i];
     if (!msg || msg.sender === 'system') continue;
 
     const role = (msg.sender === 'user' || msg.role === 'user') ? 'user' : 'assistant';
-    const text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim()) 
+    let text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim()) 
       ? msg.fullPrompt.trim() 
       : (typeof msg.text === 'string' ? msg.text.trim() : (typeof msg.content === 'string' ? msg.content.trim() : ''));
 
     // Skip empty messages (e.g. streaming placeholders with empty text)
     if (!text) continue;
+
+    // Compress past assistant messages if over 400 characters to save tokens
+    if (role === 'assistant' && text.length > 400) {
+      text = text.substring(0, 400) + '... [ringkasan respon sebelumnya]';
+    }
 
     // If this is the last message in history and it has the exact same text as the current message being sent,
     // skip it because the new user message will be appended with full formatting/images as the final message
