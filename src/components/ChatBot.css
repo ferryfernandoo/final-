@@ -2408,14 +2408,17 @@
 }
 
 .messages-container {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
   padding: 32px 48px 120px 48px; /* Add extra bottom padding for input on mobile */
   display: flex;
   flex-direction: column;
   gap: 28px;
-  background: #fffaf6;
-  scroll-behavior: auto;
+  background: #ffffff !important;
+  scroll-behavior: auto !important;
+  overscroll-behavior-y: contain !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 /* Stable bottom spacing used when generating an AI response */
@@ -7780,11 +7783,16 @@ pre.code-block code {
   }
 
   .messages-container {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
     width: 100%;
     max-width: 880px;
     margin: 0 auto;
     padding: 32px 24px;
     box-sizing: border-box;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .input-form {
@@ -10501,12 +10509,16 @@ pre.code-block code {
 
   /* Desktop Messages Container: Centered max-width for optimal reading */
   .messages-container {
-    flex: 1 !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
     width: 100% !important;
     max-width: 900px !important;
     margin: 0 auto !important;
     padding: 28px 24px !important;
     gap: 24px !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .message.user {
@@ -10580,7 +10592,12 @@ pre.code-block code {
   }
 
   .messages-container {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
     max-width: 1000px !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
 }
@@ -15238,8 +15255,13 @@ pre.code-block code {
 
   /* 2. Messages Container padding */
   .messages-container {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
     padding: 16px 14px 140px 14px !important;
     gap: 16px !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   /* 3. Header on Mobile - Clean, Spacious, Persis Screenshot */

@@ -4492,14 +4492,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       try {
         const distanceFromBottom = 
           messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-        const isAtBottom = distanceFromBottom < 80;
+        const isAtBottom = distanceFromBottom < 120;
         setIsScrolledUp(!isAtBottom);
 
-        // If the user manually scrolls away from bottom, pause auto-scroll
+        // If user is at or near the bottom, immediately release holdScroll
+        if (distanceFromBottom < 200) {
+          holdScrollRef.current = false;
+        }
+
+        // If the user manually scrolls far up, pause auto-scroll
         if (!programmaticScrollRef.current) {
-          if (isAtBottom) {
-            holdScrollRef.current = false;
-          } else if (distanceFromBottom > 150) {
+          if (distanceFromBottom > 250) {
             if (lazyScrollAnimRef.current) {
               cancelAnimationFrame(lazyScrollAnimRef.current);
               lazyScrollAnimRef.current = null;
@@ -4514,7 +4517,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const handleWheel = (_e) => {
       try {
         if (_e.deltaY < 0) {
-          // User scrolled up: immediately cancel lazy auto-scroll and respect their reading position
+          // User scrolled up: pause auto-scroll to respect their reading position
           if (lazyScrollAnimRef.current) {
             cancelAnimationFrame(lazyScrollAnimRef.current);
             lazyScrollAnimRef.current = null;
@@ -4522,8 +4525,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           holdScrollRef.current = true;
           setIsScrolledUp(true);
         } else if (_e.deltaY > 0) {
-          const atBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 60;
-          if (atBottom) {
+          // User scrolled down: immediately release holdScroll if near bottom or actively moving down
+          const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+          if (distanceFromBottom < 300) {
             holdScrollRef.current = false;
             setIsScrolledUp(false);
           }
@@ -7062,29 +7066,24 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Dedicated buttery-smooth lazy auto-scroll for streaming/generation without harsh jumps or jitter
   const smoothAutoScroll = (force = false) => {
+    // If user explicitly scrolled up to read earlier history, respect it unless forced
     if (holdScrollRef.current && !force) return;
     const scrollElement = document.querySelector('.messages-container');
     if (!scrollElement) return;
-
-    // Check distance from bottom
-    const distanceFromBottom = scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight;
-    // If user deliberately scrolled up to read previous messages (> 160px from bottom), respect their reading position
-    if (!force && distanceFromBottom > 160) {
-      return;
-    }
 
     const targetScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
     if (targetScrollTop <= 0) return;
 
     targetScrollTopRef.current = targetScrollTop;
 
-    // If an animation frame loop is already running, updating targetScrollTopRef is enough!
+    // If an animation frame loop is already running, updating targetScrollTopRef seamlessly glides to the new bottom!
     if (lazyScrollAnimRef.current) return;
 
     const animateLazyScroll = () => {
       const el = document.querySelector('.messages-container');
       if (!el || targetScrollTopRef.current === null) {
         lazyScrollAnimRef.current = null;
+        programmaticScrollRef.current = false;
         return;
       }
 
@@ -7092,16 +7091,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const target = targetScrollTopRef.current;
       const diff = target - current;
 
-      // Close enough to snap (< 1px), finish cleanly
-      if (Math.abs(diff) < 1) {
+      // Close enough to snap (< 1.5px), finish cleanly
+      if (Math.abs(diff) < 1.5) {
         el.scrollTop = target;
         lazyScrollAnimRef.current = null;
+        setTimeout(() => { programmaticScrollRef.current = false; }, 50);
         return;
       }
 
-      // Buttery smooth lazy damping factor (0.12 ~ 0.15)
-      // Gives a relaxed, continuous, organic glide without jitter
-      const step = diff * 0.13;
+      // Buttery smooth lazy damping factor
+      const step = diff * 0.16;
       programmaticScrollRef.current = true;
       el.scrollTop = current + step;
 
@@ -7112,19 +7111,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   };
 
   const scrollToBottom = (isImmediate = false) => {
-    // If we're holding scroll (e.g. just finished streaming), ignore further auto-scrolls
-    if (holdScrollRef.current && !isImmediate) return;
+    holdScrollRef.current = false;
 
     const scrollElement = document.querySelector('.messages-container');
+    const anchor = messagesEndRef.current;
     if (!scrollElement) return;
 
+    if (lazyScrollAnimRef.current) {
+      cancelAnimationFrame(lazyScrollAnimRef.current);
+      lazyScrollAnimRef.current = null;
+    }
+
     if (isImmediate) {
-      if (lazyScrollAnimRef.current) {
-        cancelAnimationFrame(lazyScrollAnimRef.current);
-        lazyScrollAnimRef.current = null;
-      }
       programmaticScrollRef.current = true;
-      scrollElement.scrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+      const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
+      scrollElement.scrollTop = maxScroll;
+      if (anchor && anchor.scrollIntoView) {
+        try {
+          anchor.scrollIntoView({ behavior: 'auto', block: 'end' });
+        } catch (_e) {}
+      }
       setTimeout(() => { programmaticScrollRef.current = false; }, 60);
     } else {
       smoothAutoScroll(true);
@@ -8366,11 +8372,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       // Scroll to bottom to reveal the completed AI response
       try {
-        // Hold auto-scroll briefly so view doesn't jump unexpectedly
-        holdScrollRef.current = true;
+        holdScrollRef.current = false;
         scrollToBottom(true);
-        setTimeout(() => scrollToBottom(true), 50);
-        setTimeout(() => { holdScrollRef.current = false; }, 1200);
+        setTimeout(() => scrollToBottom(true), 60);
       } catch (e) {
         console.log('Error scrolling after streaming:', e);
       }
