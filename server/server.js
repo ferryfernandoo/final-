@@ -138,7 +138,7 @@ initializeDatabase();
 
 // TokenMix chat API using llama-4-maverick by default (Text + Vision native)
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
-const DEFAULT_TOKENMIX_KEY = 'sk-tm-bZDt9Of46V8ted5xMpwO1H1dqhaMltjlKSMzGvqFMmaQltQT';
+const DEFAULT_TOKENMIX_KEY = 'sk-tm-I93vD7475ymXlRR8t1P9AHwQXfKicED1bOejduj2VT9ohUQV';
 const RAW_TOKENMIX_KEY = process.env.TOKENMIX_API_KEY || process.env.TOKENMIX_CHAT_API_KEY || process.env.VITE_TOKENMIX_API_KEY || DEFAULT_TOKENMIX_KEY;
 const TOKENMIX_API_KEY = sanitizeTokenKey(RAW_TOKENMIX_KEY);
 const TOKENMIX_API_KEYS = Array.from(new Set([TOKENMIX_API_KEY, DEFAULT_TOKENMIX_KEY].filter(Boolean)));
