@@ -2041,6 +2041,20 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const greetingGenerationRef = useRef(false);
   const finishedStreamingIdsRef = useRef(new Set());
 
+  // Auto focus greeting textarea when messages are empty
+  useEffect(() => {
+    if (messages.length === 0) {
+      const timer = setTimeout(() => {
+        if (textareaElementRef.current) {
+          try {
+            textareaElementRef.current.focus();
+          } catch (e) {}
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length, currentConversationId]);
+
   // True when any message is currently streaming or when sending/generating
   const isGenerating = useMemo(() => {
     if (isSendGenerating) return true;
@@ -10267,173 +10281,237 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
   };
 
-  const memoizedMessageList = useMemo(() => {
-    if (messages.length === 0) {
-      return (
-        <div className="meta-hero-empty-state">
-          {/* Top Title: Exactly matching Meta AI screenshot */}
-          <h1 className="meta-hero-heading">
-            Apa yang bisa saya lakukan untuk Anda?
-          </h1>
+  const renderEmptyHeroState = () => {
+    return (
+      <div className="meta-hero-empty-state">
+        {/* Top Title: Exactly matching Meta AI screenshot */}
+        <h1 className="meta-hero-heading">
+          {userLanguage === 'id' ? 'Apa yang bisa saya lakukan untuk Anda?' : 'What can I help you with today?'}
+        </h1>
 
-          {/* Central Floating Input Box (Exact Meta AI Style from screenshot) */}
-          <div className="meta-hero-input-container">
-            <textarea
-              ref={textareaElementRef}
-              className="meta-hero-textarea"
-              placeholder="Tanya Deepernova AI..."
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
+        {/* Central Floating Input Box (Exact Meta AI Style from screenshot) */}
+        <div 
+          className="meta-hero-input-container"
+          onClick={() => {
+            if (textareaElementRef.current) {
+              textareaElementRef.current.focus();
+            }
+          }}
+        >
+          <textarea
+            ref={(el) => {
+              textareaElementRef.current = el;
+              globalThis.heroTextareaRef = el;
+            }}
+            className="meta-hero-textarea"
+            placeholder={userLanguage === 'id' ? "Tanya Deepernova AI..." : "Ask Deepernova AI..."}
+            value={inputValue}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              scheduleTextareaResize(e.target);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.nativeEvent && e.nativeEvent.isComposing) return;
+                e.preventDefault();
+                if (inputValue.trim()) {
                   handleSendMessage(e);
                 }
-              }}
-              rows={1}
-            />
+              }
+            }}
+            disabled={false}
+            readOnly={false}
+            autoFocus
+            rows={1}
+            style={{ pointerEvents: 'auto', cursor: 'text' }}
+          />
 
-            <div className="meta-hero-toolbar">
-              <div className="meta-toolbar-left">
-                <button
-                  type="button"
-                  className="meta-hero-action-btn plus"
-                  onClick={() => {
-                    const fileInput = document.querySelector('.claude-file-input');
-                    if (fileInput) fileInput.click();
-                  }}
-                  title="Lampirkan file"
-                >
-                  <i className="fa-solid fa-plus"></i>
-                </button>
-              </div>
-
-              <div className="meta-toolbar-right">
-                <span className="meta-pill-instan">Instan</span>
-
-                <button
-                  type="button"
-                  className={`meta-hero-action-btn mic ${isSttListening ? 'listening' : ''}`}
-                  onClick={toggleSpeechToText}
-                  title="Bicara untuk ketik pesan"
-                >
-                  <i className="fa-solid fa-microphone"></i>
-                </button>
-
-                <button
-                  type="button"
-                  className={`meta-hero-send-btn ${inputValue.trim() ? 'active' : ''}`}
-                  onClick={(e) => {
-                    if (inputValue.trim()) handleSendMessage(e);
-                  }}
-                  disabled={!inputValue.trim()}
-                  title="Kirim pesan"
-                >
-                  <i className="fa-solid fa-arrow-up"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Prompt Chips (Exact 4 Chips from screenshot) */}
-          <div className="meta-prompt-chips-row">
-            <button
-              type="button"
-              className="meta-prompt-chip"
-              onClick={() => {
-                setInputValue('Coba Deepernova AI: jelaskan kemampuan dan keunggulanmu');
-                textareaElementRef.current?.focus();
-              }}
-            >
-              Coba Deepernova AI
-            </button>
-            <button
-              type="button"
-              className="meta-prompt-chip"
-              onClick={() => {
-                textareaElementRef.current?.focus();
-              }}
-            >
-              Tanyakan apa pun
-            </button>
-            <button
-              type="button"
-              className="meta-prompt-chip"
-              onClick={() => {
-                setInputValue('Ambil tindakan: bantu rencanakan strategi proyek saya hari ini');
-                textareaElementRef.current?.focus();
-              }}
-            >
-              Ambil tindakan
-            </button>
-            <button
-              type="button"
-              className="meta-prompt-chip"
-              onClick={() => {
-                setInputValue('Buatkan game neon clicker interaktif lengkap dengan HTML dan JavaScript');
-                textareaElementRef.current?.focus();
-              }}
-            >
-              Buat...
-            </button>
-          </div>
-
-          {/* 4 Suggestion Cards (Exact from user screenshot) */}
-          <div className="meta-suggestion-cards-grid">
-            <div
-              className="meta-suggestion-card"
-              onClick={() => {
-                setInputValue('Mari bermain peran seperti seorang ahli strategi AI dan mentor teknologi handal...');
-                textareaElementRef.current?.focus();
-              }}
-            >
-              <div className="meta-card-icon-circle">
-                <i className="fa-regular fa-face-smile"></i>
-              </div>
-              <div className="meta-card-label">Mari bermain peran seperti...</div>
+          <div className="meta-hero-toolbar">
+            <div className="meta-toolbar-left">
+              <button
+                type="button"
+                className="meta-hero-action-btn plus"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const fileInput = document.querySelector('.claude-file-input');
+                  if (fileInput) fileInput.click();
+                }}
+                title="Lampirkan file"
+              >
+                <i className="fa-solid fa-plus"></i>
+              </button>
             </div>
 
-            <div
-              className="meta-suggestion-card"
-              onClick={() => {
-                setInputValue('Jelaskan cara kerja chatbot AI dan arsitektur model bahasa secara sederhana');
-                textareaElementRef.current?.focus();
-              }}
-            >
-              <div className="meta-card-icon-circle">
-                <i className="fa-solid fa-list-check"></i>
-              </div>
-              <div className="meta-card-label">Jelaskan cara kerja chatbot AI</div>
-            </div>
+            <div className="meta-toolbar-right">
+              <span className="meta-pill-instan">Instan</span>
 
-            <div
-              className="meta-suggestion-card"
-              onClick={() => {
-                setInputValue('Buat rencana lari untuk pemula bertahap selama 4 minggu');
-                textareaElementRef.current?.focus();
-              }}
-            >
-              <div className="meta-card-icon-circle">
-                <i className="fa-solid fa-person-running"></i>
-              </div>
-              <div className="meta-card-label">Buat rencana lari untuk pemula</div>
-            </div>
+              <button
+                type="button"
+                className={`meta-hero-action-btn mic ${isSttListening ? 'listening' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSpeechToText();
+                }}
+                title="Bicara untuk ketik pesan"
+              >
+                <i className="fa-solid fa-microphone"></i>
+              </button>
 
-            <div
-              className="meta-suggestion-card"
-              onClick={() => {
-                setInputValue('Buatkan game neon clicker interaktif lengkap dengan HTML, CSS, JavaScript, dan toko upgrade');
-                textareaElementRef.current?.focus();
-              }}
-            >
-              <div className="meta-card-icon-circle">
-                <i className="fa-solid fa-code"></i>
-              </div>
-              <div className="meta-card-label">Buatkan aplikasi web interaktif</div>
+              <button
+                type="button"
+                className={`meta-hero-send-btn ${inputValue.trim() ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (inputValue.trim()) handleSendMessage(e);
+                }}
+                disabled={!inputValue.trim()}
+                title="Kirim pesan"
+              >
+                <i className="fa-solid fa-arrow-up"></i>
+              </button>
             </div>
           </div>
         </div>
-      );
+
+        {/* Quick Prompt Chips (Exact 4 Chips from screenshot) */}
+        <div className="meta-prompt-chips-row">
+          <button
+            type="button"
+            className="meta-prompt-chip"
+            onClick={() => {
+              setInputValue('Coba Deepernova AI: jelaskan kemampuan dan keunggulanmu');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            Coba Deepernova AI
+          </button>
+          <button
+            type="button"
+            className="meta-prompt-chip"
+            onClick={() => {
+              textareaElementRef.current?.focus();
+            }}
+          >
+            Tanyakan apa pun
+          </button>
+          <button
+            type="button"
+            className="meta-prompt-chip"
+            onClick={() => {
+              setInputValue('Ambil tindakan: bantu rencanakan strategi proyek saya hari ini');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            Ambil tindakan
+          </button>
+          <button
+            type="button"
+            className="meta-prompt-chip"
+            onClick={() => {
+              setInputValue('Buatkan game neon clicker interaktif lengkap dengan HTML dan JavaScript');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            Buat...
+          </button>
+        </div>
+
+        {/* 4 Suggestion Cards (Exact from user screenshot) */}
+        <div className="meta-suggestion-cards-grid">
+          <div
+            className="meta-suggestion-card"
+            onClick={() => {
+              setInputValue('Mari bermain peran seperti seorang ahli strategi AI dan mentor teknologi handal...');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            <div className="meta-card-icon-circle">
+              <i className="fa-regular fa-face-smile"></i>
+            </div>
+            <div className="meta-card-label">Mari bermain peran seperti...</div>
+          </div>
+
+          <div
+            className="meta-suggestion-card"
+            onClick={() => {
+              setInputValue('Jelaskan cara kerja chatbot AI dan arsitektur model bahasa secara sederhana');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            <div className="meta-card-icon-circle">
+              <i className="fa-solid fa-list-check"></i>
+            </div>
+            <div className="meta-card-label">Jelaskan cara kerja chatbot AI</div>
+          </div>
+
+          <div
+            className="meta-suggestion-card"
+            onClick={() => {
+              setInputValue('Buat rencana lari untuk pemula bertahap selama 4 minggu');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            <div className="meta-card-icon-circle">
+              <i className="fa-solid fa-person-running"></i>
+            </div>
+            <div className="meta-card-label">Buat rencana lari untuk pemula</div>
+          </div>
+
+          <div
+            className="meta-suggestion-card"
+            onClick={() => {
+              setInputValue('Buatkan game neon clicker interaktif lengkap dengan HTML, CSS, JavaScript, dan toko upgrade');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            <div className="meta-card-icon-circle">
+              <i className="fa-solid fa-code"></i>
+            </div>
+            <div className="meta-card-label">Buatkan aplikasi web interaktif</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const memoizedMessageList = useMemo(() => {
+    if (messages.length === 0) {
+      return null;
     }
 
     return messages.map((message, index) => {
@@ -12144,7 +12222,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           </div>
         )}
 
-        {memoizedMessageList}
+        {messages.length === 0 ? renderEmptyHeroState() : memoizedMessageList}
 
         {loading && (isGenerating || getConvLoading()) && loadingPhase && !messages.some(msg => msg.sender === 'bot' && (msg.isStreaming || msg.isThinking || msg.isRecallingMemory || msg.isSearching)) && (
           <div className="message bot loading">

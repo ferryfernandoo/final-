@@ -14785,6 +14785,9 @@ pre.code-block code {
   box-sizing: border-box !important;
   animation: heroFadeIn 0.3s ease-out !important;
   width: 100% !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 10 !important;
 }
 
 @keyframes heroFadeIn {
@@ -14816,6 +14819,10 @@ pre.code-block code {
   display: flex !important;
   flex-direction: column !important;
   gap: 12px !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 15 !important;
+  cursor: text !important;
 }
 
 .meta-hero-input-container:focus-within {
@@ -14836,11 +14843,76 @@ pre.code-block code {
   font-family: inherit !important;
   line-height: 1.5 !important;
   padding: 0 !important;
+  pointer-events: auto !important;
+  cursor: text !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .meta-hero-textarea::placeholder {
   color: #9ca3af !important;
   font-weight: 400 !important;
+}
+
+/* Dark theme meta-hero overrides */
+.dark-theme .meta-hero-heading,
+.dark-mode .meta-hero-heading,
+[data-theme='dark'] .meta-hero-heading {
+  color: #f3f4f6 !important;
+}
+
+.dark-theme .meta-hero-input-container,
+.dark-mode .meta-hero-input-container,
+[data-theme='dark'] .meta-hero-input-container {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark-theme .meta-hero-textarea,
+.dark-mode .meta-hero-textarea,
+[data-theme='dark'] .meta-hero-textarea {
+  color: #f9fafb !important;
+}
+
+.dark-theme .meta-hero-textarea::placeholder,
+.dark-mode .meta-hero-textarea::placeholder,
+[data-theme='dark'] .meta-hero-textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+.dark-theme .meta-hero-action-btn,
+.dark-mode .meta-hero-action-btn,
+[data-theme='dark'] .meta-hero-action-btn {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #d1d5db !important;
+}
+
+.dark-theme .meta-pill-instan,
+.dark-mode .meta-pill-instan,
+[data-theme='dark'] .meta-pill-instan {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+
+.dark-theme .meta-prompt-chip,
+.dark-mode .meta-prompt-chip,
+[data-theme='dark'] .meta-prompt-chip {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+
+.dark-theme .meta-suggestion-card,
+.dark-mode .meta-suggestion-card,
+[data-theme='dark'] .meta-suggestion-card {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  color: #e4e4e7 !important;
 }
 
 .meta-hero-toolbar {
