@@ -11702,86 +11702,65 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       )}
 
       {/* Sidebar */}
+      {/* Ultra-Minimalist Modern Sidebar */}
       <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
-          <div className="sidebar-title">
-            <div 
-              className="sidebar-brand-wrapper" 
-              onClick={() => onNavigate?.('landing')}
-              style={{ cursor: 'pointer' }}
-              title="Kembali ke Beranda / Landing Page"
-            >
-              <img src="/logo.png" alt="Deepernova AI" className="sidebar-brand-logo" />
-              <div className="sidebar-brand-text">
-                <h3>Deepernova AI</h3>
-                <p className="sidebar-subtitle">indonesian ai research</p>
-              </div>
-            </div>
+          <div 
+            className="sidebar-brand-wrapper" 
+            onClick={() => onNavigate?.('landing')}
+            title="Kembali ke Beranda"
+          >
+            <img src="/logo.png" alt="Deepernova AI" className="sidebar-brand-logo" />
+            <span className="sidebar-brand-name">Deepernova</span>
           </div>
           
-          {/* API & Pricing Buttons */}
-
-
-          <div className="sidebar-header-actions">
-
-
-            <button
-              className="sidebar-close-btn"
-              onClick={() => setSidebarOpen(false)}
-              title="Close sidebar"
-            >
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={() => setSidebarOpen(false)}
+            title="Tutup sidebar"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+            </svg>
+          </button>
         </div>
 
-        {/* Action Shortcuts (Screenshot 1 style) */}
-        <div className="sidebar-shortcuts-section">
+        {/* Primary New Chat Button (Linear/Claude style) */}
+        <div className="sidebar-action-wrap">
           <button 
             type="button" 
-            className="sidebar-shortcut-row"
+            className="sidebar-new-chat-btn"
             onClick={createNewConversation}
             title="Mulai percakapan baru (Ctrl+Shift+O)"
           >
-            <div className="shortcut-left">
-              <i className="fa-solid fa-plus"></i>
+            <div className="new-chat-left">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
               <span>{userLanguage === 'id' ? 'Obrolan baru' : 'New chat'}</span>
             </div>
-            <span className="shortcut-pill">Ctrl+Shift+O</span>
-          </button>
-
-          <button 
-            type="button" 
-            className="sidebar-shortcut-row"
-            onClick={() => {
-              const input = document.querySelector('.sidebar-search-input');
-              if (input) input.focus();
-            }}
-            title="Cari riwayat (Ctrl+K)"
-          >
-            <div className="shortcut-left">
-              <i className="fa-solid fa-magnifying-glass"></i>
-              <span>{userLanguage === 'id' ? 'Cari obrolan' : 'Search chats'}</span>
-            </div>
-            <span className="shortcut-pill">Ctrl+K</span>
+            <kbd className="new-chat-kbd">Ctrl+Shift+O</kbd>
           </button>
         </div>
 
-        {/* Sidebar Nav Items: Media, Artefak, Dijadwalkan, Vibes */}
-        <div className="sidebar-nav-section">
+        {/* Minimal Quick Links */}
+        <div className="sidebar-quick-links">
           <button 
             type="button"
-            className="sidebar-nav-item"
+            className="quick-link-btn"
             onClick={() => setShowSavedImagesGallery(true)}
             title="Media & Galeri AI"
           >
-            <i className="fa-regular fa-image" style={{ color: '#ea580c' }}></i>
+            <i className="fa-regular fa-image"></i>
             <span>Media</span>
           </button>
 
           <button 
             type="button"
-            className="sidebar-nav-item"
+            className="quick-link-btn"
             onClick={() => {
               if (latestAiMessage && (latestAiMessage.text.includes('```') || latestAiMessage.text.includes('<!DOCTYPE html>'))) {
                 setShowAgenticPanel(true);
@@ -11792,54 +11771,43 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             }}
             title="Artefak & Kode"
           >
-            <i className="fa-solid fa-layer-group" style={{ color: '#ea580c' }}></i>
+            <i className="fa-solid fa-layer-group"></i>
             <span>Artefak</span>
           </button>
 
           <button 
             type="button"
-            className="sidebar-nav-item"
-            onClick={() => {
-              showAlert(userLanguage === 'id' ? 'Pengingat & Jadwal aktif dapat diatur langsung di obrolan.' : 'Reminders & schedules can be set directly in chat.', 'info', 3000);
-            }}
-            title="Pengingat & Tugas Terjadwal"
-          >
-            <i className="fa-regular fa-calendar-check" style={{ color: '#ea580c' }}></i>
-            <span>Dijadwalkan</span>
-          </button>
-
-          <button 
-            type="button"
-            className="sidebar-nav-item"
+            className="quick-link-btn"
             onClick={() => onNavigate?.('universe')}
             title="Deepernova Universe & Vibes"
           >
-            <i className="fa-solid fa-wand-magic-sparkles" style={{ color: '#ea580c' }}></i>
+            <i className="fa-solid fa-wand-magic-sparkles"></i>
             <span>Vibes</span>
           </button>
+        </div>
+
+        {/* Inline Minimal Search */}
+        <div className="sidebar-inline-search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            className="sidebar-search-input"
+            placeholder={userLanguage === 'id' ? "Cari obrolan..." : "Search chats..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="clear-search-btn" onClick={() => setSearchQuery('')}>✕</button>
+          )}
         </div>
 
         {/* Section Header: Riwayat */}
         <div className="sidebar-section-title">
           <span>{userLanguage === 'id' ? 'Riwayat' : 'History'}</span>
           <span className="section-count">{conversations.filter(c => !c.isPrivate).length}</span>
-        </div>
-
-        {/* Search bar inside sidebar */}
-        <div className="sidebar-search-container">
-          <div className="sidebar-search-wrapper">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              className="sidebar-search-input"
-              placeholder={userLanguage === 'id' ? "Cari riwayat pesan..." : "Search chat history..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button className="clear-search-btn" onClick={() => setSearchQuery('')}>✕</button>
-            )}
-          </div>
         </div>
 
         {searchQuery.trim() ? (
@@ -11985,11 +11953,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       </div>
 
-      {/* Sidebar backdrop for mobile */}
-      <div 
-        className={`sidebar-backdrop ${sidebarOpen ? '' : 'closed'}`}
-        onClick={() => setSidebarOpen(false)}
-      />
+      {/* Sidebar backdrop for mobile only when open */}
+      {sidebarOpen && (
+        <div 
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Main chat area */}
       <div className="chatbot-container">
@@ -12586,13 +12556,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               onPaste={handlePaste}
               placeholder={
                 isTokenUsageLimited()
-                  ? (userLanguage === 'id' ? "🔒 Maaf, token penggunaan Anda telah habis..." : "🔒 Sorry, token usage limit reached...")
-                  : getConvLoading()
-                    ? (userLanguage === 'id' ? "Sedang merespons..." : "Generating response...")
-                    : (userLanguage === 'id' ? "Tanya Deepernova AI..." : "Ask Deepernova AI...")
+                  ? (userLanguage === 'id' ? "🔒 Token penggunaan telah habis (tunggu reset)..." : "🔒 Token limit reached (waiting for reset)...")
+                  : (userLanguage === 'id' ? "Tanya Deepernova AI..." : "Ask Deepernova AI...")
               }
-              disabled={getConvLoading() || isTokenUsageLimited()}
-              className={`message-input ${getConvLoading() ? 'generating' : ''} ${isTokenUsageLimited() ? 'token-disabled' : ''}`}
+              disabled={false}
+              className="message-input"
               rows="1"
             />
           </div>
