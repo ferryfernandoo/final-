@@ -3024,6 +3024,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const charIndexRef = useRef(0);
   const holdScrollRef = useRef(false);
   const programmaticScrollRef = useRef(false);
+  const lastScrollTickRef = useRef(0);
   const abortControllerRef = useRef(null);
   const abortControllersMapRef = useRef(new Map()); // Per-conversation abort controllers
   const isUserStoppedRef = useRef(false); // Tracks explicit user stop action to prevent retry loops
@@ -7032,32 +7033,61 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     return <>{result}</>;
   };
 
+  // Dedicated smooth auto-scroll for streaming/generation without harsh jumps
+  const smoothAutoScroll = (force = false) => {
+    if (holdScrollRef.current && !force) return;
+    const scrollElement = document.querySelector('.messages-container');
+    if (!scrollElement) return;
+
+    // Check distance from bottom
+    const distanceFromBottom = scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight;
+    // If user scrolled up to read previous messages (> 160px from bottom), respect their reading position
+    if (!force && distanceFromBottom > 160) {
+      return;
+    }
+
+    const targetScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+    if (targetScrollTop <= 0) return;
+
+    programmaticScrollRef.current = true;
+    setTimeout(() => { programmaticScrollRef.current = false; }, 90);
+
+    try {
+      scrollElement.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+      });
+    } catch (_e) {
+      scrollElement.scrollTop = targetScrollTop;
+    }
+  };
+
   const scrollToBottom = (isImmediate = false) => {
     // If we're holding scroll (e.g. just finished streaming), ignore further auto-scrolls
-    if (holdScrollRef.current) return;
+    if (holdScrollRef.current && !isImmediate) return;
 
     const scrollElement = document.querySelector('.messages-container');
     const anchor = messagesEndRef.current;
 
     const performScroll = () => {
-      // Mark that we're doing a programmatic scroll so the scroll handler won't treat it as user input
       programmaticScrollRef.current = true;
-      // Clear the flag shortly after to resume normal detection
       setTimeout(() => { programmaticScrollRef.current = false; }, 120);
       if (scrollElement) {
         try {
-          // Force scroll ke paling bawah ultimate
           const maxScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
-          scrollElement.scrollTop = maxScrollTop + 9999; // Force extra untuk pastikan mentok
-          scrollElement.scrollTo({ top: maxScrollTop + 9999, behavior: 'auto' });
+          if (isImmediate) {
+            scrollElement.scrollTop = maxScrollTop;
+          } else {
+            scrollElement.scrollTo({ top: maxScrollTop, behavior: 'smooth' });
+          }
         } catch (err) {
           console.log('Scroll error:', err);
         }
       }
 
-      if (anchor && anchor.scrollIntoView) {
+      if (anchor && isImmediate && anchor.scrollIntoView) {
         try {
-          anchor.scrollIntoView({ behavior: 'auto', block: 'end', inline: 'nearest' });
+          anchor.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
         } catch (err) {
           console.log('Scroll into view error:', err);
         }
@@ -7068,13 +7098,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     if (isImmediate) {
       performScroll();
+      requestAnimationFrame(performScroll);
     } else {
-      setTimeout(performScroll, 0);
+      performScroll();
     }
-
-    setTimeout(performScroll, 10);
-    setTimeout(performScroll, 50);
-    requestAnimationFrame(performScroll);
   };
 
   // Handle scroll to bottom button click
@@ -8096,6 +8123,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         }
 
         if (updated) {
+          // Smooth auto-scroll while generating if user is near bottom
+          const now = Date.now();
+          if (now - lastScrollTickRef.current > 75) {
+            lastScrollTickRef.current = now;
+            smoothAutoScroll();
+          }
+
           // When stream is done AND display has caught up, mark as NOT streaming anymore
           const stillFlushing = displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length;
           const streamingFlag = streamDone ? stillFlushing : true;
@@ -9143,6 +9177,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 
                 displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
                 
+                const now = Date.now();
+                if (now - lastScrollTickRef.current > 75) {
+                  lastScrollTickRef.current = now;
+                  smoothAutoScroll();
+                }
+                
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === messageId
@@ -9725,6 +9765,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   ? Math.max(20, Math.ceil(diff / 3))
                   : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
                 displayedRecallText += finalResponseText.substr(displayedRecallText.length, step);
+
+                const now = Date.now();
+                if (now - lastScrollTickRef.current > 75) {
+                  lastScrollTickRef.current = now;
+                  smoothAutoScroll();
+                }
 
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -11895,7 +11941,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             )}
             <div className="sidebar-profile-details">
               <div className="sidebar-profile-name" title={user?.name || (userLanguage === 'id' ? 'Pengguna Guest' : 'Guest User')}>
-                {user?.name || (userLanguage === 'id' ? 'Pengguna Guest' : 'Guest User')}
+                <span className="sidebar-profile-status-dot" title="Online"></span>
+                <span>{user?.name || (userLanguage === 'id' ? 'Pengguna Guest' : 'Guest User')}</span>
               </div>
               <div className="sidebar-profile-email" title={user?.email || 'local-ai@deepernova'}>
                 {user?.email || 'local-ai@deepernova'}

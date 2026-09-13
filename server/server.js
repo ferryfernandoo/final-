@@ -398,11 +398,11 @@ app.use(
     name: 'connect.sid', // Explicitly set cookie name
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production' && !process.env.ALLOW_HTTP_COOKIE,
+      secure: 'auto', // Automatically sets secure to true if connection or forwarded proto is HTTPS
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: 'lax', // lax allows same-site navigation and cross-device LAN
+      sameSite: process.env.COOKIE_SAMESITE || 'lax', // Compatible with same-site and proxied requests
       path: '/', // Ensure cookie is available on all paths
-      domain: undefined // Let browser determine domain (important for localhost)
+      domain: undefined // Let browser determine domain (important for localhost and proxy)
     }
   })
 );
