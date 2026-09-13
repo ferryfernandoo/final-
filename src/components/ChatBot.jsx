@@ -3044,6 +3044,15 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const holdScrollRef = useRef(false);
   const programmaticScrollRef = useRef(false);
   const lastScrollTickRef = useRef(0);
+
+  const stopGlide = () => {
+    if (lazyScrollAnimRef.current) {
+      cancelAnimationFrame(lazyScrollAnimRef.current);
+      lazyScrollAnimRef.current = null;
+    }
+    targetScrollTopRef.current = null;
+    programmaticScrollRef.current = false;
+  };
   const abortControllerRef = useRef(null);
   const abortControllersMapRef = useRef(new Map()); // Per-conversation abort controllers
   const isUserStoppedRef = useRef(false); // Tracks explicit user stop action to prevent retry loops
@@ -4499,19 +4508,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const isAtBottom = distanceFromBottom < 120;
         setIsScrolledUp(!isAtBottom);
 
-        // If user is at or near the bottom, immediately release holdScroll
-        if (distanceFromBottom < 200) {
+        // If user is at or near the bottom, release holdScroll
+        if (distanceFromBottom < 160) {
           holdScrollRef.current = false;
         }
 
-        // If the user manually scrolls far up, pause auto-scroll
+        // If user manually scrolled with scrollbar or touch without active RAF
         if (!programmaticScrollRef.current) {
-          if (distanceFromBottom > 250) {
-            if (lazyScrollAnimRef.current) {
-              cancelAnimationFrame(lazyScrollAnimRef.current);
-              lazyScrollAnimRef.current = null;
-            }
-          }
+          stopGlide();
         }
       } catch (_err) {
         console.log('Scroll handler error:', _err);
@@ -4520,18 +4524,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     const handleWheel = (_e) => {
       try {
+        // ALWAYS kill any auto-scroll animation immediately when user scrolls wheel
+        stopGlide();
+
         if (_e.deltaY < 0) {
-          // User scrolled up: pause auto-scroll to respect their reading position
-          if (lazyScrollAnimRef.current) {
-            cancelAnimationFrame(lazyScrollAnimRef.current);
-            lazyScrollAnimRef.current = null;
-          }
+          // User scrolled up: pause auto-scroll to respect reading position
           holdScrollRef.current = true;
           setIsScrolledUp(true);
         } else if (_e.deltaY > 0) {
-          // User scrolled down: immediately release holdScroll if near bottom or actively moving down
+          // User scrolled down: release holdScroll if approaching bottom
           const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-          if (distanceFromBottom < 300) {
+          if (distanceFromBottom < 160) {
             holdScrollRef.current = false;
             setIsScrolledUp(false);
           }
@@ -4541,8 +4544,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     };
 
-    messagesContainer.addEventListener('scroll', handleScroll);
+    const handleUserInteraction = () => {
+      // User tapped or touched the container - immediately stop any active animation
+      stopGlide();
+    };
+
+    messagesContainer.addEventListener('scroll', handleScroll, { passive: true });
     messagesContainer.addEventListener('wheel', handleWheel, { passive: true });
+    messagesContainer.addEventListener('pointerdown', handleUserInteraction, { passive: true });
+    messagesContainer.addEventListener('touchstart', handleUserInteraction, { passive: true });
     
     // Triple-click to jump to bottom
     const handleTripleClick = () => {
@@ -4576,6 +4586,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       try {
         messagesContainer.removeEventListener('scroll', handleScroll);
         messagesContainer.removeEventListener('wheel', handleWheel);
+        messagesContainer.removeEventListener('pointerdown', handleUserInteraction);
+        messagesContainer.removeEventListener('touchstart', handleUserInteraction);
         messagesContainer.removeEventListener('triple-click', handleTripleClick);
       } catch (_err) {
         console.log('Remove scroll listener error:', _err);
@@ -7155,18 +7167,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const target = targetScrollTopRef.current;
       const diff = target - current;
 
-      // When difference is tiny (< 0.8px), snap cleanly and come to a smooth full stop ("ngerem")
-      if (Math.abs(diff) < 0.8) {
+      // When difference is tiny (< 1px), snap cleanly and stop completely ("ngerem")
+      if (Math.abs(diff) < 1) {
         el.scrollTop = target;
         lazyScrollAnimRef.current = null;
-        setTimeout(() => { programmaticScrollRef.current = false; }, 60);
+        targetScrollTopRef.current = null;
+        setTimeout(() => { programmaticScrollRef.current = false; }, 40);
         return;
       }
 
       // Smooth exponential decay:
       // decay factor = 1 - Math.exp(-lambda * dt)
-      // lambda = 8.5 provides a soft, buttery initial glide and a realistic smooth deceleration ("ngerem")
-      const decay = 1 - Math.exp(-8.5 * dt);
+      // lambda = 8.0 provides a soft, buttery initial glide and a realistic smooth deceleration ("ngerem")
+      const decay = 1 - Math.exp(-8.0 * dt);
       const step = diff * decay;
 
       programmaticScrollRef.current = true;
@@ -7184,10 +7197,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const scrollElement = document.querySelector('.messages-container');
     if (!scrollElement) return;
 
-    if (lazyScrollAnimRef.current) {
-      cancelAnimationFrame(lazyScrollAnimRef.current);
-      lazyScrollAnimRef.current = null;
-    }
+    stopGlide();
 
     const target = getLastUserMessageTargetTop(scrollElement);
     if (target === null) {
@@ -7206,9 +7216,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
 
     if (isImmediate) {
-      programmaticScrollRef.current = true;
       scrollElement.scrollTop = target;
-      setTimeout(() => { programmaticScrollRef.current = false; }, 60);
     } else {
       glideToTarget(target);
     }
@@ -7221,10 +7229,35 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const scrollElement = document.querySelector('.messages-container');
     if (!scrollElement) return;
 
-    const targetScrollTop = getStreamingFollowTarget(scrollElement);
-    if (targetScrollTop === null || targetScrollTop === undefined) return;
+    const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
+    if (maxScroll <= 0) return;
 
-    glideToTarget(targetScrollTop);
+    const botMessages = scrollElement.querySelectorAll('.message.bot');
+    if (!botMessages || botMessages.length === 0) return;
+
+    const lastBotMsg = botMessages[botMessages.length - 1];
+    const containerRect = scrollElement.getBoundingClientRect();
+    const botRect = lastBotMsg.getBoundingClientRect();
+
+    // Bottom edge of bot message relative to container top
+    const botBottomRel = botRect.bottom - containerRect.top;
+    const visibleBottomLimit = scrollElement.clientHeight - 80;
+
+    // If bottom of bot message hasn't reached the bottom limit yet,
+    // DO NOT TOUCH THE SCROLL! Let the user keep their position!
+    if (botBottomRel <= visibleBottomLimit) {
+      return;
+    }
+
+    // Only when text exceeds the bottom, gently drift downward
+    const overflow = botBottomRel - visibleBottomLimit;
+    const neededScrollTop = scrollElement.scrollTop + overflow;
+    const targetScrollTop = Math.min(neededScrollTop, maxScroll);
+
+    // Only scroll downward if needed
+    if (targetScrollTop > scrollElement.scrollTop + 2) {
+      glideToTarget(targetScrollTop);
+    }
   };
 
   const scrollToBottom = (isImmediate = false) => {
@@ -7234,22 +7267,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const anchor = messagesEndRef.current;
     if (!scrollElement) return;
 
-    if (lazyScrollAnimRef.current) {
-      cancelAnimationFrame(lazyScrollAnimRef.current);
-      lazyScrollAnimRef.current = null;
-    }
+    stopGlide();
 
     const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
 
     if (isImmediate) {
-      programmaticScrollRef.current = true;
       scrollElement.scrollTop = maxScroll;
       if (anchor && anchor.scrollIntoView) {
         try {
           anchor.scrollIntoView({ behavior: 'auto', block: 'end' });
         } catch (_e) {}
       }
-      setTimeout(() => { programmaticScrollRef.current = false; }, 60);
     } else {
       glideToTarget(maxScroll);
     }
