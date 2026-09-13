@@ -3979,16 +3979,20 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     );
   }, [messages, currentConversationId]);
 
-  // Auto-scroll to bottom when conversation loads or messages change
+  const lastLoadedConversationIdRef = useRef(null);
+
+  // Auto-scroll to bottom only when a conversation is first loaded or switched
   useEffect(() => {
     if (!currentConversationId || messages.length === 0) return;
+    if (lastLoadedConversationIdRef.current === currentConversationId) return;
+    lastLoadedConversationIdRef.current = currentConversationId;
 
     const scrollTimer = setTimeout(() => {
       scrollToBottom(true);
     }, 100);
 
     return () => clearTimeout(scrollTimer);
-  }, [currentConversationId, messages.length]);
+  }, [currentConversationId]);
 
   // Preload external RAG index from public/rag_index.json when the app mounts
   useEffect(() => {
@@ -5541,8 +5545,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     };
     
     setMessages((prev) => [...prev, botMessage]);
-    currentMessageIdRef.current = placeholderId;
-    
+    // Scroll so edited user message glides to top
+    holdScrollRef.current = false;
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        try {
+          scrollToUserMessage(false);
+        } catch (err) {
+          console.log('Edit message scroll error:', err);
+        }
+      }, 35);
+    });
+
     // Start streaming
     streamingStartTimeRef.current = Date.now();
     
@@ -7064,22 +7078,69 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     return <>{result}</>;
   };
 
-  // Dedicated buttery-smooth lazy auto-scroll for streaming/generation without harsh jumps or jitter
-  const smoothAutoScroll = (force = false) => {
-    // If user explicitly scrolled up to read earlier history, respect it unless forced
-    if (holdScrollRef.current && !force) return;
-    const scrollElement = document.querySelector('.messages-container');
-    if (!scrollElement) return;
+  // Helper to accurately locate where the last user message should sit (at the top of view, with comfortable padding)
+  const getLastUserMessageTargetTop = (container) => {
+    if (!container) return null;
+    const userMessages = container.querySelectorAll('.message.user');
+    if (!userMessages || userMessages.length === 0) return null;
 
-    const targetScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
-    if (targetScrollTop <= 0) return;
+    const lastUserMsg = userMessages[userMessages.length - 1];
+    const containerRect = container.getBoundingClientRect();
+    const msgRect = lastUserMsg.getBoundingClientRect();
+
+    // Position user message ~18px below container's top boundary
+    const targetTop = container.scrollTop + (msgRect.top - containerRect.top) - 18;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+
+    return Math.max(0, Math.min(targetTop, maxScroll));
+  };
+
+  // Helper to calculate target scroll while streaming:
+  // - Anchors user message at top if response fits on screen
+  // - Gently glides down only when response exceeds the bottom boundary
+  const getStreamingFollowTarget = (container) => {
+    if (!container) return 0;
+    const userTargetTop = getLastUserMessageTargetTop(container);
+
+    const botMessages = container.querySelectorAll('.message.bot');
+    if (!botMessages || botMessages.length === 0) {
+      return userTargetTop !== null ? userTargetTop : Math.max(0, container.scrollHeight - container.clientHeight);
+    }
+
+    const lastBotMsg = botMessages[botMessages.length - 1];
+    const containerRect = container.getBoundingClientRect();
+    const botRect = lastBotMsg.getBoundingClientRect();
+
+    // Bottom edge of bot message relative to container top
+    const botBottomRel = botRect.bottom - containerRect.top;
+    // Keep 75px breathing space above input container
+    const visibleBottomLimit = container.clientHeight - 75;
+
+    if (botBottomRel <= visibleBottomLimit) {
+      // Everything fits comfortably on screen! Keep user message positioned at top.
+      return userTargetTop !== null ? userTargetTop : container.scrollTop;
+    }
+
+    // Response has expanded past viewport: smoothly scroll down just enough
+    const overflow = botBottomRel - visibleBottomLimit;
+    const neededScrollTop = container.scrollTop + overflow;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+
+    return Math.max(0, Math.min(neededScrollTop, maxScroll));
+  };
+
+  // Ultra-silky frame-independent glide engine with smooth exponential braking ("ngerem")
+  const glideToTarget = (targetScrollTop) => {
+    const scrollElement = document.querySelector('.messages-container');
+    if (!scrollElement || targetScrollTop === null || targetScrollTop === undefined) return;
 
     targetScrollTopRef.current = targetScrollTop;
 
-    // If an animation frame loop is already running, updating targetScrollTopRef seamlessly glides to the new bottom!
     if (lazyScrollAnimRef.current) return;
 
-    const animateLazyScroll = () => {
+    let lastTime = performance.now();
+
+    const animateGlide = (currentTime) => {
       const el = document.querySelector('.messages-container');
       if (!el || targetScrollTopRef.current === null) {
         lazyScrollAnimRef.current = null;
@@ -7087,27 +7148,83 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return;
       }
 
+      const dt = Math.min((currentTime - lastTime) / 1000, 0.05); // in seconds, capped at 50ms
+      lastTime = currentTime;
+
       const current = el.scrollTop;
       const target = targetScrollTopRef.current;
       const diff = target - current;
 
-      // Close enough to snap (< 1.5px), finish cleanly
-      if (Math.abs(diff) < 1.5) {
+      // When difference is tiny (< 0.8px), snap cleanly and come to a smooth full stop ("ngerem")
+      if (Math.abs(diff) < 0.8) {
         el.scrollTop = target;
         lazyScrollAnimRef.current = null;
-        setTimeout(() => { programmaticScrollRef.current = false; }, 50);
+        setTimeout(() => { programmaticScrollRef.current = false; }, 60);
         return;
       }
 
-      // Buttery smooth lazy damping factor
-      const step = diff * 0.16;
+      // Smooth exponential decay:
+      // decay factor = 1 - Math.exp(-lambda * dt)
+      // lambda = 8.5 provides a soft, buttery initial glide and a realistic smooth deceleration ("ngerem")
+      const decay = 1 - Math.exp(-8.5 * dt);
+      const step = diff * decay;
+
       programmaticScrollRef.current = true;
       el.scrollTop = current + step;
 
-      lazyScrollAnimRef.current = requestAnimationFrame(animateLazyScroll);
+      lazyScrollAnimRef.current = requestAnimationFrame(animateGlide);
     };
 
-    lazyScrollAnimRef.current = requestAnimationFrame(animateLazyScroll);
+    lazyScrollAnimRef.current = requestAnimationFrame(animateGlide);
+  };
+
+  // Scroll so the user message glides to the top of the chat area and gently brakes ("ngerem")
+  const scrollToUserMessage = (isImmediate = false) => {
+    holdScrollRef.current = false;
+    const scrollElement = document.querySelector('.messages-container');
+    if (!scrollElement) return;
+
+    if (lazyScrollAnimRef.current) {
+      cancelAnimationFrame(lazyScrollAnimRef.current);
+      lazyScrollAnimRef.current = null;
+    }
+
+    const target = getLastUserMessageTargetTop(scrollElement);
+    if (target === null) {
+      // If DOM node isn't mounted yet, retry briefly
+      setTimeout(() => {
+        const retryTarget = getLastUserMessageTargetTop(scrollElement);
+        if (retryTarget !== null) {
+          if (isImmediate) {
+            scrollElement.scrollTop = retryTarget;
+          } else {
+            glideToTarget(retryTarget);
+          }
+        }
+      }, 40);
+      return;
+    }
+
+    if (isImmediate) {
+      programmaticScrollRef.current = true;
+      scrollElement.scrollTop = target;
+      setTimeout(() => { programmaticScrollRef.current = false; }, 60);
+    } else {
+      glideToTarget(target);
+    }
+  };
+
+  // Dedicated buttery-smooth lazy auto-scroll for streaming/generation without harsh jumps or jitter
+  const smoothAutoScroll = (force = false) => {
+    // If user explicitly scrolled up to read earlier history, respect it unless forced
+    if (holdScrollRef.current && !force) return;
+    const scrollElement = document.querySelector('.messages-container');
+    if (!scrollElement) return;
+
+    const targetScrollTop = getStreamingFollowTarget(scrollElement);
+    if (targetScrollTop === null || targetScrollTop === undefined) return;
+
+    glideToTarget(targetScrollTop);
   };
 
   const scrollToBottom = (isImmediate = false) => {
@@ -7122,9 +7239,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       lazyScrollAnimRef.current = null;
     }
 
+    const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
+
     if (isImmediate) {
       programmaticScrollRef.current = true;
-      const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
       scrollElement.scrollTop = maxScroll;
       if (anchor && anchor.scrollIntoView) {
         try {
@@ -7133,7 +7251,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       setTimeout(() => { programmaticScrollRef.current = false; }, 60);
     } else {
-      smoothAutoScroll(true);
+      glideToTarget(maxScroll);
     }
   };
 
@@ -8061,15 +8179,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       abortControllersMapRef.current.set(currentConversationId, abortController);
     }
     
-    // SCROLL PERTAMA - langsung setelah user message ditambah
+    // SCROLL PERTAMA - luncurkan scroll halus agar chat user berada di paling atas lalu ngerem
     holdScrollRef.current = false;
-    setTimeout(() => {
-      try {
-        scrollToBottom(true);
-      } catch (err) {
-        console.log('Initial scroll error:', err);
-      }
-    }, 15);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        try {
+          scrollToUserMessage(false);
+        } catch (err) {
+          console.log('Initial scroll error:', err);
+        }
+      }, 35);
+    });
 
     try {
       // Send to Deepernova AI with conversation history for advanced context
