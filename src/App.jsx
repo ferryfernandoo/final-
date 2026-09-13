@@ -129,9 +129,12 @@ function App() {
       if (path === '/chat' || hash === '#chat') return 'chat';
       if (path === '/universe' || hash === '#universe') return 'universe';
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
-      if (path === '/landing' || hash === '#landing') return 'landing';
+      if (path === '/landing' || hash === '#landing' || hash === '#home') return 'landing';
+      if (path === '/' || path === '') {
+        return isNativePlatform() ? 'chat' : 'landing';
+      }
     }
-    return 'chat';
+    return isNativePlatform() ? 'chat' : 'landing';
   };
 
   // On Native Capacitor (APK): open directly in 'chat' view (no landing page)
@@ -202,7 +205,7 @@ function App() {
       else if (path === '/chat' || hash === '#chat') setCurrentView('chat');
       else if (path === '/universe' || hash === '#universe') setCurrentView('universe');
       else if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') setCurrentView('office');
-      else if (path === '/' || hash === '#landing' || hash === '#home') setCurrentView('landing');
+      else if (path === '/' || path === '/landing' || hash === '#landing' || hash === '#home') setCurrentView(isNativePlatform() ? 'chat' : 'landing');
     };
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);

@@ -11963,6 +11963,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           <button 
             type="button"
             className="quick-link-btn"
+            onClick={() => onNavigate?.('landing')}
+            title={userLanguage === 'id' ? 'Beranda & Landing Page' : 'Home / Landing Page'}
+          >
+            <i className="fa-solid fa-house"></i>
+            <span>{userLanguage === 'id' ? 'Beranda' : 'Home'}</span>
+          </button>
+
+          <button 
+            type="button"
+            className="quick-link-btn"
             onClick={() => setShowSavedImagesGallery(true)}
             title="Media & Galeri AI"
           >
@@ -12178,13 +12188,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         {/* Modern Agentic Header (Screenshots 2 & 4 style, White & Orange) */}
         <div className={`chatbot-header modern-agentic-header ${messages.length === 0 ? 'empty-hero-header' : ''}`}>
           <div className="header-left-actions">
-            {messages.length > 0 && (
-              <div className="header-brand-logo-icon" title="Deepernova AI">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#ea580c" />
-                </svg>
-              </div>
-            )}
             <button
               type="button"
               className="header-dock-btn"
@@ -12196,6 +12199,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 <line x1="9" y1="3" x2="9" y2="21"></line>
               </svg>
             </button>
+            <div 
+              className="header-brand-logo-icon" 
+              onClick={() => onNavigate?.('landing')}
+              title={userLanguage === 'id' ? 'Kembali ke Beranda' : 'Return to Landing Page'}
+              style={{ cursor: 'pointer' }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#ea580c" />
+              </svg>
+            </div>
           </div>
 
           {messages.length > 0 && (
