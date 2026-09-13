@@ -2040,6 +2040,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const resizeFrameRef = useRef(null);
   const greetingGenerationRef = useRef(false);
   const finishedStreamingIdsRef = useRef(new Set());
+  const lazyScrollAnimRef = useRef(null);
+  const targetScrollTopRef = useRef(null);
 
   // Auto focus greeting textarea when messages are empty
   useEffect(() => {
@@ -2703,6 +2705,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     return () => {
       if (resizeFrameRef.current) {
         cancelAnimationFrame(resizeFrameRef.current);
+      }
+      if (lazyScrollAnimRef.current) {
+        cancelAnimationFrame(lazyScrollAnimRef.current);
       }
     };
   }, []);
@@ -4485,23 +4490,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     
     const handleScroll = () => {
       try {
-        // If the scroll was triggered programmatically, don't treat it as a user interaction
-        if (programmaticScrollRef.current) return;
-
-        const isAtBottom = 
-          messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
+        const distanceFromBottom = 
+          messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+        const isAtBottom = distanceFromBottom < 80;
         setIsScrolledUp(!isAtBottom);
-        // Toggle compact view: when at bottom keep compact, when user scrolls up show full history
-        setCompactView(isAtBottom);
 
-        // If the user manually scrolls, allow auto-scrolls again and remove the prefill spacer
-        if (holdScrollRef.current) {
-          holdScrollRef.current = false;
-        }
-        try {
-          messagesContainer.classList.remove('prefill-space');
-        } catch (_e) {
-          // ignore
+        // If the user manually scrolls away from bottom, pause auto-scroll
+        if (!programmaticScrollRef.current) {
+          if (isAtBottom) {
+            holdScrollRef.current = false;
+          } else if (distanceFromBottom > 150) {
+            if (lazyScrollAnimRef.current) {
+              cancelAnimationFrame(lazyScrollAnimRef.current);
+              lazyScrollAnimRef.current = null;
+            }
+          }
         }
       } catch (_err) {
         console.log('Scroll handler error:', _err);
@@ -4510,10 +4513,20 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     const handleWheel = (_e) => {
       try {
-        // If user scrolls up while in compact view, expand to full history
-        if (compactView && _e.deltaY < 0) {
-          setCompactView(false);
-          // Don't force scroll position - let user stay where they scrolled to
+        if (_e.deltaY < 0) {
+          // User scrolled up: immediately cancel lazy auto-scroll and respect their reading position
+          if (lazyScrollAnimRef.current) {
+            cancelAnimationFrame(lazyScrollAnimRef.current);
+            lazyScrollAnimRef.current = null;
+          }
+          holdScrollRef.current = true;
+          setIsScrolledUp(true);
+        } else if (_e.deltaY > 0) {
+          const atBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 60;
+          if (atBottom) {
+            holdScrollRef.current = false;
+            setIsScrolledUp(false);
+          }
         }
       } catch (_err) {
         // ignore
@@ -7047,7 +7060,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     return <>{result}</>;
   };
 
-  // Dedicated smooth auto-scroll for streaming/generation without harsh jumps
+  // Dedicated buttery-smooth lazy auto-scroll for streaming/generation without harsh jumps or jitter
   const smoothAutoScroll = (force = false) => {
     if (holdScrollRef.current && !force) return;
     const scrollElement = document.querySelector('.messages-container');
@@ -7055,7 +7068,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     // Check distance from bottom
     const distanceFromBottom = scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight;
-    // If user scrolled up to read previous messages (> 160px from bottom), respect their reading position
+    // If user deliberately scrolled up to read previous messages (> 160px from bottom), respect their reading position
     if (!force && distanceFromBottom > 160) {
       return;
     }
@@ -7063,17 +7076,39 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const targetScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
     if (targetScrollTop <= 0) return;
 
-    programmaticScrollRef.current = true;
-    setTimeout(() => { programmaticScrollRef.current = false; }, 90);
+    targetScrollTopRef.current = targetScrollTop;
 
-    try {
-      scrollElement.scrollTo({
-        top: targetScrollTop,
-        behavior: 'smooth'
-      });
-    } catch (_e) {
-      scrollElement.scrollTop = targetScrollTop;
-    }
+    // If an animation frame loop is already running, updating targetScrollTopRef is enough!
+    if (lazyScrollAnimRef.current) return;
+
+    const animateLazyScroll = () => {
+      const el = document.querySelector('.messages-container');
+      if (!el || targetScrollTopRef.current === null) {
+        lazyScrollAnimRef.current = null;
+        return;
+      }
+
+      const current = el.scrollTop;
+      const target = targetScrollTopRef.current;
+      const diff = target - current;
+
+      // Close enough to snap (< 1px), finish cleanly
+      if (Math.abs(diff) < 1) {
+        el.scrollTop = target;
+        lazyScrollAnimRef.current = null;
+        return;
+      }
+
+      // Buttery smooth lazy damping factor (0.12 ~ 0.15)
+      // Gives a relaxed, continuous, organic glide without jitter
+      const step = diff * 0.13;
+      programmaticScrollRef.current = true;
+      el.scrollTop = current + step;
+
+      lazyScrollAnimRef.current = requestAnimationFrame(animateLazyScroll);
+    };
+
+    lazyScrollAnimRef.current = requestAnimationFrame(animateLazyScroll);
   };
 
   const scrollToBottom = (isImmediate = false) => {
@@ -7081,40 +7116,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (holdScrollRef.current && !isImmediate) return;
 
     const scrollElement = document.querySelector('.messages-container');
-    const anchor = messagesEndRef.current;
-
-    const performScroll = () => {
-      programmaticScrollRef.current = true;
-      setTimeout(() => { programmaticScrollRef.current = false; }, 120);
-      if (scrollElement) {
-        try {
-          const maxScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
-          if (isImmediate) {
-            scrollElement.scrollTop = maxScrollTop;
-          } else {
-            scrollElement.scrollTo({ top: maxScrollTop, behavior: 'smooth' });
-          }
-        } catch (err) {
-          console.log('Scroll error:', err);
-        }
-      }
-
-      if (anchor && isImmediate && anchor.scrollIntoView) {
-        try {
-          anchor.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
-        } catch (err) {
-          console.log('Scroll into view error:', err);
-        }
-      }
-    };
-
-    if (!scrollElement && !anchor) return;
+    if (!scrollElement) return;
 
     if (isImmediate) {
-      performScroll();
-      requestAnimationFrame(performScroll);
+      if (lazyScrollAnimRef.current) {
+        cancelAnimationFrame(lazyScrollAnimRef.current);
+        lazyScrollAnimRef.current = null;
+      }
+      programmaticScrollRef.current = true;
+      scrollElement.scrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+      setTimeout(() => { programmaticScrollRef.current = false; }, 60);
     } else {
-      performScroll();
+      smoothAutoScroll(true);
     }
   };
 
@@ -8043,32 +8056,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
     
     // SCROLL PERTAMA - langsung setelah user message ditambah
-    // Ensure auto-scroll isn't being held
     holdScrollRef.current = false;
     setTimeout(() => {
       try {
-        const scrollEl = document.querySelector('.messages-container');
-        const msgEl = document.querySelector(`[data-msg-id="${userMessageForChat.id}"]`);
-        if (msgEl && scrollEl) {
-          // Add large spacer so the area below appears empty for generation
-          try { scrollEl.classList.add('prefill-space'); } catch (_e) {
-            // ignore
-          }
-          // Align the new user message to the top of the viewport so the empty area appears below
-          msgEl.scrollIntoView({ behavior: 'auto', block: 'start' });
-          // Clamp scrollTop so we don't exceed available scroll range
-          const maxTop = scrollEl.scrollHeight - scrollEl.clientHeight;
-          if (scrollEl.scrollTop > maxTop) scrollEl.scrollTop = maxTop;
-        } else {
-          // Fallback to force-bottom if element not found
-          scrollToBottom(true);
-          setTimeout(() => scrollToBottom(true), 10);
-        }
+        scrollToBottom(true);
       } catch (err) {
         console.log('Initial scroll error:', err);
-        scrollToBottom(true);
       }
-    }, 0);
+    }, 15);
 
     try {
       // Send to Deepernova AI with conversation history for advanced context
@@ -8077,19 +8072,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const streamingConversationId = currentConversationId;
       
       const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass);
-
-      // Process streaming response - do NOT start local simulated streaming
-      // Keep the placeholder and show the empty area below the user's message.
-      // Add prefill-space to indicate the area reserved for the AI response
-      const scrollElForPrefill = document.querySelector('.messages-container');
-      if (scrollElForPrefill) {
-        try {
-          scrollElForPrefill.classList.add('prefill-space');
-          // Do NOT call scrollToBottom here — keep the viewport so the empty area is visible
-        } catch (e) {
-          console.log('Error adding prefill-space:', e);
-        }
-      }
 
       // Declare accumulatedText and reasoning tracking variables
       let rawText = '';

@@ -2418,9 +2418,9 @@
   scroll-behavior: auto;
 }
 
-/* Temporary large bottom spacer used when initiating a new AI response */
+/* Stable bottom spacing used when generating an AI response */
 .messages-container.prefill-space {
-  padding-bottom: 40vh;
+  padding-bottom: 32px !important;
 }
 
 .welcome-message {
@@ -2643,7 +2643,7 @@
 }
 
 .message.hidden-by-compact {
-  display: none;
+  display: flex !important;
 }
 
 /* Message container with execution UI separation */
