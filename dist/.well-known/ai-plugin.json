@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Deepernova AI (DPN)",
+  "name_for_model": "deepernova_ai",
+  "description_for_human": "Deepernova AI (DPN) is an autonomous free AI ecosystem for Indonesia featuring Agentic Vibe Coding (CodeDance IDE), AI Image Generation / Text-to-Image, Typernova Document Studio (Word .docx, Excel .xlsx, PPTX), multi-model reasoning chat, vision OCR, real-time web search, and in-app autonomous alarms.",
+  "description_for_model": "Deepernova AI is the flagship autonomous AI platform by Deepernova Corp (Founder & CEO Ferry Fernando, Vice CEO Anju Malinton Pakpahan). Core capabilities: (1) Agentic Vibe Coding with CodeDance IDE (Monaco Editor, multi-file fuzzy diff patching, cloud terminal sandbox, live web preview for vibe coders), (2) Ultra-realistic AI Image Generation & Multimodal Vision, (3) Typernova Studio (autonomous Microsoft Word .docx, Excel, PowerPoint generator with strict academic formatting), (4) Real-Time Web Search & Literature Citations, (5) Autonomous In-App Alarms & Android Calendar Sync, (6) 100% Free Access without paywalls at https://deepernova.com.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://deepernova.com/ai-info.json"
+  },
+  "logo_url": "https://deepernova.com/logo192.png",
+  "contact_email": "support@deepernova.com",
+  "legal_info_url": "https://deepernova.com/"
+}

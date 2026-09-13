@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+server/node_modules/
+.pnp
+.pnp.js
+
+# Environment files (SENSITIVE - NEVER COMMIT KEYS)
+.env
+.env.*
+!.env.example
+
+# Large binaries, media and archives
+*.zip
+*.rar
+*.apk
+*.mp4
+*.mkv
+*.avi
+*.tar.gz
+bin/
+server/*.rar
+server/*.zip
+server/*.mp4
+DeeperNovaAI-Portable.zip
+server.rar
+deepernova-ai.apk
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+server/*.db
+server/*.db-shm
+server/*.db-wal
+
+# Temporary & build files
+server/public/watermarked-*
+server/server/
+server/src/
+server/temp-files/
+server/cloud_sandboxes/
+server/temp_ppt/
+*.log
+tunnel-backend.log
+tunnel-frontend.log
+scratch/
+dist-electron/
+release/
+__pycache__/
+*.pyc
+
+# OS files
+Thumbs.db
+.DS_Store
