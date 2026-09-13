@@ -180,7 +180,39 @@ function updateConfigFiles(backendUrl, searchEngineUrl) {
     log.success('src/services/clientSearchService.js berhasil diperbarui.');
   }
 
-  // 5. Update vercel.json
+  // 5. Update src/components/LandingPage.jsx
+  const landingPagePath = path.join(ROOT_DIR, 'src', 'components', 'LandingPage.jsx');
+  if (fs.existsSync(landingPagePath)) {
+    let lpContent = fs.readFileSync(landingPagePath, 'utf8');
+    lpContent = lpContent.replace(
+      /:\s*'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
+      `: '${searchEngineUrl}');`
+    );
+    fs.writeFileSync(landingPagePath, lpContent, 'utf8');
+    log.success('src/components/LandingPage.jsx berhasil diperbarui.');
+  }
+
+  // 6. Update .env.production
+  const envProdPath = path.join(ROOT_DIR, '.env.production');
+  if (fs.existsSync(envProdPath)) {
+    let envProdContent = fs.readFileSync(envProdPath, 'utf8');
+    envProdContent = envProdContent.replace(
+      /VITE_DEEPERNOVA_SEARCH_API_URL=https:\/\/[^\s]+/g,
+      `VITE_DEEPERNOVA_SEARCH_API_URL=${searchEngineUrl}/api/v1`
+    );
+    envProdContent = envProdContent.replace(
+      /VITE_SEARCH_ENGINE_URL=https:\/\/[^\s]+/g,
+      `VITE_SEARCH_ENGINE_URL=${searchEngineUrl}`
+    );
+    envProdContent = envProdContent.replace(
+      /VITE_API_URL=https:\/\/[^\s]+/g,
+      `VITE_API_URL=${backendUrl}`
+    );
+    fs.writeFileSync(envProdPath, envProdContent, 'utf8');
+    log.success('.env.production berhasil diperbarui.');
+  }
+
+  // 7. Update vercel.json
   const vercelPath = path.join(ROOT_DIR, 'vercel.json');
   if (fs.existsSync(vercelPath)) {
     let vercelContent = fs.readFileSync(vercelPath, 'utf8');
