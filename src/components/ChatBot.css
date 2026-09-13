@@ -14658,98 +14658,301 @@ pre.code-block code {
   border-color: #c2410c !important;
 }
 
-/* 6. COLLAPSIBLE CODE BLOCKS (Screenshot 3 & 5 style) */
+/* 6. CLEAN MINIMALIST CODE BLOCKS (Meta AI Exact Replica) */
 .modern-code-holder {
-  border-radius: 12px !important;
+  margin: 14px 0 !important;
+  background: #ffffff !important;
   border: 1px solid #e5e7eb !important;
-  background: #1e1e1e !important;
-  margin: 12px 0 !important;
+  border-radius: 14px !important;
   overflow: hidden !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  position: relative !important;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, Menlo, Consolas, monospace !important;
+  transition: border-color 0.15s ease !important;
 }
 
-.code-action-small-btn {
+.modern-code-holder:hover {
+  border-color: #d1d5db !important;
+}
+
+.code-holder-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px 16px 6px 16px !important;
+  background: transparent !important;
+  border-bottom: none !important;
+  user-select: none !important;
+}
+
+.code-holder-lang-label {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  letter-spacing: -0.01em !important;
+}
+
+.code-holder-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.code-icon-btn {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 5px !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  color: #e5e7eb !important;
-  font-size: 11.5px !important;
-  padding: 4px 8px !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
   border-radius: 6px !important;
+  color: #64748b !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease !important;
 }
 
-.code-action-small-btn:hover {
-  background: rgba(234, 88, 12, 0.25) !important;
-  border-color: #ea580c !important;
-  color: #ffedd5 !important;
+.code-icon-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.code-icon-btn:active {
+  transform: scale(0.92) !important;
+}
+
+.code-holder-body {
+  position: relative !important;
+  padding: 4px 16px 14px 16px !important;
 }
 
 .code-holder-body.collapsed {
-  max-height: 280px !important;
+  max-height: 220px !important;
   overflow: hidden !important;
-  position: relative !important;
 }
 
+.modern-code-pre {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  font-family: inherit !important;
+  font-size: 13.5px !important;
+  line-height: 1.62 !important;
+  color: #0f172a !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  word-wrap: normal !important;
+  tab-size: 2 !important;
+}
+
+.modern-code-pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+/* Syntax Highlighting Crisp Light Palette */
+.hl-keyword {
+  color: #9333ea !important; /* Rich Purple */
+  font-weight: 600 !important;
+}
+
+.hl-string {
+  color: #16a34a !important; /* Crisp Green */
+}
+
+.hl-comment {
+  color: #94a3b8 !important; /* Subtle Gray */
+  font-style: italic !important;
+}
+
+.hl-number {
+  color: #ea580c !important; /* Orange */
+}
+
+.hl-literal {
+  color: #dc2626 !important; /* Red */
+}
+
+.hl-builtin {
+  color: #2563eb !important; /* Blue */
+}
+
+.hl-tag {
+  color: #2563eb !important; /* Tag Blue */
+}
+
+.hl-attribute {
+  color: #d97706 !important; /* Amber */
+}
+
+.hl-property {
+  color: #0284c7 !important; /* Sky Blue */
+}
+
+.hl-selector {
+  color: #9333ea !important;
+}
+
+.hl-value {
+  color: #16a34a !important;
+}
+
+.hl-variable {
+  color: #0369a1 !important;
+}
+
+/* Collapsible Subtle Overlay & Expand Button */
 .code-fade-overlay {
   position: absolute !important;
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  height: 85px !important;
-  background: linear-gradient(to bottom, rgba(30, 30, 30, 0) 0%, rgba(30, 30, 30, 0.95) 100%) !important;
+  height: 65px !important;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 90%) !important;
   display: flex !important;
   align-items: flex-end !important;
-  justify-content: center !important;
-  padding-bottom: 12px !important;
+  justify-content: flex-start !important;
+  padding-left: 16px !important;
+  padding-bottom: 8px !important;
   cursor: pointer !important;
 }
 
-.code-expand-pill {
+.code-expand-text-btn {
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  padding: 6px 14px !important;
-  border-radius: 9999px !important;
-  background: #ea580c !important;
-  color: #ffffff !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
   border: none !important;
   cursor: pointer !important;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.45) !important;
-  transition: transform 0.15s ease, background-color 0.15s ease !important;
+  transition: color 0.15s ease, background 0.15s ease !important;
 }
 
-.code-expand-pill:hover {
-  transform: scale(1.03) !important;
-  background: #c2410c !important;
+.code-expand-text-btn:hover {
+  color: #0f172a !important;
+  background: #f1f5f9 !important;
+}
+
+.code-floating-expand-btn {
+  position: absolute !important;
+  right: 14px !important;
+  bottom: 10px !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #64748b !important;
+  cursor: pointer !important;
+  z-index: 5 !important;
+  transition: all 0.15s ease !important;
+}
+
+.code-floating-expand-btn:hover {
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  transform: scale(1.05) !important;
 }
 
 .code-collapse-footer {
   display: flex !important;
-  justify-content: center !important;
-  padding: 8px !important;
-  background: #181818 !important;
-  border-top: 1px solid #2d2d2d !important;
+  justify-content: flex-start !important;
+  padding: 2px 16px 10px 16px !important;
+  background: transparent !important;
+  border-top: none !important;
 }
 
 .code-collapse-btn {
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  background: none !important;
+  background: transparent !important;
   border: none !important;
-  color: #ea580c !important;
+  color: #64748b !important;
   font-size: 12px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   cursor: pointer !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  transition: color 0.15s ease, background 0.15s ease !important;
 }
 
 .code-collapse-btn:hover {
-  color: #f97316 !important;
+  color: #0f172a !important;
+  background: #f1f5f9 !important;
+}
+
+/* Dark Theme Support for Clean Code Blocks */
+[data-theme="dark"] .modern-code-holder,
+.dark-theme .modern-code-holder {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-theme="dark"] .code-holder-lang-label,
+.dark-theme .code-holder-lang-label,
+[data-theme="dark"] .code-icon-btn,
+.dark-theme .code-icon-btn {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .code-icon-btn:hover,
+.dark-theme .code-icon-btn:hover {
+  background: #27272a !important;
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .modern-code-pre,
+.dark-theme .modern-code-pre {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .code-fade-overlay,
+.dark-theme .code-fade-overlay {
+  background: linear-gradient(to bottom, rgba(24, 24, 27, 0) 0%, rgba(24, 24, 27, 0.95) 90%) !important;
+}
+
+[data-theme="dark"] .code-expand-text-btn,
+.dark-theme .code-expand-text-btn,
+[data-theme="dark"] .code-collapse-btn,
+.dark-theme .code-collapse-btn {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .code-expand-text-btn:hover,
+.dark-theme .code-expand-text-btn:hover,
+[data-theme="dark"] .code-collapse-btn:hover,
+.dark-theme .code-collapse-btn:hover {
+  color: #f3f4f6 !important;
+  background: #27272a !important;
+}
+
+[data-theme="dark"] .code-floating-expand-btn,
+.dark-theme .code-floating-expand-btn {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #d4d4d8 !important;
+}
+
+[data-theme="dark"] .code-floating-expand-btn:hover,
+.dark-theme .code-floating-expand-btn:hover {
+  background: #3f3f46 !important;
+  color: #ffffff !important;
 }
 
 /* 7. RESPONSIVENESS */

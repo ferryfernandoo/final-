@@ -703,7 +703,7 @@ const ReasoningSection = React.memo(({
   );
 });
 
-// Modern AI CodeBlockHolder component with Live Interactive Artifact Sandbox & Collapsible Code
+// Clean Minimalist CodeBlockHolder (Inspired by Meta AI) - Pure code, no preview clutter
 const CodeBlockHolder = ({
   code = '',
   language = 'plaintext',
@@ -713,29 +713,7 @@ const CodeBlockHolder = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const lineCount = code ? code.split('\n').length : 1;
-
-  // Detect if code is an interactive HTML artifact (e.g., game, web tool, interactive app)
-  const isHtmlArtifact = useMemo(() => {
-    const l = (language || '').toLowerCase();
-    if (['html', 'htm'].includes(l)) return true;
-    if (code.includes('<!DOCTYPE html>') || (code.includes('<html') && code.includes('</html>'))) return true;
-    if (code.includes('<canvas') && (code.includes('<script>') || code.includes('function') || code.includes('const '))) return true;
-    if (code.includes('<style>') && code.includes('<script>') && code.includes('<div')) return true;
-    return false;
-  }, [code, language]);
-
-  // Extract friendly title from HTML if available
-  const artifactTitle = useMemo(() => {
-    if (!isHtmlArtifact) return 'Kode Solusi';
-    const titleMatch = code.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (titleMatch && titleMatch[1]) return titleMatch[1].trim();
-    const h1Match = code.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-    if (h1Match && h1Match[1]) return h1Match[1].trim();
-    return 'Aplikasi Interaktif Deepernova';
-  }, [code, isHtmlArtifact]);
-
-  const [activeTab, setActiveTab] = useState(isHtmlArtifact ? 'preview' : 'code');
-  const [isCollapsed, setIsCollapsed] = useState(() => lineCount > 14);
+  const [isCollapsed, setIsCollapsed] = useState(() => lineCount > 12);
 
   const handleCopy = (e) => {
     e.stopPropagation();
@@ -771,12 +749,89 @@ const CodeBlockHolder = ({
     }
   };
 
+  const getLanguageLabel = (lang) => {
+    const l = (lang || '').trim().toLowerCase();
+    switch (l) {
+      case 'javascript':
+      case 'js':
+      case 'jsx':
+      case 'mjs':
+        return 'JavaScript';
+      case 'typescript':
+      case 'ts':
+      case 'tsx':
+        return 'TypeScript';
+      case 'python':
+      case 'py':
+      case 'python3':
+        return 'Python';
+      case 'html':
+      case 'htm':
+        return 'HTML';
+      case 'css':
+      case 'scss':
+      case 'sass':
+      case 'less':
+        return 'CSS';
+      case 'json':
+        return 'JSON';
+      case 'sql':
+      case 'mysql':
+      case 'postgres':
+      case 'postgresql':
+        return 'SQL';
+      case 'bash':
+      case 'sh':
+      case 'shell':
+      case 'zsh':
+        return 'Bash';
+      case 'php':
+        return 'PHP';
+      case 'java':
+        return 'Java';
+      case 'cpp':
+      case 'c++':
+        return 'C++';
+      case 'c':
+        return 'C';
+      case 'rust':
+      case 'rs':
+        return 'Rust';
+      case 'go':
+      case 'golang':
+        return 'Go';
+      case 'markdown':
+      case 'md':
+        return 'Markdown';
+      default:
+        return lang && lang !== 'plaintext' ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'Code';
+    }
+  };
+
+  const getFileExtension = (lang) => {
+    const l = (lang || '').toLowerCase();
+    if (['javascript', 'js', 'jsx', 'mjs'].includes(l)) return 'js';
+    if (['typescript', 'ts', 'tsx'].includes(l)) return 'ts';
+    if (['python', 'py'].includes(l)) return 'py';
+    if (['html', 'htm'].includes(l)) return 'html';
+    if (['css', 'scss', 'sass'].includes(l)) return 'css';
+    if (['json'].includes(l)) return 'json';
+    if (['sql'].includes(l)) return 'sql';
+    if (['bash', 'sh', 'shell'].includes(l)) return 'sh';
+    if (['php'].includes(l)) return 'php';
+    if (['java'].includes(l)) return 'java';
+    if (['cpp', 'c++'].includes(l)) return 'cpp';
+    if (['c'].includes(l)) return 'c';
+    if (['rust'].includes(l)) return 'rs';
+    if (['go'].includes(l)) return 'go';
+    return 'txt';
+  };
+
   const handleDownload = (e) => {
     e.stopPropagation();
-    const ext = isHtmlArtifact ? 'html' : language === 'javascript' || language === 'js' ? 'js' : language === 'python' || language === 'py' ? 'py' : 'txt';
-    const cleanName = (artifactTitle || 'deepernova_artifact').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30);
-    const filename = `${cleanName}.${ext}`;
-    const blob = new Blob([code], { type: isHtmlArtifact ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8' });
+    const ext = getFileExtension(language);
+    const filename = `code_${Date.now()}.${ext}`;
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -787,281 +842,87 @@ const CodeBlockHolder = ({
     URL.revokeObjectURL(url);
   };
 
-  const handleOpenCodeDance = (e) => {
-    e.stopPropagation();
-    sessionStorage.setItem('codedance_auto_task_prompt', code);
-    localStorage.setItem('codedance_auto_task_prompt', code);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('navigate-app', { detail: 'codedance' }));
-    }
-  };
-
-  const handleOpenNewWindow = (e) => {
-    e.stopPropagation();
-    const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-  };
-
+  const langLabel = getLanguageLabel(language);
   const highlightedHtml = highlightCode(code, language);
+  const hiddenLinesCount = Math.max(0, lineCount - 10);
 
-  const getLanguageBadge = (lang) => {
-    const l = (lang || '').toLowerCase();
-    switch (l) {
-      case 'javascript':
-      case 'js':
-      case 'jsx':
-      case 'mjs':
-        return { label: 'JavaScript', icon: 'fa-brands fa-js', color: '#f7df1e' };
-      case 'typescript':
-      case 'ts':
-      case 'tsx':
-        return { label: 'TypeScript', icon: 'fa-solid fa-code', color: '#3178c6' };
-      case 'python':
-      case 'py':
-      case 'python3':
-        return { label: 'Python', icon: 'fa-brands fa-python', color: '#38bdf8' };
-      case 'html':
-      case 'htm':
-        return { label: 'HTML', icon: 'fa-brands fa-html5', color: '#ea580c' };
-      case 'css':
-      case 'scss':
-      case 'sass':
-      case 'less':
-        return { label: 'CSS', icon: 'fa-brands fa-css3-alt', color: '#38bdf8' };
-      case 'json':
-        return { label: 'JSON', icon: 'fa-solid fa-code', color: '#fbbf24' };
-      case 'sql':
-      case 'mysql':
-      case 'postgres':
-      case 'postgresql':
-      case 'sqlite':
-        return { label: 'SQL', icon: 'fa-solid fa-database', color: '#60a5fa' };
-      case 'bash':
-      case 'sh':
-      case 'shell':
-      case 'zsh':
-      case 'terminal':
-        return { label: 'Bash', icon: 'fa-solid fa-terminal', color: '#4ade80' };
-      case 'php':
-        return { label: 'PHP', icon: 'fa-brands fa-php', color: '#a78bfa' };
-      case 'java':
-        return { label: 'Java', icon: 'fa-brands fa-java', color: '#fb923c' };
-      case 'c':
-      case 'cpp':
-      case 'c++':
-        return { label: 'C++', icon: 'fa-solid fa-code', color: '#60a5fa' };
-      case 'rust':
-      case 'rs':
-        return { label: 'Rust', icon: 'fa-brands fa-rust', color: '#f87171' };
-      case 'go':
-      case 'golang':
-        return { label: 'Go', icon: 'fa-brands fa-golang', color: '#38bdf8' };
-      case 'markdown':
-      case 'md':
-        return { label: 'Markdown', icon: 'fa-brands fa-markdown', color: '#94a3b8' };
-      default:
-        return { label: (lang || 'code').toUpperCase(), icon: 'fa-solid fa-code', color: '#ea580c' };
-    }
-  };
-
-  const badge = getLanguageBadge(language);
-  const hiddenLinesCount = Math.max(0, lineCount - 12);
-
-  // 1. If this is an interactive HTML artifact (e.g. Neon Clicker Game)
-  if (isHtmlArtifact) {
-    return (
-      <div className="agentic-artifact-card">
-        {/* Artifact Top Bar */}
-        <div className="artifact-card-header">
-          <div className="artifact-header-left">
-            <span className="artifact-status-pulse"></span>
-            <span className="artifact-badge">ARTEFAK LANGSUNG</span>
-            <span className="artifact-title-text" title={artifactTitle}>{artifactTitle}</span>
-          </div>
-
-          <div className="artifact-header-right">
-            <div className="artifact-tab-switch">
-              <button
-                type="button"
-                className={`artifact-tab-btn ${activeTab === 'preview' ? 'active' : ''}`}
-                onClick={() => setActiveTab('preview')}
-                title="Pratinjau Langsung"
-              >
-                <i className="fa-solid fa-play"></i>
-                <span>Pratinjau</span>
-              </button>
-              <button
-                type="button"
-                className={`artifact-tab-btn ${activeTab === 'code' ? 'active' : ''}`}
-                onClick={() => setActiveTab('code')}
-                title="Lihat Kode"
-              >
-                <i className="fa-solid fa-code"></i>
-                <span>Kode</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              className="artifact-icon-btn"
-              onClick={handleOpenNewWindow}
-              title="Buka di tab baru"
-            >
-              <i className="fa-solid fa-arrow-up-right-from-square"></i>
-            </button>
-          </div>
-        </div>
-
-        {/* Artifact Body */}
-        <div className="artifact-card-body">
-          {activeTab === 'preview' ? (
-            <div className="artifact-preview-viewport">
-              <iframe
-                title={artifactTitle}
-                srcDoc={code}
-                sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
-                className="artifact-live-iframe"
-                loading="lazy"
-              />
-            </div>
-          ) : (
-            <div className={`artifact-code-viewport ${isCollapsed ? 'collapsed' : 'expanded'}`}>
-              <pre className="modern-code-pre language-html">
-                <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-              </pre>
-              {isCollapsed && hiddenLinesCount > 0 && (
-                <div className="code-fade-overlay" onClick={() => setIsCollapsed(false)}>
-                  <button type="button" className="code-expand-pill">
-                    <i className="fa-solid fa-chevron-down"></i>
-                    <span>{hiddenLinesCount} baris disembunyikan (Tampilkan selengkapnya)</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Artifact Footer Actions */}
-        <div className="artifact-card-footer">
-          <div className="artifact-footer-info">
-            <span className="artifact-file-pill">
-              <i className="fa-brands fa-html5" style={{ color: '#ea580c' }}></i>
-              <span>index.html</span>
-            </span>
-            <span className="artifact-file-meta">{lineCount} baris • {(new Blob([code]).size / 1024).toFixed(1)} KB</span>
-          </div>
-
-          <div className="artifact-footer-actions">
-            <button
-              type="button"
-              className="artifact-action-btn secondary"
-              onClick={handleCopy}
-              title="Salin kode"
-            >
-              <i className={copied ? "fa-solid fa-check" : "fa-regular fa-copy"}></i>
-              <span>{copied ? 'Tersalin!' : 'Salin'}</span>
-            </button>
-
-            <button
-              type="button"
-              className="artifact-action-btn secondary"
-              onClick={handleDownload}
-              title="Unduh file HTML"
-            >
-              <i className="fa-solid fa-download"></i>
-              <span>Unduh</span>
-            </button>
-
-            <button
-              type="button"
-              className="artifact-action-btn primary"
-              onClick={handleOpenCodeDance}
-              title="Buka di CodeDance Autonomous IDE"
-            >
-              <i className="fa-solid fa-bolt"></i>
-              <span>Buka di CodeDance</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 2. Regular Code Block with collapsible lines & white-orange styling
   return (
     <div className="modern-code-holder">
-      {/* Sleek Top Header Bar */}
+      {/* Clean Top Header: Language on Left, Copy & Download Icons on Right */}
       <div className="code-holder-header">
-        <div className="code-holder-left">
-          <div className="code-mac-dots">
-            <span className="mac-dot mac-dot-red"></span>
-            <span className="mac-dot mac-dot-yellow"></span>
-            <span className="mac-dot mac-dot-green"></span>
-          </div>
-          <div className="code-lang-tag">
-            <i className={badge.icon} style={{ color: badge.color, fontSize: '13px' }}></i>
-            <span className="code-lang-name">{badge.label}</span>
-            <span className="code-lines-count">{lineCount} {lineCount === 1 ? 'baris' : 'baris'}</span>
-          </div>
-          {isIncomplete && (
-            <div className="code-streaming-badge">
-              <span className="streaming-pulse-dot"></span>
-              <span>menghasilkan...</span>
-            </div>
-          )}
-        </div>
-        <div className="code-holder-right">
-          <button 
+        <span className="code-holder-lang-label">{langLabel}</span>
+        <div className="code-holder-actions">
+          <button
             type="button"
-            className="code-action-small-btn"
-            onClick={handleDownload}
-            title="Unduh file"
-          >
-            <i className="fa-solid fa-download"></i>
-            <span>Unduh</span>
-          </button>
-          <button 
-            type="button"
-            className={`code-copy-btn ${copied ? 'copied' : ''}`}
+            className="code-icon-btn"
             onClick={handleCopy}
-            title="Salin kode ke clipboard"
+            title={copied ? "Tersalin!" : "Salin kode"}
           >
             {copied ? (
-              <>
-                <i className="fa-solid fa-check" style={{ color: '#ea580c' }}></i>
-                <span style={{ color: '#ea580c', fontWeight: 600 }}>Tersalin!</span>
-              </>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             ) : (
-              <>
-                <i className="fa-regular fa-copy"></i>
-                <span>Salin kode</span>
-              </>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
             )}
+          </button>
+
+          <button
+            type="button"
+            className="code-icon-btn"
+            onClick={handleDownload}
+            title="Unduh kode"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Code Body with Collapsible feature */}
+      {/* Code Body */}
       <div className={`code-holder-body ${isCollapsed ? 'collapsed' : 'expanded'}`}>
         <pre className={`modern-code-pre language-${language}`}>
           <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
         </pre>
+
         {isCollapsed && hiddenLinesCount > 0 && (
           <div className="code-fade-overlay" onClick={() => setIsCollapsed(false)}>
-            <button type="button" className="code-expand-pill">
-              <i className="fa-solid fa-chevron-down"></i>
-              <span>{hiddenLinesCount} baris disembunyikan (Tampilkan selengkapnya)</span>
+            <button type="button" className="code-expand-text-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              <span>{hiddenLinesCount} baris disembunyikan</span>
             </button>
           </div>
         )}
+
+        {isCollapsed && lineCount > 10 && (
+          <button
+            type="button"
+            className="code-floating-expand-btn"
+            onClick={() => setIsCollapsed(false)}
+            title="Tampilkan semua baris"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      {!isCollapsed && lineCount > 14 && (
+      {!isCollapsed && lineCount > 10 && (
         <div className="code-collapse-footer">
           <button type="button" className="code-collapse-btn" onClick={() => setIsCollapsed(true)}>
-            <i className="fa-solid fa-chevron-up"></i>
-            <span>Ciutkan kode</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+            <span>Sembunyikan baris</span>
           </button>
         </div>
       )}
