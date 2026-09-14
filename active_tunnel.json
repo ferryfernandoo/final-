@@ -1,11 +1,11 @@
 {
-  "backendUrl": "https://frequent-crm-agreement-chicken.trycloudflare.com",
+  "backendUrl": "https://boost-avon-peripherals-technician.trycloudflare.com",
   "frontendUrl": "https://nam-ben-brothers-strict.trycloudflare.com",
-  "searchEngineUrl": "https://dan-groove-informed-suggest.trycloudflare.com",
+  "searchEngineUrl": "https://campaigns-mixed-institutions-trips.trycloudflare.com",
   "backendPort": 3001,
   "frontendPort": 5174,
   "searchEnginePort": 3000,
   "isFixed": true,
   "status": "LIVE",
-  "updatedAt": "2026-09-14T00:05:19.717Z"
+  "updatedAt": "2026-09-14T00:08:01.544Z"
 }

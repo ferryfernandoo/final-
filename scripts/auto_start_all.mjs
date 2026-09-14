@@ -35,16 +35,36 @@ const log = {
   title: (msg) => console.log(`\n\x1b[35m=====================================================\x1b[0m\n\x1b[1m\x1b[37m${msg}\x1b[0m\n\x1b[35m=====================================================\x1b[0m\n`)
 };
 
-async function checkPortOpen(port, timeoutMs = 2000) {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`http://127.0.0.1:${port}/`, { signal: controller.signal });
-    clearTimeout(id);
-    return true;
-  } catch {
-    return false;
+import net from 'node:net';
+
+async function checkPortOpen(port, timeoutMs = 1500) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let isConnected = false;
+    socket.setTimeout(timeoutMs);
+    socket.on('connect', () => {
+      isConnected = true;
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on('error', () => {
+      resolve(false);
+    });
+    socket.connect(port, '127.0.0.1');
+  });
+}
+
+async function waitForPort(port, maxWaitMs = 15000) {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    if (await checkPortOpen(port)) return true;
+    await new Promise((r) => setTimeout(r, 500));
   }
+  return false;
 }
 
 function startProcess(command, args, cwd, name) {
@@ -54,7 +74,7 @@ function startProcess(command, args, cwd, name) {
     stdio: 'ignore',
     detached: true,
     windowsHide: true,
-    shell: false
+    shell: true
   });
   child.unref();
   return child;
@@ -239,8 +259,13 @@ async function main() {
   const searchOpen = await checkPortOpen(3000);
   if (!searchOpen) {
     startProcess('node', ['src/server.js'], SEARCH_DIR, 'Deepernova Search Engine (Port 3000)');
-    // Tunggu boot
-    await new Promise((r) => setTimeout(r, 4000));
+    log.info('Menunggu Search Engine siap di port 3000...');
+    const ready = await waitForPort(3000, 15000);
+    if (ready) {
+      log.success('Search Engine siap di port 3000.');
+    } else {
+      log.warn('Search Engine memerlukan waktu lebih lama untuk inisialisasi.');
+    }
   } else {
     log.success('Search Engine sudah aktif di port 3000.');
   }
@@ -249,8 +274,13 @@ async function main() {
   const backendOpen = await checkPortOpen(3001);
   if (!backendOpen) {
     startProcess('node', ['server/server.js'], ROOT_DIR, 'Deepernova Backend Server (Port 3001)');
-    // Tunggu boot
-    await new Promise((r) => setTimeout(r, 4000));
+    log.info('Menunggu Backend Server siap di port 3001...');
+    const ready = await waitForPort(3001, 15000);
+    if (ready) {
+      log.success('Backend Server siap di port 3001.');
+    } else {
+      log.warn('Backend Server memerlukan waktu lebih lama untuk inisialisasi.');
+    }
   } else {
     log.success('Backend Server sudah aktif di port 3001.');
   }
@@ -307,6 +337,21 @@ async function main() {
   console.log(`- 🔍 Search Engine Public API : ${searchEngineUrl}/api/v1/search`);
   console.log(`- 🧠 AI Backend Public URL    : ${backendUrl}`);
   console.log(`- 🌐 Vercel Front-End Login   : Siap digunakan (otomatis terhubung via proxy rewrite)\n`);
+  console.log('📌 Tekan Ctrl+C di jendela ini untuk mematikan semua service sekaligus.\n');
+
+  // Bersihkan subprocess ketika master dihentikan
+  const cleanup = () => {
+    log.info('Mematikan semua service Deepernova...');
+    try {
+      execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' });
+    } catch {}
+    process.exit(0);
+  };
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+
+  // Keep process alive indefinitely
+  setInterval(() => {}, 1000 * 60 * 60);
 }
 
 main().catch((err) => {
