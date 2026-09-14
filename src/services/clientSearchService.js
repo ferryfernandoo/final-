@@ -8,7 +8,7 @@ export const API_BASE_URL =
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:3000/api/v1'
-    : 'https://campaigns-mixed-institutions-trips.trycloudflare.com/api/v1');
+    : 'https://cohen-reel-dayton-either.trycloudflare.com/api/v1');
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 
