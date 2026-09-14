@@ -293,12 +293,14 @@ async function main() {
   // Step 6: Git commit & push otomatis ke GitHub
   log.info('Menyinkronkan ke GitHub & Vercel...');
   try {
-    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js active_tunnel.json dist/ .env', { cwd: ROOT_DIR, stdio: 'inherit' });
-    execSync('git commit -m "auto-deploy: sync active cloudflare tunnels and vercel rewrites"', { cwd: ROOT_DIR, stdio: 'inherit' });
+    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs', { cwd: ROOT_DIR, stdio: 'inherit' });
+    try {
+      execSync('git commit -m "auto-deploy: sync active cloudflare tunnels, landing page and vercel rewrites"', { cwd: ROOT_DIR, stdio: 'inherit' });
+    } catch {}
     execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
     log.success('Berhasil push ke GitHub! Vercel akan otomatis aktif beberapa detik lagi.');
   } catch (err) {
-    log.warn('Catatan git: Tidak ada perubahan atau push selesai.');
+    log.warn(`Catatan git: ${err.message || 'Push selesai.'}`);
   }
 
   log.title('✨ SEMUA LAYANAN SUDAH AKTIF & TERKONFIGURASI OTOMATIS!');
