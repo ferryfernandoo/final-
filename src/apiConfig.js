@@ -1,5 +1,5 @@
 // Cloudflare Tunnel backend URL (live proxy target)
-const CLOUDFLARE_BACKEND_URL = 'https://berlin-formats-instrument-sheer.trycloudflare.com';
+const CLOUDFLARE_BACKEND_URL = 'https://utah-low-reaction-admitted.trycloudflare.com';
 
 const getApiBaseUrl = () => {
   // 1. In browser, prioritize same-origin relative URL for known proxy hosts
