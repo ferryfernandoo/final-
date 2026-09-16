@@ -1,14 +1,40 @@
 import React, { useState } from 'react';
 import './LandingPage.css';
 
-const SEARCH_ENGINE_URL = 
-  import.meta.env?.VITE_SEARCH_ENGINE_URL || 
+const normalizeExternalUrl = (value) => {
+  if (!value || typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+};
+
+const SEARCH_ENGINE_URL =
+  normalizeExternalUrl(import.meta.env?.VITE_SEARCH_ENGINE_URL) ||
+  normalizeExternalUrl(import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL?.replace(/\/api\/v1\/?$/, '')) ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000'
     : 'https://agreements-missing-understand-insider.trycloudflare.com');
 
 const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user }) => {
   const [activeFaq, setActiveFaq] = useState(null);
+
+  const handleSearchEngineOpen = (event) => {
+    if (!SEARCH_ENGINE_URL) {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+  };
 
   const features = [
     {
@@ -88,9 +114,10 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             <a href="#studio">Studio</a>
             <a href="#faq">FAQ</a>
             <a 
-              href={SEARCH_ENGINE_URL} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+              href={SEARCH_ENGINE_URL}
+              onClick={handleSearchEngineOpen}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#38bdf8', fontWeight: '700', textDecoration: 'none' }}
               title="Kunjungi DeeperNova Search Engine Mandiri"
             >
@@ -184,6 +211,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             <div className="lp-search-banner-right">
               <a
                 href={SEARCH_ENGINE_URL}
+                onClick={handleSearchEngineOpen}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="lp-search-banner-btn"
