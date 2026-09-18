@@ -5,7 +5,9 @@
   "backendPort": 3001,
   "frontendPort": 5174,
   "searchEnginePort": 3000,
+  "dteUrl": "https://newcastle-improved-avatar-gate.trycloudflare.com",
+  "dtePort": 5173,
   "isFixed": true,
   "status": "LIVE",
-  "updatedAt": "2026-09-18T00:33:51.246Z"
+  "updatedAt": "2026-09-18T12:50:39.296Z"
 }

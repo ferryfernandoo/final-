@@ -128,7 +128,7 @@ function launchTunnel(port, logFilePath) {
   });
 }
 
-function updateConfigFiles(backendUrl, searchEngineUrl) {
+function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   log.info('Memperbarui konfigurasi proyek secara otomatis...');
 
   // 1. Update .env
@@ -143,6 +143,12 @@ function updateConfigFiles(backendUrl, searchEngineUrl) {
       /VITE_SEARCH_ENGINE_URL=https:\/\/[^\s]+/g,
       `VITE_SEARCH_ENGINE_URL=${searchEngineUrl}`
     );
+    if (dteUrl) {
+      envContent = envContent.replace(
+        /VITE_ORDER_DTE_URL=[^\s]+/g,
+        `VITE_ORDER_DTE_URL=${dteUrl}`
+      );
+    }
     envContent = envContent.replace(
       /PUBLIC_BACKEND_URL=https:\/\/[^\s]+/g,
       `PUBLIC_BACKEND_URL=${backendUrl}`
@@ -165,9 +171,11 @@ function updateConfigFiles(backendUrl, searchEngineUrl) {
     backendUrl,
     frontendUrl: "https://nam-ben-brothers-strict.trycloudflare.com",
     searchEngineUrl,
+    dteUrl: dteUrl || "https://newcastle-improved-avatar-gate.trycloudflare.com",
     backendPort: 3001,
     frontendPort: 5174,
     searchEnginePort: 3000,
+    dtePort: 5173,
     isFixed: true,
     status: "LIVE",
     updatedAt: new Date().toISOString()
@@ -204,9 +212,15 @@ function updateConfigFiles(backendUrl, searchEngineUrl) {
   if (fs.existsSync(landingPagePath)) {
     let lpContent = fs.readFileSync(landingPagePath, 'utf8');
     lpContent = lpContent.replace(
-      /:\s*'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
-      `: '${searchEngineUrl}');`
+      /SEARCH_ENGINE_URL\s*=[\s\S]*?:\s*'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
+      `SEARCH_ENGINE_URL = \n  import.meta.env?.VITE_SEARCH_ENGINE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:3000'\n    : '${searchEngineUrl}');`
     );
+    if (dteUrl) {
+      lpContent = lpContent.replace(
+        /ORDER_DTE_URL\s*=[\s\S]*?:\s*'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
+        `ORDER_DTE_URL = \n  import.meta.env?.VITE_ORDER_DTE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:5173'\n    : '${dteUrl}');`
+      );
+    }
     fs.writeFileSync(landingPagePath, lpContent, 'utf8');
     log.success('src/components/LandingPage.jsx berhasil diperbarui.');
   }
@@ -223,6 +237,12 @@ function updateConfigFiles(backendUrl, searchEngineUrl) {
       /VITE_SEARCH_ENGINE_URL=https:\/\/[^\s]+/g,
       `VITE_SEARCH_ENGINE_URL=${searchEngineUrl}`
     );
+    if (dteUrl) {
+      envProdContent = envProdContent.replace(
+        /VITE_ORDER_DTE_URL=[^\s]+/g,
+        `VITE_ORDER_DTE_URL=${dteUrl}`
+      );
+    }
     envProdContent = envProdContent.replace(
       /VITE_API_URL=https:\/\/[^\s]+/g,
       `VITE_API_URL=${backendUrl}`
@@ -318,17 +338,27 @@ async function main() {
   // Step 3: Dapatkan URL Cloudflare Tunnel
   const backendLog = path.join(ROOT_DIR, 'tunnel-backend.log');
   const searchLog = path.join(SEARCH_DIR, 'tunnel.log');
+  const dteLog = path.join(ROOT_DIR, 'tunnel-dte.log');
 
   let backendUrl = null;
   let searchEngineUrl = null;
+  let dteUrl = null;
 
   try {
-    const [bUrl, sUrl] = await Promise.all([
+    const promises = [
       launchTunnel(3001, backendLog),
       launchTunnel(3000, searchLog)
-    ]);
-    backendUrl = bUrl;
-    searchEngineUrl = sUrl;
+    ];
+    if (fs.existsSync(ORDER_DTE_USER_DIR)) {
+      promises.push(launchTunnel(5173, dteLog));
+    }
+
+    const results = await Promise.all(promises);
+    backendUrl = results[0];
+    searchEngineUrl = results[1];
+    if (results.length > 2) {
+      dteUrl = results[2];
+    }
   } catch (err) {
     log.error(`Gagal menghubungkan tunnel: ${err.message}`);
     process.exit(1);
@@ -336,9 +366,12 @@ async function main() {
 
   log.success(`Backend Tunnel URL: ${backendUrl}`);
   log.success(`Search Engine Tunnel URL: ${searchEngineUrl}`);
+  if (dteUrl) {
+    log.success(`Order DTE Tunnel URL: ${dteUrl}`);
+  }
 
   // Step 4: Konfigurasi Otomatis File-File Proyek
-  updateConfigFiles(backendUrl, searchEngineUrl);
+  updateConfigFiles(backendUrl, searchEngineUrl, dteUrl);
 
   // Step 5: Build Vite Frontend
   log.info('Membangun bundle frontend (npm run build)...');
@@ -353,9 +386,9 @@ async function main() {
   // Step 6: Git commit & push otomatis ke GitHub
   log.info('Menyinkronkan ke GitHub & Vercel...');
   try {
-    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs', { cwd: ROOT_DIR, stdio: 'inherit' });
+    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs .env.production', { cwd: ROOT_DIR, stdio: 'inherit' });
     try {
-      execSync('git commit -m "auto-deploy: sync active cloudflare tunnels, landing page and vercel rewrites"', { cwd: ROOT_DIR, stdio: 'inherit' });
+      execSync('git commit -m "auto-deploy: sync active cloudflare tunnels, landing page, order dte and vercel rewrites"', { cwd: ROOT_DIR, stdio: 'inherit' });
     } catch {}
     execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
     log.success('Berhasil push ke GitHub! Vercel akan otomatis aktif beberapa detik lagi.');
@@ -366,6 +399,9 @@ async function main() {
   log.title('✨ SEMUA LAYANAN SUDAH AKTIF & TERKONFIGURASI OTOMATIS!');
   console.log(`- 🔍 Search Engine Public API : ${searchEngineUrl}/api/v1/search`);
   console.log(`- 🧠 AI Backend Public URL    : ${backendUrl}`);
+  if (dteUrl) {
+    console.log(`- 🏭 Order DTE Public Portal  : ${dteUrl}`);
+  }
   console.log(`- 🌐 Vercel Front-End Login   : Siap digunakan (otomatis terhubung via proxy rewrite)\n`);
   console.log('📌 Tekan Ctrl+C di jendela ini untuk mematikan semua service sekaligus.\n');
 

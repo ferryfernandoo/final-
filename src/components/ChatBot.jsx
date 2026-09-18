@@ -4109,7 +4109,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         - Jika "pptx": Tulis JSON array slide [{ "id": 1, "type": "slide", "title": "...", "content": "..." }] dibungkus tag [CONTENT_START] dan [CONTENT_END].
         - Jika "excel": Tulis JSON array 2D [[ "Header1", "Header2" ], [ "Row1Col1", "Row1Col2" ]] dibungkus tag [CONTENT_START] dan [CONTENT_END].`;
         
-        const tokenmixKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TOKENMIX_API_KEY) || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || 'sk-tm-I93vD7475ymXlRR8t1P9AHwQXfKicED1bOejduj2VT9ohUQV';
+        const tokenmixKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TOKENMIX_API_KEY) || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || 'sk-tm-yRADeQ67qi8QtQ9X8dwHKpCRrliEut0IQwotAzOZU2VHkiiS';
         let response;
         try {
           response = await fetch(`${API_BASE_URL}/api/chat`, {
@@ -4251,7 +4251,7 @@ TOLONG kembalikan konten dokumen yang sudah dimodifikasi secara utuh, menggunaka
 
 Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_END]. Jangan menambahkan teks penjelasan di luar tag tersebut.`;
 
-        const tokenmixKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TOKENMIX_API_KEY) || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || 'sk-tm-I93vD7475ymXlRR8t1P9AHwQXfKicED1bOejduj2VT9ohUQV';
+        const tokenmixKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TOKENMIX_API_KEY) || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || 'sk-tm-yRADeQ67qi8QtQ9X8dwHKpCRrliEut0IQwotAzOZU2VHkiiS';
         let response;
         try {
           response = await fetch(`${API_BASE_URL}/api/chat`, {

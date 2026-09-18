@@ -176,7 +176,7 @@ const TOKENMIX_API_URL = TOKENMIX_CHAT_API_URL;
 const DEEPSEEK_API_URL = TOKENMIX_CHAT_API_URL;
 
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
-const DEFAULT_TOKENMIX_KEY = 'sk-tm-I93vD7475ymXlRR8t1P9AHwQXfKicED1bOejduj2VT9ohUQV';
+const DEFAULT_TOKENMIX_KEY = 'sk-tm-yRADeQ67qi8QtQ9X8dwHKpCRrliEut0IQwotAzOZU2VHkiiS';
 
 const getDeepseekApiKey = () => {
   try {
