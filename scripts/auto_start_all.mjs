@@ -19,7 +19,9 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const SEARCH_DIR = fs.existsSync('C:\\deepernova-search-main') ? 'C:\\deepernova-search-main' : 'F:\\deepernova-search-main';
+const SEARCH_DIR = 'C:\\deepernova-search-main';
+const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
+const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
 
 const CLOUDFLARED_BIN = path.join(ROOT_DIR, 'bin', 'cloudflared.exe');
 
@@ -69,14 +71,11 @@ async function waitForPort(port, maxWaitMs = 15000) {
 
 function startProcess(command, args, cwd, name) {
   log.info(`Menjalankan ${name}...`);
-  const child = spawn(command, args, {
+  const child = spawn('cmd.exe', ['/c', 'start', `"${name}"`, command, ...args], {
     cwd,
-    stdio: 'ignore',
-    detached: true,
-    windowsHide: true,
-    shell: true
+    windowsHide: false,
+    shell: false
   });
-  child.unref();
   return child;
 }
 
@@ -258,7 +257,7 @@ async function main() {
   // Step 1: Nyalakan Search Engine jika belum jalan di port 3000
   const searchOpen = await checkPortOpen(3000);
   if (!searchOpen) {
-    startProcess('node', ['src/server.js'], SEARCH_DIR, 'Deepernova Search Engine (Port 3000)');
+    startProcess('node', ['--max-old-space-size=1536', '--expose-gc', 'src/server.js'], SEARCH_DIR, 'Deepernova Search Engine (Port 3000)');
     log.info('Menunggu Search Engine siap di port 3000...');
     const ready = await waitForPort(3000, 15000);
     if (ready) {
@@ -283,6 +282,37 @@ async function main() {
     }
   } else {
     log.success('Backend Server sudah aktif di port 3001.');
+  }
+
+  // Step 3: Nyalakan Deepernova AI Frontend Vite jika belum jalan di port 5174
+  const frontendOpen = await checkPortOpen(5174);
+  if (!frontendOpen) {
+    startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend (Port 5174)');
+    log.success('Deepernova AI Frontend dinyalakan di port 5174.');
+  } else {
+    log.success('Deepernova AI Frontend sudah aktif di port 5174.');
+  }
+
+  // Step 4: Nyalakan Order DTE Backend jika belum jalan di port 5000
+  if (fs.existsSync(ORDER_DTE_SERVER_DIR)) {
+    const orderServerOpen = await checkPortOpen(5000);
+    if (!orderServerOpen) {
+      startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend (Port 5000)');
+      log.success('Order DTE Backend Server dinyalakan di port 5000.');
+    } else {
+      log.success('Order DTE Backend Server sudah aktif di port 5000.');
+    }
+  }
+
+  // Step 5: Nyalakan Order DTE User Frontend jika belum jalan di port 5173
+  if (fs.existsSync(ORDER_DTE_USER_DIR)) {
+    const orderUserOpen = await checkPortOpen(5173);
+    if (!orderUserOpen) {
+      startProcess('npm', ['run', 'dev'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend (Port 5173)');
+      log.success('Order DTE User Frontend dinyalakan di port 5173.');
+    } else {
+      log.success('Order DTE User Frontend sudah aktif di port 5173.');
+    }
   }
 
   // Step 3: Dapatkan URL Cloudflare Tunnel
