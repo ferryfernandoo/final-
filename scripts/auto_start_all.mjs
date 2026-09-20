@@ -91,7 +91,6 @@ function launchTunnel(port, logFilePath) {
       'tunnel',
       '--url', `http://127.0.0.1:${port}`,
       '--logfile', logFilePath,
-      '--protocol', 'http2',
       '--retries', '5'
     ], {
       detached: true,
@@ -117,7 +116,11 @@ function launchTunnel(port, logFilePath) {
         try {
           const content = fs.readFileSync(logFilePath, 'utf8');
           const match = content.match(/https:\/\/[a-z0-9\-]+\.trycloudflare\.com/i);
-          if (match && match[0]) {
+          const isRegistered = content.includes('Registered tunnel connection') || 
+                               content.includes('Registered at') || 
+                               content.includes('connection=') ||
+                               content.includes('location=');
+          if (match && match[0] && isRegistered) {
             resolved = true;
             clearInterval(interval);
             resolve(cleanUrl(match[0]));
@@ -332,7 +335,12 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
 async function main() {
   log.title('🚀 DEEPERNOVA AI AUTO-CONFIGURATION SYSTEM');
 
-  // Step 0: Pastikan folder C:\deepernova-data siap untuk index sqlite search engine
+  // Step 0: Bersihkan process cloudflared lama agar tunnel fresh
+  try {
+    execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' });
+  } catch {}
+
+  // Pastikan folder C:\deepernova-data siap untuk index sqlite search engine
   if (!fs.existsSync('C:\\deepernova-data')) {
     try {
       fs.mkdirSync('C:\\deepernova-data', { recursive: true });

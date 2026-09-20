@@ -5,13 +5,13 @@ const SEARCH_ENGINE_URL =
   import.meta.env?.VITE_SEARCH_ENGINE_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000'
-    : 'https://baseline-encouraged-reflections-sox.trycloudflare.com');
+    : 'https://volume-qualifications-volunteer-functions.trycloudflare.com');
 
 const ORDER_DTE_URL = 
   import.meta.env?.VITE_ORDER_DTE_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5173'
-    : 'https://prior-beyond-baseball-batman.trycloudflare.com');
+    : 'https://layer-contribute-spoke-narrative.trycloudflare.com');
 
 const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user }) => {
   const [activeFaq, setActiveFaq] = useState(null);
