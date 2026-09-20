@@ -4,6 +4,8 @@
  * CORS Enabled - Siap Hit Langsung dari Frontend Web tanpa perlu proxy backend.
  */
 
+import { API_BASE_URL as BACKEND_BASE_URL } from '../apiConfig.js';
+
 export const API_BASE_URL = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -21,6 +23,57 @@ const DEEPERNOVA_PUBLIC_GUEST_KEY = API_KEY;
 function cleanSearchText(str) {
   if (!str) return '';
   return str.replace(/<\/?mark[^>]*>/gi, '').trim();
+}
+
+/**
+ * Otomatis menambahkan tanggal/bulan/tahun sekarang jika query atau prompt user
+ * menanyakan informasi terbaru / berita terkini / hari ini.
+ * Contoh: "berita terbaru AI" -> "berita terbaru AI 20 September 2026"
+ */
+export function enrichQueryWithDateIfRecent(query, userPrompt = '', language = 'id') {
+  if (!query || typeof query !== 'string') return query || '';
+
+  const combined = `${userPrompt || ''} ${query}`.toLowerCase();
+
+  const recentPatterns = [
+    /\b(terbaru|terkini|teranyar|hari ini|saat ini|sekarang|update|berita|kabar|info(?:rmasi)? terbaru|harga terbaru)\b/i,
+    /\b(latest|recent|today|current|now|breaking news|news)\b/i
+  ];
+
+  const isAskingRecent = recentPatterns.some(pattern => pattern.test(combined));
+  if (!isAskingRecent) return query.trim();
+
+  const now = new Date();
+  const day = now.getDate();
+  const year = now.getFullYear();
+
+  const monthsId = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const monthsEn = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const monthId = monthsId[now.getMonth()];
+  const monthEn = monthsEn[now.getMonth()];
+
+  const qLower = query.toLowerCase();
+  // Cegah duplikasi jika tahun atau nama bulan sudah tertulis di query
+  if (
+    qLower.includes(String(year)) ||
+    qLower.includes(monthId.toLowerCase()) ||
+    qLower.includes(monthEn.toLowerCase())
+  ) {
+    return query.trim();
+  }
+
+  const dateSuffix = language === 'en'
+    ? `${day} ${monthEn} ${year}`
+    : `${day} ${monthId} ${year}`;
+
+  return `${query.trim()} ${dateSuffix}`;
 }
 
 /**
@@ -179,14 +232,19 @@ export async function executeWebSearch(query, options = {}) {
   const isGuest = Boolean(options.isGuest ?? true);
   const limit = options.limit || 8;
   const includeImages = options.includeImages !== false;
+  const language = options.language || 'id';
+  const userPrompt = options.userPrompt || '';
 
-  console.log(`[ClientSearchService] Executing search for: "${query}" (isGuest: ${isGuest}, limit: ${limit})`);
+  // 🕒 Auto-inject current date for recent/latest searches
+  const effectiveQuery = enrichQueryWithDateIfRecent(query, userPrompt, language);
+
+  console.log(`[ClientSearchService] Executing search for: "${effectiveQuery}" (orig: "${query}", isGuest: ${isGuest}, limit: ${limit})`);
 
   // MODE GUEST: Direct Front-End Hit to Deepernova Search Engine (CORS enabled, no backend required)
   if (isGuest) {
     try {
       console.log('[ClientSearchService] 🚀 [GUEST MODE] Direct Front-End Hit to Deepernova Search Engine (BM25)');
-      const directResult = await performDirectSearch(query, limit, includeImages);
+      const directResult = await performDirectSearch(effectiveQuery, limit, includeImages);
       if (directResult) {
         return directResult;
       }
@@ -195,10 +253,11 @@ export async function executeWebSearch(query, options = {}) {
     }
   }
 
-  // NON-GUEST or FALLBACK: Backend Search Proxy
+  // NON-GUEST or FALLBACK: Backend Search Proxy (always using BACKEND_BASE_URL)
   try {
-    console.log('[ClientSearchService] Fetching search via backend proxy: /api/search');
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+    const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`;
+    console.log('[ClientSearchService] Fetching search via backend proxy:', backendProxyUrl);
+    const response = await fetch(backendProxyUrl, {
       credentials: 'include'
     });
 
@@ -213,7 +272,7 @@ export async function executeWebSearch(query, options = {}) {
     
     // Resilient fallback: Try direct client search if proxy failed (e.g. backend server offline)
     try {
-      const fallbackResult = await performDirectSearch(query, limit, includeImages);
+      const fallbackResult = await performDirectSearch(effectiveQuery, limit, includeImages);
       if (fallbackResult) {
         return fallbackResult;
       }

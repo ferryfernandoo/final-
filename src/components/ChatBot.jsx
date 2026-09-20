@@ -23,7 +23,7 @@ import GlobalMemorySettings from './GlobalMemorySettings';
 import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch } from '../services/clientSearchService';
+import { executeWebSearch, enrichQueryWithDateIfRecent } from '../services/clientSearchService';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -8788,7 +8788,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       triggeredSearchRequestsRef.current.add(messageId);
       
-      console.log(`[ChatBot] 🔍 SEARCH_REQUEST detected: "${searchQuery}" for message ${messageId}`);
+      const lastUserMsg = Array.isArray(messages) ? [...messages].reverse().find(m => m.sender === 'user') : null;
+      const userPrompt = lastUserMsg?.text || '';
+      const finalSearchQuery = enrichQueryWithDateIfRecent(searchQuery, userPrompt, userLanguage);
+
+      console.log(`[ChatBot] 🔍 SEARCH_REQUEST detected: "${searchQuery}" -> enriched: "${finalSearchQuery}" for message ${messageId}`);
       
       // 1) Immediately strip [SEARCH_REQUEST: ...] or conversational search preamble from the streaming text ref
       let cleanedStreamingText = text.replace(/\[SEARCH_REQUEST:\s*(.+?)\]/g, '').trim();
@@ -8823,9 +8827,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           if (msg.id === messageId) {
             const initialSteps = msg.searchSteps || [];
             // Only add if not already present
-            if (!initialSteps.some(s => s.query === searchQuery)) {
+            if (!initialSteps.some(s => s.query === finalSearchQuery)) {
               initialSteps.push({
-                query: searchQuery,
+                query: finalSearchQuery,
                 isSearching: true,
                 sources: [],
                 images: []
@@ -8836,7 +8840,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               text: cleanedStreamingText || msg.text || '', // preserve any pre-tag text, just strip the tag
               isStreaming: false,
               isSearching: true, 
-              searchQuery: searchQuery, 
+              searchQuery: finalSearchQuery, 
               searchResults: null, 
               searchSources: [],
               searchSteps: initialSteps
@@ -8855,11 +8859,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           }
 
           const isGuestMode = Boolean(isGuest || !isAuthenticated || !user);
-          console.log(`[ChatBot] Executing web search (isGuestMode: ${isGuestMode}): "${searchQuery}"`);
-          const searchData = await executeWebSearch(searchQuery, {
+          console.log(`[ChatBot] Executing web search (isGuestMode: ${isGuestMode}): "${finalSearchQuery}"`);
+          const searchData = await executeWebSearch(finalSearchQuery, {
             isGuest: isGuestMode,
             limit: 16,
-            includeImages: true
+            includeImages: true,
+            userPrompt,
+            language: userLanguage
           });
           
           if (isUserStoppedRef.current) {

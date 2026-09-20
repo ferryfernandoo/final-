@@ -233,8 +233,11 @@ Deepernova memiliki search engine mandiri sub-20ms yang super cepat, berindeks r
 3. CARA MEMICU PENCARIAN CEPAT (WAJIB DIIKUTI 100%):
    - Karakter PERTAMA dalam respons Anda HARUS berupa tag: [SEARCH_REQUEST: kata kunci pencarian]
    - DILARANG KERAS menulis kalimat pengantar seperti "Baik saya carikan", "Tentu", atau basa-basi apapun sebelum tag.
+   - PENTING (ATURAN TANGGAL SEKARANG UNTUK PENCARIAN TERBARU):
+     Jika pertanyaan menyangkut hal "terbaru", "berita terbaru", "informasi terbaru", "terkini", "hari ini", "sekarang", atau "update terbaru", Anda WAJIB menyertakan tanggal hari ini pada kata kunci pencarian [SEARCH_REQUEST: kata kunci tanggal].
    - Contoh Nyata:
      User: "Berita peternak protes bagi bagi telor" ➔ AI: [SEARCH_REQUEST: berita peternak protes bagi bagi telur]
+     User: "Berita terbaru AI" ➔ AI: [SEARCH_REQUEST: berita terbaru AI hari ini]
      User: "Coba cari di internet" ➔ AI: [SEARCH_REQUEST: topik pencarian terkait]
      User: "Berapa harga emas hari ini?" ➔ AI: [SEARCH_REQUEST: harga emas hari ini]
      User: "Siapa menteri keuangan sekarang?" ➔ AI: [SEARCH_REQUEST: menteri keuangan indonesia sekarang]
@@ -371,10 +374,12 @@ export const buildContextualPrompt = (messages, language = 'id', currentMessage 
   const optionsWIB = { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short' };
   const wibString = nowTime.toLocaleString('id-ID', optionsWIB);
   const isoUtcString = nowTime.toISOString();
+  const formattedTodayId = nowTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
   finalPrompt += language === 'id'
-    ? `\n\n[WAKTU]: ${wibString} WIB (UTC: ${isoUtcString}). Tag alarm/jadwal di akhir respon jika diminta: [REMINDER_REQUEST: {"title":"Judul", "datetime":"ISO_8601_UTC", "type":"reminder"}]`
-    : `\n\n[TIME]: ${wibString} WIB (UTC: ${isoUtcString}). Tag reminder at end if requested: [REMINDER_REQUEST: {"title":"Title", "datetime":"ISO_8601_UTC", "type":"reminder"}]`;
+    ? `\n\n[WAKTU]: ${wibString} WIB (UTC: ${isoUtcString}). Tanggal hari ini: ${formattedTodayId}. Untuk pertanyaan informasi/berita terbaru atau terkini, WAJIB sertakan "${formattedTodayId}" di query [SEARCH_REQUEST: ...]. Tag alarm di akhir respon jika diminta: [REMINDER_REQUEST: {"title":"Judul", "datetime":"ISO_8601_UTC", "type":"reminder"}]`
+    : `\n\n[TIME]: ${wibString} WIB (UTC: ${isoUtcString}). Today's date: ${formattedTodayEn}. For latest news/recent updates, ALWAYS include "${formattedTodayEn}" in query [SEARCH_REQUEST: ...]. Tag reminder at end if requested: [REMINDER_REQUEST: {"title":"Title", "datetime":"ISO_8601_UTC", "type":"reminder"}]`;
 
   // Load uploaded file content from memory for this conversation if available (capped to save tokens)
   if (currentConversationId) {
@@ -557,10 +562,14 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     ? '\n\n[FORMAT]: Pisahkan poin dengan baris kosong (blank line).'
     : '\n\n[FORMAT]: Separate points with a blank line.');
 
+  const nowTime = new Date();
+  const formattedTodayId = nowTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+
   const searchReminder = !isSearchConclusion ? (
     language === 'id'
-      ? '\n\n[INSTING SEARCHING]: Jika pertanyaan menyangkut berita, peristiwa terkini, tokoh/pejabat, teknologi, harga, atau data faktual (atau user minta cari di internet), Anda WAJIB langsung mengeluarkan tag [SEARCH_REQUEST: kata kunci] di awal respon tanpa kata pengantar.'
-      : '\n\n[SEARCH INSTINCT]: If the query concerns news, current events, public figures, tech, prices, or factual data (or user asks to search online), you MUST emit tag [SEARCH_REQUEST: keywords] at start with no preamble.'
+      ? `\n\n[INSTING SEARCHING]: Jika pertanyaan menyangkut berita, peristiwa terkini, tokoh/pejabat, teknologi, harga, atau data faktual (atau user minta cari di internet / info terbaru), Anda WAJIB langsung mengeluarkan tag [SEARCH_REQUEST: kata kunci] di awal respon tanpa kata pengantar. JIKA PERTANYAAN TENTANG HAL TERBARU/BERITA TERKINI/HARI INI, SERTAKAN TANGGAL HARI INI (${formattedTodayId}) PADA QUERY PENCARIAN.`
+      : `\n\n[SEARCH INSTINCT]: If the query concerns news, current events, public figures, tech, prices, or factual data (or user asks to search online / latest info), you MUST emit tag [SEARCH_REQUEST: keywords] at start with no preamble. IF QUERY ASKS FOR LATEST/RECENT NEWS OR TODAY'S UPDATES, ALWAYS INCLUDE TODAY'S DATE (${formattedTodayEn}) IN SEARCH QUERY.`
   ) : '';
 
   let userMessageContent;

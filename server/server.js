@@ -4482,10 +4482,29 @@ function cleanSearchText(str) {
 
 async function handleUnifiedSearch(req, res) {
   try {
-    const q = req.query?.q || req.body?.query || req.body?.q;
+    let q = req.query?.q || req.body?.query || req.body?.q;
     const limit = parseInt(req.query?.limit || req.body?.limit || '8', 10);
     if (!q) {
       return res.status(400).json({ success: false, error: 'Query parameter q is required' });
+    }
+
+    // 🕒 Auto-inject current date for latest/recent search inquiries if missing
+    const recentRegex = /\b(terbaru|terkini|teranyar|hari ini|saat ini|sekarang|update|berita|kabar|info(?:rmasi)? terbaru|harga terbaru|latest|recent|today|current|breaking news)\b/i;
+    if (recentRegex.test(q)) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const months = [
+        'januari', 'februari', 'maret', 'april', 'mei', 'juni',
+        'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
+        'january', 'february', 'march', 'may', 'june', 'july', 'august', 'october', 'december'
+      ];
+      const qLower = q.toLowerCase();
+      const hasDateOrYear = qLower.includes(String(year)) || months.some(m => qLower.includes(m));
+      if (!hasDateOrYear) {
+        const day = now.getDate();
+        const monthsId = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        q = `${q.trim()} ${day} ${monthsId[now.getMonth()]} ${year}`;
+      }
     }
 
     console.log(`[SEARCH] Querying Deepernova Search Engine for: "${q}" (limit: ${limit})`);
