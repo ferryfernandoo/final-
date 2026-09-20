@@ -1738,22 +1738,28 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className="cmo-tool-btn word" 
               onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'word'); }}
               title="Buka Typernova Word"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>📄 Word</span>
+              <img src="https://img.icons8.com/fluency/48/microsoft-word-2019.png" alt="Word" style={{ width: 16, height: 16 }} />
+              <span>Word</span>
             </button>
             <button 
               className="cmo-tool-btn excel" 
               onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'excel'); }}
               title="Buka Sheets Excel"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>📊 Excel</span>
+              <img src="https://img.icons8.com/fluency/48/microsoft-excel-2019.png" alt="Excel" style={{ width: 16, height: 16 }} />
+              <span>Excel</span>
             </button>
             <button 
               className="cmo-tool-btn ppt" 
               onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'ppt'); }}
               title="Buka Slide Deck"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>📽️ PPT</span>
+              <img src="https://img.icons8.com/fluency/48/microsoft-powerpoint-2019.png" alt="PPT" style={{ width: 16, height: 16 }} />
+              <span>PPT</span>
             </button>
           </div>
 
@@ -1763,13 +1769,10 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
             className="cmo-btn-secondary" 
             onClick={openNewFolderModal}
             title="Buat Folder Baru"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-              <line x1="12" y1="11" x2="12" y2="17"></line>
-              <line x1="9" y1="14" x2="15" y2="14"></line>
-            </svg>
-            <span>+ Folder</span>
+            <img src="https://img.icons8.com/fluency/48/add-folder.png" alt="Folder" style={{ width: 17, height: 17 }} />
+            <span>Folder</span>
           </button>
 
           <button 
@@ -1777,12 +1780,9 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
             onClick={() => fileInputRef.current?.click()} 
             disabled={isLoading}
             title="Unggah berkas baru"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
+            <img src="https://img.icons8.com/fluency/48/upload-to-cloud.png" alt="Upload" style={{ width: 18, height: 18, filter: 'brightness(1.5)' }} />
             <span>{isLoading ? 'Mengunggah...' : 'Upload'}</span>
           </button>
 
@@ -1792,21 +1792,9 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
             title={viewMode === 'grid' ? 'Tampilan List' : 'Tampilan Grid'}
           >
             {viewMode === 'grid' ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-              </svg>
+              <img src="https://img.icons8.com/fluency/48/list.png" alt="List View" style={{ width: 18, height: 18 }} />
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-              </svg>
+              <img src="https://img.icons8.com/fluency/48/grid.png" alt="Grid View" style={{ width: 18, height: 18 }} />
             )}
           </button>
         </div>
@@ -1815,24 +1803,25 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
       {/* MOBILE HORIZONTAL CATEGORY SCROLL (NATIVE MOBILE FEEL) */}
       <div className="cmo-mobile-nav-bar">
         {[
-          { id: 'all', label: 'Semua', icon: '📁' },
-          { id: 'docx', label: 'Word', icon: '📄' },
-          { id: 'excel', label: 'Excel', icon: '📊' },
-          { id: 'pptx', label: 'Slide', icon: '📽️' },
-          { id: 'pdf', label: 'PDF', icon: '📑' },
-          { id: 'image', label: 'Foto', icon: '🖼️' },
-          { id: 'video', label: 'Video', icon: '🎬' },
-          { id: 'audio', label: 'Audio', icon: '🎵' },
-          { id: 'code', label: 'Kode', icon: '💻' },
-          { id: 'archive', label: 'Zip', icon: '🗃️' }
+          { id: 'all', label: 'Semua', iconUrl: 'https://img.icons8.com/fluency/48/cloud-storage.png' },
+          { id: 'docx', label: 'Word', iconUrl: 'https://img.icons8.com/fluency/48/microsoft-word-2019.png' },
+          { id: 'excel', label: 'Excel', iconUrl: 'https://img.icons8.com/fluency/48/microsoft-excel-2019.png' },
+          { id: 'pptx', label: 'Slide', iconUrl: 'https://img.icons8.com/fluency/48/microsoft-powerpoint-2019.png' },
+          { id: 'pdf', label: 'PDF', iconUrl: 'https://img.icons8.com/fluency/48/pdf-2.png' },
+          { id: 'image', label: 'Foto', iconUrl: 'https://img.icons8.com/fluency/48/image.png' },
+          { id: 'video', label: 'Video', iconUrl: 'https://img.icons8.com/fluency/48/video-file.png' },
+          { id: 'audio', label: 'Audio', iconUrl: 'https://img.icons8.com/fluency/48/audio-wave.png' },
+          { id: 'code', label: 'Kode', iconUrl: 'https://img.icons8.com/fluency/48/code-file.png' },
+          { id: 'archive', label: 'Zip', iconUrl: 'https://img.icons8.com/fluency/48/zip.png' }
         ].map(cat => (
           <button
             key={cat.id}
             type="button"
             className={`cmo-mobile-chip ${activeCategory === cat.id ? 'active' : ''}`}
             onClick={() => setActiveCategory(cat.id)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <span className="cmo-chip-icon">{cat.icon}</span>
+            <img src={cat.iconUrl} alt={cat.label} style={{ width: 15, height: 15, objectFit: 'contain' }} />
             <span>{cat.label}</span>
           </button>
         ))}
@@ -1864,7 +1853,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'all' ? 'active' : ''}`}
               onClick={() => setActiveCategory('all')}
             >
-              <span className="cmo-nav-icon">☁️</span>
+              <img src="https://img.icons8.com/fluency/48/cloud-storage.png" alt="Cloud" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Semua Berkas</span>
               <span className="cmo-nav-badge">{files.length}</span>
             </button>
@@ -1874,7 +1863,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'docx' ? 'active' : ''}`}
               onClick={() => setActiveCategory('docx')}
             >
-              <span className="cmo-nav-icon">📄</span>
+              <img src="https://img.icons8.com/fluency/48/microsoft-word-2019.png" alt="Word" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Typernova (Word)</span>
             </button>
 
@@ -1883,7 +1872,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'excel' ? 'active' : ''}`}
               onClick={() => setActiveCategory('excel')}
             >
-              <span className="cmo-nav-icon">📊</span>
+              <img src="https://img.icons8.com/fluency/48/microsoft-excel-2019.png" alt="Excel" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Sheets (Excel)</span>
             </button>
 
@@ -1892,7 +1881,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'pptx' ? 'active' : ''}`}
               onClick={() => setActiveCategory('pptx')}
             >
-              <span className="cmo-nav-icon">📽️</span>
+              <img src="https://img.icons8.com/fluency/48/microsoft-powerpoint-2019.png" alt="PPT" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Slide Deck (PPT)</span>
             </button>
 
@@ -1901,7 +1890,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'pdf' ? 'active' : ''}`}
               onClick={() => setActiveCategory('pdf')}
             >
-              <span className="cmo-nav-icon">📑</span>
+              <img src="https://img.icons8.com/fluency/48/pdf-2.png" alt="PDF" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">PDF Vault</span>
             </button>
 
@@ -1910,7 +1899,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'image' ? 'active' : ''}`}
               onClick={() => setActiveCategory('image')}
             >
-              <span className="cmo-nav-icon">🖼️</span>
+              <img src="https://img.icons8.com/fluency/48/image.png" alt="Foto" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Foto & Gambar</span>
             </button>
 
@@ -1919,7 +1908,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'video' ? 'active' : ''}`}
               onClick={() => setActiveCategory('video')}
             >
-              <span className="cmo-nav-icon">🎬</span>
+              <img src="https://img.icons8.com/fluency/48/video-file.png" alt="Video" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Video & Media</span>
             </button>
 
@@ -1928,7 +1917,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'audio' ? 'active' : ''}`}
               onClick={() => setActiveCategory('audio')}
             >
-              <span className="cmo-nav-icon">🎵</span>
+              <img src="https://img.icons8.com/fluency/48/audio-wave.png" alt="Audio" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Suara & Audio</span>
             </button>
 
@@ -1937,7 +1926,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'code' ? 'active' : ''}`}
               onClick={() => setActiveCategory('code')}
             >
-              <span className="cmo-nav-icon">💻</span>
+              <img src="https://img.icons8.com/fluency/48/code-file.png" alt="Kode" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Kode & Teks</span>
             </button>
 
@@ -1946,7 +1935,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               className={`cmo-nav-item ${activeCategory === 'archive' ? 'active' : ''}`}
               onClick={() => setActiveCategory('archive')}
             >
-              <span className="cmo-nav-icon">🗃️</span>
+              <img src="https://img.icons8.com/fluency/48/zip.png" alt="Zip" style={{ width: 19, height: 19, objectFit: 'contain' }} />
               <span className="cmo-nav-text">Arsip & Zip</span>
             </button>
           </div>
@@ -2056,7 +2045,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                             onClick={(e) => { e.stopPropagation(); triggerFileDownload(file); }} 
                             title="Unduh Berkas"
                           >
-                            📥
+                            <img src="https://img.icons8.com/fluency/48/download.png" alt="Unduh" style={{ width: 14, height: 14 }} />
                           </button>
                         )}
                         {(file.category === 'folder' || file.type === 'folder') && (
@@ -2066,7 +2055,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                             onClick={(e) => { e.stopPropagation(); handleEditFolder(file, e); }} 
                             title="Edit Folder"
                           >
-                            ✏️
+                            <img src="https://img.icons8.com/fluency/48/edit.png" alt="Edit" style={{ width: 14, height: 14 }} />
                           </button>
                         )}
                         <button 
@@ -2075,7 +2064,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                           onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id, e); }} 
                           title="Hapus"
                         >
-                          🗑️
+                          <img src="https://img.icons8.com/fluency/48/trash.png" alt="Hapus" style={{ width: 14, height: 14 }} />
                         </button>
                       </div>
 
@@ -2102,7 +2091,17 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                         <div className="cmo-card-sub">
                           {(file.category === 'folder' || file.type === 'folder') ? (
                             <span className={`cmo-badge-pill ${file.folderType === 'company' ? 'company' : 'private'}`}>
-                              {file.folderType === 'company' ? `🏢 ${file.founder || 'Organisasi'}` : '🔒 Private'}
+                              {file.folderType === 'company' ? (
+                                <>
+                                  <img src="https://img.icons8.com/fluency/48/organization.png" alt="Org" style={{ width: 13, height: 13, verticalAlign: 'middle', marginRight: 3 }} />
+                                  {file.founder || 'Organisasi'}
+                                </>
+                              ) : (
+                                <>
+                                  <img src="https://img.icons8.com/fluency/48/lock.png" alt="Lock" style={{ width: 12, height: 12, verticalAlign: 'middle', marginRight: 3 }} />
+                                  Private
+                                </>
+                              )}
                             </span>
                           ) : (
                             <span>{file.size}</span>
@@ -2139,7 +2138,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                             <span className="cmo-table-name">{file.name}</span>
                             {(file.category === 'folder' || file.type === 'folder') && (
                               <span className={`cmo-badge-pill small ${file.folderType === 'company' ? 'company' : 'private'}`}>
-                                {file.folderType === 'company' ? '🏢 Tim' : '🔒 Private'}
+                                {file.folderType === 'company' ? 'Organisasi' : 'Private'}
                               </span>
                             )}
                           </div>
@@ -2156,7 +2155,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                                 onClick={() => triggerFileDownload(file)} 
                                 title="Unduh Berkas"
                               >
-                                📥
+                                <img src="https://img.icons8.com/fluency/48/download.png" alt="Unduh" style={{ width: 14, height: 14 }} />
                               </button>
                             )}
                             {(file.category === 'folder' || file.type === 'folder') && (
@@ -2166,7 +2165,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                                 onClick={(e) => handleEditFolder(file, e)} 
                                 title="Edit Folder"
                               >
-                                ✏️
+                                <img src="https://img.icons8.com/fluency/48/edit.png" alt="Edit" style={{ width: 14, height: 14 }} />
                               </button>
                             )}
                             <button 
@@ -2175,7 +2174,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                               onClick={(e) => handleDeleteFile(file.id, e)} 
                               title="Hapus Berkas"
                             >
-                              🗑️
+                              <img src="https://img.icons8.com/fluency/48/trash.png" alt="Hapus" style={{ width: 14, height: 14 }} />
                             </button>
                           </div>
                         </td>
@@ -2187,7 +2186,9 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
             )
           ) : (
             <div className="cmo-empty-state">
-              <div className="cmo-empty-icon">☁️</div>
+              <div className="cmo-empty-icon">
+                <img src="https://img.icons8.com/fluency/96/cloud-storage.png" alt="Cloud" style={{ width: 72, height: 72, objectFit: 'contain' }} />
+              </div>
               <h3 className="cmo-empty-title">Ruang Penyimpanan Kosong</h3>
               <p className="cmo-empty-desc">
                 Belum ada berkas di kategori atau folder ini. Unggah dokumen, lembar kerja, foto, atau berkas apa saja ke cloud vault Anda.
@@ -2196,8 +2197,10 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                 type="button" 
                 className="cmo-btn-primary" 
                 onClick={() => fileInputRef.current?.click()}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                + Upload Berkas Sekarang
+                <img src="https://img.icons8.com/fluency/48/upload-to-cloud.png" alt="Upload" style={{ width: 18, height: 18, filter: 'brightness(1.5)' }} />
+                <span>Upload Berkas Sekarang</span>
               </button>
             </div>
           )}
@@ -2212,7 +2215,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           onClick={openNewFolderModal}
           title="Buat Folder Baru"
         >
-          <span>📁+</span>
+          <img src="https://img.icons8.com/fluency/48/add-folder.png" alt="Folder Baru" style={{ width: 22, height: 22 }} />
         </button>
         <button 
           type="button" 
@@ -2220,10 +2223,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           onClick={() => fileInputRef.current?.click()}
           title="Upload Berkas Baru"
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
+          <img src="https://img.icons8.com/fluency/48/upload-to-cloud.png" alt="Upload" style={{ width: 24, height: 24, filter: 'brightness(1.6)' }} />
         </button>
       </div>
       {selectedMediaFile && (
@@ -2573,12 +2573,12 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           })()}
           <div className="menu-divider" style={{ background: '#ffedd5' }} />
           <button className="menu-item" onClick={() => { handleOpenFile(contextMenu.file); setContextMenu({ visible: false, x: 0, y: 0, file: null }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '16px' }}>📂</span>
+            <img src="https://img.icons8.com/fluency/48/opened-folder.png" alt="Open" style={{ width: 16, height: 16 }} />
             <span>Buka Berkas</span>
           </button>
           {(contextMenu.file.category === 'folder' || contextMenu.file.type === 'folder') && (
             <button className="menu-item" onClick={(e) => { handleEditFolder(contextMenu.file, e); setContextMenu({ visible: false, x: 0, y: 0, file: null }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '16px' }}>✏️</span>
+              <img src="https://img.icons8.com/fluency/48/edit.png" alt="Edit" style={{ width: 16, height: 16 }} />
               <span>Edit Folder & Struktur</span>
             </button>
           )}
@@ -2592,13 +2592,13 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               onClick={() => setContextMenu({ visible: false, x: 0, y: 0, file: null })}
               style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              <span style={{ fontSize: '16px' }}>⬇️</span>
+              <img src="https://img.icons8.com/fluency/48/download.png" alt="Download" style={{ width: 16, height: 16 }} />
               <span>Unduh Berkas</span>
             </a>
           )}
           <div className="menu-divider" style={{ background: '#ffedd5' }} />
           <button className="menu-item danger" onClick={(e) => { handleDeleteFile(contextMenu.file.id, e); setContextMenu({ visible: false, x: 0, y: 0, file: null }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '16px' }}>🗑️</span>
+            <img src="https://img.icons8.com/fluency/48/trash.png" alt="Delete" style={{ width: 16, height: 16 }} />
             <span>Hapus Berkas</span>
           </button>
         </div>
