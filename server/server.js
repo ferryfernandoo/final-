@@ -609,16 +609,20 @@ app.post(['/auth/login', '/api/auth/login'], (req, res, next) => {
         console.error('[AUTH API] req.logIn error:', err);
         return res.status(500).json({ success: false, error: 'Gagal mengaktifkan sesi login' });
       }
-      console.log(`[AUTH API] User logged in: ${user.email}`);
-      return res.json({
-        success: true,
-        authenticated: true,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          picture: user.picture
-        }
+      req.session.isGuest = false;
+      req.session.save((saveErr) => {
+        if (saveErr) console.error('[AUTH API] req.session.save error:', saveErr);
+        console.log(`[AUTH API] User logged in: ${user.email}`);
+        return res.json({
+          success: true,
+          authenticated: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            picture: user.picture
+          }
+        });
       });
     });
   })(req, res, next);
@@ -650,11 +654,14 @@ app.post(['/auth/register', '/api/auth/register'], async (req, res) => {
           user: { id: newUser.id, name: newUser.name, email: newUser.email }
         });
       }
-      console.log(`[AUTH API] User registered: ${newUser.email}`);
-      return res.json({
-        success: true,
-        authenticated: true,
-        user: { id: newUser.id, name: newUser.name, email: newUser.email }
+      req.session.isGuest = false;
+      req.session.save(() => {
+        console.log(`[AUTH API] User registered: ${newUser.email}`);
+        return res.json({
+          success: true,
+          authenticated: true,
+          user: { id: newUser.id, name: newUser.name, email: newUser.email }
+        });
       });
     });
   } catch (err) {
