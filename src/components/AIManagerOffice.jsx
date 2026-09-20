@@ -1710,9 +1710,9 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
 
           <div className="cmo-brand-divider"></div>
 
-          <div className="cmo-brand-info">
-            <span className="cmo-brand-icon">☁️</span>
-            <span className="cmo-brand-title">Management Office</span>
+          <div className="cmo-brand-info" onClick={() => onNavigate?.('landing')} style={{ cursor: 'pointer' }} title="Kembali ke Beranda">
+            <img src="/logo.png" alt="Deepernova" className="cmo-brand-logo" />
+            <span className="cmo-brand-title">Deepernova <span className="cmo-text-orange">Office</span></span>
           </div>
 
           <div className="cmo-breadcrumbs">
@@ -1844,6 +1844,32 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           </button>
         </div>
       </header>
+
+      {/* MOBILE HORIZONTAL CATEGORY SCROLL (NATIVE MOBILE FEEL) */}
+      <div className="cmo-mobile-nav-bar">
+        {[
+          { id: 'all', label: 'Semua', icon: '📁' },
+          { id: 'docx', label: 'Word', icon: '📄' },
+          { id: 'excel', label: 'Excel', icon: '📊' },
+          { id: 'pptx', label: 'Slide', icon: '📽️' },
+          { id: 'pdf', label: 'PDF', icon: '📑' },
+          { id: 'image', label: 'Foto', icon: '🖼️' },
+          { id: 'video', label: 'Video', icon: '🎬' },
+          { id: 'audio', label: 'Audio', icon: '🎵' },
+          { id: 'code', label: 'Kode', icon: '💻' },
+          { id: 'archive', label: 'Zip', icon: '🗃️' }
+        ].map(cat => (
+          <button
+            key={cat.id}
+            type="button"
+            className={`cmo-mobile-chip ${activeCategory === cat.id ? 'active' : ''}`}
+            onClick={() => setActiveCategory(cat.id)}
+          >
+            <span className="cmo-chip-icon">{cat.icon}</span>
+            <span>{cat.label}</span>
+          </button>
+        ))}
+      </div>
 
       {/* SYNC PROGRESS BAR IF SYNCING */}
       {isServerSyncing && (
@@ -2211,7 +2237,28 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
         </main>
       </div>
 
-      {/* Built-in Multi-Media & Document Viewer Modal (Lega & Full View) */}
+      {/* MOBILE FLOATING ACTION BUTTONS (ANDROID OPTIMIZED) */}
+      <div className="cmo-mobile-fab-container">
+        <button 
+          type="button" 
+          className="cmo-mobile-fab secondary"
+          onClick={openNewFolderModal}
+          title="Buat Folder Baru"
+        >
+          <span>📁+</span>
+        </button>
+        <button 
+          type="button" 
+          className="cmo-mobile-fab primary"
+          onClick={() => fileInputRef.current?.click()}
+          title="Upload Berkas Baru"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
       {selectedMediaFile && (
         <CloudMediaViewerModal 
           file={selectedMediaFile} 
