@@ -11,7 +11,7 @@
  * 7. Melakukan git commit dan git push ke GitHub (ferryfernandoo/final-.git) agar Vercel langsung live!
  */
 
-import { spawn, execSync } from 'node:child_process';
+import { spawn, exec, execSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -71,13 +71,11 @@ async function waitForPort(port, maxWaitMs = 15000) {
 
 function startProcess(command, args, cwd, name) {
   log.info(`Menjalankan ${name}...`);
-  const fullArgs = args.length > 0 ? ` ${args.join(' ')}` : '';
-  const child = spawn('cmd.exe', ['/c', 'start', `"${name}"`, 'cmd', '/k', `${command}${fullArgs}`], {
+  const fullCmd = [command, ...args].join(' ');
+  return exec(`start "${name}" cmd /k "${fullCmd}"`, {
     cwd,
-    windowsHide: false,
-    shell: false
+    windowsHide: false
   });
-  return child;
 }
 
 function launchTunnel(port, logFilePath) {
@@ -310,6 +308,7 @@ async function main() {
   const frontendOpen = await checkPortOpen(5174);
   if (!frontendOpen) {
     startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend (Port 5174)');
+    await waitForPort(5174, 10000);
     log.success('Deepernova AI Frontend dinyalakan di port 5174.');
   } else {
     log.success('Deepernova AI Frontend sudah aktif di port 5174.');
@@ -320,6 +319,7 @@ async function main() {
     const orderServerOpen = await checkPortOpen(5000);
     if (!orderServerOpen) {
       startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend (Port 5000)');
+      await waitForPort(5000, 10000);
       log.success('Order DTE Backend Server dinyalakan di port 5000.');
     } else {
       log.success('Order DTE Backend Server sudah aktif di port 5000.');
@@ -331,6 +331,7 @@ async function main() {
     const orderUserOpen = await checkPortOpen(5173);
     if (!orderUserOpen) {
       startProcess('npm', ['run', 'dev'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend (Port 5173)');
+      await waitForPort(5173, 10000);
       log.success('Order DTE User Frontend dinyalakan di port 5173.');
     } else {
       log.success('Order DTE User Frontend sudah aktif di port 5173.');
