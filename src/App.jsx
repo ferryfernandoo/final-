@@ -412,13 +412,28 @@ function App() {
     } catch (error) {
       console.error('Logout request failed:', error);
     } finally {
-      // Clear auth from localStorage & sessionStorage
-      localStorage.removeItem('authUser');
-      localStorage.removeItem('guestSession');
-      localStorage.removeItem('chatbot_conversations');
+      // Clear ALL localStorage keys to prevent AI hallucinations from stale cache
+      const ALL_STORAGE_KEYS = [
+        'authUser',
+        'guestSession',
+        'chatbot_conversations',
+        'chatbot_last_conversation',
+        'deepernova_memory_system',
+        'deepernova_message_feedback',
+        'deepernova_chat_branches',
+        'deepernova_rag_index_v1',
+        'deepernova_reminders_v1',
+        'deepernova_saved_images',
+        'research_anonymous_id',
+        'guest_global_memory',
+        'guest_global_memory_updated',
+      ];
+      ALL_STORAGE_KEYS.forEach((key) => {
+        try { localStorage.removeItem(key); } catch (_e) {}
+      });
       try { sessionStorage.clear(); } catch (_e) {}
       if (typeof window !== 'undefined') window.deepernova_file_cache = null;
-      console.log('[App] User logged out, localStorage & sessionStorage cleared');
+      console.log('[App] User logged out — ALL localStorage & sessionStorage cleared');
       
       setIsAuthenticated(false);
       setIsGuest(false);

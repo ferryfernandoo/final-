@@ -3702,12 +3702,18 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const resetLocalStorageData = () => {
     const keysToClear = [
       'chatbot_conversations',
+      'chatbot_last_conversation',
       'deepernova_memory_system',
       'deepernova_message_feedback',
       'deepernova_chat_branches',
+      'deepernova_rag_index_v1',
+      'deepernova_reminders_v1',
+      'deepernova_saved_images',
+      'research_anonymous_id',
+      'guest_global_memory',
+      'guest_global_memory_updated',
       'authUser',
       'guestSession',
-      'chatbot_last_conversation',
     ];
     keysToClear.forEach((key) => {
       try {
@@ -3716,8 +3722,10 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         console.error(`Failed to remove ${key}:`, e);
       }
     });
-    console.log('[ChatBot] LocalStorage cleared for logout');
+    try { sessionStorage.clear(); } catch (_e) {}
+    console.log('[ChatBot] ALL localStorage cleared for logout — AI context reset');
   };
+
 
   const getLatestConversation = (loaded) => {
     if (!Array.isArray(loaded) || loaded.length === 0) return null;
