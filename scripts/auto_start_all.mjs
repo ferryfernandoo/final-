@@ -4,17 +4,21 @@
  * Sekali jalan, script ini otomatis:
  * 1. Menjalankan Search Engine (Port 3000)
  * 2. Menjalankan Backend Deepernova AI (Port 3001)
- * 3. Menyalakan Cloudflare Tunnel untuk Search Engine & Backend
- * 4. Mendeteksi URL publik trycloudflare.com secara otomatis
- * 5. Mengupdate .env, active_tunnel.json, src/apiConfig.js, src/services/clientSearchService.js, dan vercel.json
- * 6. Mengompilasi build frontend (npm run build)
- * 7. Melakukan git commit dan git push ke GitHub (ferryfernandoo/final-.git) agar Vercel langsung live!
+ * 3. Menjalankan Frontend Vite Dev (Port 5174)
+ * 4. Menjalankan Order DTE Backend (Port 5000)
+ * 5. Menjalankan Order DTE User Frontend (Port 5173)
+ * 6. Menyalakan Cloudflare Tunnel untuk Backend, Search, DTE
+ * 7. Mendeteksi URL publik trycloudflare.com secara otomatis
+ * 8. Mengupdate .env, active_tunnel.json, src/apiConfig.js, dll
+ * 9. Build frontend (npm run build)
+ * 10. Git commit & push ke GitHub → Vercel auto-deploy
  */
 
 import { spawn, exec, execSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import net from 'node:net';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,64 +41,66 @@ const log = {
   title: (msg) => console.log(`\n\x1b[35m=====================================================\x1b[0m\n\x1b[1m\x1b[37m${msg}\x1b[0m\n\x1b[35m=====================================================\x1b[0m\n`)
 };
 
-import net from 'node:net';
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
 
-async function checkPortOpen(port, timeoutMs = 1500) {
+async function checkPortOpen(port, timeoutMs = 2000) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
-    let isConnected = false;
     socket.setTimeout(timeoutMs);
-    socket.on('connect', () => {
-      isConnected = true;
-      socket.destroy();
-      resolve(true);
-    });
-    socket.on('timeout', () => {
-      socket.destroy();
-      resolve(false);
-    });
-    socket.on('error', () => {
-      resolve(false);
-    });
+    socket.on('connect', () => { socket.destroy(); resolve(true); });
+    socket.on('timeout', () => { socket.destroy(); resolve(false); });
+    socket.on('error', () => { resolve(false); });
     socket.connect(port, '127.0.0.1');
   });
 }
 
-async function waitForPort(port, maxWaitMs = 25000) {
+async function waitForPort(port, maxWaitMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     if (await checkPortOpen(port)) return true;
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 1000));
   }
   return false;
 }
 
-function startProcess(command, args, cwd, name) {
-  log.info(`Menjalankan ${name}...`);
-  // Wrap in double-quotes to handle spaces in paths
-  const quotedArgs = args.map(a => a.includes(' ') ? `"${a}"` : a);
-  const fullCmd = [command, ...quotedArgs].join(' ');
-  return exec(`start "${name}" cmd /k "cd /d ${cwd} && ${fullCmd} || pause"`, {
-    cwd,
-    windowsHide: false
-  });
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Start a process in a new CMD window.
+ * Path is quoted to handle spaces (e.g. "F:\order dte\server").
+ */
+function startProcess(command, args, cwd, name) {
+  log.info(`Menjalankan ${name}...`);
+  const quotedCwd = `"${cwd}"`;
+  const quotedArgs = args.map(a => a.includes(' ') ? `"${a}"` : a);
+  const fullCmd = [command, ...quotedArgs].join(' ');
+  // cd /d "path with spaces" && command
+  const shellCmd = `start "${name}" cmd /k "cd /d ${quotedCwd} && ${fullCmd}"`;
+  try {
+    execSync(shellCmd, { cwd: ROOT_DIR, windowsHide: false, stdio: 'ignore' });
+  } catch (err) {
+    // 'start' command may return non-zero even on success in some shells
+    log.warn(`startProcess shell returned error for ${name}, but process may still be starting...`);
+  }
+}
+
+/**
+ * Launch a Cloudflare quick tunnel and parse the URL from the log file.
+ */
 function launchTunnel(port, logFilePath) {
   return new Promise((resolve, reject) => {
-    // Cek apakah cloudflared.exe ada
     if (!fs.existsSync(CLOUDFLARED_BIN)) {
-      log.warn(`cloudflared.exe tidak ditemukan di ${CLOUDFLARED_BIN}`);
-      log.warn(`Tunnel port ${port} dilewati. Download dari: https://github.com/cloudflare/cloudflared/releases`);
-      return reject(new Error(`cloudflared.exe tidak ada`));
+      return reject(new Error(`cloudflared.exe tidak ditemukan di ${CLOUDFLARED_BIN}`));
     }
 
     log.info(`Menyalakan Cloudflare Tunnel untuk port ${port}...`);
-    
-    // Hapus file log lama jika ada
-    try {
-      if (fs.existsSync(logFilePath)) fs.unlinkSync(logFilePath);
-    } catch {}
+
+    // Hapus log lama
+    try { if (fs.existsSync(logFilePath)) fs.unlinkSync(logFilePath); } catch {}
 
     const child = spawn(CLOUDFLARED_BIN, [
       'tunnel',
@@ -109,14 +115,14 @@ function launchTunnel(port, logFilePath) {
     child.unref();
 
     let resolved = false;
-    const maxWaitMs = 90000; // 90 detik max
+    const maxWaitMs = 90000; // 90 detik
     const start = Date.now();
 
     const interval = setInterval(() => {
       if (Date.now() - start > maxWaitMs) {
         clearInterval(interval);
         if (!resolved) {
-          reject(new Error(`Timeout menunggu Cloudflare Tunnel port ${port}`));
+          reject(new Error(`Timeout menunggu Cloudflare Tunnel port ${port} (${maxWaitMs / 1000}s)`));
         }
         return;
       }
@@ -125,8 +131,8 @@ function launchTunnel(port, logFilePath) {
         try {
           const content = fs.readFileSync(logFilePath, 'utf8');
           const match = content.match(/https:\/\/[a-z0-9\-]+\.trycloudflare\.com/i);
-          const isRegistered = content.includes('Registered tunnel connection') || 
-                               content.includes('Registered at') || 
+          const isRegistered = content.includes('Registered tunnel connection') ||
+                               content.includes('Registered at') ||
                                content.includes('connection=') ||
                                content.includes('location=') ||
                                content.includes('connIndex=');
@@ -137,9 +143,13 @@ function launchTunnel(port, logFilePath) {
           }
         } catch {}
       }
-    }, 500);
+    }, 800);
   });
 }
+
+// ─────────────────────────────────────────────
+// CONFIG UPDATE
+// ─────────────────────────────────────────────
 
 function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   log.info('Memperbarui konfigurasi proyek secara otomatis...');
@@ -149,29 +159,29 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   if (fs.existsSync(envPath)) {
     let envContent = fs.readFileSync(envPath, 'utf8');
     envContent = envContent.replace(
-      /VITE_DEEPERNOVA_SEARCH_API_URL=https:\/\/[^\s]+/g,
+      /VITE_DEEPERNOVA_SEARCH_API_URL=\S+/g,
       `VITE_DEEPERNOVA_SEARCH_API_URL=${searchEngineUrl}/api/v1`
     );
     envContent = envContent.replace(
-      /VITE_SEARCH_ENGINE_URL=https:\/\/[^\s]+/g,
+      /VITE_SEARCH_ENGINE_URL=\S+/g,
       `VITE_SEARCH_ENGINE_URL=${searchEngineUrl}`
     );
     if (dteUrl) {
       envContent = envContent.replace(
-        /VITE_ORDER_DTE_URL=[^\s]+/g,
+        /VITE_ORDER_DTE_URL=\S+/g,
         `VITE_ORDER_DTE_URL=${dteUrl}`
       );
     }
     envContent = envContent.replace(
-      /PUBLIC_BACKEND_URL=https:\/\/[^\s]+/g,
+      /PUBLIC_BACKEND_URL=\S+/g,
       `PUBLIC_BACKEND_URL=${backendUrl}`
     );
     envContent = envContent.replace(
-      /VITE_API_URL=https:\/\/[^\s]+/g,
+      /VITE_API_URL=\S+/g,
       `VITE_API_URL=${backendUrl}`
     );
     envContent = envContent.replace(
-      /VPS_PUBLIC_URL=https:\/\/[^\s]+/g,
+      /VPS_PUBLIC_URL=\S+/g,
       `VPS_PUBLIC_URL=${backendUrl}`
     );
     fs.writeFileSync(envPath, envContent, 'utf8');
@@ -182,14 +192,11 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
   const tunnelConfig = {
     backendUrl,
-    frontendUrl: "https://nam-ben-brothers-strict.trycloudflare.com",
     searchEngineUrl,
-    dteUrl: dteUrl || "https://newcastle-improved-avatar-gate.trycloudflare.com",
+    dteUrl: dteUrl || null,
     backendPort: 3001,
-    frontendPort: 5174,
     searchEnginePort: 3000,
     dtePort: 5173,
-    isFixed: true,
     status: "LIVE",
     updatedAt: new Date().toISOString()
   };
@@ -204,6 +211,13 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
       /const CLOUDFLARE_BACKEND_URL = '[^']+';/,
       `const CLOUDFLARE_BACKEND_URL = '${backendUrl}';`
     );
+    if (dteUrl) {
+      // Update the DTE fallback URL
+      apiConfigContent = apiConfigContent.replace(
+        /: 'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
+        `: '${dteUrl}');`
+      );
+    }
     fs.writeFileSync(apiConfigPath, apiConfigContent, 'utf8');
     log.success('src/apiConfig.js berhasil diperbarui.');
   }
@@ -243,21 +257,21 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   if (fs.existsSync(envProdPath)) {
     let envProdContent = fs.readFileSync(envProdPath, 'utf8');
     envProdContent = envProdContent.replace(
-      /VITE_DEEPERNOVA_SEARCH_API_URL=https:\/\/[^\s]+/g,
+      /VITE_DEEPERNOVA_SEARCH_API_URL=\S+/g,
       `VITE_DEEPERNOVA_SEARCH_API_URL=${searchEngineUrl}/api/v1`
     );
     envProdContent = envProdContent.replace(
-      /VITE_SEARCH_ENGINE_URL=https:\/\/[^\s]+/g,
+      /VITE_SEARCH_ENGINE_URL=\S+/g,
       `VITE_SEARCH_ENGINE_URL=${searchEngineUrl}`
     );
     if (dteUrl) {
       envProdContent = envProdContent.replace(
-        /VITE_ORDER_DTE_URL=[^\s]+/g,
+        /VITE_ORDER_DTE_URL=\S+/g,
         `VITE_ORDER_DTE_URL=${dteUrl}`
       );
     }
     envProdContent = envProdContent.replace(
-      /VITE_API_URL=https:\/\/[^\s]+/g,
+      /VITE_API_URL=\S+/g,
       `VITE_API_URL=${backendUrl}`
     );
     fs.writeFileSync(envProdPath, envProdContent, 'utf8');
@@ -342,95 +356,112 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   log.success('vercel.json rewrites berhasil diperbarui.');
 }
 
+// ─────────────────────────────────────────────
+// MAIN
+// ─────────────────────────────────────────────
+
 async function main() {
   log.title('🚀 DEEPERNOVA AI AUTO-CONFIGURATION SYSTEM');
 
-  // Step 0: Bersihkan process cloudflared lama agar tunnel fresh
-  try {
-    execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' });
-  } catch {}
+  // ── Step 0: Kill proses cloudflared lama ───
+  log.info('Membersihkan cloudflared lama...');
+  try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
+  await sleep(1000);
 
-  // Pastikan folder C:\deepernova-data siap untuk index sqlite search engine
+  // Pastikan C:\deepernova-data siap
   if (!fs.existsSync('C:\\deepernova-data')) {
-    try {
-      fs.mkdirSync('C:\\deepernova-data', { recursive: true });
-    } catch {}
+    try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch {}
   }
 
-  // Step 1: Nyalakan Search Engine jika belum jalan di port 3000
-  const searchOpen = await checkPortOpen(3000);
-  if (!searchOpen) {
-    startProcess('node', ['--max-old-space-size=1536', '--expose-gc', 'src/server.js'], SEARCH_DIR, 'Deepernova Search Engine (Port 3000)');
-    log.info('Menunggu Search Engine siap di port 3000...');
-    const ready = await waitForPort(3000, 15000);
-    if (ready) {
+  // ── Step 1: Nyalakan Search Engine (port 3000) ───
+  log.title('📦 STEP 1: Search Engine');
+  if (await checkPortOpen(3000)) {
+    log.success('Search Engine sudah aktif di port 3000.');
+  } else if (fs.existsSync(SEARCH_DIR)) {
+    startProcess('node', ['--max-old-space-size=1536', '--expose-gc', 'src/server.js'], SEARCH_DIR, 'Deepernova Search Engine');
+    log.info('Menunggu Search Engine siap di port 3000 (max 40 detik)...');
+    if (await waitForPort(3000, 40000)) {
       log.success('Search Engine siap di port 3000.');
     } else {
-      log.warn('Search Engine memerlukan waktu lebih lama untuk inisialisasi.');
+      log.warn('Search Engine belum siap, tapi proses lanjut...');
     }
   } else {
-    log.success('Search Engine sudah aktif di port 3000.');
+    log.warn(`Folder Search Engine tidak ditemukan: ${SEARCH_DIR}`);
   }
 
-  // Step 2: Nyalakan Backend Server jika belum jalan di port 3001
-  const backendOpen = await checkPortOpen(3001);
-  if (!backendOpen) {
-    startProcess('node', ['server/server.js'], ROOT_DIR, 'Deepernova Backend Server (Port 3001)');
-    log.info('Menunggu Backend Server siap di port 3001...');
-    const ready = await waitForPort(3001, 15000);
-    if (ready) {
+  // ── Step 2: Nyalakan Backend Server (port 3001) ───
+  log.title('📦 STEP 2: Backend Server');
+  if (await checkPortOpen(3001)) {
+    log.success('Backend Server sudah aktif di port 3001.');
+  } else {
+    startProcess('node', ['server/server.js'], ROOT_DIR, 'Deepernova Backend Server');
+    log.info('Menunggu Backend Server siap di port 3001 (max 20 detik)...');
+    if (await waitForPort(3001, 20000)) {
       log.success('Backend Server siap di port 3001.');
     } else {
-      log.warn('Backend Server memerlukan waktu lebih lama untuk inisialisasi.');
+      log.warn('Backend Server belum siap, tapi proses lanjut...');
     }
-  } else {
-    log.success('Backend Server sudah aktif di port 3001.');
   }
 
-  // Step 3: Nyalakan Deepernova AI Frontend Vite jika belum jalan di port 5174
-  const frontendOpen = await checkPortOpen(5174);
-  if (!frontendOpen) {
-    startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend (Port 5174)');
-    await waitForPort(5174, 10000);
-    log.success('Deepernova AI Frontend dinyalakan di port 5174.');
+  // ── Step 3: Nyalakan Frontend Vite (port 5174) ───
+  log.title('📦 STEP 3: Frontend Vite Dev Server');
+  if (await checkPortOpen(5174)) {
+    log.success('Frontend Vite sudah aktif di port 5174.');
   } else {
-    log.success('Deepernova AI Frontend sudah aktif di port 5174.');
+    startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend');
+    log.info('Menunggu Frontend siap di port 5174 (max 15 detik)...');
+    if (await waitForPort(5174, 15000)) {
+      log.success('Frontend Vite siap di port 5174.');
+    } else {
+      log.warn('Frontend Vite belum siap, tapi proses lanjut...');
+    }
   }
 
-  // Step 4: Nyalakan Order DTE Backend jika belum jalan di port 5000
+  // ── Step 4: Nyalakan Order DTE Backend (port 5000) ───
+  log.title('📦 STEP 4: Order DTE Backend');
   if (fs.existsSync(ORDER_DTE_SERVER_DIR)) {
-    const orderServerOpen = await checkPortOpen(5000);
-    if (!orderServerOpen) {
-      startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend (Port 5000)');
-      await waitForPort(5000, 10000);
-      log.success('Order DTE Backend Server dinyalakan di port 5000.');
+    if (await checkPortOpen(5000)) {
+      log.success('DTE Backend sudah aktif di port 5000.');
     } else {
-      log.success('Order DTE Backend Server sudah aktif di port 5000.');
+      startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend');
+      log.info('Menunggu DTE Backend siap di port 5000 (max 15 detik)...');
+      if (await waitForPort(5000, 15000)) {
+        log.success('DTE Backend siap di port 5000.');
+      } else {
+        log.warn('DTE Backend belum siap, tapi proses lanjut...');
+      }
     }
+  } else {
+    log.warn(`Folder DTE Backend tidak ditemukan: ${ORDER_DTE_SERVER_DIR}`);
   }
 
-  // Step 5: Nyalakan Order DTE User Frontend jika belum jalan di port 5173
-  if (fs.existsSync(ORDER_DTE_USER_DIR)) {
-    const orderUserOpen = await checkPortOpen(5173);
-    if (!orderUserOpen) {
-      startProcess('npm', ['run', 'dev'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend (Port 5173)');
-      await waitForPort(5173, 10000);
-      log.success('Order DTE User Frontend dinyalakan di port 5173.');
+  // ── Step 5: Nyalakan Order DTE Frontend (port 5173) ───
+  log.title('📦 STEP 5: Order DTE Frontend');
+  const dteExists = fs.existsSync(ORDER_DTE_USER_DIR);
+  if (dteExists) {
+    if (await checkPortOpen(5173)) {
+      log.success('DTE Frontend sudah aktif di port 5173.');
     } else {
-      log.success('Order DTE User Frontend sudah aktif di port 5173.');
+      startProcess('npm', ['run', 'dev'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend');
+      log.info('Menunggu DTE Frontend siap di port 5173 (max 15 detik)...');
+      if (await waitForPort(5173, 15000)) {
+        log.success('DTE Frontend siap di port 5173.');
+      } else {
+        log.warn('DTE Frontend belum siap, tapi proses lanjut...');
+      }
     }
+  } else {
+    log.warn(`Folder DTE Frontend tidak ditemukan: ${ORDER_DTE_USER_DIR}`);
   }
 
-  // Step 3: Dapatkan URL Cloudflare Tunnel
+  // ── Step 6: Buka Cloudflare Tunnels ───
+  log.title('🌐 STEP 6: Cloudflare Tunnels');
+
   const backendLog = path.join(ROOT_DIR, 'tunnel-backend.log');
   const searchLog = path.join(ROOT_DIR, 'tunnel-search.log');
   const dteLog = path.join(ROOT_DIR, 'tunnel-dte.log');
 
-  let backendUrl = null;
-  let searchEngineUrl = null;
-  let dteUrl = null;
-
-  // Baca URL lama dari active_tunnel.json sebagai fallback
+  // Baca URL lama sebagai fallback
   const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
   let oldTunnel = {};
   try {
@@ -439,83 +470,63 @@ async function main() {
     }
   } catch {}
 
-  try {
-    const tunnelPromises = [];
-    const dteExists = fs.existsSync(ORDER_DTE_USER_DIR);
+  let backendUrl = null;
+  let searchEngineUrl = null;
+  let dteUrl = null;
 
-    // Gunakan Promise.allSettled agar 1 tunnel gagal tidak stop semua
-    const settled = await Promise.allSettled([
-      launchTunnel(3001, backendLog),
-      launchTunnel(3000, searchLog),
-      ...(dteExists ? [launchTunnel(5173, dteLog)] : [])
-    ]);
-
-    if (settled[0].status === 'fulfilled') {
-      backendUrl = settled[0].value;
-    } else {
-      log.warn(`Backend tunnel gagal: ${settled[0].reason?.message}. Menggunakan URL lama.`);
-      backendUrl = oldTunnel.backendUrl || null;
-    }
-
-    if (settled[1].status === 'fulfilled') {
-      searchEngineUrl = settled[1].value;
-    } else {
-      log.warn(`Search tunnel gagal: ${settled[1].reason?.message}. Menggunakan URL lama.`);
-      searchEngineUrl = oldTunnel.searchEngineUrl || null;
-    }
-
-    if (dteExists && settled[2]) {
-      if (settled[2].status === 'fulfilled') {
-        dteUrl = settled[2].value;
-      } else {
-        log.warn(`DTE tunnel gagal: ${settled[2].reason?.message}. Menggunakan URL lama.`);
-        dteUrl = oldTunnel.dteUrl || null;
-      }
-    }
-
-    if (!backendUrl && !searchEngineUrl) {
-      log.warn('Semua tunnel gagal! Tetap melanjutkan build & push dengan URL lama...');
-    }
-  } catch (err) {
-    log.warn(`Tunnel error: ${err.message}. Melanjutkan dengan URL lama...`);
-    backendUrl = oldTunnel.backendUrl || null;
-    searchEngineUrl = oldTunnel.searchEngineUrl || null;
-    dteUrl = oldTunnel.dteUrl || null;
-  }
-
-  // Jika masih null, exit dengan peringatan (bukan exit 1 agar build tetap jalan)
-  if (!backendUrl) {
-    log.warn('backendUrl tidak tersedia. Konfigurasi mungkin tidak akurat.');
+  // Cek apakah cloudflared.exe ada
+  if (!fs.existsSync(CLOUDFLARED_BIN)) {
+    log.error(`cloudflared.exe tidak ditemukan di: ${CLOUDFLARED_BIN}`);
+    log.warn('Download dari: https://github.com/cloudflare/cloudflared/releases');
+    log.warn('Menggunakan URL tunnel lama...');
     backendUrl = oldTunnel.backendUrl || 'http://localhost:3001';
-  }
-  if (!searchEngineUrl) {
-    log.warn('searchEngineUrl tidak tersedia. Konfigurasi mungkin tidak akurat.');
     searchEngineUrl = oldTunnel.searchEngineUrl || 'http://localhost:3000';
+    dteUrl = oldTunnel.dteUrl || null;
+  } else {
+    // Launch semua tunnels dengan Promise.allSettled (1 gagal tidak stop semua)
+    const tunnelTasks = [
+      launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
+      launchTunnel(3000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
+    ];
+    if (dteExists) {
+      tunnelTasks.push(
+        launchTunnel(5173, dteLog).catch(e => { log.warn(`DTE tunnel: ${e.message}`); return null; })
+      );
+    }
+
+    const results = await Promise.all(tunnelTasks);
+
+    backendUrl = results[0] || oldTunnel.backendUrl || 'http://localhost:3001';
+    searchEngineUrl = results[1] || oldTunnel.searchEngineUrl || 'http://localhost:3000';
+    if (dteExists) {
+      dteUrl = (results[2]) || oldTunnel.dteUrl || null;
+    }
   }
 
-  log.success(`Backend Tunnel URL: ${backendUrl}`);
-  log.success(`Search Engine Tunnel URL: ${searchEngineUrl}`);
-  if (dteUrl) {
-    log.success(`Order DTE Tunnel URL: ${dteUrl}`);
-  }
+  log.success(`Backend Tunnel   : ${backendUrl}`);
+  log.success(`Search Tunnel    : ${searchEngineUrl}`);
+  if (dteUrl) log.success(`DTE Tunnel       : ${dteUrl}`);
 
-  // Step 4: Konfigurasi Otomatis File-File Proyek
+  // ── Step 7: Update semua config files ───
+  log.title('⚙️  STEP 7: Update Konfigurasi');
   updateConfigFiles(backendUrl, searchEngineUrl, dteUrl);
 
-  // Step 5: Build Vite Frontend
+  // ── Step 8: Build Frontend ───
+  log.title('🔨 STEP 8: Build Frontend');
   log.info('Membangun bundle frontend (npm run build)...');
   try {
     execSync('npm run build', { cwd: ROOT_DIR, stdio: 'inherit' });
     log.success('Frontend build selesai.');
   } catch (err) {
-    log.error('Gagal menjalankan build frontend!');
-    process.exit(1);
+    log.error(`Build gagal: ${err.message}`);
+    log.warn('Melanjutkan ke git push meskipun build gagal...');
   }
 
-  // Step 6: Git commit & push otomatis ke GitHub
+  // ── Step 9: Git Commit & Push ───
+  log.title('🚀 STEP 9: Git Push ke GitHub');
   log.info('Menyinkronkan ke GitHub & Vercel...');
   try {
-    // Pastikan git user config ada agar commit tidak gagal
+    // Pastikan git user config ada
     try {
       execSync('git config user.email', { cwd: ROOT_DIR, stdio: 'pipe' });
     } catch {
@@ -523,24 +534,10 @@ async function main() {
       execSync('git config user.name "Deepernova Auto Deploy"', { cwd: ROOT_DIR, stdio: 'inherit' });
     }
 
-    // Stage semua file yang relevan
-    const filesToAdd = [
-      'vercel.json',
-      'src/apiConfig.js',
-      'src/services/clientSearchService.js',
-      'src/components/LandingPage.jsx',
-      'active_tunnel.json',
-      '.env',
-      '.env.production',
-      'dist/',
-      'scripts/auto_start_all.mjs',
-      'start_all.bat',
-      'start.bat'
-    ].join(' ');
+    // Stage files
+    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs start_all.bat start.bat', { cwd: ROOT_DIR, stdio: 'inherit' });
 
-    execSync(`git add -A ${filesToAdd}`, { cwd: ROOT_DIR, stdio: 'inherit' });
-
-    // Commit (jika tidak ada perubahan, lanjut saja)
+    // Commit
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
     try {
       execSync(`git commit -m "auto-deploy: ${timestamp} - sync tunnels, config, build"`, { cwd: ROOT_DIR, stdio: 'inherit' });
@@ -549,40 +546,40 @@ async function main() {
       log.info('Tidak ada perubahan baru untuk di-commit.');
     }
 
-    // Push ke GitHub
-    log.info('Melakukan git push origin main ke GitHub...');
+    // Push
+    log.info('Melakukan git push origin main...');
     execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
-    log.success('✅ Berhasil push ke GitHub! Vercel akan otomatis live dalam beberapa detik.');
+    log.success('✅ Push ke GitHub berhasil! Vercel auto-deploy aktif.');
   } catch (err) {
-    log.warn(`Catatan git push: ${err.message || 'Selesai.'}`);
-    log.warn('Pastikan git remote origin sudah benar dan ada koneksi internet.');
+    log.warn(`Git push gagal: ${err.message || ''}`);
+    log.warn('Pastikan remote origin benar dan ada koneksi internet.');
   }
 
-  log.title('✨ SEMUA LAYANAN SUDAH AKTIF & TERKONFIGURASI OTOMATIS!');
-  console.log(`- 🌐 Frontend Lokal (Buka di browser) : http://localhost:5174`);
-  console.log(`- 🔍 Search Engine Public API         : ${searchEngineUrl}/api/v1/search`);
-  console.log(`- 🧠 AI Backend Public URL            : ${backendUrl}`);
+  // ── SELESAI ───
+  log.title('✨ SEMUA LAYANAN AKTIF & TERKONFIGURASI OTOMATIS!');
+  console.log(`  🌐 Frontend Lokal  : http://localhost:5174`);
+  console.log(`  🔍 Search Engine   : ${searchEngineUrl}/api/v1/search`);
+  console.log(`  🧠 AI Backend      : ${backendUrl}`);
   if (dteUrl) {
-    console.log(`- 🏭 Order DTE Public Portal          : ${dteUrl}`);
+    console.log(`  🏭 Order DTE       : ${dteUrl}`);
   }
-  console.log(`- 🚀 Vercel Live (Otomatis Sync)      : Siap digunakan (terhubung via Cloudflare rewrite)\n`);
-  console.log('📌 Tekan Ctrl+C di jendela ini untuk mematikan semua service sekaligus.\n');
+  console.log(`  🚀 Vercel Live     : Auto-deployed via GitHub\n`);
+  console.log('📌 Tekan Ctrl+C untuk mematikan semua service.\n');
 
-  // Bersihkan subprocess ketika master dihentikan
+  // Cleanup on exit
   const cleanup = () => {
-    log.info('Mematikan semua service Deepernova...');
-    try {
-      execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' });
-    } catch {}
+    log.info('Mematikan semua service...');
+    try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
     process.exit(0);
   };
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
-  // Keep process alive indefinitely
+  // Keep alive
   setInterval(() => {}, 1000 * 60 * 60);
 }
 
 main().catch((err) => {
-  log.error(`Terjadi kesalahan: ${err.message}`);
+  log.error(`Fatal error: ${err.message}`);
+  console.error(err);
 });

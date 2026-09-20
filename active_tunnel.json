@@ -1,13 +1,10 @@
 {
-    "backendUrl":  "https://bids-blend-registered-matters.trycloudflare.com",
-    "frontendUrl":  "https://nam-ben-brothers-strict.trycloudflare.com",
-    "searchEngineUrl":  "https://sticker-plumbers-curriculum-pacs.trycloudflare.com",
-    "dteUrl":  "https://buffalo-instruction-landscape-occasional.trycloudflare.com",
-    "backendPort":  3001,
-    "frontendPort":  5174,
-    "searchEnginePort":  3000,
-    "dtePort":  5173,
-    "isFixed":  true,
-    "status":  "LIVE",
-    "updatedAt":  "2026-09-21T00:27:54.3394831+07:00"
+  "backendUrl": "https://fotos-pricing-trials-sterling.trycloudflare.com",
+  "searchEngineUrl": "https://bill-parliamentary-door-evolution.trycloudflare.com",
+  "dteUrl": "https://pharmaceuticals-cds-sacramento-carefully.trycloudflare.com",
+  "backendPort": 3001,
+  "searchEnginePort": 3000,
+  "dtePort": 5173,
+  "status": "LIVE",
+  "updatedAt": "2026-09-20T17:36:42.372Z"
 }
