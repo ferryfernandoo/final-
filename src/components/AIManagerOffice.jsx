@@ -1682,7 +1682,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
   };
 
   return (
-    <div className="os-desktop-container" style={{ backgroundImage: `url(${wallpapers[wallpaperIndex]})` }}>
+    <div className="cmo-workspace">
       {/* Hidden File Input for ALL file types */}
       <input
         type="file"
@@ -1692,553 +1692,445 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
         multiple
       />
 
-      {/* Windows 11 Desktop Shortcuts Grid */}
-      <div className="win11-desktop-grid" onClick={() => setShowStartMenu(false)}>
-        <div className="win11-desktop-icon" onClick={() => { setIsWindowOpen(true); setIsMinimized(false); }}>
-          <img src="https://img.icons8.com/color/96/folder-invoices.png" alt="Cloud Explorer" />
-          <span>Cloud Explorer</span>
-        </div>
+      {/* TOP MODERN HEADER BAR */}
+      <header className="cmo-header">
+        <div className="cmo-header-left">
+          <button 
+            type="button" 
+            className="cmo-back-btn" 
+            onClick={() => onNavigate?.('landing')}
+            title="Kembali ke Beranda"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Beranda</span>
+          </button>
 
-        <div className="win11-desktop-icon" onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'word'); }}>
-          <img src="https://img.icons8.com/color/96/microsoft-word-2019.png" alt="Typernova" />
-          <span>Typernova Word</span>
-        </div>
+          <div className="cmo-brand-divider"></div>
 
-        <div className="win11-desktop-icon" onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'excel'); }}>
-          <img src="https://img.icons8.com/color/96/microsoft-excel-2019.png" alt="Sheets" />
-          <span>Sheets Excel</span>
-        </div>
-
-        <div className="win11-desktop-icon" onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'ppt'); }}>
-          <img src="https://img.icons8.com/color/96/microsoft-powerpoint-2019.png" alt="Presentation" />
-          <span>Slide Deck</span>
-        </div>
-
-        <div className="win11-desktop-icon" onClick={() => onNavigate?.('chat')}>
-          <img src="https://img.icons8.com/color/96/chat.png" alt="AI Chat" />
-          <span>AI Assistant</span>
-        </div>
-
-        <div className="win11-desktop-icon" onClick={cycleWallpaper} title="Klik untuk berganti wallpaper HD gratis dari Unsplash">
-          <img src="https://img.icons8.com/color/96/picture.png" alt="Wallpaper" />
-          <span>Ganti Wallpaper</span>
-        </div>
-      </div>
-
-      {/* WINDOWS OS STYLE WINDOW FRAME */}
-      <div 
-        className={`os-window-frame ${isMaximized ? 'maximized' : ''}`} 
-        style={!isWindowOpen || isMinimized ? { display: 'none' } : {}}
-        onClick={() => setShowStartMenu(false)}
-      >
-        {/* Windows OS Window Titlebar */}
-        <div className="os-window-titlebar">
-          <div className="window-title-group">
-            <img src="https://img.icons8.com/color/96/cloud-storage.png" alt="OS Logo" className="window-app-icon" style={{ width: 22, height: 22 }} />
-            <span className="window-title-text">Deepernova Cloud Explorer v3.0 — Server Connected [{userName}]</span>
+          <div className="cmo-brand-info">
+            <span className="cmo-brand-icon">☁️</span>
+            <span className="cmo-brand-title">Management Office</span>
           </div>
 
-          <div className="window-controls-group" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            <button 
-              className="win-btn" 
-              onClick={() => setIsMinimized(true)} 
-              title="Minimize Window"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect y="5" width="12" height="2" rx="1" fill="#475569"/>
-              </svg>
-            </button>
-
-            <button 
-              className="win-btn" 
-              onClick={() => setIsMaximized(!isMaximized)} 
-              title={isMaximized ? "Restore Down" : "Maximize Window"}
-            >
-              {isMaximized ? (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M3 1H11V9H9V11H1V3H3V1ZM9 3H3V9H9V3ZM2 4V10H8V9H3C2.44772 9 2 8.55228 2 8V4Z" fill="#475569"/>
-                </svg>
-              ) : (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="#475569" strokeWidth="1.8" fill="none"/>
-                </svg>
-              )}
-            </button>
-
-            <button 
-              className="win-btn close-btn" 
-              onClick={() => setIsWindowOpen(false)} 
-              title="Tutup Jendela Explorer"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1.5 1.5L10.5 10.5M10.5 1.5L1.5 10.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Explorer Address Bar & Action Bar */}
-        <div className="explorer-toolbar">
-          <div className="nav-history-btns" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <button
-              className="nav-circle-btn"
-              onClick={handleNavBack}
-              disabled={navIndex === 0}
-              style={{
-                opacity: navIndex === 0 ? 0.4 : 1,
-                cursor: navIndex === 0 ? 'not-allowed' : 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '6px'
-              }}
-              title="Kembali (Back)"
-            >
-              <img src="https://img.icons8.com/fluency/48/back.png" alt="Back" style={{ width: 16, height: 16 }} />
-            </button>
-
-            <button
-              className="nav-circle-btn"
-              onClick={handleNavForward}
-              disabled={navIndex >= navHistory.length - 1}
-              style={{
-                opacity: navIndex >= navHistory.length - 1 ? 0.4 : 1,
-                cursor: navIndex >= navHistory.length - 1 ? 'not-allowed' : 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '6px'
-              }}
-              title="Maju (Forward)"
-            >
-              <img src="https://img.icons8.com/fluency/48/forward.png" alt="Forward" style={{ width: 16, height: 16 }} />
-            </button>
-
-            <button 
-              className="nav-circle-btn" 
-              title="Refresh Cloud Storage" 
-              onClick={fetchCloudStorageData}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}
-            >
-              <img src="https://img.icons8.com/fluency/48/refresh.png" alt="Refresh" style={{ width: 16, height: 16 }} />
-            </button>
-          </div>
-
-          {/* Breadcrumb Address Bar */}
-          <div className="address-breadcrumb-bar">
+          <div className="cmo-breadcrumbs">
             <span 
-              className="bc-item" 
-              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              className="cmo-bc-item"
               onClick={() => {
                 setCurrentFolderId(null);
-                setFolderPath([{ id: null, name: 'Server Cloud Drive' }]);
+                setFolderPath([{ id: null, name: 'Cloud Drive' }]);
                 setActiveCategory('all');
               }}
             >
-              <img src="https://img.icons8.com/fluency/48/universe.png" alt="Deepernova OS" style={{ width: 18, height: 18 }} />
-              <span>Deepernova OS</span>
+              Cloud Drive
             </span>
-            <span className="bc-sep">›</span>
             {folderPath.map((folder, idx) => (
-              <React.Fragment key={idx}>
-                <span 
-                  className="bc-item"
-                  style={{ cursor: 'pointer', fontWeight: idx === folderPath.length - 1 ? 700 : 400, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => {
-                    setCurrentFolderId(folder.id);
-                    setFolderPath(folderPath.slice(0, idx + 1));
-                    setActiveCategory('all');
-                  }}
-                >
-                  {folder.id === null ? (
-                    <>
-                      <img src="https://img.icons8.com/fluency/48/cloud-storage.png" alt="Cloud" style={{ width: 18, height: 18 }} />
-                      <span>Server Cloud Drive</span>
-                    </>
-                  ) : (
-                    <>
-                      <img src="https://img.icons8.com/fluency/48/folder-invoices.png" alt="Folder" style={{ width: 18, height: 18 }} />
-                      <span>{folder.name}</span>
-                    </>
-                  )}
-                </span>
-                {idx < folderPath.length - 1 && <span className="bc-sep">›</span>}
-              </React.Fragment>
+              folder.id !== null ? (
+                <React.Fragment key={idx}>
+                  <span className="cmo-bc-sep">/</span>
+                  <span 
+                    className={`cmo-bc-item ${idx === folderPath.length - 1 ? 'active' : ''}`}
+                    onClick={() => {
+                      setCurrentFolderId(folder.id);
+                      setFolderPath(folderPath.slice(0, idx + 1));
+                      setActiveCategory('all');
+                    }}
+                  >
+                    {folder.name}
+                  </span>
+                </React.Fragment>
+              ) : null
             ))}
-
-            {(() => {
-              const currentFolder = currentFolderId ? files.find(f => f.id === currentFolderId) : null;
-              if (currentFolder) {
-                const info = getFolderCreatorInfo(currentFolder);
-                return (
-                  <div style={{
-                    marginLeft: 'auto',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '11px',
-                    background: 'rgba(56, 189, 248, 0.12)',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    color: '#e2e8f0',
-                    fontWeight: 500
-                  }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <img src="https://img.icons8.com/fluency/48/user-shield.png" alt="Creator" style={{ width: 16, height: 16 }} />
-                      Pembuat Folder: <strong style={{ color: '#facc15' }}>{info.name}</strong>
-                    </span>
-                    <span style={{ opacity: 0.4 }}>•</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <img src="https://img.icons8.com/fluency/48/manager.png" alt="Role" style={{ width: 16, height: 16 }} />
-                      Jabatan: <strong style={{ color: '#38bdf8' }}>{info.role}</strong>
-                    </span>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-          </div>
-
-          <div className="explorer-actions-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <input
-                type="text"
-                className="explorer-search-input"
-                placeholder="Cari berkas apapun..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ paddingLeft: '32px' }}
-              />
-              <img 
-                src="https://img.icons8.com/fluency/48/search.png" 
-                alt="Search" 
-                style={{ position: 'absolute', left: '10px', width: 16, height: 16, pointerEvents: 'none' }} 
-              />
-            </div>
-
-            {/* Enterprise Zero-Trust Shield Badge */}
-            <div 
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '5px 10px',
-                background: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: '8px',
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#10b981',
-                userSelect: 'none'
-              }}
-              title="Pertahanan Berlapis Enterprise: Zero-Trust Active | SHA-256 Tamper-Proof | Row-Level Security Quarantined"
-            >
-              <span style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                backgroundColor: '#10b981',
-                boxShadow: '0 0 6px #10b981'
-              }}></span>
-              <span>Zero-Trust Vault</span>
-            </div>
-
-            <button
-              className="view-mode-toggle-btn"
-              onClick={() => onNavigate?.('landing')}
-              title="Kembali ke Beranda / Landing Page"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(234, 88, 12, 0.12)',
-                borderColor: 'rgba(234, 88, 12, 0.3)',
-                color: '#ea580c',
-                fontWeight: 700
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-              <span>Beranda</span>
-            </button>
-
-            <button
-              className="create-upload-btn"
-              style={{ background: '#059669', borderColor: '#047857', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              onClick={openNewFolderModal}
-              title="Buat Folder Baru (Private / Company)"
-            >
-              <img src="https://img.icons8.com/fluency/48/add-folder.png" alt="New Folder" style={{ width: 18, height: 18 }} />
-              <span>+ Folder Baru</span>
-            </button>
-
-            <button
-              className="view-mode-toggle-btn"
-              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              title="Ganti Tampilan Grid / List"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <img 
-                src={viewMode === 'grid' ? "https://img.icons8.com/fluency/48/list.png" : "https://img.icons8.com/fluency/48/grid.png"} 
-                alt={viewMode === 'grid' ? 'List' : 'Grid'} 
-                style={{ width: 18, height: 18 }} 
-              />
-              <span>{viewMode === 'grid' ? 'List' : 'Grid'}</span>
-            </button>
-
-            <button 
-              className="create-upload-btn" 
-              onClick={() => fileInputRef.current?.click()} 
-              disabled={isLoading}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <img src="https://img.icons8.com/fluency/48/upload-to-cloud.png" alt="Upload" style={{ width: 18, height: 18 }} />
-              <span>{isLoading ? 'Mengunggah...' : 'Upload Berkas'}</span>
-            </button>
           </div>
         </div>
 
-        {/* Server Sync Status Bar with Progress Percentage */}
-        {isServerSyncing && (
-          <div style={{
-            background: 'linear-gradient(90deg, #0f172a 0%, #1e293b 100%)',
-            color: '#38bdf8',
-            padding: '8px 20px',
-            fontSize: '13px',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(56, 189, 248, 0.25)',
-            boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.05)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div className="spinner-border spinner-border-sm" role="status" style={{ width: 14, height: 14, border: '2px solid #38bdf8', borderRightColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
-              <span>Sedang mengambil data dari server...</span>
+        <div className="cmo-header-center">
+          <div className="cmo-search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              placeholder="Cari berkas di cloud..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button className="cmo-search-clear" onClick={() => setSearchTerm('')}>✕</button>
+            )}
+          </div>
+        </div>
+
+        <div className="cmo-header-right">
+          {/* Quick Office Launchers */}
+          <div className="cmo-office-shortcuts">
+            <button 
+              className="cmo-tool-btn word" 
+              onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'word'); }}
+              title="Buka Typernova Word"
+            >
+              <span>📄 Word</span>
+            </button>
+            <button 
+              className="cmo-tool-btn excel" 
+              onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'excel'); }}
+              title="Buka Sheets Excel"
+            >
+              <span>📊 Excel</span>
+            </button>
+            <button 
+              className="cmo-tool-btn ppt" 
+              onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'ppt'); }}
+              title="Buka Slide Deck"
+            >
+              <span>📽️ PPT</span>
+            </button>
+          </div>
+
+          <div className="cmo-brand-divider"></div>
+
+          <button 
+            className="cmo-btn-secondary" 
+            onClick={openNewFolderModal}
+            title="Buat Folder Baru"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              <line x1="12" y1="11" x2="12" y2="17"></line>
+              <line x1="9" y1="14" x2="15" y2="14"></line>
+            </svg>
+            <span>+ Folder</span>
+          </button>
+
+          <button 
+            className="cmo-btn-primary" 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={isLoading}
+            title="Unggah berkas baru"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>{isLoading ? 'Mengunggah...' : 'Upload'}</span>
+          </button>
+
+          <button 
+            className="cmo-view-toggle" 
+            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+            title={viewMode === 'grid' ? 'Tampilan List' : 'Tampilan Grid'}
+          >
+            {viewMode === 'grid' ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* SYNC PROGRESS BAR IF SYNCING */}
+      {isServerSyncing && (
+        <div className="cmo-sync-banner">
+          <div className="cmo-sync-info">
+            <span className="cmo-spinner"></span>
+            <span>Sinkronisasi data cloud dengan server Deepernova...</span>
+          </div>
+          <div className="cmo-sync-meter">
+            <div className="cmo-sync-bar" style={{ width: `${syncProgress}%` }}></div>
+            <span className="cmo-sync-pct">{syncProgress}%</span>
+          </div>
+        </div>
+      )}
+
+      {/* WORKSPACE BODY */}
+      <div className="cmo-body">
+        {/* SIDEBAR NAVIGATION */}
+        <aside className="cmo-sidebar">
+          <div className="cmo-nav-section">
+            <span className="cmo-nav-label">PENYIMPANAN</span>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('all')}
+            >
+              <span className="cmo-nav-icon">☁️</span>
+              <span className="cmo-nav-text">Semua Berkas</span>
+              <span className="cmo-nav-badge">{files.length}</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'docx' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('docx')}
+            >
+              <span className="cmo-nav-icon">📄</span>
+              <span className="cmo-nav-text">Typernova (Word)</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'excel' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('excel')}
+            >
+              <span className="cmo-nav-icon">📊</span>
+              <span className="cmo-nav-text">Sheets (Excel)</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'pptx' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('pptx')}
+            >
+              <span className="cmo-nav-icon">📽️</span>
+              <span className="cmo-nav-text">Slide Deck (PPT)</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'pdf' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('pdf')}
+            >
+              <span className="cmo-nav-icon">📑</span>
+              <span className="cmo-nav-text">PDF Vault</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'image' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('image')}
+            >
+              <span className="cmo-nav-icon">🖼️</span>
+              <span className="cmo-nav-text">Foto & Gambar</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'video' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('video')}
+            >
+              <span className="cmo-nav-icon">🎬</span>
+              <span className="cmo-nav-text">Video & Media</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'audio' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('audio')}
+            >
+              <span className="cmo-nav-icon">🎵</span>
+              <span className="cmo-nav-text">Suara & Audio</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'code' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('code')}
+            >
+              <span className="cmo-nav-icon">💻</span>
+              <span className="cmo-nav-text">Kode & Teks</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`cmo-nav-item ${activeCategory === 'archive' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('archive')}
+            >
+              <span className="cmo-nav-icon">🗃️</span>
+              <span className="cmo-nav-text">Arsip & Zip</span>
+            </button>
+          </div>
+
+          {/* Storage Meter Widget */}
+          <div className="cmo-storage-card">
+            <div className="cmo-storage-header">
+              <span className="cmo-storage-title">Kapasitas Cloud</span>
+              <span className="cmo-storage-tag">3 GB Free</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '160px', height: '7px', background: 'rgba(255,255,255,0.12)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: `${syncProgress}%`, height: '100%', background: 'linear-gradient(90deg, #38bdf8 0%, #0284c7 100%)', transition: 'width 0.3s ease' }}></div>
-              </div>
-              <span style={{ color: '#facc15', fontFamily: 'monospace', fontWeight: 700, fontSize: '13px' }}>{syncProgress}%</span>
+            <div className="cmo-meter-track">
+              <div 
+                className="cmo-meter-fill" 
+                style={{ width: `${Math.max(2, Math.min(100, storageInfo.percent))}%` }}
+              ></div>
+            </div>
+            <div className="cmo-storage-details">
+              <span>{storageInfo.usedMB} MB terpakai</span>
+              <span>{storageInfo.percent}%</span>
+            </div>
+            <div className="cmo-storage-security">
+              <span className="cmo-sec-dot"></span>
+              <span>Zero-Trust Vault • SHA-256</span>
             </div>
           </div>
-        )}
+        </aside>
 
-        {/* Explorer Main Content */}
-        <div className="explorer-main-body">
-          {/* Windows Left Navigation Sidebar */}
-          <aside className="explorer-sidebar">
-            <div>
-              <div className="sidebar-group">
-                <div className="sidebar-title">Penyimpanan Cloud (3 GB Free)</div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'all' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('all')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/cloud-storage.png" alt="Cloud" style={{ width: 20, height: 20 }} />
-                    <span>My Cloud Drive</span>
-                  </div>
-                  <span className="item-count-badge">{files.length}</span>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'docx' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('docx')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/microsoft-word-2019.png" alt="Word" style={{ width: 20, height: 20 }} />
-                    <span>Typernova (Word)</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'excel' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('excel')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/microsoft-excel-2019.png" alt="Excel" style={{ width: 20, height: 20 }} />
-                    <span>Sheets (Excel)</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'pptx' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('pptx')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/microsoft-powerpoint-2019.png" alt="PPT" style={{ width: 20, height: 20 }} />
-                    <span>Presentasi Deck</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'pdf' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('pdf')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/pdf-2.png" alt="PDF" style={{ width: 20, height: 20 }} />
-                    <span>PDF Vault</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'image' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('image')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/image.png" alt="Image" style={{ width: 20, height: 20 }} />
-                    <span>Gambar & Art AI</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'video' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('video')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/video-file.png" alt="Video" style={{ width: 20, height: 20 }} />
-                    <span>Video & Media</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'audio' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('audio')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/color/48/music.png" alt="Audio" style={{ width: 20, height: 20 }} />
-                    <span>Suara & Audio</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'code' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('code')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/code-file.png" alt="Code" style={{ width: 20, height: 20 }} />
-                    <span>Kode & Teks</span>
-                  </div>
-                </div>
-                <div
-                  className={`sidebar-nav-item ${activeCategory === 'archive' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('archive')}
-                >
-                  <div className="nav-item-left">
-                    <img src="https://img.icons8.com/fluency/48/zip.png" alt="Archive" style={{ width: 20, height: 20 }} />
-                    <span>Arsip & Zip</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sidebar-group">
-                <div className="sidebar-title">Akses Cepat</div>
-                <div className="sidebar-nav-item">
-                  <div className="nav-item-left">
-                    <span>⭐</span>
-                    <span>Berkas Favorit</span>
-                  </div>
-                </div>
-                <div className="sidebar-nav-item">
-                  <div className="nav-item-left">
-                    <span>🗑️</span>
-                    <span>Tempat Sampah</span>
-                  </div>
-                </div>
-              </div>
+        {/* MAIN VIEWPORT */}
+        <main className="cmo-viewport">
+          {/* Subheader Toolbar */}
+          <div className="cmo-viewport-header">
+            <div className="cmo-category-meta">
+              <h2 className="cmo-current-title">{getCategoryLabel(activeCategory)}</h2>
+              <span className="cmo-item-count">{filteredFiles.length} item</span>
             </div>
 
-            {/* Storage Meter Widget (Real 3 GB Quota) */}
-            <div className="sidebar-storage-widget">
-              <h5>☁️ Real Cloud Storage (3 GB)</h5>
-              <p>{storageInfo.usedMB} MB / {storageInfo.totalMB} MB (Free Tier)</p>
-              <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.max(2, storageInfo.percent)}%`, height: '100%', background: storageInfo.percent > 90 ? '#ef4444' : '#2563eb' }}></div>
-              </div>
+            <div className="cmo-viewport-actions">
+              {currentFolderId && (
+                <button 
+                  type="button" 
+                  className="cmo-btn-ghost" 
+                  onClick={handleNavBack}
+                  title="Kembali ke folder sebelumnya"
+                >
+                  ← Folder Sebelumnya
+                </button>
+              )}
+              <button 
+                type="button" 
+                className="cmo-btn-ghost" 
+                onClick={fetchCloudStorageData}
+                title="Segarkan data cloud"
+              >
+                🔄 Refresh
+              </button>
             </div>
-          </aside>
+          </div>
 
-          {/* Files Grid / List Workspace */}
-          <main className="explorer-content-area">
-            {filteredFiles.length > 0 ? (
-              viewMode === 'grid' ? (
-                <div className="os-files-grid">
-                  {filteredFiles.map(file => {
-                    const cat = (file?.category || file?.type || '').toLowerCase();
-                    const ext = file?.name ? file.name.split('.').pop().toLowerCase() : '';
-                    const isImg = cat === 'image' || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'ico', 'tiff', 'heic'].includes(ext);
-                    const storedSessionData = file?.id && typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`cloud_file_data_${file.id}`) : null;
-                    const storedMemoryData = file?.id && typeof window !== 'undefined' && window.deepernova_file_cache ? window.deepernova_file_cache.get(file.id)?.dataUrl : null;
-                    let imgSrc = file?.thumbnail || file?.dataUrl || file?.fileData || storedSessionData || storedMemoryData || file?.url || file?.filePath || file?.path;
-                    if (imgSrc === '[[stored]]') imgSrc = storedSessionData || storedMemoryData || null;
-                    if (!imgSrc && file?.id) {
-                      imgSrc = `/api/cloud/files/${file.id}/raw`;
-                    }
-                    const resolvedGridImgSrc = imgSrc ? resolveMediaUrl(imgSrc) : null;
-                    const hasVisualPreview = isImg && resolvedGridImgSrc;
+          {/* Subfolder Creator Info Banner if applicable */}
+          {(() => {
+            const currentFolder = currentFolderId ? files.find(f => f.id === currentFolderId) : null;
+            if (currentFolder) {
+              const info = getFolderCreatorInfo(currentFolder);
+              return (
+                <div className="cmo-folder-creator-banner">
+                  <span>📁 Folder Aktif: <strong>{currentFolder.name}</strong></span>
+                  <span className="cmo-banner-sep">•</span>
+                  <span>Pembuat: <strong>{info.name}</strong></span>
+                  <span className="cmo-banner-sep">•</span>
+                  <span>Jabatan: <span className="cmo-role-tag">{info.role}</span></span>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
-                    return (
-                      <div
-                        key={file.id}
-                        className={`os-file-item-card ${hasVisualPreview ? 'image-card' : ''}`}
-                        onClick={() => handleOpenFile(file)}
-                        onContextMenu={(e) => handleItemContextMenu(e, file)}
-                        onTouchStart={(e) => handleTouchStart(e, file)}
-                        onTouchEnd={handleTouchEnd}
-                        onTouchMove={handleTouchEnd}
-                      >
-                        <div className="file-hover-overlay">
-                          {(file.category === 'folder' || file.type === 'folder') && (
-                            <button className="overlay-btn edit-btn" onClick={(e) => handleEditFolder(file, e)} title="Edit Folder & Struktur Organisasi">✏️</button>
-                          )}
-                          <button className="overlay-btn del-btn" onClick={(e) => handleDeleteFile(file.id, e)} title="Hapus Berkas">🗑️</button>
-                        </div>
+          {/* Files Grid / List */}
+          {filteredFiles.length > 0 ? (
+            viewMode === 'grid' ? (
+              <div className="cmo-grid-layout">
+                {filteredFiles.map(file => {
+                  const cat = (file?.category || file?.type || '').toLowerCase();
+                  const ext = file?.name ? file.name.split('.').pop().toLowerCase() : '';
+                  const isImg = cat === 'image' || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'ico', 'tiff', 'heic'].includes(ext);
+                  const storedSessionData = file?.id && typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`cloud_file_data_${file.id}`) : null;
+                  const storedMemoryData = file?.id && typeof window !== 'undefined' && window.deepernova_file_cache ? window.deepernova_file_cache.get(file.id)?.dataUrl : null;
+                  let imgSrc = file?.thumbnail || file?.dataUrl || file?.fileData || storedSessionData || storedMemoryData || file?.url || file?.filePath || file?.path;
+                  if (imgSrc === '[[stored]]') imgSrc = storedSessionData || storedMemoryData || null;
+                  if (!imgSrc && file?.id) {
+                    imgSrc = `/api/cloud/files/${file.id}/raw`;
+                  }
+                  const resolvedGridImgSrc = imgSrc ? resolveMediaUrl(imgSrc) : null;
+                  const hasVisualPreview = isImg && resolvedGridImgSrc;
 
-                        {hasVisualPreview ? (
-                          <div className="file-image-preview-container">
-                            <img
-                              src={resolvedGridImgSrc}
-                              alt={file.name}
-                              onError={(e) => {
-                                if (file?.id && !e.target.src.includes(`/api/cloud/files/${file.id}/raw`)) {
-                                  e.target.src = resolveMediaUrl(`/api/cloud/files/${file.id}/raw`);
-                                } else {
-                                  e.target.onerror = null;
-                                  e.target.src = 'https://img.icons8.com/fluency/96/image.png';
-                                  e.target.style.objectFit = 'contain';
-                                  e.target.style.padding = '12px';
-                                }
-                              }}
-                            />
-                            <span className="image-badge-tag">🖼️ {(ext || 'IMG').toUpperCase()}</span>
-                          </div>
-                        ) : (
-                          <div className="file-icon-box">{getFileIcon(file, 56)}</div>
+                  return (
+                    <div
+                      key={file.id}
+                      className="cmo-card"
+                      onClick={() => handleOpenFile(file)}
+                      onContextMenu={(e) => handleItemContextMenu(e, file)}
+                    >
+                      <div className="cmo-card-actions">
+                        {(file.category !== 'folder' && file.type !== 'folder') && (
+                          <button 
+                            type="button" 
+                            className="cmo-icon-action" 
+                            onClick={(e) => { e.stopPropagation(); triggerFileDownload(file); }} 
+                            title="Unduh Berkas"
+                          >
+                            📥
+                          </button>
                         )}
+                        {(file.category === 'folder' || file.type === 'folder') && (
+                          <button 
+                            type="button" 
+                            className="cmo-icon-action" 
+                            onClick={(e) => { e.stopPropagation(); handleEditFolder(file, e); }} 
+                            title="Edit Folder"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                        <button 
+                          type="button" 
+                          className="cmo-icon-action delete" 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id, e); }} 
+                          title="Hapus"
+                        >
+                          🗑️
+                        </button>
+                      </div>
 
-                        <h4 className="file-name-text" title={file.name}>{file.name}</h4>
-                        {(file.category === 'folder' || file.type === 'folder') ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
-                            {file.folderType === 'private' ? (
-                              <span className="folder-type-badge private">🔒 Private</span>
-                            ) : (
-                              <span className="folder-type-badge company">🏢 Organisasi • {file.founder || 'Folder Tim'}</span>
-                            )}
-                            <p className="file-meta-sub">{file.date || 'Today'}</p>
-                          </div>
+                      <div className="cmo-card-preview">
+                        {hasVisualPreview ? (
+                          <img
+                            src={resolvedGridImgSrc}
+                            alt={file.name}
+                            className="cmo-card-thumb"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://img.icons8.com/fluency/96/image.png';
+                            }}
+                          />
                         ) : (
-                          <p className="file-meta-sub">{file.size} • {file.date || 'Today'}</p>
+                          <div className="cmo-card-icon-wrap">
+                            {getFileIcon(file, 48)}
+                          </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <table className="os-files-list-table">
+
+                      <div className="cmo-card-meta">
+                        <h4 className="cmo-card-title" title={file.name}>{file.name}</h4>
+                        <div className="cmo-card-sub">
+                          {(file.category === 'folder' || file.type === 'folder') ? (
+                            <span className={`cmo-badge-pill ${file.folderType === 'company' ? 'company' : 'private'}`}>
+                              {file.folderType === 'company' ? `🏢 ${file.founder || 'Organisasi'}` : '🔒 Private'}
+                            </span>
+                          ) : (
+                            <span>{file.size}</span>
+                          )}
+                          <span className="cmo-meta-date">{file.date || 'Hari ini'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="cmo-table-container">
+                <table className="cmo-table">
                   <thead>
                     <tr>
                       <th>Nama Berkas</th>
-                      <th>Kategori / Tipe</th>
+                      <th>Tipe</th>
                       <th>Ukuran</th>
-                      <th>Tanggal Modified</th>
-                      <th>Aksi</th>
+                      <th>Tanggal</th>
+                      <th style={{ textAlign: 'right' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2247,482 +2139,76 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                         key={file.id}
                         onClick={() => handleOpenFile(file)}
                         onContextMenu={(e) => handleItemContextMenu(e, file)}
-                        onTouchStart={(e) => handleTouchStart(e, file)}
-                        onTouchEnd={handleTouchEnd}
-                        onTouchMove={handleTouchEnd}
-                        style={{ cursor: 'pointer' }}
                       >
                         <td>
-                          <span style={{ marginRight: '8px', verticalAlign: 'middle', display: 'inline-block' }}>{getFileIcon(file, 28)}</span>
-                          <strong>{file.name}</strong>
-                          {(file.category === 'folder' || file.type === 'folder') && (
-                            <span style={{ marginLeft: '8px' }}>
-                              {file.folderType === 'private' ? (
-                                <span className="folder-type-badge private">🔒 Private</span>
-                              ) : (
-                                <span className="folder-type-badge company">🏢 Organisasi ({file.founder || 'Tim'})</span>
-                              )}
-                            </span>
-                          )}
+                          <div className="cmo-table-name-cell">
+                            <span className="cmo-table-icon">{getFileIcon(file, 24)}</span>
+                            <span className="cmo-table-name">{file.name}</span>
+                            {(file.category === 'folder' || file.type === 'folder') && (
+                              <span className={`cmo-badge-pill small ${file.folderType === 'company' ? 'company' : 'private'}`}>
+                                {file.folderType === 'company' ? '🏢 Tim' : '🔒 Private'}
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td>{(file.category || 'FILE').toUpperCase()}</td>
-                        <td>{file.size}</td>
-                        <td>{file.date || 'Today'}</td>
-                        <td>
-                          {(file.category === 'folder' || file.type === 'folder') && (
-                            <button className="overlay-btn edit-btn" onClick={(e) => handleEditFolder(file, e)} title="Edit Folder & Struktur" style={{ marginRight: '6px', display: 'inline-flex' }}>✏️</button>
-                          )}
-                          <button className="overlay-btn del-btn" onClick={(e) => handleDeleteFile(file.id, e)} title="Hapus" style={{ display: 'inline-flex' }}>🗑️</button>
+                        <td className="cmo-table-cat">{(file.category || 'FILE').toUpperCase()}</td>
+                        <td className="cmo-table-size">{file.size}</td>
+                        <td className="cmo-table-date">{file.date || 'Hari ini'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="cmo-table-actions" onClick={(e) => e.stopPropagation()}>
+                            {(file.category !== 'folder' && file.type !== 'folder') && (
+                              <button 
+                                type="button" 
+                                className="cmo-tbl-btn" 
+                                onClick={() => triggerFileDownload(file)} 
+                                title="Unduh Berkas"
+                              >
+                                📥
+                              </button>
+                            )}
+                            {(file.category === 'folder' || file.type === 'folder') && (
+                              <button 
+                                type="button" 
+                                className="cmo-tbl-btn" 
+                                onClick={(e) => handleEditFolder(file, e)} 
+                                title="Edit Folder"
+                              >
+                                ✏️
+                              </button>
+                            )}
+                            <button 
+                              type="button" 
+                              className="cmo-tbl-btn danger" 
+                              onClick={(e) => handleDeleteFile(file.id, e)} 
+                              title="Hapus Berkas"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              )
-            ) : (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-                <span style={{ fontSize: '64px', display: 'block', marginBottom: '16px' }}>☁️</span>
-                <p style={{ fontSize: '16px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>Cloud Storage Masih Kosong</p>
-                <p style={{ fontSize: '13px', marginBottom: '20px' }}>Klik tombol "Upload Berkas" di atas untuk mengunggah file apapun (Word, Excel, PDF, Gambar, Video, Audio, ZIP, Kode, dll.)</p>
-                <button 
-                  className="create-upload-btn" 
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ margin: '0 auto' }}
-                >
-                  <span>+</span> Upload Berkas Pertama Anda
-                </button>
               </div>
-            )}
-          </main>
-        </div>
-
-        {/* OS Window Statusbar */}
-        <footer className="os-statusbar">
-          <span>{filteredFiles.length} item ditampilkan (Total {files.length} berkas)</span>
-          <span>☁️ Connected to Deepernova Server ({userEmail})</span>
-        </footer>
-      </div>
-
-      {/* ANDROID FILES OS MOBILE STYLE VIEW (ULTRA-MODERN ZERO-TRUST VAULT) */}
-      <div className="android-files-app">
-        {/* Hidden Camera Input for direct mobile document/photo scanning */}
-        <input 
-          type="file" 
-          accept="image/*" 
-          capture="environment" 
-          ref={cameraInputRef} 
-          style={{ display: 'none' }} 
-          onChange={handleFileUpload} 
-        />
-
-        {/* 1. Android Top App Bar */}
-        <header className="android-top-appbar">
-          <div className="android-title-group">
-            {currentFolderId !== null ? (
+            )
+          ) : (
+            <div className="cmo-empty-state">
+              <div className="cmo-empty-icon">☁️</div>
+              <h3 className="cmo-empty-title">Ruang Penyimpanan Kosong</h3>
+              <p className="cmo-empty-desc">
+                Belum ada berkas di kategori atau folder ini. Unggah dokumen, lembar kerja, foto, atau berkas apa saja ke cloud vault Anda.
+              </p>
               <button 
-                className="android-back-btn" 
-                onClick={handleNavBack}
-                title="Kembali ke folder sebelumnya"
+                type="button" 
+                className="cmo-btn-primary" 
+                onClick={() => fileInputRef.current?.click()}
               >
-                ‹
+                + Upload Berkas Sekarang
               </button>
-            ) : (
-              <button
-                className="android-home-pill-btn"
-                onClick={() => onNavigate?.('landing')}
-                title="Kembali ke Beranda"
-              >
-                🏠 Beranda
-              </button>
-            )}
-            <div className="android-title-meta">
-              <h2>{currentFolderId ? folderPath[folderPath.length - 1]?.name || 'Folder' : 'Cloud Drive (3 GB)'}</h2>
-              <span className="android-shield-badge">
-                <span className="android-pulse-dot"></span> Zero-Trust SHA-256
-              </span>
             </div>
-          </div>
-
-          <div className="android-header-actions">
-            <button 
-              className={`android-icon-btn ${isRefreshing ? 'spinning' : ''}`}
-              onClick={handleManualRefresh}
-              title="Segarkan data cloud"
-            >
-              🔄
-            </button>
-            <button 
-              className="android-icon-btn"
-              onClick={() => setMobileViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
-              title={mobileViewMode === 'grid' ? 'Ganti ke Tampilan Daftar' : 'Ganti ke Tampilan Grid'}
-            >
-              {mobileViewMode === 'grid' ? '📋' : '📱'}
-            </button>
-            <button
-              onClick={openNewFolderModal}
-              className="android-header-new-folder-btn"
-              title="Bikin Folder Baru"
-            >
-              📁+
-            </button>
-          </div>
-        </header>
-
-        {/* 2. Modern Storage Telemetry Card */}
-        <div className="android-storage-card">
-          <div className="android-storage-top">
-            <div className="storage-label-group">
-              <span className="storage-icon">☁️</span>
-              <div>
-                <strong>Kapasitas Cloud Vault</strong>
-                <span className="storage-sub">Penyimpanan Privat & Aman</span>
-              </div>
-            </div>
-            <span className="storage-percent-tag">{storageInfo.percent || 0}% Terpakai</span>
-          </div>
-
-          <div className="android-storage-bar-track">
-            <div 
-              className="android-storage-bar-fill" 
-              style={{ width: `${Math.min(100, Math.max(2, parseFloat(storageInfo.percent || 0)))}%` }}
-            ></div>
-          </div>
-
-          <div className="android-storage-bottom">
-            <span>{storageInfo.usedMB || '0.00'} MB digunakan</span>
-            <span>Maksimal 3072 MB (3 GB)</span>
-          </div>
-        </div>
-
-        {/* 3. Search & Filter Bar */}
-        <div className="android-search-box">
-          <span className="search-icon">🔍</span>
-          <input
-            type="text"
-            placeholder="Cari berkas atau dokumen..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button className="search-clear-btn" onClick={() => setSearchTerm('')}>✕</button>
           )}
-        </div>
-
-        {/* 4. Category Filter Chips */}
-        <div className="android-chips-scroll">
-          <button className={`android-chip ${activeCategory === 'all' ? 'active' : ''}`} onClick={() => setActiveCategory('all')}>
-            ✨ Semua ({filteredFiles.length})
-          </button>
-          <button className={`android-chip ${activeCategory === 'docx' ? 'active' : ''}`} onClick={() => setActiveCategory('docx')}>
-            📄 Word
-          </button>
-          <button className={`android-chip ${activeCategory === 'excel' ? 'active' : ''}`} onClick={() => setActiveCategory('excel')}>
-            📊 Excel
-          </button>
-          <button className={`android-chip ${activeCategory === 'pptx' ? 'active' : ''}`} onClick={() => setActiveCategory('pptx')}>
-            📽️ Slide
-          </button>
-          <button className={`android-chip ${activeCategory === 'pdf' ? 'active' : ''}`} onClick={() => setActiveCategory('pdf')}>
-            📕 PDF
-          </button>
-          <button className={`android-chip ${activeCategory === 'image' ? 'active' : ''}`} onClick={() => setActiveCategory('image')}>
-            🖼️ Gambar
-          </button>
-          <button className={`android-chip ${activeCategory === 'video' ? 'active' : ''}`} onClick={() => setActiveCategory('video')}>
-            🎬 Video
-          </button>
-          <button className={`android-chip ${activeCategory === 'audio' ? 'active' : ''}`} onClick={() => setActiveCategory('audio')}>
-            🎵 Audio
-          </button>
-          <button className={`android-chip ${activeCategory === 'code' ? 'active' : ''}`} onClick={() => setActiveCategory('code')}>
-            💻 Kode
-          </button>
-        </div>
-
-        {/* 5. Main Files View (Grid or List) */}
-        {filteredFiles.length === 0 ? (
-          <div className="android-empty-state">
-            <div className="empty-icon">📂</div>
-            <h3>Belum Ada Berkas</h3>
-            <p>Ketuk tombol <strong>+</strong> di bawah untuk mengunggah berkas atau membuat folder baru.</p>
-          </div>
-        ) : mobileViewMode === 'grid' ? (
-          <div className="android-file-grid">
-            {filteredFiles.map(file => (
-              <div 
-                key={file.id} 
-                className="android-grid-card"
-                onClick={() => handleOpenFile(file)}
-              >
-                <div className="grid-card-preview">
-                  {file.thumbnail ? (
-                    <img src={file.thumbnail} alt={file.name} className="grid-card-thumb" />
-                  ) : (
-                    <div className="grid-card-icon">{getFileIcon(file, 44)}</div>
-                  )}
-                  <button 
-                    className="grid-card-more-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedMobileFile(file);
-                    }}
-                    title="Menu Opsi Berkas"
-                  >
-                    ⋮
-                  </button>
-                </div>
-                <div className="grid-card-info">
-                  <h4 title={file.name}>{file.name}</h4>
-                  <div className="grid-card-meta">
-                    {(file.category === 'folder' || file.type === 'folder') ? (
-                      <span className="folder-pill">{file.folderType === 'private' ? '🔒 Pribadi' : '🏢 Tim'}</span>
-                    ) : (
-                      <span>{file.size}</span>
-                    )}
-                    <span className="sha-dot" title="SHA-256 Protected">🛡️ SHA</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="android-file-list">
-            {filteredFiles.map(file => (
-              <div
-                key={file.id}
-                className="android-file-item"
-                onClick={() => handleOpenFile(file)}
-                onContextMenu={(e) => handleItemContextMenu(e, file)}
-                onTouchStart={(e) => handleTouchStart(e, file)}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchEnd}
-              >
-                <div className="android-file-left">
-                  <div className="android-file-icon">{getFileIcon(file, 38)}</div>
-                  <div className="android-file-info">
-                    <h4>{file.name}</h4>
-                    {(file.category === 'folder' || file.type === 'folder') ? (
-                      <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {file.folderType === 'private' ? '🔒 Pribadi' : `🏢 Organisasi (${file.founder || 'Tim'})`}
-                      </p>
-                    ) : (
-                      <p>{file.size} • {file.date || 'Today'} • <span style={{ color: '#10b981' }}>🛡️ SHA-256</span></p>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <button 
-                    className="android-file-options-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedMobileFile(file);
-                    }}
-                    title="Opsi Berkas"
-                  >
-                    ⋮
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 6. Mobile Action Menu Modal / Sheet (FAB Triggered) */}
-        {showMobileActionMenu && (
-          <div className="mobile-fab-backdrop" onClick={() => setShowMobileActionMenu(false)}>
-            <div className="mobile-fab-menu" onClick={(e) => e.stopPropagation()}>
-              <div className="mobile-sheet-drag-handle"></div>
-              <div className="mobile-fab-menu-header">
-                <span>➕ Tambah Berkas / Folder</span>
-                <button className="mobile-fab-close" onClick={() => setShowMobileActionMenu(false)}>✕</button>
-              </div>
-
-              <button
-                className="mobile-fab-item"
-                onClick={() => {
-                  setShowMobileActionMenu(false);
-                  openNewFolderModal();
-                }}
-              >
-                <div className="fab-item-icon folder-icon">📁</div>
-                <div className="fab-item-text">
-                  <strong>Bikin Folder Baru</strong>
-                  <span>Buat direktori penyimpanan (Private / Tim)</span>
-                </div>
-              </button>
-
-              <button
-                className="mobile-fab-item"
-                onClick={() => {
-                  setShowMobileActionMenu(false);
-                  cameraInputRef.current?.click();
-                }}
-              >
-                <div className="fab-item-icon camera-icon">📸</div>
-                <div className="fab-item-text">
-                  <strong>Ambil Foto / Scan Dokumen</strong>
-                  <span>Buka kamera HP dan upload langsung</span>
-                </div>
-              </button>
-
-              <button
-                className="mobile-fab-item"
-                onClick={() => {
-                  setShowMobileActionMenu(false);
-                  fileInputRef.current?.click();
-                }}
-              >
-                <div className="fab-item-icon upload-icon">📤</div>
-                <div className="fab-item-text">
-                  <strong>Upload Berkas / File</strong>
-                  <span>Dokumen, Foto, Video, Audio, Arsip, dll.</span>
-                </div>
-              </button>
-
-              <button
-                className="mobile-fab-item"
-                onClick={() => {
-                  setShowMobileActionMenu(false);
-                  try { sessionStorage.setItem('editor_return_view', 'office'); } catch {}
-                  onNavigate?.('word');
-                }}
-              >
-                <div className="fab-item-icon doc-icon">📝</div>
-                <div className="fab-item-text">
-                  <strong>Dokumen AI Baru</strong>
-                  <span>Buka Document Editor (Word, Excel, Slide)</span>
-                </div>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 7. File Action Bottom Sheet (Tapped from File Item ⋮) */}
-        {selectedMobileFile && (
-          <div className="mobile-fab-backdrop" onClick={() => setSelectedMobileFile(null)}>
-            <div className="mobile-fab-menu mobile-file-detail-sheet" onClick={(e) => e.stopPropagation()}>
-              <div className="mobile-sheet-drag-handle"></div>
-              
-              <div className="mobile-file-sheet-header">
-                <div className="sheet-file-icon">{getFileIcon(selectedMobileFile, 40)}</div>
-                <div className="sheet-file-info">
-                  <h4>{selectedMobileFile.name}</h4>
-                  <p>{selectedMobileFile.size} • {selectedMobileFile.date || 'Today'}</p>
-                </div>
-                <button className="mobile-fab-close" onClick={() => setSelectedMobileFile(null)}>✕</button>
-              </div>
-
-              {/* SHA-256 Checksum Fingerprint Card */}
-              <div className="mobile-checksum-box">
-                <div className="checksum-label">
-                  <span>🛡️ Integritas Zero-Trust (SHA-256)</span>
-                  <button 
-                    className="copy-hash-btn"
-                    onClick={() => {
-                      if (selectedMobileFile.checksum) {
-                        navigator.clipboard?.writeText(selectedMobileFile.checksum);
-                        alert('Hash SHA-256 berhasil disalin ke clipboard!');
-                      }
-                    }}
-                  >
-                    📋 Salin
-                  </button>
-                </div>
-                <code className="checksum-code">
-                  {selectedMobileFile.checksum ? `${selectedMobileFile.checksum.substring(0, 24)}...` : 'Terenkripsi Server'}
-                </code>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mobile-sheet-action-list">
-                <button 
-                  className="mobile-sheet-action-btn primary"
-                  onClick={() => {
-                    const f = selectedMobileFile;
-                    setSelectedMobileFile(null);
-                    handleOpenFile(f);
-                  }}
-                >
-                  <span className="action-icon">👁️</span>
-                  <span>Buka / Putar Berkas</span>
-                </button>
-
-                {(selectedMobileFile.category !== 'folder' && selectedMobileFile.type !== 'folder') && (
-                  <button 
-                    className="mobile-sheet-action-btn"
-                    onClick={() => {
-                      const f = selectedMobileFile;
-                      setSelectedMobileFile(null);
-                      triggerFileDownload(f);
-                    }}
-                  >
-                    <span className="action-icon">📥</span>
-                    <span>Unduh Berkas Aman</span>
-                  </button>
-                )}
-
-                {(selectedMobileFile.category === 'folder' || selectedMobileFile.type === 'folder') && (
-                  <button 
-                    className="mobile-sheet-action-btn"
-                    onClick={(e) => {
-                      const f = selectedMobileFile;
-                      setSelectedMobileFile(null);
-                      handleEditFolder(f, e);
-                    }}
-                  >
-                    <span className="action-icon">✏️</span>
-                    <span>Edit Nama Folder</span>
-                  </button>
-                )}
-
-                <button 
-                  className="mobile-sheet-action-btn danger"
-                  onClick={(e) => {
-                    const fId = selectedMobileFile.id;
-                    setSelectedMobileFile(null);
-                    handleDeleteFile(fId, e);
-                  }}
-                >
-                  <span className="action-icon">🗑️</span>
-                  <span>Hapus Berkas dari Cloud</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 8. Modern Floating Action Button (FAB) */}
-        <button
-          className={`android-fab ${showMobileActionMenu ? 'open' : ''}`}
-          onClick={() => setShowMobileActionMenu(prev => !prev)}
-          title="Tambah Berkas atau Folder"
-        >
-          {showMobileActionMenu ? '✕' : '+'}
-        </button>
-
-        {/* 9. Floating Frosted Bottom Navigation Dock */}
-        <nav className="android-bottom-nav">
-          <div className="bottom-nav-item active" onClick={() => { setActiveCategory('all'); setCurrentFolderId(null); }}>
-            <span className="icon">☁️</span>
-            <span>Drive (3 GB)</span>
-          </div>
-          <div className="bottom-nav-item" onClick={() => setCurrentFolderId(null)}>
-            <span className="icon">📂</span>
-            <span>Root</span>
-          </div>
-          <div className="bottom-nav-item" onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('word'); }}>
-            <span className="icon">📝</span>
-            <span>Editor</span>
-          </div>
-          <div className="bottom-nav-item" onClick={() => onNavigate?.('chat')}>
-            <span className="icon">💬</span>
-            <span>Chat AI</span>
-          </div>
-          <div className="bottom-nav-item" onClick={() => onNavigate?.('landing')}>
-            <span className="icon">🏠</span>
-            <span>Beranda</span>
-          </div>
-        </nav>
+        </main>
       </div>
 
       {/* Built-in Multi-Media & Document Viewer Modal (Lega & Full View) */}
