@@ -5,7 +5,7 @@ const SEARCH_ENGINE_URL =
   import.meta.env?.VITE_SEARCH_ENGINE_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000'
-    : 'https://netscape-alpine-ddr-automatically.trycloudflare.com');
+    : 'https://accent-ranks-shepherd-reflections.trycloudflare.com');
 
 const ORDER_DTE_URL = 
   import.meta.env?.VITE_ORDER_DTE_URL || 
