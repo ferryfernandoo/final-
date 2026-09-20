@@ -1,13 +1,13 @@
 {
-  "backendUrl": "https://stocks-stock-patents-list.trycloudflare.com",
+  "backendUrl": "https://databases-parker-demand-subsection.trycloudflare.com",
   "frontendUrl": "https://nam-ben-brothers-strict.trycloudflare.com",
-  "searchEngineUrl": "https://lifetime-gentle-providers-removing.trycloudflare.com",
+  "searchEngineUrl": "https://netscape-alpine-ddr-automatically.trycloudflare.com",
+  "dteUrl": "https://better-asthma-comic-designers.trycloudflare.com",
   "backendPort": 3001,
   "frontendPort": 5174,
   "searchEnginePort": 3000,
-  "dteUrl": "https://newcastle-improved-avatar-gate.trycloudflare.com",
   "dtePort": 5173,
   "isFixed": true,
   "status": "LIVE",
-  "updatedAt": "2026-09-18T12:50:39.296Z"
+  "updatedAt": "2026-09-18T23:38:30.113Z"
 }
