@@ -2421,9 +2421,27 @@
   -webkit-overflow-scrolling: touch !important;
 }
 
-/* Stable bottom spacing used when generating an AI response */
+/* Modern AI Chat generation spacer & container layout */
+.messages-container.generating-active,
 .messages-container.prefill-space {
-  padding-bottom: 32px !important;
+  padding-bottom: 40px !important;
+}
+
+.chat-generating-spacer {
+  height: 65vh;
+  min-height: 400px;
+  max-height: 750px;
+  width: 100%;
+  pointer-events: none;
+  flex-shrink: 0;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .chat-generating-spacer {
+    height: 55vh;
+    min-height: 280px;
+  }
 }
 
 .welcome-message {

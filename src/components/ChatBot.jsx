@@ -7010,7 +7010,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     lazyScrollAnimRef.current = requestAnimationFrame(animateGlide);
   };
 
-  // Scroll so the user message glides to the top of the chat area and gently brakes ("ngerem")
+  // Scroll so the user message glides smoothly to the top of the chat area and gently brakes ("ngerem")
   const scrollToUserMessage = (isImmediate = false) => {
     holdScrollRef.current = false;
     const scrollElement = document.querySelector('.messages-container');
@@ -7018,65 +7018,30 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     stopGlide();
 
-    const target = getLastUserMessageTargetTop(scrollElement);
-    if (target === null) {
-      // If DOM node isn't mounted yet, retry briefly
-      setTimeout(() => {
-        const retryTarget = getLastUserMessageTargetTop(scrollElement);
-        if (retryTarget !== null) {
-          if (isImmediate) {
-            scrollElement.scrollTop = retryTarget;
-          } else {
-            glideToTarget(retryTarget);
-          }
+    const doScroll = () => {
+      const el = document.querySelector('.messages-container');
+      if (!el) return;
+      const target = getLastUserMessageTargetTop(el);
+      if (target !== null) {
+        if (isImmediate) {
+          el.scrollTop = target;
+        } else {
+          glideToTarget(target);
         }
-      }, 40);
-      return;
-    }
+      }
+    };
 
-    if (isImmediate) {
-      scrollElement.scrollTop = target;
-    } else {
-      glideToTarget(target);
-    }
+    doScroll();
+    requestAnimationFrame(() => {
+      doScroll();
+      setTimeout(doScroll, 60);
+    });
   };
 
-  // Dedicated buttery-smooth lazy auto-scroll for streaming/generation without harsh jumps or jitter
-  const smoothAutoScroll = (force = false) => {
-    // If user explicitly scrolled up to read earlier history, respect it unless forced
-    if (holdScrollRef.current && !force) return;
-    const scrollElement = document.querySelector('.messages-container');
-    if (!scrollElement) return;
-
-    const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
-    if (maxScroll <= 0) return;
-
-    const botMessages = scrollElement.querySelectorAll('.message.bot');
-    if (!botMessages || botMessages.length === 0) return;
-
-    const lastBotMsg = botMessages[botMessages.length - 1];
-    const containerRect = scrollElement.getBoundingClientRect();
-    const botRect = lastBotMsg.getBoundingClientRect();
-
-    // Bottom edge of bot message relative to container top
-    const botBottomRel = botRect.bottom - containerRect.top;
-    const visibleBottomLimit = scrollElement.clientHeight - 80;
-
-    // If bottom of bot message hasn't reached the bottom limit yet,
-    // DO NOT TOUCH THE SCROLL! Let the user keep their position!
-    if (botBottomRel <= visibleBottomLimit) {
-      return;
-    }
-
-    // Only when text exceeds the bottom, gently drift downward
-    const overflow = botBottomRel - visibleBottomLimit;
-    const neededScrollTop = scrollElement.scrollTop + overflow;
-    const targetScrollTop = Math.min(neededScrollTop, maxScroll);
-
-    // Only scroll downward if needed
-    if (targetScrollTop > scrollElement.scrollTop + 2) {
-      glideToTarget(targetScrollTop);
-    }
+  // Auto-scroll logic during streaming is removed as requested by user.
+  // The viewport stays peacefully anchored at the user message, with ample space for AI response.
+  const smoothAutoScroll = (_force = false) => {
+    // Intentionally no-op to keep chat viewport stable and prevent continuous jitter while generating
   };
 
   const scrollToBottom = (isImmediate = false) => {
@@ -8337,14 +8302,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           console.log('Error removing prefill-space:', e);
         }
       }
-      // Scroll to bottom to reveal the completed AI response
-      try {
-        holdScrollRef.current = false;
-        scrollToBottom(true);
-        setTimeout(() => scrollToBottom(true), 60);
-      } catch (e) {
-        console.log('Error scrolling after streaming:', e);
-      }
+      // Keep view stable where user was reading without forced snapping to bottom
       
 
       
@@ -12148,7 +12106,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           </div>
         )}
 
-        <div className="messages-container">
+        <div className={`messages-container ${isGenerating ? 'generating-active prefill-space' : ''}`}>
         {compactView && messages.length > 1 && !inputValue.trim() && (
           <div className="show-previous-wrapper">
             <button 
@@ -12222,6 +12180,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modern AI Chat spacer: provides ample room below user prompt for AI response to generate cleanly */}
+        {isGenerating && (
+          <div className="chat-generating-spacer" aria-hidden="true" />
         )}
 
         <div ref={messagesEndRef} />
