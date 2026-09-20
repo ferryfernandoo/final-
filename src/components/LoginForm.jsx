@@ -4,7 +4,7 @@ import { safeSetItem } from '../utils/safeStorage.js';
 import './AuthForms.css';
 
 const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
-  const [email, setEmail] = useState('tulis@deepmail.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

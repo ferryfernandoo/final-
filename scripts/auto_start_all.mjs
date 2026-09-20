@@ -253,15 +253,80 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
 
   // 7. Update vercel.json
   const vercelPath = path.join(ROOT_DIR, 'vercel.json');
-  if (fs.existsSync(vercelPath)) {
-    let vercelContent = fs.readFileSync(vercelPath, 'utf8');
-    vercelContent = vercelContent.replace(
-      /"destination":\s*"https?:\/\/[^\/]+\/(api|auth|download|watermarked)\/:path\*"/g,
-      `"destination": "${backendUrl}/$1/:path*"`
-    );
-    fs.writeFileSync(vercelPath, vercelContent, 'utf8');
-    log.success('vercel.json rewrites berhasil diperbarui.');
-  }
+  const vercelConfig = {
+    headers: [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Content-Security-Policy", value: "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';" }
+        ]
+      },
+      {
+        source: "/(index.html)?",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate, max-age=0" }
+        ]
+      },
+      {
+        source: "/assets/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        source: "/ceo.jpg",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+          { key: "X-Robots-Tag", value: "index, follow, max-image-preview:large" }
+        ]
+      },
+      {
+        source: "/api/(.*)",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" }
+        ]
+      },
+      {
+        source: "/auth/(.*)",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" }
+        ]
+      }
+    ],
+    rewrites: [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`
+      },
+      {
+        source: "/auth/:path*",
+        destination: `${backendUrl}/auth/:path*`
+      },
+      {
+        source: "/download/:path*",
+        destination: `${backendUrl}/download/:path*`
+      },
+      {
+        source: "/watermarked/:path*",
+        destination: `${backendUrl}/watermarked/:path*`
+      },
+      {
+        source: "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+        destination: "/index.html"
+      }
+    ]
+  };
+  fs.writeFileSync(vercelPath, JSON.stringify(vercelConfig, null, 2), 'utf8');
+  log.success('vercel.json rewrites berhasil diperbarui.');
 }
 
 async function main() {
@@ -403,12 +468,13 @@ async function main() {
   }
 
   log.title('✨ SEMUA LAYANAN SUDAH AKTIF & TERKONFIGURASI OTOMATIS!');
-  console.log(`- 🔍 Search Engine Public API : ${searchEngineUrl}/api/v1/search`);
-  console.log(`- 🧠 AI Backend Public URL    : ${backendUrl}`);
+  console.log(`- 🌐 Frontend Lokal (Buka di browser) : http://localhost:5174`);
+  console.log(`- 🔍 Search Engine Public API         : ${searchEngineUrl}/api/v1/search`);
+  console.log(`- 🧠 AI Backend Public URL            : ${backendUrl}`);
   if (dteUrl) {
-    console.log(`- 🏭 Order DTE Public Portal  : ${dteUrl}`);
+    console.log(`- 🏭 Order DTE Public Portal          : ${dteUrl}`);
   }
-  console.log(`- 🌐 Vercel Front-End Login   : Siap digunakan (otomatis terhubung via proxy rewrite)\n`);
+  console.log(`- 🚀 Vercel Live (Otomatis Sync)      : Siap digunakan (terhubung via Cloudflare rewrite)\n`);
   console.log('📌 Tekan Ctrl+C di jendela ini untuk mematikan semua service sekaligus.\n');
 
   // Bersihkan subprocess ketika master dihentikan

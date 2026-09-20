@@ -18,12 +18,12 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const lastServerCheckRef = useRef(0);
 
   const handleInputFocus = async () => {
-    if (Date.now() - lastServerCheckRef.current < 15000) return;
+    if (Date.now() - lastServerCheckRef.current < 30000) return;
     lastServerCheckRef.current = Date.now();
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         signal: controller.signal,
@@ -32,11 +32,11 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
 
       clearTimeout(timeoutId);
 
-      if (!response || response.status >= 500) {
+      if (response && response.status >= 500) {
         setShowMaintenanceModal(true);
       }
     } catch (_err) {
-      setShowMaintenanceModal(true);
+      // Ignore network noise or timeout without showing modal
     }
   };
 
