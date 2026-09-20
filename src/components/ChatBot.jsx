@@ -4109,38 +4109,17 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         - Jika "pptx": Tulis JSON array slide [{ "id": 1, "type": "slide", "title": "...", "content": "..." }] dibungkus tag [CONTENT_START] dan [CONTENT_END].
         - Jika "excel": Tulis JSON array 2D [[ "Header1", "Header2" ], [ "Row1Col1", "Row1Col2" ]] dibungkus tag [CONTENT_START] dan [CONTENT_END].`;
         
-        const tokenmixKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TOKENMIX_API_KEY) || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || 'sk-tm-yRADeQ67qi8QtQ9X8dwHKpCRrliEut0IQwotAzOZU2VHkiiS';
-        let response;
-        try {
-          response = await fetch(`${API_BASE_URL}/api/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              model: 'llama-4-maverick',
-              messages: [{ role: 'user', content: prompt }],
-              stream: false,
-              max_tokens: 1024
-            })
-          });
-        } catch (e) {
-          if (tokenmixKey) {
-            response = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${tokenmixKey}`
-              },
-              body: JSON.stringify({
-                model: 'llama-4-maverick',
-                messages: [{ role: 'user', content: prompt }],
-                max_tokens: 1024
-              })
-            });
-          } else {
-            throw e;
-          }
-        }
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            model: 'llama-4-maverick',
+            messages: [{ role: 'user', content: prompt }],
+            stream: false,
+            max_tokens: 1024
+          })
+        });
         
         const resData = await response.json();
         const aiResponseText = resData.choices?.[0]?.message?.content || '';
@@ -4251,38 +4230,17 @@ TOLONG kembalikan konten dokumen yang sudah dimodifikasi secara utuh, menggunaka
 
 Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_END]. Jangan menambahkan teks penjelasan di luar tag tersebut.`;
 
-        const tokenmixKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TOKENMIX_API_KEY) || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || 'sk-tm-yRADeQ67qi8QtQ9X8dwHKpCRrliEut0IQwotAzOZU2VHkiiS';
-        let response;
-        try {
-          response = await fetch(`${API_BASE_URL}/api/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              model: 'llama-4-maverick',
-              messages: [{ role: 'user', content: prompt }],
-              stream: false,
-              max_tokens: 1024
-            })
-          });
-        } catch (e) {
-          if (tokenmixKey) {
-            response = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${tokenmixKey}`
-              },
-              body: JSON.stringify({
-                model: 'llama-4-maverick',
-                messages: [{ role: 'user', content: prompt }],
-                max_tokens: 1024
-              })
-            });
-          } else {
-            throw e;
-          }
-        }
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            model: 'llama-4-maverick',
+            messages: [{ role: 'user', content: prompt }],
+            stream: false,
+            max_tokens: 1024
+          })
+        });
         
         const resData = await response.json();
         const aiResponseText = resData.choices?.[0]?.message?.content || '';

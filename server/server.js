@@ -138,7 +138,7 @@ initializeDatabase();
 
 // TokenMix chat API using llama-4-maverick by default (Text + Vision native)
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
-const DEFAULT_TOKENMIX_KEY = 'sk-tm-yRADeQ67qi8QtQ9X8dwHKpCRrliEut0IQwotAzOZU2VHkiiS';
+const DEFAULT_TOKENMIX_KEY = 'sk-tm-0oMaTRPBJiEibFQ6SpC7MUNdYrTnLf2QIMhNXEzvvKZZ8cSi';
 const RAW_TOKENMIX_KEY = process.env.TOKENMIX_API_KEY || process.env.TOKENMIX_CHAT_API_KEY || process.env.VITE_TOKENMIX_API_KEY || DEFAULT_TOKENMIX_KEY;
 const TOKENMIX_API_KEY = sanitizeTokenKey(RAW_TOKENMIX_KEY);
 const TOKENMIX_API_KEYS = Array.from(new Set([TOKENMIX_API_KEY, DEFAULT_TOKENMIX_KEY].filter(Boolean)));
@@ -413,7 +413,7 @@ setInterval(() => {
   console.log('✅ Expired sessions cleaned up');
 }, 60 * 60 * 1000);
 
-// Strict CORS Security Policy (No wildcard Vercel bypass!)
+// 🛡️ STRICT HIGH-SECURITY CORS POLICY (NO BLIND ORIGIN REFLECTION!)
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://deepernova.com',
   'https://www.deepernova.com'
@@ -421,19 +421,44 @@ const DEFAULT_ALLOWED_ORIGINS = [
 
 const envConfiguredOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
-  .map(o => o.trim())
+  .map(o => o.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
 const ALLOWED_ORIGINS = [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...envConfiguredOrigins])];
 
 const isAllowedOrigin = (origin) => {
-  return true; // Allow all origins so frontend and APIs always connect cleanly
+  if (!origin) return true; // Mobile apps, Electron, Postman, server-to-server, cURL, same-origin
+  
+  const clean = origin.trim().replace(/\/$/, '');
+  
+  // 1. Explicitly configured whitelist
+  if (ALLOWED_ORIGINS.includes(clean)) return true;
+  
+  // 2. Localhost & 127.0.0.1 on ANY port (Vite dev, DTE, search dashboard, tests)
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(clean)) return true;
+  
+  // 3. Official DeeperNova subdomains
+  if (/^https:\/\/([a-zA-Z0-9-_]+\.)*deepernova\.com$/i.test(clean)) return true;
+  
+  // 4. Official Vercel deployments (deepernova project & preview branches)
+  if (/^https:\/\/([a-zA-Z0-9-_]+\.)*vercel\.app$/i.test(clean)) return true;
+  
+  // 5. Cloudflare Quick Tunnels
+  if (/^https:\/\/([a-zA-Z0-9-_]+\.)*trycloudflare\.com$/i.test(clean)) return true;
+  
+  // 6. Mobile & Hybrid app protocols (Capacitor / Ionic / Electron)
+  if (/^(capacitor|ionic|electron|file):\/\//i.test(clean)) return true;
+  
+  return false;
 };
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow all origins for seamless Vercel, localhost, tunnels, previews, and apps
-    return callback(null, origin || true);
+    if (isAllowedOrigin(origin)) {
+      return callback(null, origin || true);
+    }
+    console.warn(`[CORS SHIELD REJECTED] Origin unauthorized: ${origin}`);
+    return callback(new Error(`CORS Security Violation: Origin ${origin} is not authorized`));
   },
   credentials: true,
   allowedHeaders: [
@@ -2771,6 +2796,54 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 });
+
+// 🎙️ SECURE SERVER-SIDE TEXT-TO-SPEECH (TTS) ENDPOINT
+app.post('/api/tts', express.json(), async (req, res) => {
+  try {
+    const { input, text, voice = 'nova', model = 'tts-1' } = req.body;
+    const inputText = (input || text || '').trim();
+    if (!inputText) {
+      return res.status(400).json({ error: 'Text/input is required for TTS' });
+    }
+
+    const key = TOKENMIX_API_KEY;
+    if (!key) {
+      return res.status(500).json({ error: 'TTS service not configured' });
+    }
+
+    const maxChars = 3000;
+    const truncatedText = inputText.length > maxChars ? inputText.substring(0, maxChars) + '...' : inputText;
+
+    const ttsResponse = await fetch('https://api.tokenmix.ai/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model,
+        input: truncatedText,
+        voice
+      })
+    });
+
+    if (!ttsResponse.ok) {
+      const errText = await ttsResponse.text().catch(() => '');
+      console.error(`[TTS PROVIDER ERROR] ${ttsResponse.status}:`, errText);
+      return res.status(ttsResponse.status).json({ error: 'TTS provider error', details: errText });
+    }
+
+    const contentType = ttsResponse.headers.get('content-type') || 'audio/mpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const buffer = await ttsResponse.arrayBuffer();
+    return res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('[TTS SERVER EXCEPTION]', err);
+    return res.status(500).json({ error: 'Failed to generate speech: ' + err.message });
+  }
+});
+
 app.post('/api/external-finance', async (req, res) => {
   try {
     const { query } = req.body;

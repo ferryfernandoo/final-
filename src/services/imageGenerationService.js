@@ -20,9 +20,6 @@ const fetchWithTimeout = (url, options, timeoutMs = 180000) => {
   return Promise.race([fetchPromise, timeoutId]);
 };
 
-const TOKENMIX_API_KEY = import.meta.env.VITE_TOKENMIX_API_KEY || '';
-const TOKENMIX_IMAGE_GENERATIONS_URL = 'https://api.tokenmix.ai/v1/images/generations';
-const TOKENMIX_IMAGE_EDITS_URL = 'https://api.tokenmix.ai/v1/images/edits';
 
 class ImageGenerationService {
   /**
@@ -94,111 +91,8 @@ class ImageGenerationService {
         fetchOptions.signal = abortSignal;
       }
       
-      let response;
-      let usedDirect = false;
-      const directKey = TOKENMIX_API_KEY || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TOKENMIX_API_KEY) || '';
-      const canUseDirectTokenMix = !!directKey;
-
-      if (canUseDirectTokenMix) {
-        console.log('🔴🔴🔴 [IMAGE_GEN_DEBUG] Frontend direct TokenMix API call with model:', finalModel, 'isEditMode:', isEditMode);
-        try {
-          const directUrl = isEditMode 
-            ? TOKENMIX_IMAGE_EDITS_URL 
-            : TOKENMIX_IMAGE_GENERATIONS_URL;
-
-          if (isEditMode) {
-            // First attempt: JSON body with image_url (Fastest & direct)
-            try {
-              const editJsonBody = {
-                model: finalModel,
-                prompt: finalPrompt,
-                image_url: refImageUrl,
-                n: 1,
-                size: size
-              };
-
-              response = await fetchWithTimeout(directUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${directKey}`
-                },
-                body: JSON.stringify(editJsonBody),
-                ...(abortSignal && { signal: abortSignal })
-              }, 180000);
-            } catch (jsonErr) {
-              console.warn('[IMAGE_GEN_DEBUG] Direct JSON edit failed, will try FormData:', jsonErr);
-            }
-
-            // Fallback: FormData if JSON returned error
-            if (!response || !response.ok) {
-              const formData = new FormData();
-              formData.append('model', finalModel);
-              formData.append('prompt', finalPrompt);
-              formData.append('n', '1');
-              formData.append('size', size);
-
-              if (refImageUrl.startsWith('data:')) {
-                const res = await fetch(refImageUrl);
-                const blob = await res.blob();
-                formData.append('image', blob, 'input.png');
-              } else if (/^https?:\/\//i.test(refImageUrl)) {
-                formData.append('image_url', refImageUrl);
-              } else {
-                const base64Value = refImageUrl.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
-                const blob = await (await fetch(`data:image/png;base64,${base64Value}`)).blob();
-                formData.append('image', blob, 'input.png');
-              }
-
-              response = await fetchWithTimeout(directUrl, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${directKey}`
-                },
-                body: formData,
-                ...(abortSignal && { signal: abortSignal })
-              }, 180000);
-            }
-          } else {
-            const body = {
-              model: finalModel,
-              prompt: finalPrompt,
-              n: 1,
-              size: size
-            };
-
-            response = await fetchWithTimeout(directUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${directKey}`
-              },
-              body: JSON.stringify(body),
-              ...(abortSignal && { signal: abortSignal })
-            }, 180000);
-          }
-
-          if (response && response.ok) {
-            usedDirect = true;
-            console.log('🔴🔴🔴 [IMAGE_GEN_DEBUG] ✅ Direct Frontend TokenMix API call succeeded!');
-          } else if (response) {
-            const errorText = await response.text();
-            console.warn('🔴🔴🔴 [IMAGE_GEN_DEBUG] Direct Frontend TokenMix API call response:', response.status, errorText);
-          }
-        } catch (directErr) {
-          console.warn('🔴🔴🔴 [IMAGE_GEN_DEBUG] Direct Frontend TokenMix API call error:', directErr);
-        }
-      }
-
-      if (!response || !response.ok) {
-        console.log('🔴🔴🔴 [IMAGE_GEN_DEBUG] Fetching image from backend proxy');
-        response = await fetchWithTimeout(
-          apiUrl,
-          fetchOptions,
-          180000
-        );
-        usedDirect = false;
-      }
+      console.log('🔴🔴🔴 [IMAGE_GEN_DEBUG] Secure server proxy call to:', apiUrl);
+      const response = await fetchWithTimeout(apiUrl, fetchOptions, 180000);
 
       console.log('🔴🔴🔴 [IMAGE_GEN_DEBUG] Got response:', response.status, response.statusText);
 
@@ -225,40 +119,7 @@ class ImageGenerationService {
       }
       console.log('🔴🔴🔴 [IMAGE_GEN_DEBUG] Full response data:', JSON.stringify(rawData, null, 2));
 
-      let data;
-      if (usedDirect) {
-        const item = Array.isArray(rawData.data) ? rawData.data[0] : rawData?.data || rawData;
-        let directImageUrl = 
-          item?.url ||
-          item?.image?.url ||
-          item?.image_url?.url ||
-          item?.image_url ||
-          rawData?.url ||
-          rawData?.image?.url ||
-          rawData?.image_url?.url ||
-          rawData?.image_url ||
-          (typeof item === 'string' ? item : null);
-
-        const directBase64 = item?.b64_json || item?.base64 || rawData?.b64_json || rawData?.base64;
-        if (!directImageUrl && typeof directBase64 === 'string') {
-          directImageUrl = `data:image/png;base64,${directBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, '')}`;
-        }
-
-        if (!directImageUrl) {
-          console.error('🔴🔴🔴 [IMAGE_GEN_DEBUG] Direct API response format not recognized:', JSON.stringify(rawData, null, 2));
-          throw new Error('Model gambar sedang sangat sibuk, coba lagi nanti.');
-        }
-        data = {
-          success: true,
-          image: {
-            url: directImageUrl,
-            mode: isEditMode ? 'edit' : 'generate'
-          },
-          reasoning: `Image generated directly on client side using model ${finalModel}.`
-        };
-      } else {
-        data = rawData;
-      }
+      const data = rawData;
       
       const imageUrl = data?.image?.url;
       console.log('🔴🔴🔴 [IMAGE_GEN_DEBUG] Extracted imageUrl:', imageUrl);

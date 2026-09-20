@@ -170,39 +170,14 @@ GAYA KEPRIBADIAN: TOXIC EXTREME - **INSTRUKSI MUTLAK (100% VULGAR & KASAR)**
 
 const DEFAULT_PERSONALITY = 'cute';
 
-// TokenMix chat API using llama-4-maverick (Text + Vision native)
-const TOKENMIX_CHAT_API_URL = 'https://api.tokenmix.ai/v1/chat/completions';
-const TOKENMIX_API_URL = TOKENMIX_CHAT_API_URL;
-const DEEPSEEK_API_URL = TOKENMIX_CHAT_API_URL;
-
+// TokenMix and AI requests are 100% securely isolated and executed on the backend server.
+// No raw API keys or direct provider URLs are exposed in the client frontend bundle.
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
-const DEFAULT_TOKENMIX_KEY = 'sk-tm-yRADeQ67qi8QtQ9X8dwHKpCRrliEut0IQwotAzOZU2VHkiiS';
-
-const getDeepseekApiKey = () => {
-  try {
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      if (import.meta.env.VITE_TOKENMIX_API_KEY) return sanitizeTokenKey(import.meta.env.VITE_TOKENMIX_API_KEY);
-      if (import.meta.env.VITE_DEEPSEEK_API_KEY) return sanitizeTokenKey(import.meta.env.VITE_DEEPSEEK_API_KEY);
-    }
-    if (typeof process !== 'undefined' && process.env) {
-      if (process.env.TOKENMIX_API_KEY) return sanitizeTokenKey(process.env.TOKENMIX_API_KEY);
-      if (process.env.TOKENMIX_CHAT_API_KEY) return sanitizeTokenKey(process.env.TOKENMIX_CHAT_API_KEY);
-      if (process.env.VITE_TOKENMIX_API_KEY) return sanitizeTokenKey(process.env.VITE_TOKENMIX_API_KEY);
-      if (process.env.DEEPSEEK_API_KEY) return sanitizeTokenKey(process.env.DEEPSEEK_API_KEY);
-    }
-  } catch (e) {
-    // Ignore env access issues in non-Vite runtimes such as Node-based tests
-  }
-  return DEFAULT_TOKENMIX_KEY;
-};
-
-const getTokenMixApiKey = getDeepseekApiKey;
-const TOKENMIX_API_KEYS = Array.from(new Set([
-  getDeepseekApiKey(),
-  DEFAULT_TOKENMIX_KEY
-].filter(Boolean)));
-const TOKENMIX_API_KEY = TOKENMIX_API_KEYS[0];
-const DEEPSEEK_API_KEY = TOKENMIX_API_KEY;
+const getDeepseekApiKey = () => '';
+const getTokenMixApiKey = () => '';
+const TOKENMIX_API_KEYS = [];
+const TOKENMIX_API_KEY = '';
+const DEEPSEEK_API_KEY = '';
 
 // Deepernova Model Mapping to TokenMix llama-4-maverick backend with Vision
 const DEEPERNOVA_TEXT_MODEL_MAP = {
@@ -1227,8 +1202,9 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
   }
 
   // 🚀 PRIMARY: Always hit the backend server on Cloudflare Tunnel (https://wesley-language-starting-theories.trycloudflare.com/api/chat)
+  // 🚀 PRIMARY: Always hit the backend server proxy (/api/chat)
   try {
-    console.log('[GROK_API] 🚀 Routing chat to backend proxy:', `${API_BASE_URL}/api/chat`);
+    console.log('[GROK_API] 🚀 Routing chat to secure backend proxy:', `${API_BASE_URL}/api/chat`);
     return await sendMessageViaBackend(
       message,
       conversationHistory,
@@ -1245,135 +1221,21 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
     );
   } catch (backendErr) {
     if (backendErr.name === 'AbortError') throw backendErr;
-    console.warn('[GROK_API] Backend proxy failed, checking direct TokenMix fallback:', backendErr.message);
-    lastError = backendErr;
+    console.error('[GROK_API] Backend proxy failed:', backendErr.message);
+    throw backendErr;
   }
-
-  // 🛡️ FALLBACK: Direct TokenMix API if backend proxy is temporarily unreachable
-  const systemPrompt = buildContextualPrompt(conversationHistory, language, message, conversationId, personality, userName, sessionMessageCount, globalMemory) + (!isDirectSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '');
-
-  for (let idx = 0; idx < TOKENMIX_API_KEYS.length; idx++) {
-    const key = TOKENMIX_API_KEYS[idx];
-    if (!key) continue;
-
-    try {
-      console.log(`⚡ [INSTANT_AI] Direct fallback to TokenMix (${resolvedModel})`);
-      const response = await fetchWithTimeout(
-        TOKENMIX_API_URL,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${key}`,
-          },
-          signal: abortController?.signal,
-          body: JSON.stringify({
-            model: 'llama-4-maverick',
-            messages: [
-              {
-                role: 'system',
-                content: systemPrompt,
-              },
-              ...contextMessages,
-              {
-                role: 'user',
-                content: userContent,
-              },
-            ],
-            temperature: 0.5,
-            max_tokens: 1500,
-            presence_penalty: 0.2,
-            frequency_penalty: 0.3,
-            stream: true,
-            stream_options: { include_usage: true },
-          }),
-        },
-        TIMEOUT_CONFIG.fetchTimeoutMs
-      );
-
-      if (response.ok) {
-        return response;
-      }
-    } catch (directErr) {
-      if (directErr.name === 'AbortError') throw directErr;
-      console.warn(`[INSTANT_AI] Direct TokenMix fallback failed:`, directErr.message);
-      lastError = directErr;
-    }
-  }
-
-  throw lastError || new Error('Gagal menghubungi server AI. Pastikan backend aktif.');
 };
 
 // ============================================================
 // CODEDANCE AGENTIC AI — DEDICATED LEAN API FUNCTION
 // ============================================================
-// This function is purpose-built for CodeDance IDE's multi-turn
-// ReAct agent. It bypasses all chatbot bloat (personality, RAG,
-// quiz rules, reminder rules, global memory) and sends messages
-// directly in OpenAI {role, content} format with high max_tokens.
+// Routes directly to backend /api/chat with full streaming support.
+// Keeps TokenMix credentials completely private on the server.
 // ============================================================
 export const sendAgenticMessage = async (messages, abortController = null) => {
-  const apiKey = TOKENMIX_API_KEYS[0];
   const resolvedModel = 'llama-4-maverick';
+  console.log(`[AGENTIC] Routing agentic request to backend proxy: ${API_BASE_URL}/api/chat`);
   
-  // Try direct TokenMix first
-  if (apiKey) {
-    console.log(`[AGENTIC] Direct TokenMix call (${resolvedModel}, ${messages.length} messages)`);
-    
-    let lastErr = null;
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (attempts < maxAttempts) {
-      try {
-        const response = await fetchWithTimeout(
-          TOKENMIX_API_URL,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-            },
-            signal: abortController?.signal,
-            body: JSON.stringify({
-              model: resolvedModel,
-              messages,
-              temperature: 0.3,
-              max_tokens: 1024,
-              stream: true,
-              stream_options: { include_usage: true },
-            }),
-          },
-          TIMEOUT_CONFIG.fetchTimeoutMs
-        );
-        
-        if (response.ok) {
-          console.log(`[AGENTIC] Request succeeded with ${resolvedModel}`);
-          return response;
-        }
-        
-        const errText = await response.text();
-        lastErr = new Error(`Agentic API ${response.status}: ${errText}`);
-        
-        if (response.status === 429 && attempts < maxAttempts - 1) {
-          const backoff = (attempts + 1) * 1500;
-          console.warn(`[AGENTIC] Rate limited (429). Retrying in ${backoff}ms...`);
-          await sleep(backoff);
-          attempts++;
-          continue;
-        }
-        break;
-      } catch (e) {
-        lastErr = e;
-        if (e.name === 'AbortError') throw e;
-        break;
-      }
-    }
-    
-    console.warn('[AGENTIC] Direct API failed, trying backend proxy...', lastErr?.message);
-  }
-  
-  // Fallback to backend proxy
   try {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/chat`,
@@ -1395,10 +1257,11 @@ export const sendAgenticMessage = async (messages, abortController = null) => {
     );
     
     if (response.ok) return response;
-    throw new Error(`Backend proxy ${response.status}`);
+    const errText = await response.text();
+    throw new Error(`Backend proxy error ${response.status}: ${errText}`);
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    throw new Error(`❌ Agentic AI tidak merespons. Pastikan API key valid. (${e.message})`);
+    throw new Error(`❌ Agentic AI tidak merespons. Pastikan server backend aktif. (${e.message})`);
   }
 };
 
