@@ -5,11 +5,12 @@
 .cmo-workspace {
   min-height: 100vh;
   height: 100vh;
-  background-color: #ffffff;
+  background-color: #fffaf5;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(254, 215, 170, 0.35) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(255, 237, 213, 0.45) 0px, transparent 50%);
-  color: #0f172a;
+    radial-gradient(at 0% 0%, rgba(254, 215, 170, 0.4) 0px, transparent 55%),
+    radial-gradient(at 100% 100%, rgba(255, 237, 213, 0.5) 0px, transparent 55%),
+    radial-gradient(at 50% 50%, rgba(255, 247, 237, 0.8) 0px, transparent 70%);
+  color: #1c1917;
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   display: flex;
   flex-direction: column;
@@ -17,20 +18,23 @@
   box-sizing: border-box;
 }
 
-/* 1. Header Bar */
+/* 1. Header Bar (Floating Modern Tablet App Bar) */
 .cmo-header {
-  height: 64px;
-  min-height: 64px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid #fed7aa;
+  height: 66px;
+  min-height: 66px;
+  margin: 12px 18px 0 18px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid #fed7aa;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
+  padding: 0 1.25rem;
   gap: 1rem;
   z-index: 50;
-  box-shadow: 0 1px 3px rgba(234, 88, 12, 0.04);
+  box-shadow: 0 8px 30px -6px rgba(234, 88, 12, 0.08), 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s ease;
 }
 
 .cmo-header-left {
@@ -45,22 +49,22 @@
   align-items: center;
   gap: 0.4rem;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #fed7aa;
   padding: 0.45rem 0.85rem;
   border-radius: 999px;
-  color: #475569;
+  color: #44403c;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(234, 88, 12, 0.04);
 }
 
 .cmo-back-btn:hover {
   background: #fff7ed;
-  border-color: #fdba74;
+  border-color: #ea580c;
   color: #ea580c;
-  transform: translateX(-1px);
+  transform: translateX(-2px);
 }
 
 .cmo-brand-divider {
@@ -336,24 +340,30 @@
   font-family: monospace;
 }
 
-/* 4. Main Body */
+/* 4. Main Body (Tablet Floating Workspace) */
 .cmo-body {
   flex: 1;
   display: flex;
+  gap: 14px;
+  padding: 12px 18px 18px 18px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* Sidebar (Desktop) */
+/* Sidebar (Tablet Navigation Rail / Dock) */
 .cmo-sidebar {
-  width: 250px;
-  min-width: 250px;
+  width: 260px;
+  min-width: 260px;
   background: #ffffff;
-  border-right: 1px solid #fed7aa;
+  border: 1px solid #fed7aa;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px -4px rgba(234, 88, 12, 0.06), 0 2px 6px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 1.25rem 0.85rem;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .cmo-nav-section {
@@ -374,12 +384,12 @@
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
   background: transparent;
   border: 1px solid transparent;
-  color: #475569;
-  font-size: 0.85rem;
+  color: #44403c;
+  font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -395,7 +405,7 @@
 .cmo-nav-item.active {
   background: #fff7ed;
   border-color: #fdba74;
-  color: #c2410c;
+  color: #ea580c;
   font-weight: 700;
 }
 
@@ -420,13 +430,14 @@
   font-weight: 700;
 }
 
-/* Storage Meter Card */
+/* Storage Meter Card (Tablet Widget) */
 .cmo-storage-card {
-  background: #fff7ed;
+  background: #fffaf5;
   border: 1px solid #fed7aa;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 1rem;
   margin-top: 1rem;
+  box-shadow: inset 0 1px 3px rgba(254, 215, 170, 0.25);
 }
 
 .cmo-storage-header {
@@ -494,14 +505,18 @@
   box-shadow: 0 0 6px #10b981;
 }
 
-/* 5. Viewport Workspace */
+/* 5. Viewport Workspace (Tablet Main Canvas) */
 .cmo-viewport {
   flex: 1;
-  background: #fdfdfd;
+  background: #ffffff;
+  border: 1px solid #fed7aa;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px -4px rgba(234, 88, 12, 0.06), 0 2px 6px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 1.75rem;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .cmo-viewport-header {
@@ -924,10 +939,16 @@
 @media (max-width: 768px) {
   .cmo-header {
     height: auto;
+    margin: 0;
+    border-radius: 0;
+    border-top: none;
+    border-left: none;
+    border-right: none;
     padding: 0.75rem 1rem;
     flex-direction: column;
     align-items: stretch;
     gap: 0.65rem;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.05);
   }
 
   .cmo-header-left {
@@ -999,10 +1020,15 @@
 
   .cmo-body {
     flex-direction: column;
+    padding: 0;
+    gap: 0;
   }
 
   .cmo-viewport {
     padding: 1rem;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
   }
 
   .cmo-viewport-header {

@@ -546,39 +546,6 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
     }
   };
 
-  // ===== DESKTOP OS & WINDOW SYSTEM STATES =====
-  const [isWindowOpen, setIsWindowOpen] = useState(true);
-  const [isMaximized, setIsMaximized] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [showStartMenu, setShowStartMenu] = useState(false);
-  const [wallpaperIndex, setWallpaperIndex] = useState(0);
-
-  const wallpapers = [
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1920&q=80',
-    'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1920&q=80',
-    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1920&q=80',
-    'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1920&q=80'
-  ];
-
-  const cycleWallpaper = () => {
-    setWallpaperIndex((prev) => (prev + 1) % wallpapers.length);
-  };
-
-  // Real-time clock for Windows Taskbar
-  const [timeString, setTimeString] = useState('');
-  const [dateString, setDateString] = useState('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeString(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      setDateString(now.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [folderPath, setFolderPath] = useState([{ id: null, name: 'Server Cloud Drive' }]);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
@@ -2549,127 +2516,6 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
         </div>
       )}
 
-      {/* Windows 11 Taskbar at Bottom */}
-      <div className="win11-taskbar">
-        {/* Left Side: Live Clock, Date, and System Tray */}
-        <div className="taskbar-left-group" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div className="taskbar-clock" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'default' }}>
-            <span className="time-text" style={{ fontWeight: 700, color: '#ffffff', fontSize: '12px' }}>{timeString}</span>
-            <span className="date-text" style={{ color: '#94a3b8', fontSize: '10px' }}>{dateString}</span>
-          </div>
-          <div className="taskbar-system-tray" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
-            <span title="Koneksi Cloud Online">📶</span>
-            <span title="Suara System 100%">🔊</span>
-            <span title="Baterai 100%">🔋</span>
-          </div>
-        </div>
-
-        {/* Center Side: Start Button, Search Box, App Icons */}
-        <div className="taskbar-center-group">
-          {/* Start Menu Button */}
-          <button 
-            className={`taskbar-btn start-btn ${showStartMenu ? 'active' : ''}`}
-            onClick={(e) => { e.stopPropagation(); setShowStartMenu(!showStartMenu); }}
-            title="Start Menu"
-          >
-            <img src="https://img.icons8.com/color/48/windows-11.png" alt="Start Menu" />
-          </button>
-
-          {/* Taskbar Search Input */}
-          <div className="taskbar-search-box">
-            <img src="https://img.icons8.com/material-outlined/24/94a3b8/search.png" alt="Search" />
-            <input 
-              type="text" 
-              placeholder="Search files or apps..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onClick={() => { setIsWindowOpen(true); setIsMinimized(false); }}
-            />
-          </div>
-
-          {/* App Icons */}
-          <button 
-            className={`taskbar-btn ${isWindowOpen && !isMinimized ? 'active' : ''}`}
-            onClick={() => { setIsWindowOpen(true); setIsMinimized(false); }}
-            title="Deepernova Cloud Explorer"
-          >
-            <img src="https://img.icons8.com/color/48/folder-invoices.png" alt="Explorer" />
-            {isWindowOpen && <span className="active-dot"></span>}
-          </button>
-
-          <button className="taskbar-btn" onClick={() => onNavigate?.('documents', 'word')} title="Typernova Word">
-            <img src="https://img.icons8.com/color/48/microsoft-word-2019.png" alt="Word" />
-          </button>
-
-          <button className="taskbar-btn" onClick={() => onNavigate?.('documents', 'excel')} title="Sheets Excel">
-            <img src="https://img.icons8.com/color/48/microsoft-excel-2019.png" alt="Excel" />
-          </button>
-
-          <button className="taskbar-btn" onClick={() => onNavigate?.('chat')} title="AI Assistant">
-            <img src="https://img.icons8.com/color/48/chat.png" alt="Chat" />
-          </button>
-        </div>
-
-        {/* Right Side: Desktop Quick Switch */}
-        <div className="taskbar-right-group" style={{ display: 'flex', alignItems: 'center' }}>
-          <button 
-            className="taskbar-btn" 
-            onClick={() => setIsWindowOpen(!isWindowOpen)} 
-            title="Tampilkan Desktop"
-            style={{ width: '12px', borderLeft: '1px solid rgba(255,255,255,0.2)', height: '48px', borderRadius: 0 }}
-          />
-        </div>
-      </div>
-
-      {/* Windows 11 Start Menu Popup */}
-      {showStartMenu && (
-        <div className="win11-start-menu-popup" onClick={(e) => e.stopPropagation()}>
-          <div className="start-menu-header">
-            <div className="user-profile-info">
-              <img src="https://img.icons8.com/fluency/96/user-male-circle.png" alt="User Avatar" />
-              <div>
-                <h4>{userName}</h4>
-                <p>{userEmail}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="start-menu-section-title">Pinned Apps</div>
-          <div className="start-menu-grid">
-            <div className="start-app-item" onClick={() => { setShowStartMenu(false); setIsWindowOpen(true); setIsMinimized(false); }}>
-              <img src="https://img.icons8.com/color/96/folder-invoices.png" alt="Explorer" />
-              <span>Cloud Explorer</span>
-            </div>
-            <div className="start-app-item" onClick={() => { setShowStartMenu(false); onNavigate?.('documents', 'word'); }}>
-              <img src="https://img.icons8.com/color/96/microsoft-word-2019.png" alt="Word" />
-              <span>Typernova Word</span>
-            </div>
-            <div className="start-app-item" onClick={() => { setShowStartMenu(false); onNavigate?.('documents', 'excel'); }}>
-              <img src="https://img.icons8.com/color/96/microsoft-excel-2019.png" alt="Excel" />
-              <span>Sheets Excel</span>
-            </div>
-            <div className="start-app-item" onClick={() => { setShowStartMenu(false); onNavigate?.('documents', 'ppt'); }}>
-              <img src="https://img.icons8.com/color/96/microsoft-powerpoint-2019.png" alt="PPT" />
-              <span>Slide Deck</span>
-            </div>
-            <div className="start-app-item" onClick={() => { setShowStartMenu(false); onNavigate?.('chat'); }}>
-              <img src="https://img.icons8.com/color/96/chat.png" alt="Chat" />
-              <span>AI Assistant</span>
-            </div>
-            <div className="start-app-item" onClick={() => { setShowStartMenu(false); cycleWallpaper(); }}>
-              <img src="https://img.icons8.com/color/96/picture.png" alt="Wallpaper" />
-              <span>Ganti Background</span>
-            </div>
-          </div>
-
-          <div className="start-menu-footer">
-            <button className="power-btn" onClick={() => { setShowStartMenu(false); onNavigate?.('universe'); }}>
-              <span>⏻</span> Exit OS / Universe
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* FLOATING CONTEXT MENU (RIGHT-CLICK & LONG-PRESS) */}
       {contextMenu.visible && contextMenu.file && (
         <div
@@ -2678,13 +2524,18 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
             position: 'fixed',
             top: `${contextMenu.y}px`,
             left: `${contextMenu.x}px`,
-            zIndex: 999999
+            zIndex: 999999,
+            background: '#ffffff',
+            borderRadius: '16px',
+            boxShadow: '0 16px 36px -8px rgba(234, 88, 12, 0.18), 0 0 0 1px #fed7aa',
+            border: 'none',
+            overflow: 'hidden'
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="menu-header">
+          <div className="menu-header" style={{ background: '#fff7ed', borderBottom: '1px solid #fed7aa', padding: '10px 14px' }}>
             <span className="menu-file-icon">{getFileIcon(contextMenu.file, 20)}</span>
-            <span className="menu-file-name">{contextMenu.file.name}</span>
+            <span className="menu-file-name" style={{ color: '#1c1917', fontWeight: 600 }}>{contextMenu.file.name}</span>
           </div>
 
           {(() => {
@@ -2692,42 +2543,42 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
             if (!info) return null;
             return (
               <div style={{
-                padding: '8px 12px',
-                background: 'rgba(15, 23, 42, 0.75)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '10px 14px',
+                background: '#fffaf5',
+                borderBottom: '1px solid #ffedd5',
                 fontSize: '11px',
                 lineHeight: '1.5'
               }}>
-                <div style={{ color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <img src="https://img.icons8.com/fluency/48/user-shield.png" alt="User" style={{ width: 14, height: 14 }} />
-                  <span>{info.isFolder ? 'Pembuat Folder' : 'Diunggah oleh'}: <strong style={{ color: '#facc15' }}>{info.uploaderName}</strong></span>
+                <div style={{ color: '#44403c', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span>👤</span>
+                  <span>{info.isFolder ? 'Pembuat Folder' : 'Diunggah oleh'}: <strong style={{ color: '#ea580c' }}>{info.uploaderName}</strong></span>
                 </div>
-                <div style={{ color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                  <img src="https://img.icons8.com/fluency/48/manager.png" alt="Role" style={{ width: 14, height: 14 }} />
-                  <span>Jabatan: <strong style={{ color: '#38bdf8' }}>{info.uploaderRole}</strong></span>
+                <div style={{ color: '#44403c', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                  <span>💼</span>
+                  <span>Jabatan: <strong style={{ color: '#f97316' }}>{info.uploaderRole}</strong></span>
                 </div>
                 {!info.isFolder && (
-                  <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <img src="https://img.icons8.com/fluency/48/folder-invoices.png" alt="Location" style={{ width: 13, height: 13 }} />
-                    <span>Lokasi Folder: <span style={{ color: '#e2e8f0' }}>{info.folderName}</span></span>
+                  <div style={{ color: '#78716c', fontSize: '10px', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>📁</span>
+                    <span>Lokasi Folder: <span style={{ color: '#1c1917', fontWeight: 500 }}>{info.folderName}</span></span>
                   </div>
                 )}
                 {contextMenu.file.checksum && (
-                  <div style={{ color: '#10b981', fontSize: '10px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'monospace' }}>
+                  <div style={{ color: '#16a34a', fontSize: '10px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'monospace' }}>
                     <span title={`SHA-256: ${contextMenu.file.checksum}`}>🛡️ SHA-256: {contextMenu.file.checksum.substring(0, 16)}...</span>
                   </div>
                 )}
               </div>
             );
           })()}
-          <div className="menu-divider" />
+          <div className="menu-divider" style={{ background: '#ffedd5' }} />
           <button className="menu-item" onClick={() => { handleOpenFile(contextMenu.file); setContextMenu({ visible: false, x: 0, y: 0, file: null }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src="https://img.icons8.com/fluency/48/opened-folder.png" alt="Open" style={{ width: 16, height: 16 }} />
+            <span style={{ fontSize: '16px' }}>📂</span>
             <span>Buka Berkas</span>
           </button>
           {(contextMenu.file.category === 'folder' || contextMenu.file.type === 'folder') && (
             <button className="menu-item" onClick={(e) => { handleEditFolder(contextMenu.file, e); setContextMenu({ visible: false, x: 0, y: 0, file: null }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <img src="https://img.icons8.com/fluency/48/edit.png" alt="Edit" style={{ width: 16, height: 16 }} />
+              <span style={{ fontSize: '16px' }}>✏️</span>
               <span>Edit Folder & Struktur</span>
             </button>
           )}
@@ -2741,13 +2592,13 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               onClick={() => setContextMenu({ visible: false, x: 0, y: 0, file: null })}
               style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              <img src="https://img.icons8.com/fluency/48/download.png" alt="Download" style={{ width: 16, height: 16 }} />
+              <span style={{ fontSize: '16px' }}>⬇️</span>
               <span>Unduh Berkas</span>
             </a>
           )}
-          <div className="menu-divider" />
+          <div className="menu-divider" style={{ background: '#ffedd5' }} />
           <button className="menu-item danger" onClick={(e) => { handleDeleteFile(contextMenu.file.id, e); setContextMenu({ visible: false, x: 0, y: 0, file: null }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src="https://img.icons8.com/fluency/48/trash.png" alt="Delete" style={{ width: 16, height: 16 }} />
+            <span style={{ fontSize: '16px' }}>🗑️</span>
             <span>Hapus Berkas</span>
           </button>
         </div>
@@ -2760,17 +2611,16 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           bottom: uploadNotification ? '150px' : '24px',
           right: '24px',
           zIndex: 999999,
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-          color: '#ffffff',
+          background: '#ffffff',
+          color: '#1c1917',
           padding: '16px 20px',
-          borderRadius: '14px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(56, 189, 248, 0.35)',
+          borderRadius: '18px',
+          boxShadow: '0 20px 50px rgba(234, 88, 12, 0.18), 0 0 0 1px #fed7aa',
           display: 'flex',
           flexDirection: 'column',
           gap: '10px',
           width: '380px',
           maxWidth: 'calc(100vw - 32px)',
-          backdropFilter: 'blur(12px)',
           transition: 'all 0.3s ease'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2778,43 +2628,43 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               <span style={{ fontSize: '20px' }}>
                 {uploadProgress.status === 'completed' ? '✅' : uploadProgress.status === 'error' ? '⚠️' : '🚀'}
               </span>
-              <span style={{ fontWeight: 700, fontSize: '14px', color: '#38bdf8' }}>
+              <span style={{ fontWeight: 700, fontSize: '14px', color: '#ea580c' }}>
                 {uploadProgress.status === 'completed' ? 'Unggahan Selesai' : `Mengunggah (${uploadProgress.fileIndex}/${uploadProgress.totalFiles})`}
               </span>
             </div>
-            <span style={{ fontSize: '15px', fontWeight: 800, color: uploadProgress.status === 'completed' ? '#34d399' : '#38bdf8' }}>
+            <span style={{ fontSize: '15px', fontWeight: 800, color: uploadProgress.status === 'completed' ? '#16a34a' : '#ea580c' }}>
               {uploadProgress.percent}%
             </span>
           </div>
 
-          <div style={{ fontSize: '13px', color: '#f1f5f9', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={uploadProgress.fileName}>
+          <div style={{ fontSize: '13px', color: '#44403c', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={uploadProgress.fileName}>
             {uploadProgress.fileName}
           </div>
 
           {/* Dynamic Progress Bar */}
-          <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '999px', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ width: '100%', height: '8px', background: '#ffedd5', borderRadius: '999px', overflow: 'hidden', position: 'relative' }}>
             <div style={{
               height: '100%',
               width: `${uploadProgress.percent}%`,
               background: uploadProgress.status === 'completed' 
-                ? 'linear-gradient(90deg, #10b981, #34d399)' 
+                ? 'linear-gradient(90deg, #16a34a, #22c55e)' 
                 : uploadProgress.status === 'error' 
                   ? '#ef4444' 
-                  : 'linear-gradient(90deg, #0284c7, #38bdf8, #60a5fa)',
+                  : 'linear-gradient(90deg, #ea580c, #f97316, #fb923c)',
               borderRadius: '999px',
               transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 0 10px rgba(56, 189, 248, 0.5)'
+              boxShadow: '0 0 10px rgba(234, 88, 12, 0.4)'
             }} />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#94a3b8' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#78716c' }}>
             <span>
               {uploadProgress.loadedBytes > 0 
                 ? `${(uploadProgress.loadedBytes / (1024 * 1024)).toFixed(1)} MB / ${(uploadProgress.totalBytes / (1024 * 1024)).toFixed(1)} MB` 
                 : uploadProgress.statusText}
             </span>
             {uploadProgress.speedStr && (
-              <span style={{ color: '#67e8f9', fontWeight: 600 }}>{uploadProgress.speedStr}</span>
+              <span style={{ color: '#ea580c', fontWeight: 600 }}>{uploadProgress.speedStr}</span>
             )}
           </div>
         </div>
@@ -2827,39 +2677,36 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           bottom: '24px',
           right: '24px',
           zIndex: 999999,
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-          color: '#ffffff',
+          background: '#ffffff',
+          color: '#1c1917',
           padding: '16px 20px',
-          borderRadius: '12px',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.15)',
+          borderRadius: '16px',
+          boxShadow: '0 16px 40px rgba(234, 88, 12, 0.16), 0 0 0 1px #fed7aa',
           display: 'flex',
           alignItems: 'center',
           gap: '14px',
           maxWidth: '420px'
         }}>
           <div style={{ fontSize: '28px', display: 'flex', alignItems: 'center' }}>
-            <img src="https://img.icons8.com/fluency/48/checked.png" alt="Success" style={{ width: 32, height: 32 }} />
+            ✅
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: '15px', color: '#38bdf8', marginBottom: '2px' }}>
+            <div style={{ fontWeight: 700, fontSize: '15px', color: '#ea580c', marginBottom: '2px' }}>
               Berhasil Mengunggah {uploadNotification.count} Berkas!
             </div>
-            <div style={{ fontSize: '13px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <img src="https://img.icons8.com/fluency/48/folder-invoices.png" alt="Folder" style={{ width: 14, height: 14 }} />
-              <span>Folder: <strong style={{ color: '#fff' }}>{uploadNotification.folderName}</strong></span>
+            <div style={{ fontSize: '13px', color: '#44403c', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>📁 Folder: <strong style={{ color: '#1c1917' }}>{uploadNotification.folderName}</strong></span>
             </div>
-            <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <img src="https://img.icons8.com/fluency/48/user-shield.png" alt="Creator" style={{ width: 14, height: 14 }} />
-              <span>Pembuat Folder: <strong style={{ color: '#facc15' }}>{uploadNotification.creatorName}</strong></span>
+            <div style={{ fontSize: '13px', color: '#44403c', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>👤 Pembuat Folder: <strong style={{ color: '#ea580c' }}>{uploadNotification.creatorName}</strong></span>
             </div>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <img src="https://img.icons8.com/fluency/48/manager.png" alt="Role" style={{ width: 14, height: 14 }} />
-              <span>Jabatan: <span style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{uploadNotification.creatorRole}</span></span>
+            <div style={{ fontSize: '12px', color: '#78716c', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>Jabatan: <span style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{uploadNotification.creatorRole}</span></span>
             </div>
           </div>
           <button 
             onClick={() => setUploadNotification(null)}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: '#a8a29e', fontSize: '18px', cursor: 'pointer' }}
           >
             ✕
           </button>
@@ -2873,11 +2720,11 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           bottom: '24px',
           left: '24px',
           zIndex: 999999,
-          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+          background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
           color: '#ffffff',
           padding: '14px 22px',
-          borderRadius: '12px',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+          borderRadius: '16px',
+          boxShadow: '0 12px 30px rgba(234, 88, 12, 0.35)',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
