@@ -16,8 +16,8 @@ echo  - Order DTE User   : F:\order dte\user
 echo.
 echo ===============================================================================
 echo Pilih Mode Startup:
-echo  [1] Start Semua Service Lokal (Jendela Terbuka & Terpantau) - REKOMENDASI
-echo  [2] Start + Cloudflare Tunnel Auto-Deploy Vercel (auto_start_all.mjs)
+echo  [1] AUTO-DEPLOY KE VERCEL (Cloudflare Tunnel + Auto Git Push) - REKOMENDASI UTAMA
+echo  [2] Start Semua Service Lokal Saja (Offline / Localhost Only)
 echo  [3] Tutup / Matikan Semua Service Terkait (Port 3000, 3001, 5000, 5173, 5174)
 echo ===============================================================================
 echo.
@@ -25,9 +25,9 @@ echo.
 set "CHOICE=1"
 set /p "CHOICE=Masukkan pilihan [1, 2, atau 3] (Default: 1): "
 
-if "%CHOICE%"=="2" goto mode_deploy
+if "%CHOICE%"=="2" goto mode_local
 if "%CHOICE%"=="3" goto mode_kill
-goto mode_local
+goto mode_deploy
 
 :mode_local
 echo.
@@ -104,7 +104,8 @@ goto end
 
 :mode_kill
 echo.
-echo Mematikan proses node pada port 3000, 3001, 5000, 5173, 5174...
+echo Mematikan proses node & cloudflared pada port 3000, 3001, 5000, 5173, 5174...
+taskkill /f /im cloudflared.exe >nul 2>&1
 powershell -Command "Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 3000, 3001, 5000, 5173, 5174 } | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue; Write-Host 'Menghentikan proses PID' $_.OwningProcess 'pada port' $_.LocalPort }"
 echo Selesai.
 goto end

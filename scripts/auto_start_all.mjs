@@ -71,7 +71,8 @@ async function waitForPort(port, maxWaitMs = 15000) {
 
 function startProcess(command, args, cwd, name) {
   log.info(`Menjalankan ${name}...`);
-  const child = spawn('cmd.exe', ['/c', 'start', `"${name}"`, command, ...args], {
+  const fullArgs = args.length > 0 ? ` ${args.join(' ')}` : '';
+  const child = spawn('cmd.exe', ['/c', 'start', `"${name}"`, 'cmd', '/k', `${command}${fullArgs}`], {
     cwd,
     windowsHide: false,
     shell: false
@@ -90,9 +91,10 @@ function launchTunnel(port, logFilePath) {
 
     const child = spawn(CLOUDFLARED_BIN, [
       'tunnel',
-      '--url', `http://localhost:${port}`,
+      '--url', `http://127.0.0.1:${port}`,
       '--logfile', logFilePath,
-      '--protocol', 'quic'
+      '--protocol', 'http2',
+      '--retries', '5'
     ], {
       detached: true,
       windowsHide: true,
@@ -101,7 +103,7 @@ function launchTunnel(port, logFilePath) {
     child.unref();
 
     let resolved = false;
-    const maxWaitMs = 45000;
+    const maxWaitMs = 60000;
     const start = Date.now();
 
     const interval = setInterval(() => {
@@ -124,7 +126,7 @@ function launchTunnel(port, logFilePath) {
           }
         } catch {}
       }
-    }, 1000);
+    }, 500);
   });
 }
 
@@ -200,8 +202,8 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   if (fs.existsSync(searchServicePath)) {
     let searchContent = fs.readFileSync(searchServicePath, 'utf8');
     searchContent = searchContent.replace(
-      /:\s*'https:\/\/[a-z0-9\-]+\.trycloudflare\.com\/api\/v1'\);/,
-      `: '${searchEngineUrl}/api/v1');`
+      /export const API_BASE_URL =[\s\S]*?;/,
+      `export const API_BASE_URL = \n  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://127.0.0.1:3000/api/v1'\n    : '${searchEngineUrl}/api/v1');`
     );
     fs.writeFileSync(searchServicePath, searchContent, 'utf8');
     log.success('src/services/clientSearchService.js berhasil diperbarui.');
@@ -212,13 +214,13 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   if (fs.existsSync(landingPagePath)) {
     let lpContent = fs.readFileSync(landingPagePath, 'utf8');
     lpContent = lpContent.replace(
-      /SEARCH_ENGINE_URL\s*=[\s\S]*?:\s*'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
-      `SEARCH_ENGINE_URL = \n  import.meta.env?.VITE_SEARCH_ENGINE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:3000'\n    : '${searchEngineUrl}');`
+      /const SEARCH_ENGINE_URL =[\s\S]*?;/,
+      `const SEARCH_ENGINE_URL = \n  import.meta.env?.VITE_SEARCH_ENGINE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:3000'\n    : '${searchEngineUrl}');`
     );
     if (dteUrl) {
       lpContent = lpContent.replace(
-        /ORDER_DTE_URL\s*=[\s\S]*?:\s*'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
-        `ORDER_DTE_URL = \n  import.meta.env?.VITE_ORDER_DTE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:5173'\n    : '${dteUrl}');`
+        /const ORDER_DTE_URL =[\s\S]*?;/,
+        `const ORDER_DTE_URL = \n  import.meta.env?.VITE_ORDER_DTE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:5173'\n    : '${dteUrl}');`
       );
     }
     fs.writeFileSync(landingPagePath, lpContent, 'utf8');
@@ -256,7 +258,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   if (fs.existsSync(vercelPath)) {
     let vercelContent = fs.readFileSync(vercelPath, 'utf8');
     vercelContent = vercelContent.replace(
-      /"destination":\s*"https:\/\/[a-z0-9\-]+\.trycloudflare\.com\/(api|auth|download|watermarked)\/:path\*"/g,
+      /"destination":\s*"https?:\/\/[^\/]+\/(api|auth|download|watermarked)\/:path\*"/g,
       `"destination": "${backendUrl}/$1/:path*"`
     );
     fs.writeFileSync(vercelPath, vercelContent, 'utf8');
@@ -337,7 +339,7 @@ async function main() {
 
   // Step 3: Dapatkan URL Cloudflare Tunnel
   const backendLog = path.join(ROOT_DIR, 'tunnel-backend.log');
-  const searchLog = path.join(SEARCH_DIR, 'tunnel.log');
+  const searchLog = path.join(ROOT_DIR, 'tunnel-search.log');
   const dteLog = path.join(ROOT_DIR, 'tunnel-dte.log');
 
   let backendUrl = null;
@@ -386,10 +388,13 @@ async function main() {
   // Step 6: Git commit & push otomatis ke GitHub
   log.info('Menyinkronkan ke GitHub & Vercel...');
   try {
-    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs .env.production', { cwd: ROOT_DIR, stdio: 'inherit' });
+    execSync('git add -A vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs start_all.bat start.bat', { cwd: ROOT_DIR, stdio: 'inherit' });
     try {
       execSync('git commit -m "auto-deploy: sync active cloudflare tunnels, landing page, order dte and vercel rewrites"', { cwd: ROOT_DIR, stdio: 'inherit' });
-    } catch {}
+    } catch {
+      log.info('Tidak ada perubahan baru untuk di-commit.');
+    }
+    log.info('Melakukan git push origin main ke GitHub...');
     execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
     log.success('Berhasil push ke GitHub! Vercel akan otomatis aktif beberapa detik lagi.');
   } catch (err) {
