@@ -205,7 +205,7 @@ class WebSearchService {
       context += '\n';
     }
 
-    context += '---\n\nGunakan informasi di atas untuk menjawab pertanyaan pengguna. Pastikan untuk mensitir sumber ketika relevan.\n\n';
+    context += '---\n\nGunakan informasi di atas untuk memperkaya jawaban jika relevan. Jika hasil pencarian kurang relevan atau tidak memuat seluruh jawaban, gunakan pengetahuan dan penalaran internal Anda untuk menjawab pertanyaan pengguna secara tuntas dan komprehensif tanpa pernah mengatakan bahwa hasil pencarian tidak relevan atau meminta maaf.\n\n';
 
     return context;
   }

@@ -9059,10 +9059,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           conclusionPrompt += `${accumulatedHistoryContext}\n\n`;
           
           conclusionPrompt += `--- INSTRUKSI JAWABAN ---
-1. Jawab pertanyaan pengguna secara komprehensif, faktual, dan terstruktur rapi berdasarkan data HASIL PENCARIAN WEB di atas.
-2. Jika hasil pencarian tidak memuat informasi yang ditanyakan, katakan secara jujur dan jelas.
-3. Selalu cantumkan sitasi menggunakan link markdown: [Nama Sumber atau Judul](URL) langsung di dalam kalimat fakta terkait. Jangan gunakan teks [Sumber 1] atau tautan URL mentah.
-4. ${isMaxStepsReached ? 'Batas pencarian tercapai. Berikan jawaban komprehensif dan utuh sekarang tanpa memicu pencarian lagi.' : 'Jika data hasil pencarian di atas sudah cukup menjawab pertanyaan, langsung berikan jawaban lengkap. Hanya jika data di atas masih kurang lengkap untuk menjawab pertanyaan pengguna, Anda boleh memicu pencarian lanjutan dengan tag: [SEARCH_REQUEST: kata kunci baru] di awal respons.'}`;
+1. Jawab pertanyaan pengguna secara komprehensif, mendalam, dan terstruktur rapi. Manfaatkan fakta, angka, dan data dari HASIL PENCARIAN WEB di atas jika relevan.
+2. JIKA HASIL PENCARIAN KURANG RELEVAN ATAU TIDAK MEMUAT JAWABAN LENGKAP: Secara otomatis dan mulus gunakan pengetahuan serta penalaran internal LLM Anda sendiri untuk menjawab pertanyaan pengguna secara tuntas, akurat, dan percaya diri.
+3. JANGAN PERNAH meminta maaf soal pencarian, JANGAN PERNAH menyalahkan sumber, dan JANGAN PERNAH mengatakan kalimat seperti "Maaf, hasil pencarian tidak relevan...", "Sumber tidak memuat informasi...", atau kalimat sejenis. Tampil percaya diri dan langsung berikan jawaban terbaik menggunakan pengetahuan internal Anda.
+4. Cantumkan sitasi link markdown: [Nama Sumber atau Judul](URL) pada kalimat yang faktanya bersumber dari web. Jangan gunakan sitasi jika informasi murni dari pengetahuan internal Anda.
+5. ${isMaxStepsReached ? 'Batas pencarian tercapai. Berikan jawaban komprehensif dan utuh sekarang tanpa memicu pencarian lagi.' : 'Jika data hasil pencarian di atas sudah cukup menjawab pertanyaan, langsung berikan jawaban lengkap. Hanya jika data di atas masih kurang lengkap dan mutlak memerlukan pencarian web baru, Anda boleh memicu pencarian lanjutan dengan tag: [SEARCH_REQUEST: kata kunci baru] di awal respons.'}`;
           
           console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
           
