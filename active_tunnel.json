@@ -1,13 +1,13 @@
 {
-  "backendUrl": "https://artwork-plus-promise-role.trycloudflare.com",
+  "backendUrl": "https://sarah-cio-conducted-roberts.trycloudflare.com",
   "frontendUrl": "https://nam-ben-brothers-strict.trycloudflare.com",
-  "searchEngineUrl": "https://velvet-paragraph-retreat-pharmacies.trycloudflare.com",
-  "dteUrl": "https://editors-train-stores-seriously.trycloudflare.com",
+  "searchEngineUrl": "https://baseline-encouraged-reflections-sox.trycloudflare.com",
+  "dteUrl": "https://prior-beyond-baseball-batman.trycloudflare.com",
   "backendPort": 3001,
   "frontendPort": 5174,
   "searchEnginePort": 3000,
   "dtePort": 5173,
   "isFixed": true,
   "status": "LIVE",
-  "updatedAt": "2026-09-20T11:56:10.283Z"
+  "updatedAt": "2026-09-20T13:20:57.364Z"
 }

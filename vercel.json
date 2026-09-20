@@ -98,19 +98,19 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://artwork-plus-promise-role.trycloudflare.com/api/:path*"
+      "destination": "https://sarah-cio-conducted-roberts.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://artwork-plus-promise-role.trycloudflare.com/auth/:path*"
+      "destination": "https://sarah-cio-conducted-roberts.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://artwork-plus-promise-role.trycloudflare.com/download/:path*"
+      "destination": "https://sarah-cio-conducted-roberts.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://artwork-plus-promise-role.trycloudflare.com/watermarked/:path*"
+      "destination": "https://sarah-cio-conducted-roberts.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
