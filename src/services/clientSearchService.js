@@ -134,7 +134,9 @@ async function performDirectSearch(query, limit, includeImages) {
         snippet: cleanSearchText(item.snippet) || '',
         domain: domain,
         thumbnail: item.lead_image_url || item.logo_url || null,
-        position: idx + 1
+        position: idx + 1,
+        date: item.formatted_date || item.formattedDate || item.date || null,
+        publishedAt: item.published_at || item.publishedAt || item.crawledAt || null
       };
     });
 
