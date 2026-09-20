@@ -2523,28 +2523,112 @@ app.post('/api/chat', async (req, res) => {
 
     console.log('[DEBUG] Extracted userQuery:', userQuery.substring(0, 100));
 
-    // 🧠 Model Token Context Optimization:
-    // Maximize token savings: retain 1 consolidated system message,
-    // and keep only the last 3 conversation messages (user & assistant).
-    const systemMsgs = messages.filter(m => m.role === 'system');
-    const consolidatedSystemMsgs = systemMsgs.length > 1 ? [systemMsgs[systemMsgs.length - 1]] : systemMsgs;
-    const nonSystemMsgs = messages.filter(m => m.role !== 'system');
-    
-    // Cap past assistant messages length to 400 chars to avoid massive code blocks bloating context
-    const recentNonSystemMsgs = nonSystemMsgs.slice(-3).map((m, idx, arr) => {
-      // Don't truncate the latest message (which is being answered or is the final user prompt)
-      if (idx === arr.length - 1) return m;
-      if (m.role === 'assistant' && typeof m.content === 'string' && m.content.length > 400) {
-        return {
-          ...m,
-          content: m.content.substring(0, 400) + '... [ringkasan respon sebelumnya]'
+    /**
+     * 🧠 Context Window Enforcer: Strictly limits total input context payload to <= 1,000 tokens
+     * for maximum inference speed and efficiency. Emphasizes search & memory recall strategy.
+     */
+    const enforceContextWindow1000 = (msgs, maxInputTokens = 1000) => {
+      if (!Array.isArray(msgs) || msgs.length === 0) return msgs;
+
+      const estimateTokens = (content) => {
+        if (!content) return 0;
+        if (typeof content === 'string') return Math.ceil(content.length / 3.5);
+        if (Array.isArray(content)) {
+          let sum = 0;
+          for (const item of content) {
+            if (typeof item === 'string') sum += Math.ceil(item.length / 3.5);
+            else if (item?.text) sum += Math.ceil(item.text.length / 3.5);
+            else if (item?.type === 'image_url' || item?.image_url) sum += 65;
+          }
+          return sum;
+        }
+        return 0;
+      };
+
+      const calculateTotalTokens = (items) => {
+        return items.reduce((acc, m) => acc + estimateTokens(m.content) + 4, 0);
+      };
+
+      // Consolidate system messages to 1
+      let systemMsg = msgs.find(m => m.role === 'system');
+      let nonSystemMsgs = msgs.filter(m => m.role !== 'system');
+
+      // Keep at most the last 2 non-system messages (1 assistant turn, 1 user turn)
+      if (nonSystemMsgs.length > 2) {
+        nonSystemMsgs = nonSystemMsgs.slice(-2);
+      }
+
+      // Compress previous assistant message if longer than 150 chars
+      if (nonSystemMsgs.length === 2 && nonSystemMsgs[0].role === 'assistant') {
+        if (typeof nonSystemMsgs[0].content === 'string' && nonSystemMsgs[0].content.length > 150) {
+          nonSystemMsgs[0] = {
+            ...nonSystemMsgs[0],
+            content: nonSystemMsgs[0].content.substring(0, 150) + '...'
+          };
+        }
+      }
+
+      // System prompt budget: max 300 tokens (~1050 chars)
+      if (systemMsg && typeof systemMsg.content === 'string' && systemMsg.content.length > 1050) {
+        systemMsg = {
+          ...systemMsg,
+          content: systemMsg.content.substring(0, 1050)
         };
       }
-      return m;
-    });
 
-    messages = [...consolidatedSystemMsgs, ...recentNonSystemMsgs];
-    console.log(`[CHAT CONTEXT OPTIMIZER] Preserved ${consolidatedSystemMsgs.length} system prompt + ${recentNonSystemMsgs.length} recent messages (capped at 3 for max token saving).`);
+      let consolidated = systemMsg ? [systemMsg, ...nonSystemMsgs] : nonSystemMsgs;
+      let currentTokens = calculateTotalTokens(consolidated);
+
+      if (currentTokens > maxInputTokens && consolidated.length > 2) {
+        // If still over 1000 tokens, drop older assistant turn to prioritize latest user query/search result
+        consolidated = [consolidated[0], consolidated[consolidated.length - 1]];
+        currentTokens = calculateTotalTokens(consolidated);
+      }
+
+      // Clamp latest user message if it alone exceeds remaining budget
+      if (currentTokens > maxInputTokens && consolidated.length > 0) {
+        const sysTokens = systemMsg ? estimateTokens(systemMsg.content) + 4 : 0;
+        const availableUserTokens = Math.max(100, maxInputTokens - sysTokens - 40);
+        const maxUserChars = Math.floor(availableUserTokens * 3.2);
+
+        const lastIdx = consolidated.length - 1;
+        const lastMsg = consolidated[lastIdx];
+        if (lastMsg && lastMsg.role === 'user') {
+          if (typeof lastMsg.content === 'string' && lastMsg.content.length > maxUserChars) {
+            consolidated[lastIdx] = {
+              ...lastMsg,
+              content: lastMsg.content.substring(0, maxUserChars) + '\n[...ringkasan batas 1.000 token]'
+            };
+          } else if (Array.isArray(lastMsg.content)) {
+            consolidated[lastIdx] = {
+              ...lastMsg,
+              content: lastMsg.content.map(part => {
+                if (part?.type === 'text' && typeof part.text === 'string' && part.text.length > maxUserChars) {
+                  return { ...part, text: part.text.substring(0, maxUserChars) + '...' };
+                }
+                return part;
+              })
+            };
+          }
+        }
+      }
+
+      // Hard ceiling safeguard: guarantee calculateTotalTokens <= maxInputTokens
+      while (calculateTotalTokens(consolidated) > maxInputTokens) {
+        const lastIdx = consolidated.length - 1;
+        if (lastIdx >= 0 && typeof consolidated[lastIdx].content === 'string' && consolidated[lastIdx].content.length > 50) {
+          consolidated[lastIdx].content = consolidated[lastIdx].content.slice(0, -50);
+        } else {
+          break;
+        }
+      }
+
+      const finalTokens = calculateTotalTokens(consolidated);
+      console.log(`[TOKEN ENFORCER 1000] Context payload: ${finalTokens}/${maxInputTokens} tokens across ${consolidated.length} message(s).`);
+      return consolidated;
+    };
+
+    messages = enforceContextWindow1000(messages, 1000);
 
     // Check if streaming is requested
     const shouldStream = req.body.stream === true;
@@ -2577,6 +2661,9 @@ app.post('/api/chat', async (req, res) => {
             }
           }
         }
+        
+        // Final guarantee: strictly enforce <= 1,000 input tokens ceiling before dispatching
+        messages = enforceContextWindow1000(messages, 1000);
         
         // TokenMix model llama-4-maverick handles both standard text and vision multimodal
         const requestedModel = req.body.model || DEFAULT_CHAT_MODEL;
