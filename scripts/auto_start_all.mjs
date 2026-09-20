@@ -60,19 +60,21 @@ async function checkPortOpen(port, timeoutMs = 1500) {
   });
 }
 
-async function waitForPort(port, maxWaitMs = 15000) {
+async function waitForPort(port, maxWaitMs = 25000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     if (await checkPortOpen(port)) return true;
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 800));
   }
   return false;
 }
 
 function startProcess(command, args, cwd, name) {
   log.info(`Menjalankan ${name}...`);
-  const fullCmd = [command, ...args].join(' ');
-  return exec(`start "${name}" cmd /k "${fullCmd}"`, {
+  // Wrap in double-quotes to handle spaces in paths
+  const quotedArgs = args.map(a => a.includes(' ') ? `"${a}"` : a);
+  const fullCmd = [command, ...quotedArgs].join(' ');
+  return exec(`start "${name}" cmd /k "cd /d ${cwd} && ${fullCmd} || pause"`, {
     cwd,
     windowsHide: false
   });
@@ -80,6 +82,13 @@ function startProcess(command, args, cwd, name) {
 
 function launchTunnel(port, logFilePath) {
   return new Promise((resolve, reject) => {
+    // Cek apakah cloudflared.exe ada
+    if (!fs.existsSync(CLOUDFLARED_BIN)) {
+      log.warn(`cloudflared.exe tidak ditemukan di ${CLOUDFLARED_BIN}`);
+      log.warn(`Tunnel port ${port} dilewati. Download dari: https://github.com/cloudflare/cloudflared/releases`);
+      return reject(new Error(`cloudflared.exe tidak ada`));
+    }
+
     log.info(`Menyalakan Cloudflare Tunnel untuk port ${port}...`);
     
     // Hapus file log lama jika ada
@@ -100,7 +109,7 @@ function launchTunnel(port, logFilePath) {
     child.unref();
 
     let resolved = false;
-    const maxWaitMs = 60000;
+    const maxWaitMs = 90000; // 90 detik max
     const start = Date.now();
 
     const interval = setInterval(() => {
@@ -119,7 +128,8 @@ function launchTunnel(port, logFilePath) {
           const isRegistered = content.includes('Registered tunnel connection') || 
                                content.includes('Registered at') || 
                                content.includes('connection=') ||
-                               content.includes('location=');
+                               content.includes('location=') ||
+                               content.includes('connIndex=');
           if (match && match[0] && isRegistered) {
             resolved = true;
             clearInterval(interval);
@@ -420,24 +430,67 @@ async function main() {
   let searchEngineUrl = null;
   let dteUrl = null;
 
+  // Baca URL lama dari active_tunnel.json sebagai fallback
+  const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
+  let oldTunnel = {};
   try {
-    const promises = [
+    if (fs.existsSync(activeTunnelPath)) {
+      oldTunnel = JSON.parse(fs.readFileSync(activeTunnelPath, 'utf8'));
+    }
+  } catch {}
+
+  try {
+    const tunnelPromises = [];
+    const dteExists = fs.existsSync(ORDER_DTE_USER_DIR);
+
+    // Gunakan Promise.allSettled agar 1 tunnel gagal tidak stop semua
+    const settled = await Promise.allSettled([
       launchTunnel(3001, backendLog),
-      launchTunnel(3000, searchLog)
-    ];
-    if (fs.existsSync(ORDER_DTE_USER_DIR)) {
-      promises.push(launchTunnel(5173, dteLog));
+      launchTunnel(3000, searchLog),
+      ...(dteExists ? [launchTunnel(5173, dteLog)] : [])
+    ]);
+
+    if (settled[0].status === 'fulfilled') {
+      backendUrl = settled[0].value;
+    } else {
+      log.warn(`Backend tunnel gagal: ${settled[0].reason?.message}. Menggunakan URL lama.`);
+      backendUrl = oldTunnel.backendUrl || null;
     }
 
-    const results = await Promise.all(promises);
-    backendUrl = results[0];
-    searchEngineUrl = results[1];
-    if (results.length > 2) {
-      dteUrl = results[2];
+    if (settled[1].status === 'fulfilled') {
+      searchEngineUrl = settled[1].value;
+    } else {
+      log.warn(`Search tunnel gagal: ${settled[1].reason?.message}. Menggunakan URL lama.`);
+      searchEngineUrl = oldTunnel.searchEngineUrl || null;
+    }
+
+    if (dteExists && settled[2]) {
+      if (settled[2].status === 'fulfilled') {
+        dteUrl = settled[2].value;
+      } else {
+        log.warn(`DTE tunnel gagal: ${settled[2].reason?.message}. Menggunakan URL lama.`);
+        dteUrl = oldTunnel.dteUrl || null;
+      }
+    }
+
+    if (!backendUrl && !searchEngineUrl) {
+      log.warn('Semua tunnel gagal! Tetap melanjutkan build & push dengan URL lama...');
     }
   } catch (err) {
-    log.error(`Gagal menghubungkan tunnel: ${err.message}`);
-    process.exit(1);
+    log.warn(`Tunnel error: ${err.message}. Melanjutkan dengan URL lama...`);
+    backendUrl = oldTunnel.backendUrl || null;
+    searchEngineUrl = oldTunnel.searchEngineUrl || null;
+    dteUrl = oldTunnel.dteUrl || null;
+  }
+
+  // Jika masih null, exit dengan peringatan (bukan exit 1 agar build tetap jalan)
+  if (!backendUrl) {
+    log.warn('backendUrl tidak tersedia. Konfigurasi mungkin tidak akurat.');
+    backendUrl = oldTunnel.backendUrl || 'http://localhost:3001';
+  }
+  if (!searchEngineUrl) {
+    log.warn('searchEngineUrl tidak tersedia. Konfigurasi mungkin tidak akurat.');
+    searchEngineUrl = oldTunnel.searchEngineUrl || 'http://localhost:3000';
   }
 
   log.success(`Backend Tunnel URL: ${backendUrl}`);
@@ -462,17 +515,47 @@ async function main() {
   // Step 6: Git commit & push otomatis ke GitHub
   log.info('Menyinkronkan ke GitHub & Vercel...');
   try {
-    execSync('git add -A vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs start_all.bat start.bat', { cwd: ROOT_DIR, stdio: 'inherit' });
+    // Pastikan git user config ada agar commit tidak gagal
     try {
-      execSync('git commit -m "auto-deploy: sync active cloudflare tunnels, landing page, order dte and vercel rewrites"', { cwd: ROOT_DIR, stdio: 'inherit' });
+      execSync('git config user.email', { cwd: ROOT_DIR, stdio: 'pipe' });
+    } catch {
+      execSync('git config user.email "deploy@deepernova.ai"', { cwd: ROOT_DIR, stdio: 'inherit' });
+      execSync('git config user.name "Deepernova Auto Deploy"', { cwd: ROOT_DIR, stdio: 'inherit' });
+    }
+
+    // Stage semua file yang relevan
+    const filesToAdd = [
+      'vercel.json',
+      'src/apiConfig.js',
+      'src/services/clientSearchService.js',
+      'src/components/LandingPage.jsx',
+      'active_tunnel.json',
+      '.env',
+      '.env.production',
+      'dist/',
+      'scripts/auto_start_all.mjs',
+      'start_all.bat',
+      'start.bat'
+    ].join(' ');
+
+    execSync(`git add -A ${filesToAdd}`, { cwd: ROOT_DIR, stdio: 'inherit' });
+
+    // Commit (jika tidak ada perubahan, lanjut saja)
+    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    try {
+      execSync(`git commit -m "auto-deploy: ${timestamp} - sync tunnels, config, build"`, { cwd: ROOT_DIR, stdio: 'inherit' });
+      log.success('Commit berhasil.');
     } catch {
       log.info('Tidak ada perubahan baru untuk di-commit.');
     }
+
+    // Push ke GitHub
     log.info('Melakukan git push origin main ke GitHub...');
     execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
-    log.success('Berhasil push ke GitHub! Vercel akan otomatis aktif beberapa detik lagi.');
+    log.success('✅ Berhasil push ke GitHub! Vercel akan otomatis live dalam beberapa detik.');
   } catch (err) {
-    log.warn(`Catatan git: ${err.message || 'Push selesai.'}`);
+    log.warn(`Catatan git push: ${err.message || 'Selesai.'}`);
+    log.warn('Pastikan git remote origin sudah benar dan ada koneksi internet.');
   }
 
   log.title('✨ SEMUA LAYANAN SUDAH AKTIF & TERKONFIGURASI OTOMATIS!');
