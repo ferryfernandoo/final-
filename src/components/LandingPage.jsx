@@ -108,16 +108,15 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               <span>🔍 Search Engine</span>
               <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '999px', padding: '1px 6px', color: '#38bdf8' }}>Live</span>
             </a>
-            <a 
-              href={ORDER_DTE_URL} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981', fontWeight: '700', textDecoration: 'none' }}
-              title="Buka Sistem Manajemen Order DTE (Maintenance & Shift Regu)"
+            <button 
+              type="button"
+              onClick={() => onNavigate?.('dte')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}
+              title="Buka Halaman Sistem Manajemen Order DTE (/dte)"
             >
               <span>🏭 Order DTE</span>
               <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '999px', padding: '1px 6px', color: '#10b981' }}>Live</span>
-            </a>
+            </button>
             <button 
               onClick={() => onNavigate?.('help')} 
               style={{ background: 'none', border: 'none', color: '#fb923c', fontWeight: '700', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}
@@ -236,18 +235,19 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               </p>
             </div>
             <div className="lp-dte-banner-right">
-              <a
-                href={ORDER_DTE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => onNavigate?.('dte')}
                 className="lp-dte-banner-btn"
+                title="Buka Halaman Sistem Order DTE (/dte)"
+                style={{ cursor: 'pointer' }}
               >
-                <span>Buka Order DTE ➔</span>
+                <span>Buka Halaman DTE ➔</span>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14"></path>
                   <path d="m12 5 7 7-7 7"></path>
                 </svg>
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -400,14 +400,13 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             >
               🔍 Search Engine
             </a>
-            <a 
-              href={ORDER_DTE_URL} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={{ color: '#10b981', fontWeight: '600', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}
+            <button 
+              type="button"
+              onClick={() => onNavigate?.('dte')} 
+              style={{ color: '#10b981', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px', padding: 0 }}
             >
               🏭 Order DTE
-            </a>
+            </button>
             <button onClick={() => onNavigate?.('help')} style={{ color: '#ea580c', fontWeight: 'bold' }}>Pusat Bantuan</button>
           </div>
         </div>

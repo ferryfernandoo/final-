@@ -9,6 +9,7 @@ import AICalendarHub from './components/AICalendarHub'
 import AIManagerOffice from './components/AIManagerOffice'
 import CodeDanceIDE from './components/CodeDanceIDE'
 import HelpCenter from './components/HelpCenter'
+import DtePortal from './components/DtePortal'
 import CloudSyncModal from './components/CloudSyncModal'
 import { CookieConsent } from './components/CookieConsent'
 import { ConversationPersistenceService } from './services/conversationPersistenceService'
@@ -129,6 +130,7 @@ function App() {
       if (path === '/chat' || hash === '#chat') return 'chat';
       if (path === '/universe' || hash === '#universe') return 'universe';
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
+      if (path === '/dte' || hash === '#dte') return 'dte';
       if (path === '/landing' || hash === '#landing' || hash === '#home') return 'landing';
       if (path === '/' || path === '') {
         return isNativePlatform() ? 'chat' : 'landing';
@@ -175,6 +177,7 @@ function App() {
         chat: '/chat',
         universe: '/universe',
         office: '/office',
+        dte: '/dte',
         landing: '/'
       };
       if (routeMap[view]) {
@@ -205,6 +208,7 @@ function App() {
       else if (path === '/chat' || hash === '#chat') setCurrentView('chat');
       else if (path === '/universe' || hash === '#universe') setCurrentView('universe');
       else if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') setCurrentView('office');
+      else if (path === '/dte' || hash === '#dte') setCurrentView('dte');
       else if (path === '/' || path === '/landing' || hash === '#landing' || hash === '#home') setCurrentView(isNativePlatform() ? 'chat' : 'landing');
     };
     window.addEventListener('popstate', handleUrlChange);
@@ -563,6 +567,15 @@ function App() {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
         <HelpCenter onNavigate={handleNavigate} />
+      </ErrorBoundary>
+    );
+  }
+
+  // 1.6. Dedicated DTE System Portal (/dte) (Publicly accessible without requiring login)
+  if (currentView === 'dte') {
+    return (
+      <ErrorBoundary onNavigate={handleNavigate}>
+        <DtePortal onNavigate={handleNavigate} />
       </ErrorBoundary>
     );
   }
