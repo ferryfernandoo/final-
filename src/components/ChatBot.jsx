@@ -8256,7 +8256,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // This must happen FIRST so the search flow can take over
       // and the normal cleanup doesn't interfere.
       // ============================================================
-      const hasSearchFlag = /\[SEARCH_REQUEST:\s*(.+?)\]/.test(fullText);
+      const hasSearchFlag = /\[SEARCH_REQUEST:\s*(.+?)\]/.test(fullText) || /\b(?:saya akan (?:melakukan )?pencarian di internet|saya sedang mencari informasi di internet|saya akan mencari di internet)\b/i.test(fullText);
       if (hasSearchFlag) {
         // Trigger search immediately — this will handle its own cleanup
         triggerWebSearchIfNeeded(placeholderId, fullText);
@@ -8770,10 +8770,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   const triggerWebSearchIfNeeded = (messageId, text) => {
     if (!text) return;
+    let searchQuery = null;
     const searchRequestMatch = text.match(/\[SEARCH_REQUEST:\s*(.+?)\]/);
     if (searchRequestMatch && searchRequestMatch[1]) {
-      const searchQuery = searchRequestMatch[1].trim();
-      
+      searchQuery = searchRequestMatch[1].trim();
+    } else if (/\b(?:saya akan (?:melakukan )?pencarian di internet|saya sedang mencari informasi di internet|saya akan mencari di internet)\b/i.test(text)) {
+      // Fallback: AI announced intention to search in Indonesian without tag
+      const lastUserMsg = Array.isArray(messages) ? [...messages].reverse().find(m => m.sender === 'user') : null;
+      if (lastUserMsg && lastUserMsg.text) {
+        searchQuery = lastUserMsg.text.replace(/\[FORMAT[\s\S]*$/i, '').replace(/\[INSTING[\s\S]*$/i, '').trim();
+      }
+    }
+
+    if (searchQuery) {
       if (triggeredSearchRequestsRef.current.has(messageId)) {
         return; // Already triggered!
       }
@@ -8781,9 +8790,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
       console.log(`[ChatBot] 🔍 SEARCH_REQUEST detected: "${searchQuery}" for message ${messageId}`);
       
-      // 1) Immediately strip [SEARCH_REQUEST: ...] from the streaming text ref
-      //    so the typing animation never renders the raw tag
-      const cleanedStreamingText = text.replace(/\[SEARCH_REQUEST:\s*(.+?)\]/g, '').trim();
+      // 1) Immediately strip [SEARCH_REQUEST: ...] or conversational search preamble from the streaming text ref
+      let cleanedStreamingText = text.replace(/\[SEARCH_REQUEST:\s*(.+?)\]/g, '').trim();
+      cleanedStreamingText = cleanedStreamingText.replace(/^Baik,?\s*saya akan melakukan pencarian[^\n]*\n*/i, '').trim();
       currentStreamingTextRef.current = cleanedStreamingText;
       
       // 2) Stop current stream if still active

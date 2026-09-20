@@ -229,9 +229,15 @@ Deepernova memiliki search engine mandiri sub-20ms yang super cepat, berindeks r
    - Teknologi, AI, framework/library rilis baru, update software, bug fixes.
    - Harga barang, gadget, emas, saham, kripto, cuaca, kurs mata uang, data statistik.
    - Spesifikasi produk, perbandingan, rekomendasi yang membutuhkan data pasar nyata.
-   - Setiap ada keraguan faktual: Lebih baik searching daripada salah!
-3. CARA MEMICU PENCARIAN CEPAT:
-   - Tembakkan LANGSUNG di awal respons tanpa kalimat pengantar: [SEARCH_REQUEST: kata kunci pencarian]
+   - Setiap ada keraguan faktual atau pengguna minta cari informasi di internet: Lebih baik searching daripada salah!
+3. CARA MEMICU PENCARIAN CEPAT (WAJIB DIIKUTI 100%):
+   - Karakter PERTAMA dalam respons Anda HARUS berupa tag: [SEARCH_REQUEST: kata kunci pencarian]
+   - DILARANG KERAS menulis kalimat pengantar seperti "Baik saya carikan", "Tentu", atau basa-basi apapun sebelum tag.
+   - Contoh Nyata:
+     User: "Berita peternak protes bagi bagi telor" ➔ AI: [SEARCH_REQUEST: berita peternak protes bagi bagi telur]
+     User: "Coba cari di internet" ➔ AI: [SEARCH_REQUEST: topik pencarian terkait]
+     User: "Berapa harga emas hari ini?" ➔ AI: [SEARCH_REQUEST: harga emas hari ini]
+     User: "Siapa menteri keuangan sekarang?" ➔ AI: [SEARCH_REQUEST: menteri keuangan indonesia sekarang]
 4. MULTI-STEP SEARCH:
    - Jika hasil pertama masih perlu data pelengkap, keluarkan tag pencarian lanjutan: [SEARCH_REQUEST: kata kunci baru].
 
@@ -272,9 +278,13 @@ Deepernova is equipped with its own sub-20ms ultra-fast in-house search engine w
    - New tech, AI advancements, library releases, software updates.
    - Prices, gadgets, stocks, crypto, exchange rates, market data.
    - Specs, comparisons, recommendations needing real market data.
-   - Any factual uncertainty: Better to search than hallucinate!
-3. TRIGGER SEARCH IMMEDIATELY:
-   - Emit directly at the start with zero preamble: [SEARCH_REQUEST: concise relevant keywords]
+   - Any factual uncertainty or explicit requests to search: Better to search than hallucinate!
+3. TRIGGER SEARCH IMMEDIATELY (MANDATORY):
+   - The VERY FIRST characters of your response MUST BE: [SEARCH_REQUEST: concise relevant keywords]
+   - NEVER write preamble sentences like "Sure, I will search for you". Emit the tag immediately!
+   - Examples:
+     User: "Latest news on AI" ➔ AI: [SEARCH_REQUEST: latest news AI advancements]
+     User: "Search online for X" ➔ AI: [SEARCH_REQUEST: X]
 4. MULTI-STEP SEARCH:
    - If initial results need additional angles, emit: [SEARCH_REQUEST: next search query].
 
@@ -547,6 +557,12 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     ? '\n\n[FORMAT]: Pisahkan poin dengan baris kosong (blank line).'
     : '\n\n[FORMAT]: Separate points with a blank line.');
 
+  const searchReminder = !isSearchConclusion ? (
+    language === 'id'
+      ? '\n\n[INSTING SEARCHING]: Jika pertanyaan menyangkut berita, peristiwa terkini, tokoh/pejabat, teknologi, harga, atau data faktual (atau user minta cari di internet), Anda WAJIB langsung mengeluarkan tag [SEARCH_REQUEST: kata kunci] di awal respon tanpa kata pengantar.'
+      : '\n\n[SEARCH INSTINCT]: If the query concerns news, current events, public figures, tech, prices, or factual data (or user asks to search online), you MUST emit tag [SEARCH_REQUEST: keywords] at start with no preamble.'
+  ) : '';
+
   let userMessageContent;
   const safeUploadedImages = Array.isArray(uploadedImages) ? uploadedImages : [];
   const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
@@ -556,7 +572,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   if (validImageUrls.length > 0) {
     console.log(`📸 Backend proxy vision mode: sending ${validImageUrls.length} image(s)`);
     userMessageContent = [
-      { type: 'text', text: `${message}${formatInstructions}${localMemoryContext}` },
+      { type: 'text', text: `${message}${formatInstructions}${searchReminder}${localMemoryContext}` },
       ...validImageUrls.map(imgUrl => ({
         type: 'image_url',
         image_url: {
@@ -565,7 +581,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       }))
     ];
   } else {
-    userMessageContent = `${message}${formatInstructions}${localMemoryContext}`;
+    userMessageContent = `${message}${formatInstructions}${searchReminder}${localMemoryContext}`;
   }
 
   const systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '');
