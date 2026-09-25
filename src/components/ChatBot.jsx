@@ -8229,7 +8229,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // This must happen FIRST so the search flow can take over
       // and the normal cleanup doesn't interfere.
       // ============================================================
-      const hasSearchFlag = /\[SEARCH_REQUEST:\s*(.+?)\]/.test(fullText) || /\b(?:saya akan (?:melakukan )?pencarian di internet|saya sedang mencari informasi di internet|saya akan mencari di internet)\b/i.test(fullText);
+      const hasSearchFlag = /\[SEARCH_REQUEST:\s*(.+?)\]/.test(fullText);
       if (hasSearchFlag) {
         // Trigger search immediately — this will handle its own cleanup
         triggerWebSearchIfNeeded(placeholderId, fullText);
@@ -8740,12 +8740,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const searchRequestMatch = text.match(/\[SEARCH_REQUEST:\s*(.+?)\]/);
     if (searchRequestMatch && searchRequestMatch[1]) {
       searchQuery = searchRequestMatch[1].trim();
-    } else if (/\b(?:saya akan (?:melakukan )?pencarian di internet|saya sedang mencari informasi di internet|saya akan mencari di internet)\b/i.test(text)) {
-      // Fallback: AI announced intention to search in Indonesian without tag
-      const lastUserMsg = Array.isArray(messages) ? [...messages].reverse().find(m => m.sender === 'user') : null;
-      if (lastUserMsg && lastUserMsg.text) {
-        searchQuery = lastUserMsg.text.replace(/\[FORMAT[\s\S]*$/i, '').replace(/\[INSTING[\s\S]*$/i, '').trim();
-      }
+    } else {
+      // Only trigger on explicit [SEARCH_REQUEST: ...] tags — no fuzzy sentence matching
+      return;
     }
 
     if (searchQuery) {

@@ -219,32 +219,30 @@ IDENTITAS & SEJARAH KORPORASI:
 - Fitur utama: Vibe Coding Agent (CodeDance IDE), AI Image Generator, Typernova Studio (TPN docx/xlsx/pptx), Chatbot Cerdas dengan Search Engine sub-20ms.
 - Bersikap profesional. Info trivia korporasi/pendiri hanya diceritakan jika pengguna bertanya secara spesifik.
 
-🔴🔴🔴 ATURAN UTAMA: INSTING PENCARIAN WEB PROAKTIF (SEARCH-FIRST REFLEX):
-Deepernova memiliki search engine mandiri sub-20ms yang super cepat, berindeks real-time, dan bebas kuota token.
-1. PRINSIP DASAR: JANGAN PERNAH MENEBAK, BERASUMSI, ATAU BERHALUSINASI jika pertanyaan dapat diverifikasi dengan data web nyata. Selalu dahulukan pencarian web!
-2. KAPAN ANDA WAJIB SEARCHING:
-   - Tokoh, figur publik, pejabat, presiden, menteri, politisi, selebriti (Prabowo, Jokowi, Elon Musk, dll).
-   - Berita, peristiwa, isu terkini, update politik/hukum, kabar terbaru, kejadian hari ini.
-   - Status/fokus terkini ("lagi fokus apa", "kabar terbaru", "kondisi sekarang", "ada gebrakan apa").
-   - Teknologi, AI, framework/library rilis baru, update software, bug fixes.
-   - Harga barang, gadget, emas, saham, kripto, cuaca, kurs mata uang, data statistik.
-   - Spesifikasi produk, perbandingan, rekomendasi yang membutuhkan data pasar nyata.
-   - Setiap ada keraguan faktual atau pengguna minta cari informasi di internet: Lebih baik searching daripada salah!
-3. CARA MEMICU PENCARIAN CEPAT (WAJIB DIIKUTI 100%):
-   - Karakter PERTAMA dalam respons Anda HARUS berupa tag: [SEARCH_REQUEST: kata kunci pencarian]
-   - DILARANG KERAS menulis kalimat pengantar seperti "Baik saya carikan", "Tentu", atau basa-basi apapun sebelum tag.
-   - PENTING (ATURAN TANGGAL SEKARANG UNTUK PENCARIAN TERBARU):
-     Jika pertanyaan menyangkut hal "terbaru", "berita terbaru", "informasi terbaru", "terkini", "hari ini", "sekarang", atau "update terbaru", Anda WAJIB menyertakan tanggal hari ini pada kata kunci pencarian [SEARCH_REQUEST: kata kunci tanggal].
-   - Contoh Nyata:
-     User: "Berita peternak protes bagi bagi telor" ➔ AI: [SEARCH_REQUEST: berita peternak protes bagi bagi telur]
-     User: "Berita terbaru AI" ➔ AI: [SEARCH_REQUEST: berita terbaru AI hari ini]
-     User: "Coba cari di internet" ➔ AI: [SEARCH_REQUEST: topik pencarian terkait]
-     User: "Berapa harga emas hari ini?" ➔ AI: [SEARCH_REQUEST: harga emas hari ini]
-     User: "Siapa menteri keuangan sekarang?" ➔ AI: [SEARCH_REQUEST: menteri keuangan indonesia sekarang]
-4. MULTI-STEP SEARCH & FALLBACK PRINSIP:
-   - Jika hasil pertama masih perlu data pelengkap, keluarkan tag pencarian lanjutan: [SEARCH_REQUEST: kata kunci baru].
-   - JIKA HASIL PENCARIAN KURANG RELEVAN ATAU TIDAK MEMUAT JAWABAN LENGKAP: Secara mulus gunakan pengetahuan & penalaran internal LLM Anda sendiri untuk menjawab pertanyaan pengguna dengan tuntas, akurat, dan percaya diri.
-   - DILARANG KERAS meminta maaf soal pencarian, menyalahkan sumber, atau mengatakan "maaf hasil pencarian tidak relevan". Tetap jawab dengan cerdas dan percaya diri menggunakan pengetahuan internal Anda.
+🔴 PENCARIAN WEB CERDAS (SMART SEARCH):
+Deepernova memiliki search engine mandiri sub-20ms. Gunakan dengan BIJAK — hanya ketika benar-benar dibutuhkan.
+1. KAPAN WAJIB SEARCHING (keluarkan tag [SEARCH_REQUEST: kata kunci] di awal respon):
+   - User secara eksplisit minta cari di internet ("cari", "search", "googling", "cek info").
+   - Berita/peristiwa terkini yang butuh data real-time (kejadian hari ini, update terbaru).
+   - Harga real-time: emas, saham, kripto, kurs mata uang, harga produk terkini.
+   - Info yang berubah-ubah dan perlu data terbaru (jadwal, skor pertandingan, cuaca).
+   - Jika pertanyaan menyangkut "terbaru"/"hari ini"/"terkini", sertakan tanggal hari ini di query pencarian.
+   - Contoh:
+     User: "Berita terbaru AI" → AI: [SEARCH_REQUEST: berita terbaru AI hari ini]
+     User: "Berapa harga emas hari ini?" → AI: [SEARCH_REQUEST: harga emas hari ini]
+     User: "Coba cari di internet" → AI: [SEARCH_REQUEST: topik terkait]
+2. KAPAN JANGAN SEARCHING (langsung jawab dari pengetahuan internal):
+   - Sapaan & obrolan casual: "halo", "apa kabar", "lagi ngapain", curhat, bercanda.
+   - Opini & saran umum: "menurut kamu gimana?", "apa pendapatmu?".
+   - Pengetahuan umum yang stabil: definisi, konsep, sejarah umum, rumus, teori.
+   - Coding, programming, debugging, matematika, logika.
+   - Kreativitas: menulis puisi, cerita, lagu, brainstorming ide.
+   - Pertanyaan tentang Deepernova sendiri, fitur, atau identitas AI.
+   - Pertanyaan personal/memori user.
+   - JIKA RAGU apakah perlu search atau tidak: JAWAB LANGSUNG. Jangan default ke search.
+3. TEKNIS PENCARIAN:
+   - DILARANG menulis kalimat pengantar sebelum tag. Langsung keluarkan [SEARCH_REQUEST: ...].
+   - JIKA HASIL PENCARIAN KURANG RELEVAN: Gunakan pengetahuan internal LLM untuk menjawab dengan percaya diri. JANGAN meminta maaf soal hasil pencarian.
 
 🔴 RECALL MEMORY & PROFIL PERSONAL:
 1. Anda mengandalkan memory recall untuk efisiensi tinggi tanpa membebani konteks input.
@@ -273,27 +271,29 @@ IDENTITAS & SEJARAH KORPORASI:
 - Key modules: Vibe Coding Agent (CodeDance IDE), AI Image Generator, Typernova Studio (TPN documents), Chatbot with sub-20ms search engine.
 - Only share corporate/founder trivia when explicitly asked.
 
-🔴🔴🔴 CORE RULE: PROACTIVE SEARCH-FIRST REFLEX:
-Deepernova is equipped with its own sub-20ms ultra-fast in-house search engine with zero token cost.
-1. NEVER GUESS, ASSUME, OR HALLUCINATE when answering questions that can be verified with live web data. Always default to searching!
-2. ALWAYS SEARCH FOR:
-   - Public figures, leaders, celebrities, politicians, company executives.
-   - Breaking news, current events, political/economic developments, today's news.
-   - Current status/focus ("what is X doing now", "latest updates on X").
-   - New tech, AI advancements, library releases, software updates.
-   - Prices, gadgets, stocks, crypto, exchange rates, market data.
-   - Specs, comparisons, recommendations needing real market data.
-   - Any factual uncertainty or explicit requests to search: Better to search than hallucinate!
-3. TRIGGER SEARCH IMMEDIATELY (MANDATORY):
-   - The VERY FIRST characters of your response MUST BE: [SEARCH_REQUEST: concise relevant keywords]
-   - NEVER write preamble sentences like "Sure, I will search for you". Emit the tag immediately!
+🔴 SMART WEB SEARCH:
+Deepernova has a sub-20ms in-house search engine. Use it WISELY — only when genuinely needed.
+1. WHEN TO SEARCH (emit [SEARCH_REQUEST: keywords] at the start of your response):
+   - User explicitly asks to search ("search", "look up", "find online", "google it").
+   - Breaking/recent news and current events that need real-time data.
+   - Real-time prices: stocks, crypto, currency rates, product prices.
+   - Rapidly changing info (schedules, scores, weather).
+   - For "latest"/"today" queries, include today's date in search keywords.
    - Examples:
-     User: "Latest news on AI" ➔ AI: [SEARCH_REQUEST: latest news AI advancements]
-     User: "Search online for X" ➔ AI: [SEARCH_REQUEST: X]
-4. MULTI-STEP SEARCH & FALLBACK PRINCIPLE:
-   - If initial results need additional angles, emit: [SEARCH_REQUEST: next search query].
-   - IF SEARCH RESULTS ARE NOT RELEVANT OR INCOMPLETE: Seamlessly fall back to your internal LLM knowledge and reasoning to provide a complete, accurate, and confident answer.
-   - NEVER apologize for search results, never blame the sources, and never say phrases like "sorry, the search results are not relevant". Always answer confidently using your internal knowledge.
+     User: "Latest news on AI" → AI: [SEARCH_REQUEST: latest AI news today]
+     User: "Search online for X" → AI: [SEARCH_REQUEST: X]
+2. WHEN NOT TO SEARCH (answer directly from internal knowledge):
+   - Greetings & casual chat: "hello", "how are you", venting, jokes, small talk.
+   - Opinions & general advice: "what do you think?", "your opinion?".
+   - Stable general knowledge: definitions, concepts, history, formulas, theories.
+   - Coding, programming, debugging, math, logic problems.
+   - Creative tasks: writing poems, stories, songs, brainstorming.
+   - Questions about Deepernova itself, features, or AI identity.
+   - Personal/memory questions about the user.
+   - WHEN IN DOUBT whether to search: ANSWER DIRECTLY. Do NOT default to searching.
+3. SEARCH MECHANICS:
+   - NEVER write preamble before the tag. Emit [SEARCH_REQUEST: ...] immediately.
+   - IF SEARCH RESULTS ARE IRRELEVANT: Use internal LLM knowledge to answer confidently. NEVER apologize about search results.
 
 🔴 MEMORY RECALL & PERSONAL PROFILE:
 1. Rely on compact memory recall for zero-latency efficiency.
@@ -576,11 +576,9 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   const formattedTodayId = nowTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  const searchReminder = !isSearchConclusion ? (
-    language === 'id'
-      ? `\n\n[INSTING SEARCHING]: Jika pertanyaan menyangkut berita, peristiwa terkini, tokoh/pejabat, teknologi, harga, atau data faktual (atau user minta cari di internet / info terbaru), Anda WAJIB langsung mengeluarkan tag [SEARCH_REQUEST: kata kunci] di awal respon tanpa kata pengantar. JIKA PERTANYAAN TENTANG HAL TERBARU/BERITA TERKINI/HARI INI, SERTAKAN TANGGAL HARI INI (${formattedTodayId}) PADA QUERY PENCARIAN.`
-      : `\n\n[SEARCH INSTINCT]: If the query concerns news, current events, public figures, tech, prices, or factual data (or user asks to search online / latest info), you MUST emit tag [SEARCH_REQUEST: keywords] at start with no preamble. IF QUERY ASKS FOR LATEST/RECENT NEWS OR TODAY'S UPDATES, ALWAYS INCLUDE TODAY'S DATE (${formattedTodayEn}) IN SEARCH QUERY.`
-  ) : '';
+  // Search reminder removed — smart search rules are already in the system prompt.
+  // Duplicate reminders were causing over-searching behavior.
+  const searchReminder = '';
 
   let userMessageContent;
   const safeUploadedImages = Array.isArray(uploadedImages) ? uploadedImages : [];
@@ -766,11 +764,9 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
   // Build user message content
   let userContent;
 
-  const directSearchReminder = !isDirectSearchConclusion ? (
-    language === 'id'
-      ? `\n\n[INSTING SEARCHING]: Jika pertanyaan menyangkut tokoh/pejabat, berita, perkembangan terkini, teknologi baru, harga, atau data faktual, dahulukan insting searching dengan mengeluarkan [SEARCH_REQUEST: kata kunci] di awal respon agar akurat tanpa halusinasi.`
-      : `\n\n[SEARCH INSTINCT]: If the query concerns public figures, news, recent updates, new tech, prices, or factual data, prioritize search by outputting [SEARCH_REQUEST: keywords] at the beginning of your response to ensure accuracy without hallucination.`
-  ) : '';
+  // Direct search reminder removed — smart search rules are already in the system prompt.
+  // Duplicate reminders were causing over-searching behavior.
+  const directSearchReminder = '';
 
   const formatInstructions = isDirectSearchConclusion ? '' : ((language === 'id' 
     ? `\n\n[FORMAT PENTING]: Jika ada lebih dari 1 poin/item, WAJIB pisahkan dengan newline (enter) kosong antara setiap poin. Jangan tulis semua dalam 1 blok paragraf.`
