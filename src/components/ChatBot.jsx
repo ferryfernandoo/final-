@@ -10439,8 +10439,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return null;
     }
 
+    const lastBotIndex = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].sender === 'bot' || messages[i].role === 'assistant') return i;
+      }
+      return -1;
+    })();
+
     return messages.map((message, index) => {
       const isLastMessage = index === messages.length - 1;
+      const isLastBotMessage = index === lastBotIndex;
       const shouldHideByCompact = compactView && !isScrolledUp && messages.length > 0 && (() => {
         let userIdx = -1;
         for (let i = messages.length - 1; i >= 0; i--) {
@@ -10785,7 +10793,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             </div>
           )}
 
-          {message.sender === 'bot' && !message.isStreaming && isLastMessage && (
+          {(message.sender === 'bot' || message.role === 'assistant') && !message.isStreaming && (
             <div className="message-footer">
               {/* Iklan resmi Google AdSense tipis di bawah pesan AI di atas tombol like dan salin */}
               <MessageAdRotator 

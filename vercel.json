@@ -113,7 +113,7 @@
       "destination": "https://shed-hear-conclude-walking.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/((?!assets/|.*\\.(png|jpg|jpeg|svg|ico|json|txt|xml)|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]
