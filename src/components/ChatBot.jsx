@@ -6921,7 +6921,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     return <>{result}</>;
   };
 
-  // Helper to accurately locate where the last user message should sit (at the top of view, with comfortable padding)
+  // Helper to accurately locate where the last user ask bubble should sit (focused at top, with ad pushed off-screen)
   const getLastUserMessageTargetTop = (container) => {
     if (!container) return null;
     const userMessages = container.querySelectorAll('.message.user');
@@ -6929,10 +6929,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     const lastUserMsg = userMessages[userMessages.length - 1];
     const containerRect = container.getBoundingClientRect();
-    const msgRect = lastUserMsg.getBoundingClientRect();
 
-    // Position user message ~18px below container's top boundary
-    const targetTop = container.scrollTop + (msgRect.top - containerRect.top) - 18;
+    // Focus strictly on the user ask bubble (.message-content / .user-bubble-wrapper), NOT the ad banner above it!
+    const userBubble = lastUserMsg.querySelector('.message-content') || lastUserMsg.querySelector('.user-bubble-wrapper') || lastUserMsg;
+    const bubbleRect = userBubble.getBoundingClientRect();
+
+    // Position the user ask bubble ~8px below container's top boundary.
+    // This pushes the ad banner above it completely up and out of view (off-screen)!
+    const targetTop = container.scrollTop + (bubbleRect.top - containerRect.top) - 8;
     const maxScroll = container.scrollHeight - container.clientHeight;
 
     return Math.max(0, Math.min(targetTop, maxScroll));
@@ -7053,6 +7057,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     requestAnimationFrame(() => {
       doScroll();
       setTimeout(doScroll, 60);
+      setTimeout(doScroll, 160);
     });
   };
 
