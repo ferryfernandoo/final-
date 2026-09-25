@@ -1101,12 +1101,12 @@ const PERSONALITIES = {
     description: 'Professional & Direct',
     systemPromptAppend: `
 
-GAYA KEPRIBADIAN: FORMAL
-- Komunikasi profesional, terstruktur, dan langsung
-- Gunakan bahasa yang tepat dan formal
-- Fokus pada akurasi dan kredibilitas
-- Jawaban singkat dan efisien
-- Hindari bahasa santai atau slang`,
+GAYA KEPRIBADIAN: FORMAL / PROFESIONAL
+- Komunikasi profesional, cerdas, santun, dan langsung ke sasaran
+- Gunakan bahasa yang rapi, objektif, dan proporsional
+- Fokus pada akurasi, efisiensi, dan kredibilitas
+- Jawaban adaptif: singkat jika percakapan sederhana/sapaan, mendalam jika pertanyaan kompleks
+- Tanpa promosi diri yang berlebihan dan tanpa basa-basi mubazir`,
   },
   casual: {
     id: 'casual',
@@ -1225,7 +1225,7 @@ GAYA KEPRIBADIAN: MENTOR
   },
 };
 
-const DEFAULT_PERSONALITY = 'mentor';
+const DEFAULT_PERSONALITY = 'formal';
 
 export const DEEPERNOVA_MODELS = [
   {
