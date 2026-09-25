@@ -25,6 +25,7 @@ import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch, enrichQueryWithDateIfRecent, detectUpfrontSearchIntent } from '../services/clientSearchService';
 import AdBanner from './AdBanner';
+import MessageAdRotator from './MessageAdRotator';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -10777,6 +10778,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           {message.sender === 'bot' && !message.isStreaming && isLastMessage && (
             <div className="message-footer">
+              {/* Iklan kecil tipis diputar di bawah pesan AI di atas tombol like dan salin */}
+              <MessageAdRotator 
+                onSupportClick={() => setShowDonationModal(true)}
+                onNavigate={onNavigate}
+                userLanguage={userLanguage}
+              />
+
               <div className="message-actions">
                 <button
                   className={`feedback-btn like-btn ${messageFeedback[message.id] === 'like' ? 'active' : ''}`}
