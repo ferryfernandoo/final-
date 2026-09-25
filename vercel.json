@@ -38,7 +38,16 @@
       ]
     },
     {
-      "source": "/(index.html)?",
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
       "headers": [
         {
           "key": "Cache-Control",
@@ -113,7 +122,7 @@
       "destination": "https://shed-hear-conclude-walking.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!assets/|.*\\.(png|jpg|jpeg|svg|ico|json|txt|xml)|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
