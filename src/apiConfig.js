@@ -1,5 +1,5 @@
 // Cloudflare Tunnel backend URL (live proxy target)
-const CLOUDFLARE_BACKEND_URL = 'https://oral-elements-atlantic-realtors.trycloudflare.com';
+const CLOUDFLARE_BACKEND_URL = 'https://shed-hear-conclude-walking.trycloudflare.com';
 
 const getApiBaseUrl = () => {
   // 1. In browser, prioritize same-origin relative URL for known proxy hosts
@@ -37,4 +37,4 @@ export const ORDER_DTE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ORDER_DTE_URL) ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5173'
-    : 'https://chose-autos-prison-fees.trycloudflare.com');
+    : 'https://tennessee-mount-keno-difficulties.trycloudflare.com');
