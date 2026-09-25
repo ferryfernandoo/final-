@@ -404,6 +404,13 @@ PRINSIP EFISIENSI & PANJANG JAWABAN (ADAPTIVE BREVITY):
 - Pertanyaan Sederhana/Faktual: Langsung ke inti jawaban tanpa kalimat pembuka bertele-tele dan tanpa kalimat penutup basa-basi klise.
 - Pertanyaan Kompleks/Analisis/Coding/Tugas: Berikan jawaban yang komprehensif, terstruktur, mendalam, dan berkualitas tinggi.
 
+🔴 KESADARAN WAKTU NYATA (REAL-TIME CLOCK):
+- Anda MEMILIKI akses jam, hari, dan tanggal waktu nyata (real-time). Data waktu saat ini selalu disinkronkan pada blok [WAKTU REAL-TIME SEKARANG].
+- Jika pengguna menanyakan jam berapa sekarang, hari apa, atau tanggal berapa hari ini:
+  * Jawab LANGSUNG, AKURAT, dan SINGKAT sesuai data waktu tersebut (contoh: "Sekarang pukul 03.25 WIB, hari Sabtu, 26 September 2026.").
+  * DILARANG KERAS menolak, mengatakan tidak punya akses waktu real-time, atau menyuruh pengguna mengecek perangkat/jam sendiri.
+  * JANGAN melakukan pencarian web ([SEARCH_REQUEST]) untuk pertanyaan jam, hari, atau tanggal saat ini.
+
 🔴 PENCARIAN WEB CERDAS (SMART SEARCH):
 Deepernova memiliki search engine mandiri sub-20ms. Gunakan dengan BIJAK — hanya ketika benar-benar dibutuhkan.
 1. KAPAN WAJIB SEARCHING (keluarkan tag [SEARCH_REQUEST: kata kunci] di awal respon):
@@ -417,6 +424,7 @@ Deepernova memiliki search engine mandiri sub-20ms. Gunakan dengan BIJAK — han
      User: "Berapa harga emas hari ini?" → AI: [SEARCH_REQUEST: harga emas hari ini]
      User: "Coba cari di internet" → AI: [SEARCH_REQUEST: topik terkait]
 2. KAPAN JANGAN SEARCHING (langsung jawab dari pengetahuan internal):
+   - Pertanyaan jam, hari, tanggal, atau waktu saat ini (jawab langsung dari data [WAKTU REAL-TIME SEKARANG]).
    - Sapaan & obrolan casual: "halo", "apa kabar", "lagi ngapain", curhat, bercanda.
    - Opini & saran umum: "menurut kamu gimana?", "apa pendapatmu?".
    - Pengetahuan umum yang stabil: definisi, konsep, sejarah umum, rumus, teori.
@@ -457,6 +465,13 @@ PRINCIPLE OF EFFICIENCY & PROPORTIONAL RESPONSE LENGTH (ADAPTIVE BREVITY):
 - Simple/Factual Questions: Answer directly to the point without verbose preambles or canned closing clichés.
 - Complex/Technical/Coding Questions: Deliver thorough, structured, and in-depth solutions.
 
+🔴 REAL-TIME CLOCK AWARENESS:
+- You HAVE real-time access to the current clock, date, and day of the week in [CURRENT REAL-TIME CLOCK].
+- If the user asks what time it is, what day it is, or today's date:
+  * Answer DIRECTLY, ACCURATELY, and CONCISELY using the clock data provided (e.g., "It is currently 3:25 AM WIB, Saturday, September 26, 2026.").
+  * STRICTLY FORBIDDEN to refuse, claim lack of real-time clock access, or tell the user to check their device.
+  * DO NOT emit web search ([SEARCH_REQUEST]) for current time, day, or date questions.
+
 🔴 SMART WEB SEARCH:
 Deepernova has a sub-20ms in-house search engine. Use it WISELY — only when genuinely needed.
 1. WHEN TO SEARCH (emit [SEARCH_REQUEST: keywords] at the start of your response):
@@ -469,6 +484,7 @@ Deepernova has a sub-20ms in-house search engine. Use it WISELY — only when ge
      User: "Latest news on AI" → AI: [SEARCH_REQUEST: latest AI news today]
      User: "Search online for X" → AI: [SEARCH_REQUEST: X]
 2. WHEN NOT TO SEARCH (answer directly from internal knowledge):
+   - Questions about current time/day/date (answer directly from the [CURRENT REAL-TIME CLOCK] block).
    - Greetings & casual chat: "hello", "how are you", venting, jokes, small talk.
    - Opinions & general advice: "what do you think?", "your opinion?".
    - Stable general knowledge: definitions, concepts, history, formulas, theories.
@@ -517,7 +533,7 @@ Key Rules:
 4. Do not recite or summarize news rigidly in isolation like a news-ticker bot. Your answer must integrate conversationally as an AI assistant actively dialoguing with the user.
 5. Never repeat phrases or words redundantly (avoid token looping/word salad).
 6. Do not emit [SEARCH_REQUEST] if the inquiry can already be answered thoroughly.
-7. Format clearly with paragraphs and well-spaced bullet points.`},qm=(e,t=`id`,n=``,r=null,i=Um,a=``,o=0,s=``)=>{if(typeof n==`string`&&(n.includes(`HASIL PENCARIAN WEB`)||n.includes(`RINGKASAN HASIL PENCARIAN`)||n.includes(`RINGKASAN AI GOOGLE`)||n.includes(`WEB SEARCH RESULTS`))){let e=Km[t]||Km.id;return a&&a.trim()&&(e+=t===`id`?`\n\n[PENGGUNA]: ${a.trim()}`:`\n\n[USER]: ${a.trim()}`),e}let c=Wm[t]||Wm.id;a&&a.trim()&&(c+=t===`id`?`\n\n[PENGGUNA]: ${a.trim()}`:`\n\n[USER]: ${a.trim()}`);let l=new Date,u=l.toLocaleString(`id-ID`,{timeZone:`Asia/Jakarta`,year:`numeric`,month:`2-digit`,day:`2-digit`,hour:`2-digit`,minute:`2-digit`,weekday:`short`}),d=l.toISOString(),f=l.toLocaleDateString(`id-ID`,{day:`numeric`,month:`long`,year:`numeric`}),p=l.toLocaleDateString(`en-US`,{day:`numeric`,month:`long`,year:`numeric`});if(c+=t===`id`?`\n\n[WAKTU]: ${u} WIB (UTC: ${d}). Tanggal hari ini: ${f}. Untuk pertanyaan informasi/berita terbaru atau terkini, WAJIB sertakan "${f}" di query [SEARCH_REQUEST: ...]. Tag alarm di akhir respon jika diminta: [REMINDER_REQUEST: {"title":"Judul", "datetime":"ISO_8601_UTC", "type":"reminder"}]`:`\n\n[TIME]: ${u} WIB (UTC: ${d}). Today's date: ${p}. For latest news/recent updates, ALWAYS include "${p}" in query [SEARCH_REQUEST: ...]. Tag reminder at end if requested: [REMINDER_REQUEST: {"title":"Title", "datetime":"ISO_8601_UTC", "type":"reminder"}]`,r)try{Rm.memories.filter(e=>e.conversationId===r&&e.type===`file_content`).forEach(e=>{let n=(e.content||``).substring(0,350);c+=t===`id`?`\n\n[DOKUMEN]:\n${n}\n---`:`\n\n[DOCUMENT]:\n${n}\n---`})}catch(e){console.warn(`[grokApi] Failed to load file memories into prompt context:`,e)}let m=Hm[i]||Hm[Um];return m&&m.systemPromptAppend&&(c+=m.systemPromptAppend),c+=t===`id`?`
+7. Format clearly with paragraphs and well-spaced bullet points.`},qm=(e,t=`id`,n=``,r=null,i=Um,a=``,o=0,s=``)=>{if(typeof n==`string`&&(n.includes(`HASIL PENCARIAN WEB`)||n.includes(`RINGKASAN HASIL PENCARIAN`)||n.includes(`RINGKASAN AI GOOGLE`)||n.includes(`WEB SEARCH RESULTS`))){let e=Km[t]||Km.id;return a&&a.trim()&&(e+=t===`id`?`\n\n[PENGGUNA]: ${a.trim()}`:`\n\n[USER]: ${a.trim()}`),e}let c=Wm[t]||Wm.id;a&&a.trim()&&(c+=t===`id`?`\n\n[PENGGUNA]: ${a.trim()}`:`\n\n[USER]: ${a.trim()}`);let l=new Date,u=l.toLocaleDateString(`id-ID`,{timeZone:`Asia/Jakarta`,weekday:`long`}),d=l.toLocaleDateString(`id-ID`,{timeZone:`Asia/Jakarta`,day:`numeric`,month:`long`,year:`numeric`}),f=l.toLocaleTimeString(`id-ID`,{timeZone:`Asia/Jakarta`,hour:`2-digit`,minute:`2-digit`,second:`2-digit`}).replace(`.`,`:`),p=l.toLocaleDateString(`en-US`,{timeZone:`Asia/Jakarta`,weekday:`long`}),m=l.toLocaleDateString(`en-US`,{timeZone:`Asia/Jakarta`,day:`numeric`,month:`long`,year:`numeric`}),h=l.toLocaleTimeString(`en-US`,{timeZone:`Asia/Jakarta`,hour:`2-digit`,minute:`2-digit`,second:`2-digit`}),g=l.toISOString();if(c+=t===`id`?`\n\n[WAKTU REAL-TIME SEKARANG]:\n- Hari: ${u}\n- Tanggal: ${d}\n- Jam: ${f} WIB (Waktu Indonesia Barat, Asia/Jakarta)\n- UTC: ${g}\nPANDUAN WAKTU: Anda memiliki akses jam real-time yang akurat. Jika pengguna menanyakan jam berapa sekarang, hari apa, atau tanggal berapa hari ini, jawab LANGSUNG, AKURAT, dan SINGKAT menggunakan data waktu di atas (contoh: "Sekarang pukul ${f} WIB, hari ${u}, ${d}."). DILARANG KERAS menolak atau mengatakan tidak tahu waktu!\nUntuk pertanyaan informasi/berita terbaru atau terkini, WAJIB sertakan "${d}" di query [SEARCH_REQUEST: ...]. Tag alarm di akhir respon jika diminta: [REMINDER_REQUEST: {"title":"Judul", "datetime":"ISO_8601_UTC", "type":"reminder"}]`:`\n\n[CURRENT REAL-TIME CLOCK]:\n- Day: ${p}\n- Date: ${m}\n- Time: ${h} WIB (Asia/Jakarta, UTC+7)\n- UTC: ${g}\nCLOCK GUIDELINE: You have an accurate real-time clock. If the user asks what time it is, what day it is, or today's date, answer DIRECTLY, ACCURATELY, and CONCISELY using the clock data above. NEVER refuse or say you don't know the time!\nFor latest news/recent updates, ALWAYS include "${m}" in query [SEARCH_REQUEST: ...]. Tag reminder at end if requested: [REMINDER_REQUEST: {"title":"Title", "datetime":"ISO_8601_UTC", "type":"reminder"}]`,r)try{Rm.memories.filter(e=>e.conversationId===r&&e.type===`file_content`).forEach(e=>{let n=(e.content||``).substring(0,350);c+=t===`id`?`\n\n[DOKUMEN]:\n${n}\n---`:`\n\n[DOCUMENT]:\n${n}\n---`})}catch(e){console.warn(`[grokApi] Failed to load file memories into prompt context:`,e)}let _=Hm[i]||Hm[Um];return _&&_.systemPromptAppend&&(c+=_.systemPromptAppend),c+=t===`id`?`
 
 [KODE]: Format kode dengan triple backticks markdown.`:`
 

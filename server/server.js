@@ -2600,11 +2600,11 @@ app.post('/api/chat', async (req, res) => {
         return { ...m, content: text };
       });
 
-      // System prompt budget: max 450 tokens (~1500 chars)
-      if (systemMsg && typeof systemMsg.content === 'string' && systemMsg.content.length > 1500) {
+      // System prompt budget: preserve full instructions, real-time clock & context (up to 6000 chars)
+      if (systemMsg && typeof systemMsg.content === 'string' && systemMsg.content.length > 6000) {
         systemMsg = {
           ...systemMsg,
-          content: systemMsg.content.substring(0, 1500)
+          content: systemMsg.content.substring(0, 6000)
         };
       }
 
