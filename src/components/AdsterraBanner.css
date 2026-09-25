@@ -1,7 +1,7 @@
-/* Adsterra Slim Banner Unit under Chat Messages */
+/* Adsterra Slim Banner Unit under / above Chat Messages */
 .adsterra-banner-container {
-  margin: 8px 0 10px 0;
-  padding: 6px 10px;
+  margin: 0;
+  padding: 5px 8px;
   background: rgba(18, 22, 34, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
@@ -94,4 +94,23 @@
   border: 1px dashed rgba(255, 255, 255, 0.12);
   width: 100%;
   max-width: 320px;
+}
+
+[data-theme="light"] .adsterra-banner-container {
+  background: rgba(243, 244, 246, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .adsterra-sponsor-tag {
+  color: #64748b;
+}
+
+[data-theme="light"] .adsterra-banner-close {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .adsterra-banner-close:hover {
+  color: #1e293b;
+  background: rgba(0, 0, 0, 0.05);
 }

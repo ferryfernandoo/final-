@@ -10460,6 +10460,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return index < userIdx;
       })();
 
+      const isEligibleUserAd = (() => {
+        if (message.sender !== 'user') return false;
+        let countAfter = 0;
+        for (let i = index + 1; i < messages.length; i++) {
+          if (messages[i]?.sender === 'user') countAfter++;
+        }
+        return countAfter < 3;
+      })();
+
       return (
         <div
           key={index}
@@ -10471,6 +10480,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           onTouchEnd={handleMessageMouseUp}
           style={{ marginBottom: message.sender === 'user' && !expandedUserMessageId === message.id ? '32px' : '0' }}
         >
+          {isEligibleUserAd && (
+            <div className="user-message-ad-wrapper">
+              <MessageAdRotator userLanguage={userLanguage} />
+            </div>
+          )}
           <div className="message-content">
             {message.isImage && (
               <>
@@ -10795,11 +10809,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           {(message.sender === 'bot' || message.role === 'assistant') && !message.isStreaming && (
             <div className="message-footer">
-              {/* Iklan resmi Google AdSense tipis di bawah pesan AI di atas tombol like dan salin */}
-              <MessageAdRotator 
-                userLanguage={userLanguage}
-              />
-
               <div className="message-actions">
                 <button
                   className={`feedback-btn like-btn ${messageFeedback[message.id] === 'like' ? 'active' : ''}`}

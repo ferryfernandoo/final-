@@ -15322,11 +15322,20 @@ pre.code-block code {
   transition: color 0.18s ease !important;
 }
 
-/* 4. Active Message Styling (Screenshots 2 & 4 style) */
 .message.user {
   display: flex !important;
-  justify-content: flex-end !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  justify-content: flex-start !important;
   margin-bottom: 16px !important;
+}
+
+.user-message-ad-wrapper {
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 340px;
 }
 
 .message.user .message-content,
