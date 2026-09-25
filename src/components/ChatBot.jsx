@@ -24,6 +24,7 @@ import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch, enrichQueryWithDateIfRecent, detectUpfrontSearchIntent } from '../services/clientSearchService';
+import AdBanner from './AdBanner';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -11898,6 +11899,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         )}
 
 
+
+        {/* AdSense / Sponsor Ad Placement */}
+        <AdBanner 
+          className="sidebar-ad-slot"
+          onSupportClick={() => setShowDonationModal(true)} 
+        />
 
         {/* Sidebar Footer (Settings & Profile) */}
         <div className="sidebar-footer">
