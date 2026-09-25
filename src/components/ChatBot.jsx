@@ -9033,9 +9033,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           // Add this step's context to the history
           searchContextHistoryRef.current[messageId].push(`--- HASIL PENCARIAN WEB (Langkah ke-${searchContextHistoryRef.current[messageId].length + 1} - Kata Kunci: "${searchQuery}") ---\n${searchContext}`);
 
-          // Prevent loop bounds (max 4 steps)
+          // Single search only — no multi-step
           const currentStep = searchContextHistoryRef.current[messageId].length;
-          const isMaxStepsReached = currentStep >= 4;
+          const isMaxStepsReached = true; // Always true = never allow follow-up searches
           
           // Helper: replace [Sumber N] or [Sumber N, M] with actual markdown links
           const replaceCitationsWithLinks = (text) => {
@@ -9068,7 +9068,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 2. JIKA HASIL PENCARIAN KURANG RELEVAN ATAU TIDAK MEMUAT JAWABAN LENGKAP: Secara otomatis dan mulus gunakan pengetahuan serta penalaran internal LLM Anda sendiri untuk menjawab pertanyaan pengguna secara tuntas, akurat, dan percaya diri.
 3. JANGAN PERNAH meminta maaf soal pencarian, JANGAN PERNAH menyalahkan sumber, dan JANGAN PERNAH mengatakan kalimat seperti "Maaf, hasil pencarian tidak relevan...", "Sumber tidak memuat informasi...", atau kalimat sejenis. Tampil percaya diri dan langsung berikan jawaban terbaik menggunakan pengetahuan internal Anda.
 4. Cantumkan sitasi link markdown: [Nama Sumber atau Judul](URL) pada kalimat yang faktanya bersumber dari web. Jangan gunakan sitasi jika informasi murni dari pengetahuan internal Anda.
-5. ${isMaxStepsReached ? 'Batas pencarian tercapai. Berikan jawaban komprehensif dan utuh sekarang tanpa memicu pencarian lagi.' : 'Jika data hasil pencarian di atas sudah cukup menjawab pertanyaan, langsung berikan jawaban lengkap. Hanya jika data di atas masih kurang lengkap dan mutlak memerlukan pencarian web baru, Anda boleh memicu pencarian lanjutan dengan tag: [SEARCH_REQUEST: kata kunci baru] di awal respons.'}`;
+5. Berikan jawaban komprehensif dan utuh sekarang. JANGAN memicu pencarian lagi dengan tag [SEARCH_REQUEST]. Jawab langsung dari data yang ada dan pengetahuan internal Anda.`;
           
           console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
           
