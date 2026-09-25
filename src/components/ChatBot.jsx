@@ -23,7 +23,7 @@ import GlobalMemorySettings from './GlobalMemorySettings';
 import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, enrichQueryWithDateIfRecent } from '../services/clientSearchService';
+import { executeWebSearch, enrichQueryWithDateIfRecent, detectUpfrontSearchIntent } from '../services/clientSearchService';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -7942,6 +7942,50 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       handleInlineImageGeneration(detectedImageRequest, userMessageForChat, imagesToPass);
       return;
     }
+
+    // 🔍 UPFRONT WEB SEARCH DETECTION:
+    // If user's prompt needs real-time search, start search immediately from the beginning.
+    // Prevents the AI from hallucinating or answering 'ngawur' before searching.
+    const upfrontSearch = detectUpfrontSearchIntent(cleanUserText, userLanguage);
+    if (upfrontSearch && upfrontSearch.shouldSearch && imagesToPass.length === 0) {
+      console.log('[ChatBot] 🔍 Upfront search intent detected from the start:', upfrontSearch);
+      
+      const finalSearchQuery = enrichQueryWithDateIfRecent(upfrontSearch.searchQuery, cleanUserText, userLanguage);
+
+      // Immediately switch bot placeholder into searching state with strictly empty text
+      setMessages(prev => prev.map(msg => 
+        msg.id === placeholderId 
+          ? {
+              ...msg,
+              text: '', // STRICTLY EMPTY! Never display ngawur/hallucinated text!
+              isStreaming: false,
+              isSearching: true,
+              searchQuery: finalSearchQuery,
+              searchSteps: [{
+                query: finalSearchQuery,
+                isSearching: true,
+                sources: [],
+                images: []
+              }]
+            }
+          : msg
+      ));
+
+      triggeredSearchRequestsRef.current.add(placeholderId);
+      clearLoadingPhaseTimers();
+      setLoading(false);
+      setConvLoading(true);
+
+      // Execute search and synthesize with full conversational context!
+      executeSearchAndSynthesize({
+        messageId: placeholderId,
+        searchQuery: finalSearchQuery,
+        userPrompt: cleanUserText,
+        baseHistory: updatedConversationHistory
+      });
+
+      return;
+    }
     
     // Keep the visual payload available for the model, but do not force a UI decision.
     // The assistant should decide naturally whether to read an image or edit it.
@@ -8734,6 +8778,582 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     });
   };
 
+  // ============================================================
+  // 🔍 SHARED SEARCH EXECUTION & CONVERSATIONAL SYNTHESIS
+  // Executes web search, extracts media/sources, and calls AI to synthesize
+  // response in full conversation context without reciting news like a robot.
+  // ============================================================
+  async function executeSearchAndSynthesize({ messageId, searchQuery, userPrompt = '', baseHistory = null }) {
+    try {
+      if (isUserStoppedRef.current) {
+        console.log('[ChatBot] Search cancelled early by user stop');
+        return;
+      }
+
+      const isGuestMode = Boolean(isGuest || !isAuthenticated || !user);
+      console.log(`[ChatBot] Executing web search (isGuestMode: ${isGuestMode}): "${searchQuery}"`);
+      const searchData = await executeWebSearch(searchQuery, {
+        isGuest: isGuestMode,
+        limit: 16,
+        includeImages: true,
+        userPrompt,
+        language: userLanguage
+      });
+      
+      if (isUserStoppedRef.current) {
+        console.log('[ChatBot] Search returned but user already clicked stop');
+        return;
+      }
+      
+      console.log('[ChatBot] Search results received:', searchData);
+      
+      let resultsList = [];
+      let aiOverviewText = '';
+      if (searchData.success && searchData.data) {
+        resultsList = searchData.data.organic_results || [];
+        aiOverviewText = searchData.data._ai_overview_text || '';
+      }
+      
+      if (resultsList.length === 0) {
+        console.warn('[ChatBot] No organic_results from search API');
+      }
+      
+      // Extract search images from results (inline images, organic thumbnails, and news images)
+      const searchImages = [];
+      if (searchData.success && searchData.data) {
+        // 1. Extract from inline_images
+        if (searchData.data.inline_images && Array.isArray(searchData.data.inline_images)) {
+          searchData.data.inline_images.forEach(img => {
+            if (img.thumbnail || img.link) {
+              let sourceDomain = '';
+              if (img.source) {
+                try {
+                  sourceDomain = new URL(img.source).hostname.replace('www.', '');
+                } catch(e) {
+                  sourceDomain = img.source;
+                }
+              }
+              searchImages.push({
+                url: img.thumbnail || img.link,
+                title: img.title || searchQuery,
+                source: img.source || '',
+                sourceDomain
+              });
+            }
+          });
+        }
+        // 2. Extract from organic_results thumbnails/rich snippets
+        if (searchData.data.organic_results && Array.isArray(searchData.data.organic_results)) {
+          searchData.data.organic_results.forEach(result => {
+            let imgUrl = result.thumbnail;
+            if (!imgUrl && result.rich_snippet && result.rich_snippet.top && result.rich_snippet.top.detected_extensions) {
+              imgUrl = result.rich_snippet.top.detected_extensions.thumbnail;
+            }
+            
+            if (imgUrl) {
+              let sourceDomain = '';
+              const url = result.link || result.url || '';
+              if (url) {
+                try {
+                  sourceDomain = new URL(url).hostname.replace('www.', '');
+                } catch(e) {
+                  sourceDomain = url;
+                }
+              }
+              searchImages.push({
+                url: imgUrl,
+                title: result.title || searchQuery,
+                source: url,
+                sourceDomain
+              });
+            }
+          });
+        }
+        // 3. Extract from knowledge_graph image
+        if (searchData.data.knowledge_graph) {
+          const kg = searchData.data.knowledge_graph;
+          if (kg.image) {
+            let sourceDomain = '';
+            if (kg.source) {
+              try {
+                sourceDomain = new URL(kg.source).hostname.replace('www.', '');
+              } catch(e) {
+                sourceDomain = kg.source;
+              }
+            }
+            searchImages.push({
+              url: kg.image,
+              title: kg.title || searchQuery,
+              source: kg.source || '',
+              sourceDomain
+            });
+          }
+          if (Array.isArray(kg.header_images)) {
+            kg.header_images.forEach(img => {
+              if (img.image) {
+                searchImages.push({
+                  url: img.image,
+                  title: kg.title || searchQuery,
+                  source: '',
+                  sourceDomain: ''
+                });
+              }
+            });
+          }
+        }
+        // 4. Extract from news_results
+        if (searchData.data.news_results && Array.isArray(searchData.data.news_results)) {
+          searchData.data.news_results.forEach(news => {
+            if (news.thumbnail) {
+              let sourceDomain = '';
+              if (news.link) {
+                try {
+                  sourceDomain = new URL(news.link).hostname.replace('www.', '');
+                } catch(e) {
+                  sourceDomain = news.link;
+                }
+              }
+              searchImages.push({
+                url: news.thumbnail,
+                title: news.title || searchQuery,
+                source: news.link || '',
+                sourceDomain
+              });
+            }
+          });
+        }
+      }
+
+      // Filter duplicates
+      const uniqueImages = [];
+      const seenUrls = new Set();
+      for (const img of searchImages) {
+        if (img.url && !seenUrls.has(img.url)) {
+          seenUrls.add(img.url);
+          uniqueImages.push(img);
+        }
+      }
+
+      // Map sources using uniqueImages for fallback thumbnails
+      const sources = resultsList.map(item => {
+        let domain = '';
+        const url = item.link || item.url || '';
+        try {
+          domain = new URL(url).hostname;
+        } catch(e) {
+          domain = url;
+        }
+        
+        let thumbnail = item.thumbnail || null;
+        if (!thumbnail && uniqueImages.length > 0) {
+          const cleanDom = domain.replace('www.', '');
+          const matchedImg = uniqueImages.find(img => img.sourceDomain === cleanDom);
+          if (matchedImg) {
+            thumbnail = matchedImg.url;
+          }
+        }
+
+        return {
+          title: item.title || 'Untitled',
+          link: url || '#',
+          snippet: item.snippet || '',
+          domain: domain,
+          thumbnail: thumbnail
+        };
+      });
+
+      // Update message state with sources and images (keep text strictly empty while preparing)
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId) {
+            const steps = msg.searchSteps || [];
+            const lastIdx = steps.map(s => s.query).lastIndexOf(searchQuery);
+            const updatedSteps = steps.map((step, idx) => 
+              idx === lastIdx
+                ? { ...step, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) }
+                : step
+            );
+
+            return { 
+              ...msg, 
+              text: '', // Strictly empty!
+              isSearching: false, 
+              isThinking: true, 
+              searchQuery: searchQuery, 
+              searchResults: resultsList, 
+              searchSources: sources,
+              searchImages: uniqueImages.slice(0, 6),
+              searchSteps: updatedSteps
+            };
+          }
+          return msg;
+        })
+      );
+
+      // Build rich context from search results for the AI
+      const searchContext = sources.map((s, idx) =>
+        `[Sumber ${idx + 1}] ${s.title}\nURL: ${s.link}\nKutipan: ${s.snippet}`
+      ).join('\n\n');
+
+      // Initialize context history if empty
+      searchContextHistoryRef.current[messageId] = searchContextHistoryRef.current[messageId] || [];
+      searchContextHistoryRef.current[messageId].push(`--- HASIL PENCARIAN WEB (Kata Kunci: "${searchQuery}") ---\n${searchContext}`);
+
+      // Single search only — no multi-step
+      const currentStep = searchContextHistoryRef.current[messageId].length;
+      
+      // Helper: replace [Sumber N] with actual markdown links
+      const replaceCitationsWithLinks = (text) => {
+        if (!sources || sources.length === 0) return text;
+        return text.replace(/\[Sumber\s*(\d+)\]/gi, (match, numStr) => {
+          const idx = parseInt(numStr, 10) - 1;
+          if (idx >= 0 && idx < sources.length) {
+            const s = sources[idx];
+            const domain = s.domain || s.link;
+            return `[${s.title || domain}](${s.link})`;
+          }
+          return match;
+        });
+      };
+      
+      const userQuery = userPrompt || lastSentPromptRef.current || 'the query';
+      const accumulatedHistoryContext = searchContextHistoryRef.current[messageId].join('\n\n');
+      
+      // Build a clear, focused conclusion prompt that connects to context
+      let conclusionPrompt = `--- HASIL PENCARIAN WEB TERVERIFIKASI ---\n${accumulatedHistoryContext}\n\n`;
+      if (aiOverviewText) {
+        conclusionPrompt += `--- RINGKASAN INTISARI PENCARIAN ---\n${aiOverviewText}\n\n`;
+      }
+      conclusionPrompt += `Pertanyaan Pengguna: "${userQuery}"\n\n`;
+      conclusionPrompt += `--- INSTRUKSI JAWABAN ---
+1. Jawab pertanyaan pengguna secara komprehensif, akurat, dan mengalir alami dalam alur percakapan (hubungkan secara mulus dengan konteks obrolan sebelumnya jika ada).
+2. Manfaatkan fakta riil, data terkini, tanggal, dan informasi spesifik dari HASIL PENCARIAN WEB di atas. Jangan membaca berita secara kaku atau terisolasi seperti robot pembaca berita, melainkan berikan jawaban cerdas, terarah, dan solutif.
+3. JIKA HASIL PENCARIAN KURANG RELEVAN ATAU TIDAK LENGKAP: Secara otomatis dan mulus padukan dengan pengetahuan internal Anda tanpa meminta maaf dan tanpa menyalahkan hasil pencarian.
+4. Cantumkan sitasi link markdown: [Nama Sumber atau Judul](URL) pada kalimat yang faktanya bersumber dari web.
+5. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
+      
+      console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
+      
+      if (isUserStoppedRef.current) {
+        console.log('[ChatBot] Search conclusion cancelled early by user stop');
+        return;
+      }
+
+      // Build history with clean conversational turns
+      const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
+      const historyWithSearchRequest = sourceHistory.map(msg => 
+        msg.id === messageId
+          ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot' }
+          : msg
+      );
+
+      const newAbortController = new AbortController();
+      abortControllerRef.current = newAbortController;
+      if (currentConversationId) {
+        abortControllersMapRef.current.set(currentConversationId, newAbortController);
+      }
+      
+      const botResponse = await sendMessageToGrok(
+        conclusionPrompt, 
+        historyWithSearchRequest, 
+        userLanguage, 
+        currentConversationId, 
+        selectedPersonality, 
+        newAbortController, 
+        selectedModel, 
+        isAuthenticated, 
+        isGuest, 
+        userName || user?.name, 
+        false, 
+        sessionMessageCount + 2
+      );
+
+      let finalResponseText = '';
+      let displayedSearchText = '';
+      let searchStreamFinished = false;
+      let searchTypingTimer = null;
+
+      const startSearchTypingAnimation = () => {
+        if (searchTypingTimer) return;
+        searchTypingTimer = setInterval(() => {
+          if (displayedSearchText.length < finalResponseText.length) {
+            const diff = finalResponseText.length - displayedSearchText.length;
+            const step = searchStreamFinished
+              ? Math.max(20, Math.ceil(diff / 3))
+              : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
+            
+            displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
+            
+            const now = Date.now();
+            if (now - lastScrollTickRef.current > 75) {
+              lastScrollTickRef.current = now;
+              smoothAutoScroll();
+            }
+            
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === messageId
+                  ? { ...msg, text: sanitizeStreamingText(displayedSearchText), isThinking: false, isStreaming: true }
+                  : msg
+              )
+            );
+          } else if (searchStreamFinished) {
+            clearInterval(searchTypingTimer);
+            searchTypingTimer = null;
+          }
+        }, 30);
+      };
+
+      await processStreamingResponse(botResponse, (chunk) => {
+        const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
+        if (textChunk) {
+          finalResponseText += textChunk;
+          startSearchTypingAnimation();
+        }
+      }, newAbortController.signal);
+
+      searchStreamFinished = true;
+      startSearchTypingAnimation();
+
+      // Wait for typing animation to catch up completely
+      let searchCatchUpWaitCount = 0;
+      while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && searchCatchUpWaitCount < 300) {
+        searchCatchUpWaitCount++;
+        if (newAbortController.signal.aborted || isUserStoppedRef.current) {
+          if (searchTypingTimer) {
+            clearInterval(searchTypingTimer);
+            searchTypingTimer = null;
+          }
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      if (searchTypingTimer) {
+        clearInterval(searchTypingTimer);
+        searchTypingTimer = null;
+      }
+
+      // Finalize: save and clean up
+      const cleanedFinalText = replaceCitationsWithLinks(cleanResponseText(finalResponseText));
+      setMessages((prev) => {
+        const updated = prev.map((msg) =>
+          msg.id === messageId
+            ? { 
+                ...msg, 
+                text: cleanedFinalText, 
+                isStreaming: false, 
+                isThinking: false,
+                isSearching: false,
+                isRecallingMemory: false,
+                isImageGenerating: false,
+                isReasoning: false
+              }
+            : msg
+        );
+
+        setConversations((prevConvs) => {
+          const updatedConvs = prevConvs.map(conv => 
+            conv.id === currentConversationId
+              ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
+              : conv
+          );
+          ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+            .catch(err => console.error('[ChatBot] Error saving after search:', err));
+          return updatedConvs;
+        });
+        return updated;
+      });
+
+      // Reset all states aggressively
+      setConvLoading(false);
+      setLoading(false);
+      setIsSendGenerating(false);
+      isSendGeneratingRef.current = false;
+      isProcessingRef.current = false;
+      isSearchAbortedRef.current = false;
+      setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
+      setLastMessage(null);
+      abortControllerRef.current = null;
+      if (currentConversationId) {
+        abortControllersMapRef.current.delete(currentConversationId);
+      }
+
+    } catch (searchError) {
+      console.error('[ChatBot] Error in search pathway, falling back to direct AI response:', searchError);
+      
+      try {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, isSearching: false, isThinking: true, text: userLanguage === 'id' ? 'Pencarian gagal. Mengambil jawaban langsung dari AI...' : 'Search failed. Getting direct answer from AI...' }
+              : msg
+          )
+        );
+        
+        const userQuery = userPrompt || lastSentPromptRef.current || searchQuery;
+        const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda secara akurat dan percaya diri.]\n\nPertanyaan pengguna: "${userQuery}"`;
+        
+        const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
+        const historyWithSearchRequest = sourceHistory.map(msg => 
+          msg.id === messageId
+            ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot' }
+            : msg
+        );
+
+        const newAbortController = new AbortController();
+        abortControllerRef.current = newAbortController;
+        
+        const botResponse = await sendMessageToGrok(
+          fallbackPrompt, 
+          historyWithSearchRequest, 
+          userLanguage, 
+          currentConversationId, 
+          selectedPersonality, 
+          newAbortController, 
+          selectedModel, 
+          isAuthenticated, 
+          isGuest, 
+          userName || user?.name, 
+          false, 
+          sessionMessageCount + 2
+        );
+
+        let finalResponseText = '';
+        let displayedSearchText = '';
+        let searchStreamFinished = false;
+        let searchTypingTimer = null;
+
+        const startSearchTypingAnimation = () => {
+          if (searchTypingTimer) return;
+          searchTypingTimer = setInterval(() => {
+            if (displayedSearchText.length < finalResponseText.length) {
+              const diff = finalResponseText.length - displayedSearchText.length;
+              const step = searchStreamFinished
+                ? Math.max(20, Math.ceil(diff / 3))
+                : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
+              
+              displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
+              
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === messageId
+                    ? { ...msg, text: sanitizeStreamingText(displayedSearchText), isThinking: false, isStreaming: true }
+                    : msg
+                )
+              );
+            } else if (searchStreamFinished) {
+              clearInterval(searchTypingTimer);
+              searchTypingTimer = null;
+            }
+          }, 30);
+        };
+
+        await processStreamingResponse(botResponse, (chunk) => {
+          const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
+          if (textChunk) {
+            finalResponseText += textChunk;
+            startSearchTypingAnimation();
+          }
+        }, newAbortController.signal);
+
+        searchStreamFinished = true;
+        startSearchTypingAnimation();
+
+        let searchCatchUpWaitCount = 0;
+        while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && searchCatchUpWaitCount < 300) {
+          searchCatchUpWaitCount++;
+          if (newAbortController.signal.aborted || isUserStoppedRef.current) {
+            if (searchTypingTimer) {
+              clearInterval(searchTypingTimer);
+              searchTypingTimer = null;
+            }
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
+        if (searchTypingTimer) {
+          clearInterval(searchTypingTimer);
+          searchTypingTimer = null;
+        }
+
+        setMessages((prev) => {
+          const updated = prev.map((msg) =>
+            msg.id === messageId
+              ? { 
+                  ...msg, 
+                  text: cleanResponseText(finalResponseText), 
+                  isStreaming: false, 
+                  isThinking: false,
+                  isSearching: false,
+                  isRecallingMemory: false,
+                  isImageGenerating: false,
+                  isReasoning: false
+                }
+              : msg
+          );
+          setConversations((prevConvs) => {
+            const updatedConvs = prevConvs.map(conv => 
+              conv.id === currentConversationId
+                ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
+                : conv
+            );
+            ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+              .catch(err => console.error('[ChatBot] Error saving after fallback search:', err));
+            return updatedConvs;
+          });
+          return updated;
+        });
+
+        setIsSendGenerating(false);
+        isSendGeneratingRef.current = false;
+        setConvLoading(false);
+        setLoading(false);
+        isProcessingRef.current = false;
+        isSearchAbortedRef.current = false;
+        setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
+        setLastMessage(null);
+        abortControllerRef.current = null;
+        if (currentConversationId) {
+          abortControllersMapRef.current.delete(currentConversationId);
+        }
+
+      } catch (fallbackError) {
+        console.error('[ChatBot] Fallback AI execution failed:', fallbackError);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { 
+                  ...msg, 
+                  isSearching: false, 
+                  isThinking: false, 
+                  isStreaming: false,
+                  isRecallingMemory: false,
+                  isImageGenerating: false,
+                  isReasoning: false,
+                  text: fallbackError?.message || 'Gagal memproses jawaban.'
+                }
+              : msg
+          )
+        );
+        setIsSendGenerating(false);
+        isSendGeneratingRef.current = false;
+        setConvLoading(false);
+        setLoading(false);
+        isProcessingRef.current = false;
+        setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
+      }
+    } finally {
+      setIsSendGenerating(false);
+      isSendGeneratingRef.current = false;
+      isProcessingRef.current = false;
+      isSearchAbortedRef.current = false;
+      setLoading(false);
+      setConvLoading(false);
+    }
+  }
+
   const triggerWebSearchIfNeeded = (messageId, text) => {
     if (!text) return;
     let searchQuery = null;
@@ -8741,7 +9361,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (searchRequestMatch && searchRequestMatch[1]) {
       searchQuery = searchRequestMatch[1].trim();
     } else {
-      // Only trigger on explicit [SEARCH_REQUEST: ...] tags — no fuzzy sentence matching
       return;
     }
 
@@ -8755,12 +9374,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const userPrompt = lastUserMsg?.text || '';
       const finalSearchQuery = enrichQueryWithDateIfRecent(searchQuery, userPrompt, userLanguage);
 
-      console.log(`[ChatBot] 🔍 SEARCH_REQUEST detected: "${searchQuery}" -> enriched: "${finalSearchQuery}" for message ${messageId}`);
+      console.log(`[ChatBot] 🔍 Fallback SEARCH_REQUEST detected from model: "${searchQuery}" -> enriched: "${finalSearchQuery}" for message ${messageId}`);
       
-      // 1) Immediately strip [SEARCH_REQUEST: ...] or conversational search preamble from the streaming text ref
-      let cleanedStreamingText = text.replace(/\[SEARCH_REQUEST:\s*(.+?)\]/g, '').trim();
-      cleanedStreamingText = cleanedStreamingText.replace(/^Baik,?\s*saya akan melakukan pencarian[^\n]*\n*/i, '').trim();
-      currentStreamingTextRef.current = cleanedStreamingText;
+      // 1) IMMEDIATELY WIPE any preamble or streaming text! NEVER show hallucinated text before search!
+      currentStreamingTextRef.current = '';
       
       // 2) Stop current stream if still active
       if (abortControllerRef.current) {
@@ -8784,12 +9401,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         try { scrollEl.classList.remove('prefill-space'); } catch (e) {}
       }
 
-      // 5) Mark the message as searching (keep any non-tag text the AI may have output)
+      // 5) Mark the message as searching with STRICTLY EMPTY text
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === messageId) {
             const initialSteps = msg.searchSteps || [];
-            // Only add if not already present
             if (!initialSteps.some(s => s.query === finalSearchQuery)) {
               initialSteps.push({
                 query: finalSearchQuery,
@@ -8800,7 +9416,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             }
             return { 
               ...msg, 
-              text: cleanedStreamingText || msg.text || '', // preserve any pre-tag text, just strip the tag
+              text: '', // STRICTLY EMPTY! Wipe any ngawur text!
               isStreaming: false,
               isSearching: true, 
               searchQuery: finalSearchQuery, 
@@ -8813,646 +9429,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         })
       );
 
-      // 6) Execute search immediately (no setTimeout delay)
-      (async () => {
-        try {
-          if (isUserStoppedRef.current) {
-            console.log('[ChatBot] Search cancelled early by user stop');
-            return;
-          }
-
-          const isGuestMode = Boolean(isGuest || !isAuthenticated || !user);
-          console.log(`[ChatBot] Executing web search (isGuestMode: ${isGuestMode}): "${finalSearchQuery}"`);
-          const searchData = await executeWebSearch(finalSearchQuery, {
-            isGuest: isGuestMode,
-            limit: 16,
-            includeImages: true,
-            userPrompt,
-            language: userLanguage
-          });
-          
-          if (isUserStoppedRef.current) {
-            console.log('[ChatBot] Search returned but user already clicked stop');
-            return;
-          }
-          
-          console.log('[ChatBot] Search results received:', searchData);
-          
-          let resultsList = [];
-          let aiOverviewText = '';
-          if (searchData.success && searchData.data) {
-            // Standard Google engine returns organic_results
-            resultsList = searchData.data.organic_results || [];
-            // Bonus: AI overview text if available
-            aiOverviewText = searchData.data._ai_overview_text || '';
-          }
-          
-          // If no organic results, log a warning
-          if (resultsList.length === 0) {
-            console.warn('[ChatBot] No organic_results from search API');
-          }
-          
-          // Extract search images from results (inline images, organic thumbnails, and news images)
-          const searchImages = [];
-          if (searchData.success && searchData.data) {
-            // 1. Extract from inline_images
-            if (searchData.data.inline_images && Array.isArray(searchData.data.inline_images)) {
-              searchData.data.inline_images.forEach(img => {
-                if (img.thumbnail || img.link) {
-                  let sourceDomain = '';
-                  if (img.source) {
-                    try {
-                      sourceDomain = new URL(img.source).hostname.replace('www.', '');
-                    } catch(e) {
-                      sourceDomain = img.source;
-                    }
-                  }
-                  searchImages.push({
-                    url: img.thumbnail || img.link,
-                    title: img.title || searchQuery,
-                    source: img.source || '',
-                    sourceDomain
-                  });
-                }
-              });
-            }
-            // 2. Extract from organic_results thumbnails/rich snippets
-            if (searchData.data.organic_results && Array.isArray(searchData.data.organic_results)) {
-              searchData.data.organic_results.forEach(result => {
-                let imgUrl = result.thumbnail;
-                if (!imgUrl && result.rich_snippet && result.rich_snippet.top && result.rich_snippet.top.detected_extensions) {
-                  imgUrl = result.rich_snippet.top.detected_extensions.thumbnail;
-                }
-                
-                if (imgUrl) {
-                  let sourceDomain = '';
-                  const url = result.link || result.url || '';
-                  if (url) {
-                    try {
-                      sourceDomain = new URL(url).hostname.replace('www.', '');
-                    } catch(e) {
-                      sourceDomain = url;
-                    }
-                  }
-                  searchImages.push({
-                    url: imgUrl,
-                    title: result.title || searchQuery,
-                    source: url,
-                    sourceDomain
-                  });
-                }
-              });
-            }
-            // 3. Extract from knowledge_graph image
-            if (searchData.data.knowledge_graph) {
-              const kg = searchData.data.knowledge_graph;
-              if (kg.image) {
-                let sourceDomain = '';
-                if (kg.source) {
-                  try {
-                    sourceDomain = new URL(kg.source).hostname.replace('www.', '');
-                  } catch(e) {
-                    sourceDomain = kg.source;
-                  }
-                }
-                searchImages.push({
-                  url: kg.image,
-                  title: kg.title || searchQuery,
-                  source: kg.source || '',
-                  sourceDomain
-                });
-              }
-              if (Array.isArray(kg.header_images)) {
-                kg.header_images.forEach(img => {
-                  if (img.image) {
-                    searchImages.push({
-                      url: img.image,
-                      title: kg.title || searchQuery,
-                      source: '',
-                      sourceDomain: ''
-                    });
-                  }
-                });
-              }
-            }
-            // 4. Extract from news_results
-            if (searchData.data.news_results && Array.isArray(searchData.data.news_results)) {
-              searchData.data.news_results.forEach(news => {
-                if (news.thumbnail) {
-                  let sourceDomain = '';
-                  if (news.link) {
-                    try {
-                      sourceDomain = new URL(news.link).hostname.replace('www.', '');
-                    } catch(e) {
-                      sourceDomain = news.link;
-                    }
-                  }
-                  searchImages.push({
-                    url: news.thumbnail,
-                    title: news.title || searchQuery,
-                    source: news.link || '',
-                    sourceDomain
-                  });
-                }
-              });
-            }
-          }
-
-          // Filter duplicates
-          const uniqueImages = [];
-          const seenUrls = new Set();
-          for (const img of searchImages) {
-            if (img.url && !seenUrls.has(img.url)) {
-              seenUrls.add(img.url);
-              uniqueImages.push(img);
-            }
-          }
-
-          // Map sources using uniqueImages for fallback thumbnails
-          const sources = resultsList.map(item => {
-            let domain = '';
-            const url = item.link || item.url || '';
-            try {
-              domain = new URL(url).hostname;
-            } catch(e) {
-              domain = url;
-            }
-            
-            let thumbnail = item.thumbnail || null;
-            if (!thumbnail && uniqueImages.length > 0) {
-              const cleanDom = domain.replace('www.', '');
-              const matchedImg = uniqueImages.find(img => img.sourceDomain === cleanDom);
-              if (matchedImg) {
-                thumbnail = matchedImg.url;
-              }
-            }
-
-            return {
-              title: item.title || 'Untitled',
-              link: url || '#',
-              snippet: item.snippet || '',
-              domain: domain,
-              thumbnail: thumbnail
-            };
-          });
-
-          // Update message state with sources and images
-          setMessages((prev) =>
-            prev.map((msg) => {
-              if (msg.id === messageId) {
-                const steps = msg.searchSteps || [];
-                const lastIdx = steps.map(s => s.query).lastIndexOf(searchQuery);
-                const updatedSteps = steps.map((step, idx) => 
-                  idx === lastIdx
-                    ? { ...step, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) }
-                    : step
-                );
-
-                return { 
-                  ...msg, 
-                  isSearching: false, 
-                  isThinking: true, 
-                  searchQuery: searchQuery, 
-                  searchResults: resultsList, 
-                  searchSources: sources,
-                  searchImages: uniqueImages.slice(0, 6),
-                  searchSteps: updatedSteps
-                };
-              }
-              return msg;
-            })
-          );
-
-          // Build rich context from search results for the AI
-          const searchContext = sources.map((s, idx) =>
-            `[Sumber ${idx + 1}] ${s.title}\nURL: ${s.link}\nKutipan: ${s.snippet}`
-          ).join('\n\n');
-
-          // Initialize context history if empty
-          searchContextHistoryRef.current[messageId] = searchContextHistoryRef.current[messageId] || [];
-          // Add this step's context to the history
-          searchContextHistoryRef.current[messageId].push(`--- HASIL PENCARIAN WEB (Langkah ke-${searchContextHistoryRef.current[messageId].length + 1} - Kata Kunci: "${searchQuery}") ---\n${searchContext}`);
-
-          // Single search only — no multi-step
-          const currentStep = searchContextHistoryRef.current[messageId].length;
-          const isMaxStepsReached = true; // Always true = never allow follow-up searches
-          
-          // Helper: replace [Sumber N] or [Sumber N, M] with actual markdown links
-          const replaceCitationsWithLinks = (text) => {
-            if (!sources || sources.length === 0) return text;
-            return text.replace(/\[Sumber\s*(\d+)\]/gi, (match, numStr) => {
-              const idx = parseInt(numStr, 10) - 1;
-              if (idx >= 0 && idx < sources.length) {
-                const s = sources[idx];
-                const domain = s.domain || s.link;
-                return `[${s.title || domain}](${s.link})`;
-              }
-              return match;
-            });
-          };
-          
-          const userQuery = lastSentPromptRef.current || 'the query';
-          const accumulatedHistoryContext = searchContextHistoryRef.current[messageId].join('\n\n');
-          
-          // Build a clear, focused conclusion prompt
-          let conclusionPrompt = `Pertanyaan Pengguna: "${userQuery}"\nKata Kunci Pencarian: "${searchQuery}" (Langkah ${currentStep})\n\n`;
-          
-          if (aiOverviewText) {
-            conclusionPrompt += `--- RINGKASAN HASIL PENCARIAN ---\n${aiOverviewText}\n\n`;
-          }
-          
-          conclusionPrompt += `${accumulatedHistoryContext}\n\n`;
-          
-          conclusionPrompt += `--- INSTRUKSI JAWABAN ---
-1. Jawab pertanyaan pengguna secara komprehensif, mendalam, dan terstruktur rapi. Manfaatkan fakta, angka, dan data dari HASIL PENCARIAN WEB di atas jika relevan.
-2. JIKA HASIL PENCARIAN KURANG RELEVAN ATAU TIDAK MEMUAT JAWABAN LENGKAP: Secara otomatis dan mulus gunakan pengetahuan serta penalaran internal LLM Anda sendiri untuk menjawab pertanyaan pengguna secara tuntas, akurat, dan percaya diri.
-3. JANGAN PERNAH meminta maaf soal pencarian, JANGAN PERNAH menyalahkan sumber, dan JANGAN PERNAH mengatakan kalimat seperti "Maaf, hasil pencarian tidak relevan...", "Sumber tidak memuat informasi...", atau kalimat sejenis. Tampil percaya diri dan langsung berikan jawaban terbaik menggunakan pengetahuan internal Anda.
-4. Cantumkan sitasi link markdown: [Nama Sumber atau Judul](URL) pada kalimat yang faktanya bersumber dari web. Jangan gunakan sitasi jika informasi murni dari pengetahuan internal Anda.
-5. Berikan jawaban komprehensif dan utuh sekarang. JANGAN memicu pencarian lagi dengan tag [SEARCH_REQUEST]. Jawab langsung dari data yang ada dan pengetahuan internal Anda.`;
-          
-          console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
-          
-          if (isUserStoppedRef.current) {
-            console.log('[ChatBot] Search conclusion cancelled early by user stop');
-            return;
-          }
-
-          // Build history with the assistant's SEARCH_REQUEST message for alternating roles
-          const historyWithSearchRequest = messages.map(msg => 
-            msg.id === messageId
-              ? { ...msg, text: (msg.text ? msg.text + '\n' : '') + `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot' }
-              : msg
-          );
-
-          const newAbortController = new AbortController();
-          abortControllerRef.current = newAbortController;
-          if (currentConversationId) {
-            abortControllersMapRef.current.set(currentConversationId, newAbortController);
-          }
-          
-          const botResponse = await sendMessageToGrok(
-            conclusionPrompt, 
-            historyWithSearchRequest, 
-            userLanguage, 
-            currentConversationId, 
-            selectedPersonality, 
-            newAbortController, 
-            selectedModel, 
-            isAuthenticated, 
-            isGuest, 
-            userName || user?.name, 
-            false, 
-            sessionMessageCount + 2
-          );
-
-          let finalResponseText = '';
-          let displayedSearchText = '';
-          let searchStreamFinished = false;
-          let searchTypingTimer = null;
-          let isRedirectedToNextSearch = false;
-
-          const startSearchTypingAnimation = () => {
-            if (searchTypingTimer) return;
-            searchTypingTimer = setInterval(() => {
-              if (displayedSearchText.length < finalResponseText.length) {
-                const diff = finalResponseText.length - displayedSearchText.length;
-                // Snappy step size: types faster and finishes instantly when stream is done
-                const step = searchStreamFinished
-                  ? Math.max(20, Math.ceil(diff / 3))
-                  : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
-                
-                displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
-                
-                const now = Date.now();
-                if (now - lastScrollTickRef.current > 75) {
-                  lastScrollTickRef.current = now;
-                  smoothAutoScroll();
-                }
-                
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === messageId
-                      ? { ...msg, text: sanitizeStreamingText(displayedSearchText), isThinking: false, isStreaming: true }
-                      : msg
-                  )
-                );
-              } else if (searchStreamFinished) {
-                clearInterval(searchTypingTimer);
-                searchTypingTimer = null;
-              }
-            }, 30); // Snappy 30ms interval
-          };
-
-          await processStreamingResponse(botResponse, (chunk) => {
-            const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
-            if (textChunk) {
-              finalResponseText += textChunk;
-              
-              // Multi-step search detection during streaming conclusion
-              if (!isMaxStepsReached && !isRedirectedToNextSearch) {
-                const searchMatch = finalResponseText.match(/\[SEARCH_REQUEST:\s*(.+?)\]/);
-                if (searchMatch) {
-                  isRedirectedToNextSearch = true;
-                  const nextQuery = searchMatch[1].trim();
-                  console.log(`[ChatBot] 🔄 Multi-step SEARCH_REQUEST detected at step ${currentStep}: "${nextQuery}"`);
-                  
-                  // Cancel current typing/stream
-                  newAbortController.abort();
-                  if (searchTypingTimer) {
-                    clearInterval(searchTypingTimer);
-                    searchTypingTimer = null;
-                  }
-                  
-                  // Allow this message to trigger search again by resetting its guard
-                  triggeredSearchRequestsRef.current.delete(messageId);
-                  
-                  // Append next search query to the step list so it renders below the first one
-                  setMessages((prev) =>
-                    prev.map((msg) => {
-                      if (msg.id === messageId) {
-                        const newStep = {
-                          query: nextQuery,
-                          isSearching: true,
-                          sources: [],
-                          images: []
-                        };
-                        return {
-                          ...msg,
-                          text: '', // Don't show partial text during intermediate search steps
-                          isSearching: true,
-                          searchSteps: [...(msg.searchSteps || []), newStep]
-                        };
-                      }
-                      return msg;
-                    })
-                  );
-                  
-                  // Call recursively with zero delay!
-                  triggerWebSearchIfNeeded(messageId, searchMatch[0]);
-                  return;
-                }
-              }
-              
-              // Don't show premature text if model might be about to emit a search tag
-              if (!isRedirectedToNextSearch) {
-                const isPotentialSearchTag = !isMaxStepsReached && (finalResponseText.includes('[SEARCH_REQUEST') || (finalResponseText.trim().startsWith('[') && finalResponseText.length < 60));
-                if (!isPotentialSearchTag) {
-                  startSearchTypingAnimation();
-                }
-              }
-            }
-          }, newAbortController.signal);
-
-          if (isRedirectedToNextSearch) {
-            return; // Exit current step, recursion takes over
-          }
-
-          searchStreamFinished = true;
-          startSearchTypingAnimation();
-
-          // Wait for typing animation to catch up completely with safety loop bound
-          let searchCatchUpWaitCount = 0;
-          while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && searchCatchUpWaitCount < 300) {
-            searchCatchUpWaitCount++;
-            if (newAbortController.signal.aborted || isUserStoppedRef.current) {
-              if (searchTypingTimer) {
-                clearInterval(searchTypingTimer);
-                searchTypingTimer = null;
-              }
-              return;
-            }
-            await new Promise(resolve => setTimeout(resolve, 10));
-          }
-
-          if (searchTypingTimer) {
-            clearInterval(searchTypingTimer);
-            searchTypingTimer = null;
-          }
-
-          // Finalize: save and clean up
-          const cleanedFinalText = replaceCitationsWithLinks(cleanResponseText(finalResponseText));
-          setMessages((prev) => {
-            const updated = prev.map((msg) =>
-              msg.id === messageId
-                ? { 
-                    ...msg, 
-                    text: cleanedFinalText, 
-                    isStreaming: false, 
-                    isThinking: false,
-                    isSearching: false,
-                    isRecallingMemory: false,
-                    isImageGenerating: false,
-                    isReasoning: false
-                  }
-                : msg
-            );
-
-            setConversations((prevConvs) => {
-              const updatedConvs = prevConvs.map(conv => 
-                conv.id === currentConversationId
-                  ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
-                  : conv
-              );
-              ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-                .catch(err => console.error('[ChatBot] Error saving after search:', err));
-              return updatedConvs;
-            });
-            return updated;
-          });
-
-          // Reset all states aggressively
-          setConvLoading(false);
-          setLoading(false);
-          setIsSendGenerating(false);
-          isSendGeneratingRef.current = false;
-          isProcessingRef.current = false;
-          isSearchAbortedRef.current = false;
-          setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
-          setLastMessage(null);
-          abortControllerRef.current = null;
-          if (currentConversationId) {
-            abortControllersMapRef.current.delete(currentConversationId);
-          }
-
-        } catch (searchError) {
-          console.error('[ChatBot] Error in search pathway, falling back to direct AI response:', searchError);
-          
-          try {
-            // Inform user that search failed but we are getting direct answer
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === messageId
-                  ? { ...msg, isSearching: false, isThinking: true, text: userLanguage === 'id' ? 'Pencarian gagal. Mengambil jawaban langsung dari AI...' : 'Search failed. Getting direct answer from AI...' }
-                  : msg
-              )
-            );
-            
-            const userQuery = lastSentPromptRef.current || searchQuery;
-            const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda. Beritahukan secara singkat di awal bahwa pencarian gagal sehingga Anda menjawab menggunakan pengetahuan internal.]\n\nPertanyaan pengguna: "${userQuery}"`;
-            
-            const historyWithSearchRequest = messages.map(msg => 
-              msg.id === messageId
-                ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot' }
-                : msg
-            );
-
-            const newAbortController = new AbortController();
-            abortControllerRef.current = newAbortController;
-            
-            const botResponse = await sendMessageToGrok(
-              fallbackPrompt, 
-              historyWithSearchRequest, 
-              userLanguage, 
-              currentConversationId, 
-              selectedPersonality, 
-              newAbortController, 
-              selectedModel, 
-              isAuthenticated, 
-              isGuest, 
-              userName || user?.name, 
-              false, 
-              sessionMessageCount + 2
-            );
-
-            let finalResponseText = '';
-            let displayedSearchText = '';
-            let searchStreamFinished = false;
-            let searchTypingTimer = null;
-
-            const startSearchTypingAnimation = () => {
-              if (searchTypingTimer) return;
-              searchTypingTimer = setInterval(() => {
-                if (displayedSearchText.length < finalResponseText.length) {
-                  const diff = finalResponseText.length - displayedSearchText.length;
-                  const step = searchStreamFinished
-                    ? Math.max(20, Math.ceil(diff / 3))
-                    : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
-                  
-                  displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
-                  
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === messageId
-                        ? { ...msg, text: sanitizeStreamingText(displayedSearchText), isThinking: false, isStreaming: true }
-                        : msg
-                    )
-                  );
-                } else if (searchStreamFinished) {
-                  clearInterval(searchTypingTimer);
-                  searchTypingTimer = null;
-                }
-              }, 30);
-            };
-
-            await processStreamingResponse(botResponse, (chunk) => {
-              const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
-              if (textChunk) {
-                finalResponseText += textChunk;
-                startSearchTypingAnimation();
-              }
-            }, newAbortController.signal);
-
-            searchStreamFinished = true;
-            startSearchTypingAnimation();
-
-            let fallbackWaitCount = 0;
-            while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && fallbackWaitCount < 300) {
-              fallbackWaitCount++;
-              if (newAbortController.signal.aborted || isUserStoppedRef.current) {
-                if (searchTypingTimer) {
-                  clearInterval(searchTypingTimer);
-                  searchTypingTimer = null;
-                }
-                return;
-              }
-              await new Promise(resolve => setTimeout(resolve, 10));
-            }
-
-            if (searchTypingTimer) {
-              clearInterval(searchTypingTimer);
-              searchTypingTimer = null;
-            }
-
-            setMessages((prev) => {
-              const updated = prev.map((msg) =>
-                msg.id === messageId
-                  ? { 
-                      ...msg, 
-                      text: cleanResponseText(finalResponseText), 
-                      isStreaming: false, 
-                      isThinking: false,
-                      isSearching: false,
-                      isRecallingMemory: false,
-                      isImageGenerating: false,
-                      isReasoning: false
-                    }
-                  : msg
-              );
-              setConversations((prevConvs) => {
-                const updatedConvs = prevConvs.map(conv => 
-                  conv.id === currentConversationId
-                    ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
-                    : conv
-                );
-                ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-                  .catch(err => console.error('[ChatBot] Error saving after fallback search:', err));
-                return updatedConvs;
-              });
-              return updated;
-            });
-
-            setIsSendGenerating(false);
-            isSendGeneratingRef.current = false;
-            setConvLoading(false);
-            setLoading(false);
-            isProcessingRef.current = false;
-            isSearchAbortedRef.current = false;
-            setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
-            setLastMessage(null);
-            abortControllerRef.current = null;
-            if (currentConversationId) {
-              abortControllersMapRef.current.delete(currentConversationId);
-            }
-
-          } catch (fallbackError) {
-            console.error('[ChatBot] Fallback AI execution failed:', fallbackError);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === messageId
-                  ? { 
-                      ...msg, 
-                      isSearching: false, 
-                      isThinking: false, 
-                      isStreaming: false,
-                      isRecallingMemory: false,
-                      isImageGenerating: false,
-                      isReasoning: false,
-                      text: humanizeClientError(fallbackError.message) 
-                    }
-                  : msg
-              )
-            );
-            setIsSendGenerating(false);
-            isSendGeneratingRef.current = false;
-            setConvLoading(false);
-            setLoading(false);
-            isProcessingRef.current = false;
-            setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
-            setLastMessage(null);
-            abortControllerRef.current = null;
-            if (currentConversationId) {
-              abortControllersMapRef.current.delete(currentConversationId);
-            }
-          }
-        } finally {
-          setIsSendGenerating(false);
-          isSendGeneratingRef.current = false;
-          isProcessingRef.current = false;
-          isSearchAbortedRef.current = false; // Reset flag so future messages work normally
-          setLoading(false); // Reset global loading state so next message can be sent normally
-          setConvLoading(false);
-        }
-      })();
+      // 6) Execute search and synthesis directly
+      executeSearchAndSynthesize({
+        messageId,
+        searchQuery: finalSearchQuery,
+        userPrompt,
+        baseHistory: messages
+      });
     }
   };
 

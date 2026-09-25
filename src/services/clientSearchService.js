@@ -77,6 +77,102 @@ export function enrichQueryWithDateIfRecent(query, userPrompt = '', language = '
 }
 
 /**
+ * Detect upfront if a user prompt requires web search before invoking the LLM stream.
+ * Prevents the AI from hallucinating / answering 'ngawur' first before searching.
+ * Returns { shouldSearch: true, searchQuery: string } or null.
+ */
+export function detectUpfrontSearchIntent(promptText, language = 'id') {
+  if (!promptText || typeof promptText !== 'string') return null;
+  const trimmed = promptText.trim();
+  if (trimmed.length < 3) return null;
+
+  const lower = trimmed.toLowerCase();
+
+  // 1. HARD EXCLUSIONS: Casual greetings, pleasantries, small talk
+  const isGreetingOnly = /^(halo|hai|hi|hey|hei|pagi|siang|sore|malam|assalamualaikum|tes|test|yo|woi|bro|sis)(\s+(ai|deepernova|admin|semua|kawan|bro|sis|gan))?[.!?~]*$/i.test(trimmed);
+  if (isGreetingOnly) return null;
+
+  const isCasualSmallTalk = /^(apa kabar|lagi apa|lagi ngapain|siapa kamu|kamu siapa|kamu bot|kamu ai|bisa apa aja|fitur kamu|kamu buatan siapa|siapa pembuatmu|terima kasih|makasih|thanks|thank you|ok|oke|sip|siap)(\s+(bro|sis|gan|min|kawan|ai|deepernova|nih|ya|dong))?[.!?~]*$/i.test(trimmed) ||
+    /\b(apa kabar|kabar baik)\b/i.test(lower);
+  if (isCasualSmallTalk) return null;
+
+  // 2. EXCLUSION: Coding, programming, debugging, math, creative writing (unless explicitly instructed to search web)
+  const hasExplicitWebDirective = /\b(cari\s+di\s+(internet|google|web)|cariin|coba\s+cari|tolong\s+cari|search\s+on\s+web|search\s+online|googling|browsing|cek\s+(di\s+)?(internet|google|web))\b/i.test(lower);
+
+  if (!hasExplicitWebDirective) {
+    // Code / programming queries
+    const isCodeQuery = /\b(buatkan|tulis|bikin|contoh)?\s*(fungsi|function|kode|script|kodingan|program|syntax|algoritma|query sql|component react|css|html)\b/i.test(lower) ||
+      /\b(kenapa error|cara fix error|debug|perbaiki kode|bug pada|exception in|undefined is not)\b/i.test(lower);
+    if (isCodeQuery) return null;
+
+    // Math / calculation queries
+    const isMathQuery = /\b(hitung|berapakah hasil|pecahkan persamaan|rumus|integral|turunan|limit)\b/i.test(lower);
+    if (isMathQuery) return null;
+
+    // Creative writing
+    const isCreativeQuery = /\b(buatkan|tuliskan|bikin|ciptakan)\s+(puisi|cerita|pantun|cerpen|novel|lirik lagu|dongeng)\b/i.test(lower);
+    if (isCreativeQuery) return null;
+
+    // Platform identity
+    const isPlatformQuery = /\b(apa itu deepernova|fitur deepernova|siapa ferry fernando|ceo deepernova)\b/i.test(lower);
+    if (isPlatformQuery) return null;
+  }
+
+  // 3. POSITIVE DETECTION: Clear search intent
+  let matched = false;
+
+  // Group A: Explicit search directives
+  if (hasExplicitWebDirective || /^(cari|search|googling|browsing)\s+/i.test(lower)) {
+    matched = true;
+  }
+
+  // Group B: Breaking news & current events
+  if (!matched && /\b(berita\s+terbaru|berita\s+terkini|berita\s+hari\s+ini|kabar\s+terbaru|kabar\s+terkini|info\s+terkini|update\s+terbaru|breaking\s+news|peristiwa\s+terkini|isu\s+terkini|berita\s+viral)\b/i.test(lower)) {
+    matched = true;
+  }
+
+  // Group C: News mentions with topic (e.g., "berita persib", "berita gempa", "kabar duka")
+  if (!matched && /\b(berita|kabar|headline)\s+[a-z0-9]/i.test(lower) && !/\b(apa kabar|kabar baik|bikin berita|buat berita)\b/i.test(lower)) {
+    matched = true;
+  }
+
+  // Group D: Real-time prices & financial rates
+  if (!matched && /\b(harga\s+emas|harga\s+btc|harga\s+bitcoin|kurs\s+dollar|kurs\s+usd|kurs\s+rupiah|harga\s+bbm|ihsg|harga\s+saham)\b/i.test(lower)) {
+    matched = true;
+  }
+
+  // Group E: Weather & Natural disasters
+  if (!matched && /\b(cuaca\s+(hari\s+ini|besok|sekarang|di)|prakiraan\s+cuaca|suhu\s+udara|gempa\s+(hari\s+ini|terkini|barusan|bumi)|info\s+banjir|tsunami)\b/i.test(lower)) {
+    matched = true;
+  }
+
+  // Group F: Sports / Schedules / Match results
+  if (!matched && /\b(jadwal\s+(pertandingan|bola|siaran|tayang)|skor\s+(pertandingan|bola|akhir)|hasil\s+pertandingan|klasemen\s+(sementara|liga)|siapa\s+(juara|pemenang)\s+(piala dunia|liga|euro|ucl|champions|pemilu|pilpres))\b/i.test(lower)) {
+    matched = true;
+  }
+
+  // Group G: Time-anchored current inquiries ("hari ini", "terkini", "terbaru", "saat ini", year 2025/2026 events)
+  if (!matched && /\b(hari ini|terkini|terbaru|saat ini|teranyar)\b/i.test(lower) && /\b(siapa|apa|berapa|bagaimana|kapan|apakah|update|kejadian|peristiwa|kondisi|status)\b/i.test(lower)) {
+    matched = true;
+  }
+
+  if (!matched) return null;
+
+  // Extract clean search query
+  let cleanQuery = trimmed;
+  // Strip directive prefixes
+  cleanQuery = cleanQuery.replace(/^(tolong\s+)?(coba\s+)?(cariin|carikan|cari\s+di\s+(internet|google|web)|cari\s+info\s+tentang|cari\s+tentang|cari|search\s+for|search\s+on\s+(web|internet|google)|search|googling|browsing|cek\s+di\s+(internet|google|web)|cek\s+web|cek\s+google|cek\s+info\s+tentang|cek)\s*:?\s*/i, '');
+  // Strip conversational suffixes
+  cleanQuery = cleanQuery.replace(/\s+(dong|ya|plis|please|bro|gan|min|sih|kah)\s*[?.!]*$/i, '');
+  cleanQuery = cleanQuery.replace(/[?.!]+$/, '').trim();
+
+  return {
+    shouldSearch: true,
+    searchQuery: cleanQuery || trimmed
+  };
+}
+
+/**
  * Vanilla JavaScript searchWeb function (CORS Enabled - Siap Hit Langsung dari Frontend Web)
  * Dapat dijalankan langsung dari konsol peramban: searchWeb('Presiden Indonesia')
  * @param {string} query - Query pencarian
@@ -291,6 +387,8 @@ export async function executeWebSearch(query, options = {}) {
 export default {
   executeWebSearch,
   searchWeb,
+  detectUpfrontSearchIntent,
+  enrichQueryWithDateIfRecent,
   API_BASE_URL,
   API_KEY
 };
