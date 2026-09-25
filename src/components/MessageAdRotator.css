@@ -1,71 +1,223 @@
-/* Slim Google AdSense Unit directly above like & copy buttons */
-.message-ad-rotator.google-ad-wrapper {
-  display: flex;
-  flex-direction: column;
-  margin: 6px 0 8px 0;
-  padding: 6px 10px;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+/* Slim Rotating Google Ads Unit */
+.message-ad-rotator.google-rotator-wrapper {
+  margin: 6px 0 4px 0;
+  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid #4285F4;
   border-radius: 8px;
-  min-height: 50px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
   overflow: hidden;
-  transition: all 0.2s ease;
+  user-select: none;
+  transition: all 0.25s ease;
 }
 
-.message-ad-rotator.google-ad-wrapper:hover {
-  background: rgba(15, 23, 42, 0.65);
-  border-color: rgba(66, 133, 244, 0.3);
+.message-ad-rotator.google-rotator-wrapper:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(66, 133, 244, 0.35);
 }
 
-.google-ad-header {
+.google-rotator-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
-  font-size: 10px;
-  color: #94a3b8;
-  letter-spacing: 0.3px;
-  user-select: none;
+  width: 100%;
+  gap: 8px;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-.google-ad-tag {
+.google-rotator-content.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.google-rotator-content.fade-out {
+  opacity: 0;
+  transform: translateY(-2px);
+}
+
+.google-rotator-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.google-rotator-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1.5px 5px;
+  border: 1px solid #4285F4;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  text-transform: uppercase;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  color: #cbd5e1;
+  gap: 3px;
 }
 
-.google-icon-svg {
-  display: inline-block;
-  vertical-align: middle;
+.rotating-icon {
+  font-size: 7.5px;
+  animation: adSpin 6s linear infinite;
 }
 
-.google-ad-sub {
-  font-size: 9.5px;
-  color: #64748b;
-  font-weight: 500;
+@keyframes adSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.google-ad-slot-frame {
-  width: 100%;
-  min-height: 50px;
+.google-rotator-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.google-rotator-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   overflow: hidden;
-  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-/* Light mode support */
-[data-theme='light'] .message-ad-rotator.google-ad-wrapper {
+.google-rotator-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.google-rotator-sep {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.google-rotator-desc {
+  font-size: 10.5px;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.google-rotator-right {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.google-rotator-arrows {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rotator-arrow-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.2s;
+}
+
+.rotator-arrow-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.google-rotator-dots {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.rotator-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rotator-dot.active {
+  width: 10px;
+  border-radius: 999px;
+}
+
+.google-rotator-action-btn {
+  border: none;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.google-rotator-action-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-0.5px);
+}
+
+.google-rotator-close-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.google-rotator-close-btn:hover {
+  color: #ef4444;
+}
+
+/* Light Theme */
+[data-theme='light'] .message-ad-rotator.google-rotator-wrapper {
   background: rgba(248, 250, 252, 0.9);
   border-color: rgba(0, 0, 0, 0.08);
+  border-left-color: #4285F4;
 }
 
-[data-theme='light'] .google-ad-tag {
-  color: #1e293b;
+[data-theme='light'] .google-rotator-title {
+  color: #0f172a;
 }
 
-[data-theme='light'] .google-ad-sub {
-  color: #94a3b8;
+[data-theme='light'] .google-rotator-desc {
+  color: #475569;
+}
+
+[data-theme='light'] .google-rotator-badge {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 640px) {
+  .google-rotator-desc,
+  .google-rotator-sep,
+  .google-rotator-arrows {
+    display: none;
+  }
 }

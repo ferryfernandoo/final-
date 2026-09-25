@@ -2411,6 +2411,7 @@
   flex: 1 1 0% !important;
   min-height: 0 !important;
   overflow-y: auto !important;
+  touch-action: pan-y !important;
   padding: 32px 48px 120px 48px; /* Add extra bottom padding for input on mobile */
   display: flex;
   flex-direction: column;

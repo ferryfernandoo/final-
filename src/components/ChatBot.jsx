@@ -4382,6 +4382,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     messagesContainer.addEventListener('wheel', handleWheel, { passive: true });
     messagesContainer.addEventListener('pointerdown', handleUserInteraction, { passive: true });
     messagesContainer.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    messagesContainer.addEventListener('touchmove', handleUserInteraction, { passive: true });
     
     // Triple-click to jump to bottom
     const handleTripleClick = () => {
@@ -4417,7 +4418,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         messagesContainer.removeEventListener('wheel', handleWheel);
         messagesContainer.removeEventListener('pointerdown', handleUserInteraction);
         messagesContainer.removeEventListener('touchstart', handleUserInteraction);
+        messagesContainer.removeEventListener('touchmove', handleUserInteraction);
         messagesContainer.removeEventListener('triple-click', handleTripleClick);
+        messagesContainer.removeEventListener('click', handleClick);
       } catch (_err) {
         console.log('Remove scroll listener error:', _err);
       }
@@ -6974,17 +6977,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const scrollElement = document.querySelector('.messages-container');
     if (!scrollElement || targetScrollTop === null || targetScrollTop === undefined) return;
 
-    targetScrollTopRef.current = targetScrollTop;
+    const maxScroll = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+    const clampedTarget = Math.max(0, Math.min(targetScrollTop, maxScroll));
+    targetScrollTopRef.current = clampedTarget;
 
     if (lazyScrollAnimRef.current) return;
 
     let lastTime = performance.now();
+    const startTime = lastTime;
+    let prevPos = scrollElement.scrollTop;
 
     const animateGlide = (currentTime) => {
       const el = document.querySelector('.messages-container');
       if (!el || targetScrollTopRef.current === null) {
-        lazyScrollAnimRef.current = null;
-        programmaticScrollRef.current = false;
+        stopGlide();
+        return;
+      }
+
+      // Hard safety guard: stop after 900ms to guarantee scroll container is never locked
+      if (currentTime - startTime > 900) {
+        stopGlide();
         return;
       }
 
@@ -6992,21 +7004,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       lastTime = currentTime;
 
       const current = el.scrollTop;
-      const target = targetScrollTopRef.current;
+      const effectiveMax = Math.max(0, el.scrollHeight - el.clientHeight);
+      const target = Math.max(0, Math.min(targetScrollTopRef.current, effectiveMax));
       const diff = target - current;
 
-      // When difference is tiny (< 1px), snap cleanly and stop completely ("ngerem")
-      if (Math.abs(diff) < 1) {
+      // When difference is tiny or position is stuck at container boundary, stop completely
+      if (Math.abs(diff) < 1.5 || (Math.abs(current - prevPos) < 0.2 && Math.abs(diff) < 8)) {
         el.scrollTop = target;
-        lazyScrollAnimRef.current = null;
-        targetScrollTopRef.current = null;
-        setTimeout(() => { programmaticScrollRef.current = false; }, 40);
+        stopGlide();
         return;
       }
+      prevPos = current;
 
-      // Smooth exponential decay:
-      // decay factor = 1 - Math.exp(-lambda * dt)
-      // lambda = 8.0 provides a soft, buttery initial glide and a realistic smooth deceleration ("ngerem")
       const decay = 1 - Math.exp(-8.0 * dt);
       const step = diff * decay;
 
