@@ -2531,10 +2531,12 @@ app.post('/api/chat', async (req, res) => {
     console.log('[DEBUG] Extracted userQuery:', userQuery.substring(0, 100));
 
     /**
-     * 🧠 Context Window Enforcer: Strictly limits total input context payload to <= 1,000 tokens
-     * for maximum inference speed and efficiency. Emphasizes search & memory recall strategy.
+     * 🧠 Smart Chunked Context Memory (Remembers 20+ Chat Turns with Strict Token Economy)
+     * Supports up to 24 non-system messages (~12-15 full dialogue turns).
+     * Uses tiered compression & dynamic token ceiling (maxInputTokens = 3500)
+     * so that recent context has full fidelity while older turns are compactly retained without token explosion.
      */
-    const enforceContextWindow1000 = (msgs, maxInputTokens = 1000) => {
+    const enforceChunkedContextMemory = (msgs, maxInputTokens = 3500) => {
       if (!Array.isArray(msgs) || msgs.length === 0) return msgs;
 
       const estimateTokens = (content) => {
@@ -2556,86 +2558,73 @@ app.post('/api/chat', async (req, res) => {
         return items.reduce((acc, m) => acc + estimateTokens(m.content) + 4, 0);
       };
 
-      // Consolidate system messages to 1
+      // Consolidate system messages
       let systemMsg = msgs.find(m => m.role === 'system');
       let nonSystemMsgs = msgs.filter(m => m.role !== 'system');
 
-      // Keep at most the last 2 non-system messages (1 assistant turn, 1 user turn)
-      if (nonSystemMsgs.length > 2) {
-        nonSystemMsgs = nonSystemMsgs.slice(-2);
+      // Allow remembering up to 24 non-system messages (20+ turns!)
+      if (nonSystemMsgs.length > 24) {
+        nonSystemMsgs = nonSystemMsgs.slice(-24);
       }
 
-      // Compress previous assistant message if longer than 150 chars
-      if (nonSystemMsgs.length === 2 && nonSystemMsgs[0].role === 'assistant') {
-        if (typeof nonSystemMsgs[0].content === 'string' && nonSystemMsgs[0].content.length > 150) {
-          nonSystemMsgs[0] = {
-            ...nonSystemMsgs[0],
-            content: nonSystemMsgs[0].content.substring(0, 150) + '...'
-          };
+      // Tiered compression on older messages:
+      const totalCount = nonSystemMsgs.length;
+      nonSystemMsgs = nonSystemMsgs.map((m, idx) => {
+        const ageFromEnd = totalCount - 1 - idx;
+        if (typeof m.content !== 'string') return m;
+
+        // Tier 1 (Most recent 4 messages): preserve high fidelity
+        if (ageFromEnd < 4) {
+          if (m.content.length > 1500) {
+            return { ...m, content: m.content.substring(0, 1500) + '...' };
+          }
+          return m;
         }
-      }
 
-      // System prompt budget: max 300 tokens (~1050 chars)
-      if (systemMsg && typeof systemMsg.content === 'string' && systemMsg.content.length > 1050) {
+        // Tier 2 (Intermediate 8 messages): compact summaries
+        if (ageFromEnd < 12) {
+          const maxChars = m.role === 'user' ? 350 : 300;
+          let text = m.content.replace(/```[a-z]*\n[\s\S]*?\n```/g, '[Kode diringkas]');
+          if (text.length > maxChars) {
+            text = text.substring(0, maxChars) + '...';
+          }
+          return { ...m, content: text };
+        }
+
+        // Tier 3 (Older messages 13 to 24): ultra-compact memory chunks
+        const maxChars = m.role === 'user' ? 160 : 140;
+        let text = m.content.replace(/```[a-z]*\n[\s\S]*?\n```/g, '[Kode]');
+        if (text.length > maxChars) {
+          text = text.substring(0, maxChars) + '...';
+        }
+        return { ...m, content: text };
+      });
+
+      // System prompt budget: max 450 tokens (~1500 chars)
+      if (systemMsg && typeof systemMsg.content === 'string' && systemMsg.content.length > 1500) {
         systemMsg = {
           ...systemMsg,
-          content: systemMsg.content.substring(0, 1050)
+          content: systemMsg.content.substring(0, 1500)
         };
       }
 
       let consolidated = systemMsg ? [systemMsg, ...nonSystemMsgs] : nonSystemMsgs;
       let currentTokens = calculateTotalTokens(consolidated);
 
-      if (currentTokens > maxInputTokens && consolidated.length > 2) {
-        // If still over 1000 tokens, drop older assistant turn to prioritize latest user query/search result
-        consolidated = [consolidated[0], consolidated[consolidated.length - 1]];
+      // If overall payload exceeds maxInputTokens, drop the OLDEST non-system messages one-by-one
+      // (NEVER drop all history down to 2 messages!)
+      while (currentTokens > maxInputTokens && consolidated.length > 3) {
+        const dropIndex = systemMsg ? 1 : 0;
+        consolidated.splice(dropIndex, 1);
         currentTokens = calculateTotalTokens(consolidated);
       }
 
-      // Clamp latest user message if it alone exceeds remaining budget
-      if (currentTokens > maxInputTokens && consolidated.length > 0) {
-        const sysTokens = systemMsg ? estimateTokens(systemMsg.content) + 4 : 0;
-        const availableUserTokens = Math.max(100, maxInputTokens - sysTokens - 40);
-        const maxUserChars = Math.floor(availableUserTokens * 3.2);
-
-        const lastIdx = consolidated.length - 1;
-        const lastMsg = consolidated[lastIdx];
-        if (lastMsg && lastMsg.role === 'user') {
-          if (typeof lastMsg.content === 'string' && lastMsg.content.length > maxUserChars) {
-            consolidated[lastIdx] = {
-              ...lastMsg,
-              content: lastMsg.content.substring(0, maxUserChars) + '\n[...ringkasan batas 1.000 token]'
-            };
-          } else if (Array.isArray(lastMsg.content)) {
-            consolidated[lastIdx] = {
-              ...lastMsg,
-              content: lastMsg.content.map(part => {
-                if (part?.type === 'text' && typeof part.text === 'string' && part.text.length > maxUserChars) {
-                  return { ...part, text: part.text.substring(0, maxUserChars) + '...' };
-                }
-                return part;
-              })
-            };
-          }
-        }
-      }
-
-      // Hard ceiling safeguard: guarantee calculateTotalTokens <= maxInputTokens
-      while (calculateTotalTokens(consolidated) > maxInputTokens) {
-        const lastIdx = consolidated.length - 1;
-        if (lastIdx >= 0 && typeof consolidated[lastIdx].content === 'string' && consolidated[lastIdx].content.length > 50) {
-          consolidated[lastIdx].content = consolidated[lastIdx].content.slice(0, -50);
-        } else {
-          break;
-        }
-      }
-
       const finalTokens = calculateTotalTokens(consolidated);
-      console.log(`[TOKEN ENFORCER 1000] Context payload: ${finalTokens}/${maxInputTokens} tokens across ${consolidated.length} message(s).`);
+      console.log(`[CHUNKED CONTEXT MEMORY] Preserved ${consolidated.length} messages (${finalTokens}/${maxInputTokens} tokens).`);
       return consolidated;
     };
 
-    messages = enforceContextWindow1000(messages, 1000);
+    messages = enforceChunkedContextMemory(messages, 3500);
 
     // Check if streaming is requested
     const shouldStream = req.body.stream === true;

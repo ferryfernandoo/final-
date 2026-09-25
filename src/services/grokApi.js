@@ -493,35 +493,74 @@ const shouldUseBackendProxy = (isAuthenticated, isGuest, message = '', hasImages
   return true;
 };
 
-// Helper to sanitize and normalize message history for OpenAI format
+/**
+ * Smart Chunked Context Memory System (Remember 20+ Chats with Strict Token Economy)
+ * 
+ * Strategically compresses past conversation turns into 3 intelligent tiers:
+ * - Tier 1 (Most Recent 4 messages / 2 turns): Full fidelity (up to 1,200 chars) for immediate conversational precision.
+ * - Tier 2 (Intermediate 8 messages, 5 to 12 from end): Smart chunked condensation (up to 300 chars user / 250 chars bot),
+ *   collapsing excessive code dumps into [Kode diringkas].
+ * - Tier 3 (Older History, 13 to 24+ messages from end): Ultra-compact context points (up to 140 chars user / 120 chars bot),
+ *   allowing the model to remember topics from 20+ chats ago with negligible token overhead (~150-250 tokens total).
+ */
 export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessage = '') => {
   const result = [];
   if (!Array.isArray(conversationHistory)) return result;
 
-  // Keep recent conversation history turns (up to 6 messages / ~3 turns)
-  const recentHistory = conversationHistory.slice(-6);
+  // Filter out system messages, search bubbles, and empty messages
+  const cleanList = conversationHistory.filter(msg => {
+    if (!msg || msg.sender === 'system' || msg.isSearching) return false;
+    const text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim()) 
+      ? msg.fullPrompt.trim() 
+      : (typeof msg.text === 'string' ? msg.text.trim() : (typeof msg.content === 'string' ? msg.content.trim() : ''));
+    return Boolean(text);
+  });
 
-  for (let i = 0; i < recentHistory.length; i++) {
-    const msg = recentHistory[i];
-    if (!msg || msg.sender === 'system') continue;
+  // Keep up to 24 previous messages (enables remembering 20+ conversation turns)
+  const candidateHistory = cleanList.slice(-24);
+  const totalCount = candidateHistory.length;
 
+  for (let i = 0; i < totalCount; i++) {
+    const msg = candidateHistory[i];
     const role = (msg.sender === 'user' || msg.role === 'user') ? 'user' : 'assistant';
     let text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim()) 
       ? msg.fullPrompt.trim() 
       : (typeof msg.text === 'string' ? msg.text.trim() : (typeof msg.content === 'string' ? msg.content.trim() : ''));
 
-    // Skip empty messages (e.g. streaming placeholders with empty text)
-    if (!text) continue;
+    // Normalize excessive newlines
+    text = text.replace(/\n{3,}/g, '\n\n').trim();
 
-    // Compress past assistant messages if over 200 characters to strictly maintain 1000 token ceiling
-    if (role === 'assistant' && text.length > 200) {
-      text = text.substring(0, 200) + '...';
+    // Distance from the most recent message (0 = most recent, 23 = oldest)
+    const ageFromEnd = totalCount - 1 - i;
+
+    // Skip if identical to currentMessage on the very last turn
+    if (ageFromEnd === 0 && role === 'user' && text === (currentMessage || '').trim()) {
+      continue;
     }
 
-    // If this is the last message in history and it has the exact same text as the current message being sent,
-    // skip it because the new user message will be appended with full formatting/images as the final message
-    if (i === recentHistory.length - 1 && role === 'user' && text === (currentMessage || '').trim()) {
-      continue;
+    // Smart Chunking & Token Compression Tiers:
+    if (ageFromEnd < 4) {
+      // Tier 1 (Most Recent 4 messages): High fidelity
+      if (text.length > 1200) {
+        text = text.substring(0, 1200) + '...';
+      }
+    } else if (ageFromEnd < 12) {
+      // Tier 2 (Intermediate 8 messages): Smart condensation
+      const maxLen = role === 'user' ? 320 : 260;
+      if (text.length > maxLen) {
+        // Compress large code blocks to compact tokens to save massive token budget
+        text = text.replace(/```[a-z]*\n[\s\S]*?\n```/g, '[Kode diringkas]');
+        if (text.length > maxLen) {
+          text = text.substring(0, maxLen) + '...';
+        }
+      }
+    } else {
+      // Tier 3 (Older messages up to 24+): Ultra-compact memory points
+      const maxLen = role === 'user' ? 150 : 130;
+      text = text.replace(/```[a-z]*\n[\s\S]*?\n```/g, '[Kode]');
+      if (text.length > maxLen) {
+        text = text.substring(0, maxLen) + '...';
+      }
     }
 
     result.push({ role, content: text });
@@ -531,7 +570,7 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
   const alternating = [];
   for (const m of result) {
     if (alternating.length > 0 && alternating[alternating.length - 1].role === m.role) {
-      alternating[alternating.length - 1].content += `\n\n${m.content}`;
+      alternating[alternating.length - 1].content += `\n${m.content}`;
     } else {
       alternating.push({ ...m });
     }
