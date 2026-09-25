@@ -13,7 +13,7 @@ export default function MessageAdRotator({ userLanguage = 'id' }) {
   // Absolutely ZERO fallback videos, ZERO local drive files, ZERO cloud bucket files
   const googleAdsVideoCampaigns = [
     {
-      id: 'gads_official_overview',
+      id: 'gads_meridian_overview',
       tag: 'Google Ads',
       title: userLanguage === 'id' 
         ? 'Google Ads — Tingkatkan Bisnis Anda' 
@@ -23,23 +23,10 @@ export default function MessageAdRotator({ userLanguage = 'id' }) {
         : 'Reach millions of potential customers when they search on Google.',
       cta: userLanguage === 'id' ? 'Mulai Sekarang' : 'Get Started',
       url: 'https://ads.google.com/',
-      youtubeId: 'z8aOQ3K1xY0' // Official Google Ads overview
+      youtubeId: 'X3ksrQ1U1SI' // Official Google Ads & Analytics (Active & Embeddable)
     },
     {
-      id: 'gyoutube_official_video',
-      tag: 'YouTube Ads',
-      title: userLanguage === 'id' 
-        ? 'YouTube Ads — Raih Audiens Baru' 
-        : 'YouTube Ads — Reach New Audiences',
-      desc: userLanguage === 'id' 
-        ? 'Tampilkan iklan video Anda kepada audiens yang tepat di seluruh platform YouTube.' 
-        : 'Show your video ads to the right audience across the YouTube platform.',
-      cta: userLanguage === 'id' ? 'Pasang Iklan' : 'Advertise Now',
-      url: 'https://ads.google.com/intl/id_id/home/campaigns/video-ads/',
-      youtubeId: '1Yk6D7R2hN4' // Official YouTube Ads campaign
-    },
-    {
-      id: 'gads_growth_video',
+      id: 'gads_analytics_budget',
       tag: 'Google Ads',
       title: userLanguage === 'id' 
         ? 'Google Ads — Maksimalkan Penjualan' 
@@ -47,9 +34,22 @@ export default function MessageAdRotator({ userLanguage = 'id' }) {
       desc: userLanguage === 'id' 
         ? 'Tingkatkan kunjungan situs dan penjualan toko dengan teknologi periklanan Google AI.' 
         : 'Drive website visits and sales with Google AI advertising technology.',
+      cta: userLanguage === 'id' ? 'Pasang Iklan' : 'Advertise Now',
+      url: 'https://ads.google.com/intl/id_id/home/',
+      youtubeId: 'NpPmidwdZPU' // Official Google Ads Channel Budgeting (Active & Embeddable)
+    },
+    {
+      id: 'gads_ai_meridian',
+      tag: 'Google AI',
+      title: userLanguage === 'id' 
+        ? 'Google AI — Teknologi Periklanan Cerdas' 
+        : 'Google AI — Smart Advertising Technology',
+      desc: userLanguage === 'id' 
+        ? 'Optimalkan performa iklan otomatis dengan machine learning terdepan dari Google.' 
+        : 'Optimize automated ad performance with cutting-edge machine learning from Google.',
       cta: userLanguage === 'id' ? 'Pelajari Selengkapnya' : 'Learn More',
       url: 'https://ads.google.com/',
-      youtubeId: 'gT8wN-6u6yQ' // Official Google Ads Beginner & Growth
+      youtubeId: 'L2QmrfCVnBQ' // Official Google Ads AI Meridian (Active & Embeddable)
     }
   ];
 
@@ -153,12 +153,11 @@ export default function MessageAdRotator({ userLanguage = 'id' }) {
         <div className="gvideo-ad-player-box">
           <iframe
             key={currentAd.id + (isMuted ? '_muted' : '_unmuted')}
-            src={`https://www.youtube-nocookie.com/embed/${currentAd.youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&loop=1&playlist=${currentAd.youtubeId}&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&playsinline=1&enablejsapi=1`}
+            src={`https://www.youtube-nocookie.com/embed/${currentAd.youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${currentAd.youtubeId}&modestbranding=1&rel=0&playsinline=1`}
             title={currentAd.title}
             className="gvideo-ad-iframe"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            loading="lazy"
           />
           <div className="gvideo-ad-badge-overlay">Ad</div>
         </div>
