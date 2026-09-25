@@ -2623,6 +2623,7 @@ app.post('/api/chat', async (req, res) => {
       console.log(`[CHUNKED CONTEXT MEMORY] Preserved ${consolidated.length} messages (${finalTokens}/${maxInputTokens} tokens).`);
       return consolidated;
     };
+    const enforceContextWindow1000 = enforceChunkedContextMemory;
 
     messages = enforceChunkedContextMemory(messages, 3500);
 
@@ -2658,8 +2659,8 @@ app.post('/api/chat', async (req, res) => {
           }
         }
         
-        // Final guarantee: strictly enforce <= 1,000 input tokens ceiling before dispatching
-        messages = enforceContextWindow1000(messages, 1000);
+        // Final check: chunked context memory ceiling (up to 3,500 tokens for 20+ turns)
+        messages = enforceChunkedContextMemory(messages, 3500);
         
         // TokenMix model llama-4-maverick handles both standard text and vision multimodal
         const requestedModel = req.body.model || DEFAULT_CHAT_MODEL;
