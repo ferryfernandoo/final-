@@ -1,190 +1,71 @@
-/* Slim Rotating Ad Placement directly above like & copy buttons */
-.message-ad-rotator {
+/* Slim Google AdSense Unit directly above like & copy buttons */
+.message-ad-rotator.google-ad-wrapper {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 6px 0 4px 0;
-  padding: 4px 10px;
-  background: rgba(15, 23, 42, 0.55);
+  flex-direction: column;
+  margin: 6px 0 8px 0;
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 3px solid #ea580c;
   border-radius: 8px;
-  font-size: 11.5px;
-  min-height: 32px;
-  animation: adSlideFadeIn 0.35s ease-out;
-  transition: all 0.25s ease;
+  min-height: 50px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.message-ad-rotator.google-ad-wrapper:hover {
+  background: rgba(15, 23, 42, 0.65);
+  border-color: rgba(66, 133, 244, 0.3);
+}
+
+.google-ad-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: #94a3b8;
+  letter-spacing: 0.3px;
   user-select: none;
 }
 
-.message-ad-rotator:hover {
-  background: rgba(15, 23, 42, 0.75);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-@keyframes adSlideFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.message-ad-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow: hidden;
-  flex: 1;
-  min-width: 0;
-}
-
-.message-ad-badge {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  padding: 1.5px 5px;
-  border: 1px solid rgba(234, 88, 12, 0.4);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  text-transform: uppercase;
-  flex-shrink: 0;
+.google-ad-tag {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-}
-
-.ad-rotate-icon {
-  font-size: 8px;
-  animation: adSpin 8s linear infinite;
-}
-
-@keyframes adSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.message-ad-icon {
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.message-ad-text {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.message-ad-title {
+  gap: 5px;
   font-weight: 600;
-  color: #f1f5f9;
-  font-size: 11px;
+  color: #cbd5e1;
 }
 
-.message-ad-sep {
+.google-icon-svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.google-ad-sub {
+  font-size: 9.5px;
   color: #64748b;
-  font-size: 10px;
+  font-weight: 500;
 }
 
-.message-ad-desc {
-  color: #94a3b8;
-  font-size: 10.5px;
+.google-ad-slot-frame {
+  width: 100%;
+  min-height: 50px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
 }
 
-.message-ad-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  margin-left: 10px;
-}
-
-.message-ad-dots {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.ad-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.ad-dot.active {
-  width: 10px;
-  border-radius: 999px;
-  background: #ea580c;
-}
-
-.message-ad-action-btn {
-  border: none;
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.message-ad-action-btn:hover {
-  filter: brightness(1.15);
-  transform: translateY(-0.5px);
-}
-
-.message-ad-close-btn {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0 3px;
-  line-height: 1;
-  transition: color 0.2s;
-}
-
-.message-ad-close-btn:hover {
-  color: #ef4444;
-}
-
-/* Light Mode Overrides */
-[data-theme='light'] .message-ad-rotator {
-  background: rgba(241, 245, 249, 0.85);
+/* Light mode support */
+[data-theme='light'] .message-ad-rotator.google-ad-wrapper {
+  background: rgba(248, 250, 252, 0.9);
   border-color: rgba(0, 0, 0, 0.08);
-  border-left-color: #ea580c;
 }
 
-[data-theme='light'] .message-ad-title {
-  color: #0f172a;
+[data-theme='light'] .google-ad-tag {
+  color: #1e293b;
 }
 
-[data-theme='light'] .message-ad-desc {
-  color: #475569;
-}
-
-[data-theme='light'] .message-ad-badge {
-  background: rgba(255, 255, 255, 0.7);
-}
-
-@media (max-width: 640px) {
-  .message-ad-desc {
-    display: none;
-  }
-  .message-ad-sep {
-    display: none;
-  }
+[data-theme='light'] .google-ad-sub {
+  color: #94a3b8;
 }

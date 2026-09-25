@@ -10778,10 +10778,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           {message.sender === 'bot' && !message.isStreaming && isLastMessage && (
             <div className="message-footer">
-              {/* Iklan kecil tipis diputar di bawah pesan AI di atas tombol like dan salin */}
+              {/* Iklan resmi Google AdSense tipis di bawah pesan AI di atas tombol like dan salin */}
               <MessageAdRotator 
-                onSupportClick={() => setShowDonationModal(true)}
-                onNavigate={onNavigate}
                 userLanguage={userLanguage}
               />
 
@@ -11911,7 +11909,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         {/* AdSense / Sponsor Ad Placement */}
         <AdBanner 
           className="sidebar-ad-slot"
-          onSupportClick={() => setShowDonationModal(true)} 
         />
 
         {/* Sidebar Footer (Settings & Profile) */}
