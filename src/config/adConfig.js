@@ -1,19 +1,25 @@
 /**
- * Configuration for Google AdSense and Monetization
- * You can override these using .env variables:
- * VITE_ADSENSE_CLIENT_ID='ca-pub-6822768824603153'
- * VITE_ADSENSE_SIDEBAR_SLOT='1234567890'
- * VITE_ADSENSE_CHAT_SLOT='0987654321'
- * VITE_ADSENSE_ENABLED='true'
+ * Configuration for Ad Networks (Adsterra & Google AdSense)
  */
 export const AD_CONFIG = {
-  // Replace with your real AdSense Publisher ID (e.g., 'ca-pub-1234567890123456')
+  // Active Ad Network Provider: 'adsterra' | 'adsense'
+  activeProvider: import.meta.env.VITE_AD_PROVIDER || 'adsterra',
+
+  // Adsterra Network Configuration
+  adsterra: {
+    bannerKey: import.meta.env.VITE_ADSTERRA_BANNER_KEY || '7317733ecee97feb95833c9722b8d59f',
+    scriptUrl: 'https://pl31510602.profitableratecpmnetwork.com/7317733ecee97feb95833c9722b8d59f/invoke.js',
+    containerId: 'container-7317733ecee97feb95833c9722b8d59f',
+    placementId: '6077087',
+    format: '300x50',
+    enabled: true,
+  },
+
+  // Google AdSense Configuration (Preserved for when approved)
   adClient: import.meta.env.VITE_ADSENSE_CLIENT_ID || 'ca-pub-6822768824603153',
   sidebarSlotId: import.meta.env.VITE_ADSENSE_SIDEBAR_SLOT || '',
   chatBottomSlotId: import.meta.env.VITE_ADSENSE_CHAT_SLOT || '',
-  // Set to true once your AdSense account is approved
   enabled: true,
-  // Show subtle QRIS/sponsor fallback while AdSense is pending
   showDirectSponsorFallback: true,
 };
 

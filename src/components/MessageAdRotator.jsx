@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AD_CONFIG from '../config/adConfig';
+import AdsterraBanner from './AdsterraBanner';
 import './MessageAdRotator.css';
 
 export default function MessageAdRotator({ userLanguage = 'id' }) {
+  // If activeProvider is set to Adsterra, render the sleek 300x50 Adsterra banner unit
+  if (AD_CONFIG?.activeProvider === 'adsterra') {
+    return <AdsterraBanner width={320} height={50} />;
+  }
+
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
