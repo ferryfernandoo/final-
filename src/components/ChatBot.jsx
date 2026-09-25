@@ -5995,8 +5995,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (!text) return text;
 
     let redirectCards = [];
-    // Mask any 3rd-party branding to Deepernova AI
-    let tempText = text.replace(/\bDeepseek\b/gi, 'Deepernova AI');
+    let tempText = text;
     // Strip generated image markdown so it doesn't render as raw text
     tempText = tempText.replace(/!\[Generated Image\]\([^)]+\)/g, '');
     // Strip search, recall memory, and autonomous memory request tags

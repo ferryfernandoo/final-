@@ -139,12 +139,7 @@ const VoiceChat = ({ onClose, userLanguage = 'id', isAuthenticated = false, isGu
 
   const sanitizeVoiceText = (text) => {
     if (!text) return text;
-    return text
-      .replace(/\bDeepseek\b/g, 'Deepernova AI')
-      .replace(/\bdeepseek\b/g, 'Deepernova AI')
-      .replace(/\bDeepseek API\b/gi, 'Deepernova AI')
-      .replace(/\bdeepseek API\b/gi, 'Deepernova AI')
-      .replace(/\bdeepseek\.com\b/gi, 'deepernova.ai');
+    return text;
   };
 
   // Auto-apply speed berdasarkan language

@@ -21,13 +21,7 @@ const DEEPSEEK_API_URL = USE_MOCK
  */
 function sanitizeThirdPartyMentions(text) {
   if (typeof text !== 'string') return text;
-  return text
-    .replace(/deepseek/gi, 'Deepernova AI')
-    .replace(/grok/gi, 'Deepernova Flash')
-    .replace(/tokenmix/gi, 'Deepernova Network')
-    .replace(/openai/gi, 'Deepernova Neural')
-    .replace(/chatgpt/gi, 'Deepernova Chat')
-    .replace(/anthropic|claude/gi, 'Deepernova Pro');
+  return text;
 }
 
 class ApiProxyService {
@@ -120,11 +114,11 @@ class ApiProxyService {
       const responseData = await deepseekResponse.json();
       console.log('[chatCompletions] Got response with', responseData.choices?.length, 'choices');
 
-      // sanitize any provider mentions in returned text
+      // preserve response text
       if (responseData.choices) {
         for (const ch of responseData.choices) {
           if (ch.message && typeof ch.message.content === 'string') {
-            ch.message.content = ch.message.content.replace(/Deepseek/gi, 'DeepernNova');
+            // keep content intact
           }
         }
       }
