@@ -38,6 +38,19 @@
       ]
     },
     {
+      "source": "/adsterra-banner.html",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss:; frame-ancestors 'self' https://deepernova.com https://www.deepernova.com; object-src 'none';"
+        }
+      ]
+    },
+    {
       "source": "/",
       "headers": [
         {
