@@ -2930,6 +2930,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const holdScrollRef = useRef(false);
   const programmaticScrollRef = useRef(false);
   const lastScrollTickRef = useRef(0);
+  const isLockedToUserAskRef = useRef(false);
+  const lockedUserMessageIdRef = useRef(null);
 
   const stopGlide = () => {
     if (lazyScrollAnimRef.current) {
@@ -3790,6 +3792,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     setMessages([]);
     setCompactView(true);
     setIsPrivateChat(false);
+    isLockedToUserAskRef.current = false;
+    lockedUserMessageIdRef.current = null;
     // Reset all image state to prevent reference images from leaking across sessions
     setActiveImageFollowUps([]);
     setUploadedImages([]);
@@ -3891,11 +3895,11 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     if (lastLoadedConversationIdRef.current === currentConversationId) return;
     lastLoadedConversationIdRef.current = currentConversationId;
 
-    // Never auto-scroll to bottom during an active chat turn, generation, or right after finish
-    if (isGenerating || isSendGeneratingRef.current || isProcessingRef.current) return;
+    // Never auto-scroll to bottom during an active chat turn, generation, or when locked to user ask
+    if (isGenerating || isSendGeneratingRef.current || isProcessingRef.current || isLockedToUserAskRef.current) return;
 
     const scrollTimer = setTimeout(() => {
-      if (!isGenerating && !isSendGeneratingRef.current && !isProcessingRef.current) {
+      if (!isGenerating && !isSendGeneratingRef.current && !isProcessingRef.current && !isLockedToUserAskRef.current) {
         scrollToBottom(true);
       }
     }, 100);
@@ -4385,6 +4389,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // ALWAYS kill any auto-scroll animation immediately when user scrolls wheel
         stopGlide();
 
+        if (Math.abs(_e.deltaY) > 2) {
+          isLockedToUserAskRef.current = false;
+        }
+
         if (_e.deltaY < 0) {
           // User scrolled up: pause auto-scroll to respect reading position
           holdScrollRef.current = true;
@@ -4402,16 +4410,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     };
 
-    const handleUserInteraction = () => {
-      // User tapped or touched the container - immediately stop any active animation
+    const handleTouchMove = () => {
+      // User manually drags/swipes on touch screen
+      isLockedToUserAskRef.current = false;
       stopGlide();
     };
 
     messagesContainer.addEventListener('scroll', handleScroll, { passive: true });
     messagesContainer.addEventListener('wheel', handleWheel, { passive: true });
-    messagesContainer.addEventListener('pointerdown', handleUserInteraction, { passive: true });
-    messagesContainer.addEventListener('touchstart', handleUserInteraction, { passive: true });
-    messagesContainer.addEventListener('touchmove', handleUserInteraction, { passive: true });
+    messagesContainer.addEventListener('touchmove', handleTouchMove, { passive: true });
     
     // Triple-click to jump to bottom
     const handleTripleClick = () => {
@@ -4445,9 +4452,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       try {
         messagesContainer.removeEventListener('scroll', handleScroll);
         messagesContainer.removeEventListener('wheel', handleWheel);
-        messagesContainer.removeEventListener('pointerdown', handleUserInteraction);
-        messagesContainer.removeEventListener('touchstart', handleUserInteraction);
-        messagesContainer.removeEventListener('touchmove', handleUserInteraction);
+        messagesContainer.removeEventListener('touchmove', handleTouchMove);
         messagesContainer.removeEventListener('triple-click', handleTripleClick);
         messagesContainer.removeEventListener('click', handleClick);
       } catch (_err) {
@@ -4629,6 +4634,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setError(null);
       setCompactView(true);
       rememberConversationId(convId);
+      isLockedToUserAskRef.current = false;
+      lockedUserMessageIdRef.current = null;
       
       // Auto-scroll to bottom when opening/switching to a room
       setTimeout(() => {
@@ -5418,17 +5425,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     };
     
     setMessages((prev) => [...prev, botMessage]);
-    // Scroll so edited user message glides to top
+    // Lock edited user message cleanly to top
     holdScrollRef.current = false;
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        try {
-          scrollToUserMessage(false);
-        } catch (err) {
-          console.log('Edit message scroll error:', err);
-        }
-      }, 35);
-    });
+    isLockedToUserAskRef.current = true;
+    lockedUserMessageIdRef.current = newUserMessage.id;
+    scrollToUserMessage(true);
 
     // Start streaming
     streamingStartTimeRef.current = Date.now();
@@ -6978,56 +6979,45 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (!userMessages || userMessages.length === 0) return null;
 
     let targetUserMsg = null;
-    if (lastSentUserMessageIdRef.current) {
-      targetUserMsg = container.querySelector(`[data-msg-id="${lastSentUserMessageIdRef.current}"]`);
+    const targetId = lockedUserMessageIdRef.current || lastSentUserMessageIdRef.current;
+    if (targetId) {
+      targetUserMsg = container.querySelector(`[data-msg-id="${targetId}"]`);
     }
     if (!targetUserMsg) {
       targetUserMsg = userMessages[userMessages.length - 1];
     }
+    if (!targetUserMsg) return null;
 
     const containerRect = container.getBoundingClientRect();
     const userBubble = targetUserMsg.querySelector('.message-content') || targetUserMsg.querySelector('.user-bubble-wrapper') || targetUserMsg;
     const bubbleRect = userBubble.getBoundingClientRect();
 
-    // Position the user ask bubble cleanly at the top of the container (~8px breathing space)
+    // Position the user ask bubble cleanly at the top of the container (~8px breathing space below header)
     const targetTop = container.scrollTop + (bubbleRect.top - containerRect.top) - 8;
-    const maxScroll = container.scrollHeight - container.clientHeight;
+    const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
 
     return Math.max(0, Math.min(targetTop, maxScroll));
   };
 
-  // Helper to calculate target scroll while streaming:
-  // - Anchors user message at top if response fits on screen
-  // - Gently glides down only when response exceeds the bottom boundary
-  const getStreamingFollowTarget = (container) => {
-    if (!container) return 0;
-    const userTargetTop = getLastUserMessageTargetTop(container);
+  // Rock-solid lock: keeps user ask bubble anchored cleanly at the top
+  const lockUserAskToTop = (isImmediate = true) => {
+    if (holdScrollRef.current) return;
+    const el = document.querySelector('.messages-container');
+    if (!el) return;
 
-    const botMessages = container.querySelectorAll('.message.bot');
-    if (!botMessages || botMessages.length === 0) {
-      return userTargetTop !== null ? userTargetTop : Math.max(0, container.scrollHeight - container.clientHeight);
+    const target = getLastUserMessageTargetTop(el);
+    if (target === null || isNaN(target)) return;
+
+    const diff = Math.abs(el.scrollTop - target);
+    if (diff < 0.75) return; // Already precisely positioned, zero movement!
+
+    if (isImmediate) {
+      stopGlide();
+      programmaticScrollRef.current = true;
+      el.scrollTop = target;
+    } else {
+      glideToTarget(target);
     }
-
-    const lastBotMsg = botMessages[botMessages.length - 1];
-    const containerRect = container.getBoundingClientRect();
-    const botRect = lastBotMsg.getBoundingClientRect();
-
-    // Bottom edge of bot message relative to container top
-    const botBottomRel = botRect.bottom - containerRect.top;
-    // Keep 75px breathing space above input container
-    const visibleBottomLimit = container.clientHeight - 75;
-
-    if (botBottomRel <= visibleBottomLimit) {
-      // Everything fits comfortably on screen! Keep user message positioned at top.
-      return userTargetTop !== null ? userTargetTop : container.scrollTop;
-    }
-
-    // Response has expanded past viewport: smoothly scroll down just enough
-    const overflow = botBottomRel - visibleBottomLimit;
-    const neededScrollTop = container.scrollTop + overflow;
-    const maxScroll = container.scrollHeight - container.clientHeight;
-
-    return Math.max(0, Math.min(neededScrollTop, maxScroll));
   };
 
   // Ultra-silky frame-independent glide engine with smooth exponential braking ("ngerem")
@@ -7086,38 +7076,59 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     lazyScrollAnimRef.current = requestAnimationFrame(animateGlide);
   };
 
-  // Scroll so the user message glides smoothly to the top of the chat area and gently brakes ("ngerem")
-  const scrollToUserMessage = (isImmediate = false) => {
+  // Scroll so the user message locks firmly to the top of the chat area
+  const scrollToUserMessage = (isImmediate = true) => {
     holdScrollRef.current = false;
+    isLockedToUserAskRef.current = true;
     const scrollElement = document.querySelector('.messages-container');
     if (!scrollElement) return;
 
     stopGlide();
 
     const doScroll = () => {
-      // Respect user if they started manual scrolling
-      if (holdScrollRef.current) return;
-      const el = document.querySelector('.messages-container');
-      if (!el) return;
-      const target = getLastUserMessageTargetTop(el);
-      if (target !== null && !isNaN(target)) {
-        if (isImmediate) {
-          el.scrollTop = target;
-        } else {
-          glideToTarget(target);
-        }
-      }
+      if (holdScrollRef.current || !isLockedToUserAskRef.current) return;
+      lockUserAskToTop(isImmediate);
     };
 
     doScroll();
-    requestAnimationFrame(() => {
-      doScroll();
-      setTimeout(doScroll, 50);
-      setTimeout(doScroll, 120);
-      setTimeout(doScroll, 250);
-      setTimeout(doScroll, 450);
-    });
+    requestAnimationFrame(doScroll);
+    setTimeout(doScroll, 30);
+    setTimeout(doScroll, 80);
+    setTimeout(doScroll, 180);
+    setTimeout(doScroll, 350);
+    setTimeout(doScroll, 600);
+    setTimeout(doScroll, 1000);
   };
+
+  // Continuous lock keeper: ensures user ask bubble stays firmly locked at top
+  // while ads mount/resize, images load, or stream finishes without ever dropping down
+  useEffect(() => {
+    const container = document.querySelector('.messages-container');
+    if (!container) return;
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      try {
+        resizeObserver = new ResizeObserver(() => {
+          if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+            lockUserAskToTop(true);
+          }
+        });
+        resizeObserver.observe(container);
+      } catch (_e) {}
+    }
+
+    const intervalId = setInterval(() => {
+      if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+        lockUserAskToTop(true);
+      }
+    }, 120);
+
+    return () => {
+      clearInterval(intervalId);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, []);
 
   const lastProcessedUserMsgIdRef = useRef(null);
 
@@ -7152,8 +7163,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Handle scroll to bottom button click
   const handleScrollToBottomClick = () => {
-    // User explicitly requested bottom — clear hold and perform programmatic scroll
+    // User explicitly requested bottom — clear hold, release lock, and perform scroll
     holdScrollRef.current = false;
+    isLockedToUserAskRef.current = false;
+    lockedUserMessageIdRef.current = null;
     try {
       const scrollEl = document.querySelector('.messages-container');
       if (scrollEl) scrollEl.classList.remove('prefill-space');
@@ -8065,11 +8078,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // Lock user ask bubble cleanly at the top of the viewport
       holdScrollRef.current = false;
+      isLockedToUserAskRef.current = true;
+      lockedUserMessageIdRef.current = userMessageForChat.id;
       scrollToUserMessage(true);
-      requestAnimationFrame(() => {
-        scrollToUserMessage(true);
-        setTimeout(() => scrollToUserMessage(true), 50);
-      });
 
       // Execute search and synthesize with full conversational context!
       executeSearchAndSynthesize({
@@ -8140,17 +8151,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     
     // SCROLL PERTAMA - kunci bubble chat ask tepat di paling atas viewport
     holdScrollRef.current = false;
+    isLockedToUserAskRef.current = true;
+    lockedUserMessageIdRef.current = userMessageForChat.id;
     scrollToUserMessage(true);
-    requestAnimationFrame(() => {
-      scrollToUserMessage(true);
-      setTimeout(() => {
-        try {
-          scrollToUserMessage(false);
-        } catch (err) {
-          console.log('Initial scroll error:', err);
-        }
-      }, 35);
-    });
 
     try {
       // Send to Deepernova AI with conversation history for advanced context
@@ -8363,11 +8366,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       clearLoadingPhaseTimers();
 
       // Ensure user ask bubble stays anchored at the top when generating completes
-      if (!holdScrollRef.current) {
-        requestAnimationFrame(() => {
-          scrollToUserMessage(true);
-          setTimeout(() => scrollToUserMessage(true), 60);
-        });
+      if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+        lockUserAskToTop(true);
       }
 
       if (abortController.signal.aborted) {
@@ -9286,11 +9286,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       // Ensure user ask bubble stays anchored at the top after search completion
-      if (!holdScrollRef.current) {
-        requestAnimationFrame(() => {
-          scrollToUserMessage(true);
-          setTimeout(() => scrollToUserMessage(true), 60);
-        });
+      if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+        lockUserAskToTop(true);
       }
 
     } catch (searchError) {
