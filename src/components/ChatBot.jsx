@@ -8279,6 +8279,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setLoading(false);
       clearLoadingPhaseTimers();
 
+      // Ensure user ask bubble stays anchored at the top when generating completes
+      if (!holdScrollRef.current) {
+        requestAnimationFrame(() => {
+          scrollToUserMessage(true);
+          setTimeout(() => scrollToUserMessage(true), 60);
+        });
+      }
+
       if (abortController.signal.aborted) {
         return;
       }
@@ -8360,16 +8368,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
 
       
-      // Remove prefill-space setelah streaming selesai
-      const scrollEl = document.querySelector('.messages-container');
-      if (scrollEl) {
-        try {
-          scrollEl.classList.remove('prefill-space');
-        } catch (e) {
-          console.log('Error removing prefill-space:', e);
-        }
-      }
-      // Keep view stable where user was reading without forced snapping to bottom
+      // Keep view stable with user ask bubble peacefully at the top
       
 
       
@@ -9192,6 +9191,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       abortControllerRef.current = null;
       if (currentConversationId) {
         abortControllersMapRef.current.delete(currentConversationId);
+      }
+
+      // Ensure user ask bubble stays anchored at the top after search completion
+      if (!holdScrollRef.current) {
+        requestAnimationFrame(() => {
+          scrollToUserMessage(true);
+          setTimeout(() => scrollToUserMessage(true), 60);
+        });
       }
 
     } catch (searchError) {
@@ -12213,8 +12220,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           </div>
         )}
 
-        {/* Modern AI Chat spacer: provides ample room below user prompt for AI response to generate cleanly */}
-        {isGenerating && (
+        {/* Modern AI Chat spacer: maintains ample room below prompt & AI response so the user bubble stays anchored at the top without collapsing when generation finishes */}
+        {messages.length > 0 && (
           <div className="chat-generating-spacer" aria-hidden="true" />
         )}
 
