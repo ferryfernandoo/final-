@@ -16011,6 +16011,35 @@ pre.code-block code {
    📱 MOBILE & NARROW SCREEN (ANDROID) EXACT META AI REPLICA
    ============================================================ */
 @media (max-width: 768px) {
+  /* 0. Fix viewport position on mobile so keyboard NEVER shifts or bounces the entire AI screen */
+  html, body {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+  }
+
+  .chatbot-app {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 100% !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+  }
+
+  .chatbot-container {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+  }
+
   /* 1. Pure White Background everywhere on mobile */
   .chatbot-app,
   .chatbot-container,
@@ -16019,15 +16048,16 @@ pre.code-block code {
     background: #ffffff !important;
   }
 
-  /* 2. Messages Container padding */
+  /* 2. Messages Container: stays rock-solid in place without collapsing when keyboard opens */
   .messages-container {
     flex: 1 1 0% !important;
     min-height: 0 !important;
     overflow-y: auto !important;
-    padding: 16px 14px 140px 14px !important;
+    padding: 16px 14px calc(140px + var(--keyboard-offset, 0px)) 14px !important;
     gap: 16px !important;
     overscroll-behavior-y: contain !important;
     -webkit-overflow-scrolling: touch !important;
+    transition: padding-bottom 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   /* 2b. Bot message typography on mobile */
@@ -16093,36 +16123,38 @@ pre.code-block code {
     border-radius: 10px !important;
   }
 
-  /* 4. Bottom Floating Input Bar on Mobile (Floating Card, NOT full-width banner) */
+  /* 4. Bottom Floating Input Bar on Mobile: ONLY this bar raises up smoothly above the keyboard */
   .input-form {
     position: fixed !important;
-    bottom: 0 !important;
+    bottom: var(--keyboard-offset, 0px) !important;
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
     background: transparent !important;
     background-color: transparent !important;
     border-top: none !important;
-    padding: 8px 12px 14px 12px !important;
+    padding: 8px 12px calc(14px + env(safe-area-inset-bottom, 0px)) 12px !important;
     box-sizing: border-box !important;
     pointer-events: none !important;
     z-index: 100 !important;
+    transition: bottom 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   .input-form::before {
     display: none !important;
   }
 
-  /* Quick Scroll to Bottom Button: elevated above mobile input box with prominent 3D float */
+  /* Quick Scroll to Bottom Button: moves up alongside input bar above virtual keyboard */
   .scroll-to-bottom-btn {
     position: fixed !important;
-    bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(132px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px)) !important;
     right: 18px !important;
     width: 40px !important;
     height: 40px !important;
     z-index: 99999 !important;
     pointer-events: auto !important;
     box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.25) !important;
+    transition: bottom 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   .input-container.claude-style {

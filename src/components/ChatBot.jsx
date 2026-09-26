@@ -1609,6 +1609,48 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Mobile virtual keyboard tracker: keeps the entire AI view fixed while lifting ONLY the input bar
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleViewportChange = () => {
+      if (!window.visualViewport) return;
+      const vv = window.visualViewport;
+
+      // Calculate how much the virtual keyboard overlaps the bottom of the window
+      const keyboardHeight = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
+
+      if (keyboardHeight > 50) {
+        document.documentElement.style.setProperty('--keyboard-offset', `${Math.round(keyboardHeight)}px`);
+        document.body.classList.add('mobile-keyboard-open');
+      } else {
+        document.documentElement.style.setProperty('--keyboard-offset', '0px');
+        document.body.classList.remove('mobile-keyboard-open');
+      }
+
+      // Ensure the window/body viewport itself never scrolls or gets pushed up
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+      window.visualViewport.addEventListener('scroll', handleViewportChange);
+    }
+    window.addEventListener('resize', handleViewportChange);
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+        window.visualViewport.removeEventListener('scroll', handleViewportChange);
+      }
+      window.removeEventListener('resize', handleViewportChange);
+      document.documentElement.style.removeProperty('--keyboard-offset');
+      document.body.classList.remove('mobile-keyboard-open');
+    };
+  }, []);
+
   // Timeout & connection ping states for slow response (>10s) and no-internet rollback (>30s)
   const [showNoInternetBanner, setShowNoInternetBanner] = useState(false);
   const [isSlowProcessing, setIsSlowProcessing] = useState(false);
@@ -10271,6 +10313,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             readOnly={false}
             autoFocus
             rows={1}
+            onFocus={() => {
+              window.scrollTo(0, 0);
+              document.body.scrollTop = 0;
+            }}
             style={{ pointerEvents: 'auto', cursor: 'text' }}
           />
 
@@ -12652,6 +12698,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               disabled={false}
               className="message-input"
               rows="1"
+              onFocus={() => {
+                window.scrollTo(0, 0);
+                document.body.scrollTop = 0;
+              }}
             />
           </div>
 
