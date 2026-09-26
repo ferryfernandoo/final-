@@ -4,9 +4,9 @@ import AdsterraBanner from './AdsterraBanner';
 import './MessageAdRotator.css';
 
 export default function MessageAdRotator({ userLanguage = 'id' }) {
-  // If activeProvider is set to Adsterra, render the sleek 300x50 Adsterra banner unit
+  // If activeProvider is set to Adsterra, render the sleek Adsterra Native Banner unit (~210px for viewability)
   if (AD_CONFIG?.activeProvider === 'adsterra') {
-    return <AdsterraBanner width={320} height={50} />;
+    return <AdsterraBanner width={340} height={210} />;
   }
 
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
