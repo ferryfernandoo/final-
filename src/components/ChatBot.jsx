@@ -1493,20 +1493,21 @@ const getMessageAttachedFiles = (message) => {
  * Adapts smoothly to backlog (diff), but strictly caps the maximum characters per tick
  * so text never dumps in jarring blocks, even when the AI backend responds in a split second.
  * At ~16ms/tick (60 FPS):
- * - Small backlog: 1-2 chars/tick (~60-120 chars/sec) -> extremely smooth, real-time typing feel.
- * - Medium backlog: 3-5 chars/tick (~180-300 chars/sec) -> lively and pleasant to read.
- * - Large backlog: max 7-10 chars/tick (~400-600 chars/sec) -> finishes fast without dumping huge paragraphs.
+ * - Small backlog (1-25): 1 char/tick (~60 chars/sec) -> extremely smooth, real-time typing feel.
+ * - Medium backlog (25-80): 2-3 chars/tick (~120-180 chars/sec) -> lively and pleasant to read.
+ * - Moderate backlog (80-350): 4-6 chars/tick (~240-360 chars/sec).
+ * - Substantial/finished backlog (350+): 10-24 chars/tick -> finishes smoothly without freezing or hanging.
  */
 const getSmoothTypingStep = (diff, isFinished = false) => {
   if (diff <= 0) return 0;
-  if (diff <= 10) return 1;
-  if (diff <= 25) return 1;
-  if (diff <= 60) return 2;
-  if (diff <= 150) return isFinished ? 3 : 2;
-  if (diff <= 300) return isFinished ? 4 : 3;
-  if (diff <= 600) return isFinished ? 6 : 4;
-  if (diff <= 1200) return isFinished ? 8 : 5;
-  return isFinished ? 10 : 7; // Absolute hard cap so huge responses never flash or dump instantly
+  if (diff <= 15) return 1;
+  if (diff <= 35) return 1;
+  if (diff <= 80) return 2;
+  if (diff <= 180) return isFinished ? 4 : 2;
+  if (diff <= 350) return isFinished ? 6 : 3;
+  if (diff <= 700) return isFinished ? 10 : 5;
+  if (diff <= 1400) return isFinished ? 16 : 8;
+  return isFinished ? 24 : 12; // Controlled cap so huge responses catch up reliably within ~1s
 };
 
 const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser }) => {
@@ -7120,35 +7121,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   const lastProcessedUserMsgIdRef = useRef(null);
 
-  // Automatically lock user ask bubble to the top whenever a new user prompt is submitted (including new chats)
-  useEffect(() => {
-    if (!messages || messages.length === 0) return;
-
-    let latestUserMsg = null;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]?.sender === 'user') {
-        latestUserMsg = messages[i];
-        break;
-      }
-    }
-
-    if (latestUserMsg && latestUserMsg.id && latestUserMsg.id !== lastProcessedUserMsgIdRef.current) {
-      lastProcessedUserMsgIdRef.current = latestUserMsg.id;
-      lastSentUserMessageIdRef.current = latestUserMsg.id;
-      holdScrollRef.current = false;
-
-      // Lock user ask bubble cleanly to the top across layout render cycles
-      scrollToUserMessage(true);
-      requestAnimationFrame(() => {
-        scrollToUserMessage(true);
-        setTimeout(() => scrollToUserMessage(true), 40);
-        setTimeout(() => scrollToUserMessage(true), 120);
-        setTimeout(() => scrollToUserMessage(true), 250);
-        setTimeout(() => scrollToUserMessage(false), 450);
-      });
-    }
-  }, [messages]);
-
   // Auto-scroll logic during streaming is removed as requested by user.
   // The viewport stays peacefully anchored at the user message, with ample space for AI response.
   const smoothAutoScroll = (_force = false) => {
@@ -8346,9 +8318,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // Smoothly let typing animation catch up completely with capped, fluid pace
       let drainSafetyLimit = 0;
-      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 600) {
+      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 300) {
         if (abortController.signal.aborted || isUserStoppedRef.current) break;
         drainSafetyLimit++;
+        flushSmoothTick();
         await new Promise((r) => setTimeout(r, 16));
       }
 

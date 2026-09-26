@@ -15464,28 +15464,23 @@ pre.code-block code {
   margin-bottom: 16px !important;
 }
 
-/* Ad unit background execution: Runs fully in DOM & scripts for ad network impressions,
-   completely hidden from view so user has zero visual distraction and user bubble locks directly at top */
+/* User message ad unit: positioned naturally above user ask bubble */
 .user-message-ad-wrapper {
-  position: absolute !important;
-  top: -9999px !important;
-  left: -9999px !important;
-  width: 340px !important;
-  height: 210px !important;
-  opacity: 0.001 !important;
-  pointer-events: none !important;
-  overflow: hidden !important;
-  z-index: -999 !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  margin-bottom: 8px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  max-width: 340px !important;
   visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  z-index: 2 !important;
 }
 
-/* User ask chat bubble locked at top of viewport */
+/* User ask chat bubble styling */
 .message.user.is-latest-user-ask {
-  position: sticky !important;
-  top: 8px !important;
-  z-index: 25 !important;
+  position: relative !important;
+  z-index: 5 !important;
 }
 
 .message.user.is-latest-user-ask .message-content {
