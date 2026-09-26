@@ -6970,21 +6970,25 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     return <>{result}</>;
   };
 
-  // Helper to accurately locate where the last user ask bubble should sit (focused at top, with ad pushed off-screen)
+  // Helper to accurately locate where the last user ask bubble should sit (locked at top)
   const getLastUserMessageTargetTop = (container) => {
     if (!container) return null;
     const userMessages = container.querySelectorAll('.message.user');
     if (!userMessages || userMessages.length === 0) return null;
 
-    const lastUserMsg = userMessages[userMessages.length - 1];
-    const containerRect = container.getBoundingClientRect();
+    let targetUserMsg = null;
+    if (lastSentUserMessageIdRef.current) {
+      targetUserMsg = container.querySelector(`[data-msg-id="${lastSentUserMessageIdRef.current}"]`);
+    }
+    if (!targetUserMsg) {
+      targetUserMsg = userMessages[userMessages.length - 1];
+    }
 
-    // Focus strictly on the user ask bubble (.message-content / .user-bubble-wrapper), NOT the ad banner above it!
-    const userBubble = lastUserMsg.querySelector('.message-content') || lastUserMsg.querySelector('.user-bubble-wrapper') || lastUserMsg;
+    const containerRect = container.getBoundingClientRect();
+    const userBubble = targetUserMsg.querySelector('.message-content') || targetUserMsg.querySelector('.user-bubble-wrapper') || targetUserMsg;
     const bubbleRect = userBubble.getBoundingClientRect();
 
-    // Position the user ask bubble ~8px below container's top boundary.
-    // This pushes the ad banner above it completely up and out of view (off-screen)!
+    // Position the user ask bubble cleanly at the top of the container (~8px breathing space)
     const targetTop = container.scrollTop + (bubbleRect.top - containerRect.top) - 8;
     const maxScroll = container.scrollHeight - container.clientHeight;
 
@@ -7095,7 +7099,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const el = document.querySelector('.messages-container');
       if (!el) return;
       const target = getLastUserMessageTargetTop(el);
-      if (target !== null) {
+      if (target !== null && !isNaN(target)) {
         if (isImmediate) {
           el.scrollTop = target;
         } else {
@@ -7113,6 +7117,37 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setTimeout(doScroll, 450);
     });
   };
+
+  const lastProcessedUserMsgIdRef = useRef(null);
+
+  // Automatically lock user ask bubble to the top whenever a new user prompt is submitted (including new chats)
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+
+    let latestUserMsg = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.sender === 'user') {
+        latestUserMsg = messages[i];
+        break;
+      }
+    }
+
+    if (latestUserMsg && latestUserMsg.id && latestUserMsg.id !== lastProcessedUserMsgIdRef.current) {
+      lastProcessedUserMsgIdRef.current = latestUserMsg.id;
+      lastSentUserMessageIdRef.current = latestUserMsg.id;
+      holdScrollRef.current = false;
+
+      // Lock user ask bubble cleanly to the top across layout render cycles
+      scrollToUserMessage(true);
+      requestAnimationFrame(() => {
+        scrollToUserMessage(true);
+        setTimeout(() => scrollToUserMessage(true), 40);
+        setTimeout(() => scrollToUserMessage(true), 120);
+        setTimeout(() => scrollToUserMessage(true), 250);
+        setTimeout(() => scrollToUserMessage(false), 450);
+      });
+    }
+  }, [messages]);
 
   // Auto-scroll logic during streaming is removed as requested by user.
   // The viewport stays peacefully anchored at the user message, with ample space for AI response.
@@ -8056,6 +8091,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setLoading(false);
       setConvLoading(true);
 
+      // Lock user ask bubble cleanly at the top of the viewport
+      holdScrollRef.current = false;
+      scrollToUserMessage(true);
+      requestAnimationFrame(() => {
+        scrollToUserMessage(true);
+        setTimeout(() => scrollToUserMessage(true), 50);
+      });
+
       // Execute search and synthesize with full conversational context!
       executeSearchAndSynthesize({
         messageId: placeholderId,
@@ -8123,9 +8166,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       abortControllersMapRef.current.set(currentConversationId, abortController);
     }
     
-    // SCROLL PERTAMA - luncurkan scroll halus agar chat user berada di paling atas lalu ngerem
+    // SCROLL PERTAMA - kunci bubble chat ask tepat di paling atas viewport
     holdScrollRef.current = false;
+    scrollToUserMessage(true);
     requestAnimationFrame(() => {
+      scrollToUserMessage(true);
       setTimeout(() => {
         try {
           scrollToUserMessage(false);
@@ -10548,6 +10593,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return index < userIdx;
       })();
 
+      const isLatestUserMessage = (() => {
+        if (message.sender !== 'user') return false;
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i]?.sender === 'user') {
+            return messages[i].id === message.id;
+          }
+        }
+        return false;
+      })();
+
       const isEligibleUserAd = (() => {
         if (message.sender !== 'user') return false;
         let countAfter = 0;
@@ -10561,12 +10616,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         <div
           key={index}
           data-msg-id={message.id}
-          className={`message ${message.sender}${shouldHideByCompact ? ' hidden-by-compact' : ''}${message.sender === 'user' && expandedUserMessageId === message.id ? ' expanded' : ''}`}
+          className={`message ${message.sender}${isLatestUserMessage ? ' is-latest-user-ask' : ''}${shouldHideByCompact ? ' hidden-by-compact' : ''}${message.sender === 'user' && expandedUserMessageId === message.id ? ' expanded' : ''}`}
           onMouseDown={() => handleMessageMouseDown(message.id, message.text, message.sender === 'user')}
           onMouseUp={handleMessageMouseUp}
           onTouchStart={() => handleMessageMouseDown(message.id, message.text, message.sender === 'user')}
           onTouchEnd={handleMessageMouseUp}
-          style={{ marginBottom: message.sender === 'user' && !expandedUserMessageId === message.id ? '32px' : '0' }}
+          style={{ marginBottom: message.sender === 'user' && expandedUserMessageId !== message.id ? '24px' : '0' }}
         >
           {isEligibleUserAd && (
             <div className="user-message-ad-wrapper">
