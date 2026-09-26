@@ -6602,7 +6602,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         .replace(/\*\*--/g, '')
         .replace(/-{2,}/g, '-')
         .replace(/[-–—]+(?=\s*$)/gm, '')  // Remove trailing dashes
-        .replace(/\n{3,}/g, '\n\n');  // Keep max 2 consecutive newlines (1 blank line)
+        .replace(/\n{3,}/g, '\n\n')  // Keep max 2 consecutive newlines (1 blank line)
+        // Ensure headings have a blank line before them so markdown parses them properly
+        .replace(/([^\n#])\n(#{1,6}\s+)/g, '$1\n\n$2')
+        // Ensure bold point headers that start on a new line get a blank line before them for clean paragraph separation
+        .replace(/([^\n])\n(\*\*(?:\d+[\.\)]|[A-Z][\.\)]|•|-|\*|[A-Za-z0-9\s]+:)[^*]+\*\*)/g, '$1\n\n$2');
       
       // Pass markdown to ReactMarkdown naturally for robust bold/italic parsing
       
@@ -6635,6 +6639,20 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
+              h1: ({ children }) => <h1 className="ai-heading-1">{children}</h1>,
+              h2: ({ children }) => <h2 className="ai-heading-2">{children}</h2>,
+              h3: ({ children }) => <h3 className="ai-heading-3">{children}</h3>,
+              h4: ({ children }) => <h4 className="ai-heading-4">{children}</h4>,
+              p: ({ children }) => <p className="ai-paragraph">{children}</p>,
+              strong: ({ children }) => {
+                const text = typeof children === 'string'
+                  ? children
+                  : (Array.isArray(children) && typeof children[0] === 'string' ? children[0] : '');
+                const isPointTitle = /^(\d+[\.\)]|[A-Z][\.\)]|•|-|\*)\s+|.+:$/.test(String(text).trim());
+                return <strong className={`ai-strong ${isPointTitle ? 'ai-point-title' : ''}`}>{children}</strong>;
+              },
+              blockquote: ({ children }) => <blockquote className="ai-blockquote">{children}</blockquote>,
+              hr: () => <hr className="ai-divider" />,
               a: ({ href, children }) => renderInlineCitationPill(href, children),
               code: ({ inline, className, children, ...props }) => {
                 const match = /language-(\w+)/.exec(className || '');
@@ -9059,12 +9077,23 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         conclusionPrompt += `--- RINGKASAN INTISARI PENCARIAN ---\n${aiOverviewText}\n\n`;
       }
       conclusionPrompt += `Pertanyaan Pengguna: "${userQuery}"\n\n`;
-      conclusionPrompt += `--- INSTRUKSI JAWABAN ---
-1. Jawab pertanyaan pengguna secara komprehensif, akurat, dan mengalir alami dalam alur percakapan (hubungkan secara mulus dengan konteks obrolan sebelumnya jika ada).
-2. Manfaatkan fakta riil, data terkini, tanggal, dan informasi spesifik dari HASIL PENCARIAN WEB di atas. Jangan membaca berita secara kaku atau terisolasi seperti robot pembaca berita, melainkan berikan jawaban cerdas, terarah, dan solutif.
-3. JIKA HASIL PENCARIAN KURANG RELEVAN ATAU TIDAK LENGKAP: Secara otomatis dan mulus padukan dengan pengetahuan internal Anda tanpa meminta maaf dan tanpa menyalahkan hasil pencarian.
-4. Cantumkan sitasi link markdown: [Nama Sumber atau Judul](URL) pada kalimat yang faktanya bersumber dari web.
-5. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
+      conclusionPrompt += `--- PANDUAN STRUKTUR & KUALITAS JAWABAN PENCARIAN (SANGAT PENTING) ---
+1. FORMAT SUPER RAPI, BERJENJANG & SCANNABLE (WAJIB):
+   - RINGKASAN INTI AWAL (1-2 kalimat): Awali jawaban langsung dengan inti/jawaban tegas atas pertanyaan pengguna di paragraf pertama.
+   - SUBJUDUL TEMATIK (###): Gunakan heading markdown tingkat 3 (contoh: "### 1. Perkembangan Utama" atau "### Rincian Lengkap") untuk memecah informasi ke topik-topik terpisah.
+   - POIN DENGAN JUDUL TEBAL (BOLD LEAD): Gunakan daftar bernomor atau bullet list di mana SETIAP BUTIR DIAWALI DENGAN JUDUL TEBAL:
+     Contoh: "1. **Kenaikan Tarif:** Mulai diberlakukan..." atau "- **Dampak Regulasi:** Menurut laporan resmi..."
+   - SATU BARIS KOSONG (BLANK LINE): Pisahkan setiap paragraf, subjudul, dan butir poin dengan SATU BARIS KOSONG agar jawaban lega, berjarak nyaman, dan tidak menumpuk padat.
+   - TEBALKAN DATA KRUSIAL: Cetak tebal angka penting, persentase, tanggal spesifik, atau nama lembaga kunci.
+
+2. KEAKURATAN & SITASI SUMBER:
+   - Manfaatkan data faktual dari HASIL PENCARIAN WEB di atas. Jangan membaca berita kaku seperti robot, sajikan secara cerdas dan mengalir.
+   - Cantumkan sitasi link markdown: [Nama Sumber](URL) tepat di akhir kalimat fakta yang bersumber dari web.
+
+3. KNOWLEDGE FALLBACK PERCAYA DIRI:
+   - Jika hasil web minim atau kurang relevan: Padukan mulus dengan pengetahuan internal Anda secara cerdas dan percaya diri tanpa meminta maaf dan tanpa menyalahkan hasil pencarian.
+
+4. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
       
       console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
       
