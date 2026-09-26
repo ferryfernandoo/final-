@@ -1488,6 +1488,27 @@ const getMessageAttachedFiles = (message) => {
   return [];
 };
 
+/**
+ * Dynamic, capped typing pace that creates a premium, fluid streaming animation.
+ * Adapts smoothly to backlog (diff), but strictly caps the maximum characters per tick
+ * so text never dumps in jarring blocks, even when the AI backend responds in a split second.
+ * At ~16ms/tick (60 FPS):
+ * - Small backlog: 1-2 chars/tick (~60-120 chars/sec) -> extremely smooth, real-time typing feel.
+ * - Medium backlog: 3-5 chars/tick (~180-300 chars/sec) -> lively and pleasant to read.
+ * - Large backlog: max 7-10 chars/tick (~400-600 chars/sec) -> finishes fast without dumping huge paragraphs.
+ */
+const getSmoothTypingStep = (diff, isFinished = false) => {
+  if (diff <= 0) return 0;
+  if (diff <= 10) return 1;
+  if (diff <= 25) return 1;
+  if (diff <= 60) return 2;
+  if (diff <= 150) return isFinished ? 3 : 2;
+  if (diff <= 300) return isFinished ? 4 : 3;
+  if (diff <= 600) return isFinished ? 6 : 4;
+  if (diff <= 1200) return isFinished ? 8 : 5;
+  return isFinished ? 10 : 7; // Absolute hard cap so huge responses never flash or dump instantly
+};
+
 const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser }) => {
   // Conversations management
   const [conversations, setConversations] = useState([]);
@@ -5447,7 +5468,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         typingTimerRef.current = setInterval(() => {
           if (displayedText.length < fullText.length) {
             const diff = fullText.length - displayedText.length;
-            const step = Math.max(1, Math.min(diff, Math.ceil(diff / 15)));
+            const step = getSmoothTypingStep(diff, streamFinished);
             displayedText += fullText.substr(displayedText.length, step);
             currentStreamingTextRef.current = displayedText;
             
@@ -5463,7 +5484,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 40);
+        }, 16);
       };
       
       const streamResult = await processStreamingResponse(
@@ -5473,6 +5494,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           if (textChunk) {
             fullText += textChunk;
             currentStreamingTextRef.current = fullText;
+            startTypingAnimation();
           }
         }
       );
@@ -5481,8 +5503,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       streamFinished = true;
       startTypingAnimation();
 
-      while (displayedText.length < fullText.length || typingTimerRef.current !== null) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+      let editWaitCount = 0;
+      while ((displayedText.length < fullText.length || typingTimerRef.current !== null) && editWaitCount < 600) {
+        editWaitCount++;
+        await new Promise(resolve => setTimeout(resolve, 16));
       }
 
       finishStreaming(placeholderId, fullText, streamUsage);
@@ -7340,7 +7364,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         typingTimerRef.current = setInterval(() => {
           if (displayedText.length < fullText.length) {
             const diff = fullText.length - displayedText.length;
-            const step = Math.max(1, Math.min(diff, Math.ceil(diff / 15)));
+            const step = getSmoothTypingStep(diff, streamFinished);
             displayedText += fullText.substr(displayedText.length, step);
             currentStreamingTextRef.current = displayedText;
             
@@ -7356,7 +7380,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 40);
+        }, 16);
       };
       
       const streamResult = await processStreamingResponse(
@@ -7366,6 +7390,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           if (textChunk) {
             fullText += textChunk;
             currentStreamingTextRef.current = fullText;
+            startTypingAnimation();
           }
         }
       );
@@ -7374,8 +7399,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       streamFinished = true;
       startTypingAnimation();
 
-      while (displayedText.length < fullText.length || typingTimerRef.current !== null) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+      let sourcesWaitCount = 0;
+      while ((displayedText.length < fullText.length || typingTimerRef.current !== null) && sourcesWaitCount < 600) {
+        sourcesWaitCount++;
+        await new Promise(resolve => setTimeout(resolve, 16));
       }
 
       finishStreaming(placeholderId, fullText, streamUsage);
@@ -8147,7 +8174,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 1. Smoothly advance reasoning text
         if (displayedReasoningText.length < targetReasoningText.length) {
           const diff = targetReasoningText.length - displayedReasoningText.length;
-          const step = streamDone ? Math.max(12, Math.ceil(diff / 2)) : Math.max(1, Math.min(diff, Math.ceil(diff / 2.5)));
+          const step = getSmoothTypingStep(diff, streamDone);
           displayedReasoningText += targetReasoningText.substr(displayedReasoningText.length, step);
           updated = true;
         }
@@ -8155,7 +8182,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 2. Smoothly advance main content text
         if (displayedFullText.length < targetFullText.length) {
           const diff = targetFullText.length - displayedFullText.length;
-          const step = streamDone ? Math.max(16, Math.ceil(diff / 2)) : Math.max(1, Math.min(diff, Math.ceil(diff / 2.5)));
+          const step = getSmoothTypingStep(diff, streamDone);
           displayedFullText += targetFullText.substr(displayedFullText.length, step);
           currentStreamingTextRef.current = displayedFullText;
           updated = true;
@@ -8193,7 +8220,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       const startSmoothStreamer = () => {
         if (!smoothStreamTimer) {
-          smoothStreamTimer = setInterval(flushSmoothTick, 18);
+          smoothStreamTimer = setInterval(flushSmoothTick, 16);
           smoothStreamTimerRef.current = smoothStreamTimer;
         }
       };
@@ -8270,13 +8297,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       streamDone = true;
+      startSmoothStreamer();
 
-      // Drain any pending smooth stream buffer rapidly
+      // Smoothly let typing animation catch up completely with capped, fluid pace
       let drainSafetyLimit = 0;
-      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 20) {
-        if (abortController.signal.aborted) break;
+      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 600) {
+        if (abortController.signal.aborted || isUserStoppedRef.current) break;
         drainSafetyLimit++;
-        flushSmoothTick();
         await new Promise((r) => setTimeout(r, 16));
       }
 
@@ -9141,9 +9168,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         searchTypingTimer = setInterval(() => {
           if (displayedSearchText.length < finalResponseText.length) {
             const diff = finalResponseText.length - displayedSearchText.length;
-            const step = searchStreamFinished
-              ? Math.max(20, Math.ceil(diff / 3))
-              : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
+            const step = getSmoothTypingStep(diff, searchStreamFinished);
             
             displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
             
@@ -9164,7 +9189,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             clearInterval(searchTypingTimer);
             searchTypingTimer = null;
           }
-        }, 30);
+        }, 16);
       };
 
       await processStreamingResponse(botResponse, (chunk) => {
@@ -9178,9 +9203,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       searchStreamFinished = true;
       startSearchTypingAnimation();
 
-      // Wait for typing animation to catch up completely
+      // Wait for typing animation to catch up completely with smooth, fluid pace
       let searchCatchUpWaitCount = 0;
-      while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && searchCatchUpWaitCount < 300) {
+      while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && searchCatchUpWaitCount < 600) {
         searchCatchUpWaitCount++;
         if (newAbortController.signal.aborted || isUserStoppedRef.current) {
           if (searchTypingTimer) {
@@ -9189,7 +9214,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           }
           return;
         }
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 16));
       }
 
       if (searchTypingTimer) {
@@ -9300,9 +9325,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           searchTypingTimer = setInterval(() => {
             if (displayedSearchText.length < finalResponseText.length) {
               const diff = finalResponseText.length - displayedSearchText.length;
-              const step = searchStreamFinished
-                ? Math.max(20, Math.ceil(diff / 3))
-                : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
+              const step = getSmoothTypingStep(diff, searchStreamFinished);
               
               displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
               
@@ -9317,7 +9340,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               clearInterval(searchTypingTimer);
               searchTypingTimer = null;
             }
-          }, 30);
+          }, 16);
         };
 
         await processStreamingResponse(botResponse, (chunk) => {
@@ -9332,7 +9355,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         startSearchTypingAnimation();
 
         let searchCatchUpWaitCount = 0;
-        while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && searchCatchUpWaitCount < 300) {
+        while ((displayedSearchText.length < finalResponseText.length || searchTypingTimer !== null) && searchCatchUpWaitCount < 600) {
           searchCatchUpWaitCount++;
           if (newAbortController.signal.aborted || isUserStoppedRef.current) {
             if (searchTypingTimer) {
@@ -9341,7 +9364,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             }
             return;
           }
-          await new Promise(resolve => setTimeout(resolve, 10));
+          await new Promise(resolve => setTimeout(resolve, 16));
         }
 
         if (searchTypingTimer) {
@@ -9761,9 +9784,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             recallTypingTimer = setInterval(() => {
               if (displayedRecallText.length < finalResponseText.length) {
                 const diff = finalResponseText.length - displayedRecallText.length;
-                const step = recallStreamFinished
-                  ? Math.max(20, Math.ceil(diff / 3))
-                  : Math.max(1, Math.min(diff, Math.ceil(diff / 8)));
+                const step = getSmoothTypingStep(diff, recallStreamFinished);
                 displayedRecallText += finalResponseText.substr(displayedRecallText.length, step);
 
                 const now = Date.now();
@@ -9783,7 +9804,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 clearInterval(recallTypingTimer);
                 recallTypingTimer = null;
               }
-            }, 30);
+            }, 16);
           };
 
           await processStreamingResponse(botResponse, (chunk) => {
@@ -9848,7 +9869,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           startRecallTypingAnimation();
 
             let recallWaitCount = 0;
-            while ((displayedRecallText.length < finalResponseText.length || recallTypingTimer !== null) && recallWaitCount < 300) {
+            while ((displayedRecallText.length < finalResponseText.length || recallTypingTimer !== null) && recallWaitCount < 600) {
               recallWaitCount++;
               if (newAbortController.signal.aborted || isUserStoppedRef.current) {
                 if (recallTypingTimer) {
@@ -9857,7 +9878,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 }
                 return;
               }
-              await new Promise(resolve => setTimeout(resolve, 10));
+              await new Promise(resolve => setTimeout(resolve, 16));
             }
 
             if (recallTypingTimer) {
@@ -9985,7 +10006,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           typingTimerRef.current = setInterval(() => {
             if (displayedText.length < accumulatedRetryText.length) {
               const diff = accumulatedRetryText.length - displayedText.length;
-              const step = Math.max(1, Math.min(diff, Math.ceil(diff / 15)));
+              const step = getSmoothTypingStep(diff, streamFinished);
               displayedText += accumulatedRetryText.substr(displayedText.length, step);
               currentStreamingTextRef.current = initialText + displayedText;
               
@@ -10001,7 +10022,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(msgId, initialText + accumulatedRetryText);
             }
-          }, 40);
+          }, 16);
         };
  
         await processStreamingResponse(response, (chunk) => {
@@ -10021,11 +10042,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         streamFinished = true;
         startTypingAnimation();
 
-        while (displayedText.length < accumulatedRetryText.length || typingTimerRef.current !== null) {
+        let retryWaitCount = 0;
+        while ((displayedText.length < accumulatedRetryText.length || typingTimerRef.current !== null) && retryWaitCount < 600) {
           if (abortController.signal.aborted) {
             return;
           }
-          await new Promise(resolve => setTimeout(resolve, 10));
+          retryWaitCount++;
+          await new Promise(resolve => setTimeout(resolve, 16));
         }
 
         if (abortController.signal.aborted) {
@@ -10054,7 +10077,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           typingTimerRef.current = setInterval(() => {
             if (displayedText.length < accumulatedFullRetryText.length) {
               const diff = accumulatedFullRetryText.length - displayedText.length;
-              const step = Math.max(1, Math.min(diff, Math.ceil(diff / 15)));
+              const step = getSmoothTypingStep(diff, streamFinished);
               displayedText += accumulatedFullRetryText.substr(displayedText.length, step);
               currentStreamingTextRef.current = displayedText;
               
@@ -10070,7 +10093,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(placeholderId, accumulatedFullRetryText);
             }
-          }, 40);
+          }, 16);
         };
  
         await processStreamingResponse(response, (chunk) => {
@@ -10090,11 +10113,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         streamFinished = true;
         startTypingAnimation();
 
-        while (displayedText.length < accumulatedFullRetryText.length || typingTimerRef.current !== null) {
+        let fullRetryWaitCount = 0;
+        while ((displayedText.length < accumulatedFullRetryText.length || typingTimerRef.current !== null) && fullRetryWaitCount < 600) {
           if (abortController.signal.aborted) {
             return;
           }
-          await new Promise(resolve => setTimeout(resolve, 10));
+          fullRetryWaitCount++;
+          await new Promise(resolve => setTimeout(resolve, 16));
         }
 
         if (abortController.signal.aborted) {
@@ -10166,7 +10191,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         typingTimerRef.current = setInterval(() => {
           if (displayedText.length < accumulatedAutoRetryText.length) {
             const diff = accumulatedAutoRetryText.length - displayedText.length;
-            const step = Math.max(1, Math.min(diff, Math.ceil(diff / 15)));
+            const step = getSmoothTypingStep(diff, streamFinished);
             displayedText += accumulatedAutoRetryText.substr(displayedText.length, step);
             currentStreamingTextRef.current = initialText + displayedText;
             
@@ -10182,7 +10207,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(msgId, initialText + accumulatedAutoRetryText);
           }
-        }, 40);
+        }, 16);
       };
  
       await processStreamingResponse(response, (chunk) => {
@@ -10202,11 +10227,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       streamFinished = true;
       startTypingAnimation();
 
-      while (displayedText.length < accumulatedAutoRetryText.length || typingTimerRef.current !== null) {
+      let autoRetryWaitCount = 0;
+      while ((displayedText.length < accumulatedAutoRetryText.length || typingTimerRef.current !== null) && autoRetryWaitCount < 600) {
         if (abortController.signal.aborted) {
           return;
         }
-        await new Promise(resolve => setTimeout(resolve, 10));
+        autoRetryWaitCount++;
+        await new Promise(resolve => setTimeout(resolve, 16));
       }
 
       if (abortController.signal.aborted) {
