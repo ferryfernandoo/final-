@@ -2432,8 +2432,9 @@
 }
 
 .chat-generating-spacer {
-  height: 100vh !important;
-  min-height: 100vh !important;
+  height: 20vh !important;
+  min-height: 120px !important;
+  max-height: 220px !important;
   width: 100%;
   pointer-events: none;
   flex-shrink: 0;
@@ -2448,8 +2449,9 @@
   }
 
   .chat-generating-spacer {
-    height: 100vh !important;
-    min-height: 100vh !important;
+    height: 18vh !important;
+    min-height: 100px !important;
+    max-height: 180px !important;
   }
 }
 
@@ -16011,32 +16013,34 @@ pre.code-block code {
    📱 MOBILE & NARROW SCREEN (ANDROID) EXACT META AI REPLICA
    ============================================================ */
 @media (max-width: 768px) {
-  /* 0. Fix viewport position on mobile so keyboard NEVER shifts or bounces the entire AI screen */
+  /* 0. Clean mobile container setup without position:fixed trapping */
   html, body {
-    position: fixed !important;
-    inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: hidden !important;
     overscroll-behavior: none !important;
   }
 
   .chatbot-app {
-    position: fixed !important;
-    inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    max-height: 100% !important;
-    min-height: 100% !important;
+    height: 100dvh !important;
     overflow: hidden !important;
     overscroll-behavior: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
   }
 
   .chatbot-container {
-    position: relative !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
     width: 100% !important;
-    height: 100% !important;
-    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
     overflow: hidden !important;
   }
 

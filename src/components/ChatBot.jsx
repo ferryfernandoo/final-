@@ -7097,20 +7097,33 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     holdScrollRef.current = false;
 
     const scrollElement = document.querySelector('.messages-container');
-    const anchor = messagesEndRef.current;
     if (!scrollElement) return;
 
     stopGlide();
 
-    const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
+    // Prioritize targeting the last message element to avoid overshooting into bottom padding / spacers
+    const allMessages = scrollElement.querySelectorAll('.message');
+    if (allMessages && allMessages.length > 0) {
+      const lastMsg = allMessages[allMessages.length - 1];
+      const containerRect = scrollElement.getBoundingClientRect();
+      const msgRect = lastMsg.getBoundingClientRect();
 
+      // Position bottom of last message ~110px above container bottom (clearing bottom input bar)
+      const targetScroll = scrollElement.scrollTop + (msgRect.bottom - containerRect.bottom) + 110;
+      const maxScroll = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+      const clampedScroll = Math.max(0, Math.min(targetScroll, maxScroll));
+
+      if (isImmediate) {
+        scrollElement.scrollTop = clampedScroll;
+      } else {
+        glideToTarget(clampedScroll);
+      }
+      return;
+    }
+
+    const maxScroll = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
     if (isImmediate) {
       scrollElement.scrollTop = maxScroll;
-      if (anchor && anchor.scrollIntoView) {
-        try {
-          anchor.scrollIntoView({ behavior: 'auto', block: 'end' });
-        } catch (_e) {}
-      }
     } else {
       glideToTarget(maxScroll);
     }
@@ -12287,8 +12300,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           </div>
         )}
 
-        {/* Modern AI Chat spacer: maintains ample room below prompt & AI response so the user bubble stays anchored at the top without collapsing when generation finishes */}
-        {messages.length > 0 && (
+        {/* Modern AI Chat spacer: only present while generating so user prompt can stay anchored */}
+        {isGenerating && (
           <div className="chat-generating-spacer" aria-hidden="true" />
         )}
 
@@ -12699,8 +12712,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               className="message-input"
               rows="1"
               onFocus={() => {
+                const container = document.querySelector('.messages-container');
+                const savedScroll = container ? container.scrollTop : 0;
                 window.scrollTo(0, 0);
                 document.body.scrollTop = 0;
+                // Preserve chat scroll position so AI messages never jump or shift when keyboard opens
+                requestAnimationFrame(() => {
+                  window.scrollTo(0, 0);
+                  if (container) container.scrollTop = savedScroll;
+                });
+                setTimeout(() => {
+                  window.scrollTo(0, 0);
+                  if (container) container.scrollTop = savedScroll;
+                }, 60);
               }}
             />
           </div>
