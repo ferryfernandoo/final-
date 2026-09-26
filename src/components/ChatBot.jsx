@@ -1991,6 +1991,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       try {
         const convId = currentConversationId || `conv_${Date.now()}`;
         if (!currentConversationId) {
+          lastLoadedConversationIdRef.current = convId;
           setCurrentConversationId(convId);
         }
 
@@ -3432,6 +3433,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         try {
           const convId = currentConversationId || `conv_${Date.now()}`;
           if (!currentConversationId) {
+            lastLoadedConversationIdRef.current = convId;
             setCurrentConversationId(convId);
           }
 
@@ -3861,14 +3863,19 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
   const lastLoadedConversationIdRef = useRef(null);
 
-  // Auto-scroll to bottom only when a conversation is first loaded or switched
+  // Auto-scroll to bottom only when a conversation is explicitly loaded or switched
   useEffect(() => {
     if (!currentConversationId || messages.length === 0) return;
     if (lastLoadedConversationIdRef.current === currentConversationId) return;
     lastLoadedConversationIdRef.current = currentConversationId;
 
+    // Never auto-scroll to bottom during an active chat turn, generation, or right after finish
+    if (isGenerating || isSendGeneratingRef.current || isProcessingRef.current) return;
+
     const scrollTimer = setTimeout(() => {
-      scrollToBottom(true);
+      if (!isGenerating && !isSendGeneratingRef.current && !isProcessingRef.current) {
+        scrollToBottom(true);
+      }
     }, 100);
 
     return () => clearTimeout(scrollTimer);
@@ -7041,6 +7048,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     stopGlide();
 
     const doScroll = () => {
+      // Respect user if they started manual scrolling
+      if (holdScrollRef.current) return;
       const el = document.querySelector('.messages-container');
       if (!el) return;
       const target = getLastUserMessageTargetTop(el);
@@ -7056,8 +7065,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     doScroll();
     requestAnimationFrame(() => {
       doScroll();
-      setTimeout(doScroll, 60);
-      setTimeout(doScroll, 160);
+      setTimeout(doScroll, 50);
+      setTimeout(doScroll, 120);
+      setTimeout(doScroll, 250);
+      setTimeout(doScroll, 450);
     });
   };
 
@@ -7904,6 +7915,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     lastSentUserInputTextRef.current = inputValue.trim() || fullMessage;
     currentMessageIdRef.current = placeholderId;
 
+    // Ensure conversation ID is established immediately so later state updates don't cause sudden scroll jumping
+    let activeConvId = currentConversationId;
+    if (!activeConvId) {
+      activeConvId = `conv_${Date.now()}`;
+      lastLoadedConversationIdRef.current = activeConvId;
+      setCurrentConversationId(activeConvId);
+      rememberConversationId(activeConvId);
+    }
+
     // Reset internet warning banner & start progressive loading phase timers (Mengirim -> Merenungi -> Lambat)
     setShowNoInternetBanner(false);
     startLoadingPhaseTimers();
@@ -8487,8 +8507,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         }
       }, 200);
 
-      // After successful finish, keep compact view focused (at bottom)
-      setCompactView(true);
+      // Keep view stable without inserting previous-messages button layout shifts
+      // (Compact view is managed only when explicitly toggled)
 
       // Only trigger inline image generation when the assistant explicitly emits an IMAGE_REQUEST tag.
       const textForImageTrigger = fullText;
