@@ -15787,6 +15787,133 @@ pre.code-block code {
   color: #f1f5f9 !important;
 }
 
+/* ============================================================
+   ✨ MODERN STREAMING GENERATING BLUR & SMOOTH TYPING AURA
+   ============================================================ */
+.message.bot.is-streaming {
+  position: relative !important;
+  will-change: filter, transform;
+}
+
+.message.bot.is-streaming .message-content {
+  position: relative !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Subtle modern blurred ambient aura around generating message */
+.message.bot.is-streaming::before {
+  content: '';
+  position: absolute;
+  inset: -6px -12px;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 25% 100%, rgba(56, 189, 248, 0.08) 0%, rgba(249, 115, 22, 0.04) 45%, transparent 75%);
+  filter: blur(14px);
+  pointer-events: none;
+  z-index: -1;
+  animation: modernGeneratingAura 2.6s ease-in-out infinite alternate;
+}
+
+[data-theme="dark"] .message.bot.is-streaming::before {
+  background: radial-gradient(ellipse at 25% 100%, rgba(56, 189, 248, 0.14) 0%, rgba(139, 92, 246, 0.08) 45%, transparent 75%);
+  filter: blur(18px);
+}
+
+@keyframes modernGeneratingAura {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.01);
+  }
+}
+
+/* Modern Glowing Blur Streaming Cursor */
+.streaming-blur-cursor {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  width: 6.5px !important;
+  height: 15px !important;
+  margin-left: 5px !important;
+  vertical-align: -2px !important;
+  border-radius: 3.5px !important;
+  background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #f97316 100%) !important;
+  box-shadow: 
+    0 0 8px rgba(14, 165, 233, 0.75), 
+    0 0 16px rgba(249, 115, 22, 0.4) !important;
+  filter: blur(0.3px) !important;
+  animation: modernBlurPulse 0.85s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.streaming-blur-glow {
+  position: absolute !important;
+  inset: -5px -7px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.5) 0%, rgba(249, 115, 22, 0.25) 50%, transparent 80%) !important;
+  filter: blur(4px) !important;
+  opacity: 0.85 !important;
+  animation: modernBlurHalo 1.6s ease-in-out infinite alternate !important;
+  pointer-events: none !important;
+}
+
+@keyframes modernBlurPulse {
+  0% {
+    opacity: 0.4;
+    filter: blur(1.5px);
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0.2px);
+    transform: scale(1.08);
+  }
+}
+
+@keyframes modernBlurHalo {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0.9;
+  }
+}
+
+/* Modern Frosted Blur Typing Indicator (Thinking / Pre-stream phase) */
+.typing-indicator {
+  display: flex !important;
+  gap: 8px !important;
+  padding: 8px 14px !important;
+  background: rgba(248, 250, 252, 0.88) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.06) !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: fit-content !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme="dark"] .typing-indicator {
+  background: rgba(30, 41, 59, 0.75) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.45) !important;
+}
+
+.typing-indicator span {
+  filter: blur(0.2px) !important;
+}
+
 /* 5. Right Agentic Panel Styling (Screenshots 3 & 5 style) */
 .agentic-steps-pane {
   padding: 16px 20px !important;

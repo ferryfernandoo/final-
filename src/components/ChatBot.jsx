@@ -1489,25 +1489,41 @@ const getMessageAttachedFiles = (message) => {
 };
 
 /**
- * Dynamic, capped typing pace that creates a premium, fluid streaming animation.
- * Adapts smoothly to backlog (diff), but strictly caps the maximum characters per tick
- * so text never dumps in jarring blocks, even when the AI backend responds in a split second.
- * At ~16ms/tick (60 FPS):
- * - Small backlog (1-25): 1 char/tick (~60 chars/sec) -> extremely smooth, real-time typing feel.
- * - Medium backlog (25-80): 2-3 chars/tick (~120-180 chars/sec) -> lively and pleasant to read.
- * - Moderate backlog (80-350): 4-6 chars/tick (~240-360 chars/sec).
- * - Substantial/finished backlog (350+): 10-24 chars/tick -> finishes smoothly without freezing or hanging.
+ * Modern fluid typing pace engine:
+ * 1. Awal (Start): "awal pelan ga terlalu pelan sih pas lah" -> ~2 chars/tick (~125 chars/sec) smooth ramp-up.
+ * 2. Stabil (Cruising): "lalu stabil" -> ~4-6 chars/tick (~250-380 chars/sec) steady, delightful reading cadence.
+ * 3. Akhir (Finish): "dan akhir ngebut" -> When generation finishes or buffer is draining, accelerate fast
+ *    (14-36 chars/tick or instant final flush) so the response finishes cleanly without dragging 1 char at a time!
  */
-const getSmoothTypingStep = (diff, isFinished = false) => {
+const getSmoothTypingStep = (diff, isFinished = false, currentLength = 0, totalLength = 0) => {
   if (diff <= 0) return 0;
-  if (diff <= 15) return 1;
-  if (diff <= 35) return 1;
-  if (diff <= 80) return 2;
-  if (diff <= 180) return isFinished ? 4 : 2;
-  if (diff <= 350) return isFinished ? 6 : 3;
-  if (diff <= 700) return isFinished ? 10 : 5;
-  if (diff <= 1400) return isFinished ? 16 : 8;
-  return isFinished ? 24 : 12; // Controlled cap so huge responses catch up reliably within ~1s
+
+  // Phase 3: Final sprint when server stream completes -> "akhir ngebut"
+  if (isFinished) {
+    if (diff <= 35) return diff; // Snappy instant completion for the last few words
+    if (diff <= 100) return Math.max(14, Math.ceil(diff / 3)); // Rapid ~3-tick closeout (14-33 chars/tick)
+    if (diff <= 250) return Math.max(18, Math.ceil(diff / 5)); // Accelerated drain
+    if (diff <= 600) return 26;
+    return 36; // Fast flush for large backlogs
+  }
+
+  // Phase 1: Initial ramp-up -> "awal pelan ga terlalu pelan sih pas lah"
+  if (currentLength < 50 && diff < 80) {
+    return 2; // Smooth 2 chars/tick (~125 chars/sec), neither too sluggish nor abrupt
+  }
+
+  // Approaching the end of current accumulated buffer -> progressive speed boost
+  if (totalLength > 120 && (currentLength / totalLength) > 0.85) {
+    return Math.max(6, Math.min(diff, 12));
+  }
+
+  // Phase 2: Steady cruising pace -> "lalu stabil"
+  if (diff <= 25) return 3;
+  if (diff <= 70) return 4;
+  if (diff <= 150) return 5;
+  if (diff <= 300) return 7;
+  if (diff <= 600) return 10;
+  return 14;
 };
 
 const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser }) => {
@@ -5375,7 +5391,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         typingTimerRef.current = setInterval(() => {
           if (displayedText.length < fullText.length) {
             const diff = fullText.length - displayedText.length;
-            const step = getSmoothTypingStep(diff, streamFinished);
+            const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, fullText.length);
             displayedText += fullText.substr(displayedText.length, step);
             currentStreamingTextRef.current = displayedText;
             
@@ -6858,6 +6874,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       });
     }
     
+    if (isStreaming) {
+      result.push(
+        <span key="streaming-blur-cursor" className="streaming-blur-cursor" aria-hidden="true">
+          <span className="streaming-blur-glow" />
+        </span>
+      );
+    }
+    
     return <>{result}</>;
   };
 
@@ -7273,7 +7297,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         typingTimerRef.current = setInterval(() => {
           if (displayedText.length < fullText.length) {
             const diff = fullText.length - displayedText.length;
-            const step = getSmoothTypingStep(diff, streamFinished);
+            const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, fullText.length);
             displayedText += fullText.substr(displayedText.length, step);
             currentStreamingTextRef.current = displayedText;
             
@@ -8083,7 +8107,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 1. Smoothly advance reasoning text
         if (displayedReasoningText.length < targetReasoningText.length) {
           const diff = targetReasoningText.length - displayedReasoningText.length;
-          const step = getSmoothTypingStep(diff, streamDone);
+          const step = getSmoothTypingStep(diff, streamDone, displayedReasoningText.length, targetReasoningText.length);
           displayedReasoningText += targetReasoningText.substr(displayedReasoningText.length, step);
           updated = true;
         }
@@ -8091,7 +8115,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 2. Smoothly advance main content text
         if (displayedFullText.length < targetFullText.length) {
           const diff = targetFullText.length - displayedFullText.length;
-          const step = getSmoothTypingStep(diff, streamDone);
+          const step = getSmoothTypingStep(diff, streamDone, displayedFullText.length, targetFullText.length);
           displayedFullText += targetFullText.substr(displayedFullText.length, step);
           currentStreamingTextRef.current = displayedFullText;
           updated = true;
@@ -9082,7 +9106,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         searchTypingTimer = setInterval(() => {
           if (displayedSearchText.length < finalResponseText.length) {
             const diff = finalResponseText.length - displayedSearchText.length;
-            const step = getSmoothTypingStep(diff, searchStreamFinished);
+            const step = getSmoothTypingStep(diff, searchStreamFinished, displayedSearchText.length, finalResponseText.length);
             
             displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
             
@@ -9236,7 +9260,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           searchTypingTimer = setInterval(() => {
             if (displayedSearchText.length < finalResponseText.length) {
               const diff = finalResponseText.length - displayedSearchText.length;
-              const step = getSmoothTypingStep(diff, searchStreamFinished);
+              const step = getSmoothTypingStep(diff, searchStreamFinished, displayedSearchText.length, finalResponseText.length);
               
               displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
               
@@ -9695,7 +9719,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             recallTypingTimer = setInterval(() => {
               if (displayedRecallText.length < finalResponseText.length) {
                 const diff = finalResponseText.length - displayedRecallText.length;
-                const step = getSmoothTypingStep(diff, recallStreamFinished);
+                const step = getSmoothTypingStep(diff, recallStreamFinished, displayedRecallText.length, finalResponseText.length);
                 displayedRecallText += finalResponseText.substr(displayedRecallText.length, step);
 
                 const now = Date.now();
@@ -9917,7 +9941,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           typingTimerRef.current = setInterval(() => {
             if (displayedText.length < accumulatedRetryText.length) {
               const diff = accumulatedRetryText.length - displayedText.length;
-              const step = getSmoothTypingStep(diff, streamFinished);
+              const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, accumulatedRetryText.length);
               displayedText += accumulatedRetryText.substr(displayedText.length, step);
               currentStreamingTextRef.current = initialText + displayedText;
               
@@ -9988,7 +10012,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           typingTimerRef.current = setInterval(() => {
             if (displayedText.length < accumulatedFullRetryText.length) {
               const diff = accumulatedFullRetryText.length - displayedText.length;
-              const step = getSmoothTypingStep(diff, streamFinished);
+              const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, accumulatedFullRetryText.length);
               displayedText += accumulatedFullRetryText.substr(displayedText.length, step);
               currentStreamingTextRef.current = displayedText;
               
@@ -10102,7 +10126,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         typingTimerRef.current = setInterval(() => {
           if (displayedText.length < accumulatedAutoRetryText.length) {
             const diff = accumulatedAutoRetryText.length - displayedText.length;
-            const step = getSmoothTypingStep(diff, streamFinished);
+            const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, accumulatedAutoRetryText.length);
             displayedText += accumulatedAutoRetryText.substr(displayedText.length, step);
             currentStreamingTextRef.current = initialText + displayedText;
             
@@ -10482,7 +10506,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         <div
           key={index}
           data-msg-id={message.id}
-          className={`message ${message.sender}${isLatestUserMessage ? ' is-latest-user-ask' : ''}${shouldHideByCompact ? ' hidden-by-compact' : ''}${message.sender === 'user' && expandedUserMessageId === message.id ? ' expanded' : ''}`}
+          className={`message ${message.sender}${isLatestUserMessage ? ' is-latest-user-ask' : ''}${shouldHideByCompact ? ' hidden-by-compact' : ''}${message.sender === 'user' && expandedUserMessageId === message.id ? ' expanded' : ''}${message.isStreaming ? ' is-streaming' : ''}`}
           onMouseDown={() => handleMessageMouseDown(message.id, message.text, message.sender === 'user')}
           onMouseUp={handleMessageMouseUp}
           onTouchStart={() => handleMessageMouseDown(message.id, message.text, message.sender === 'user')}
@@ -10494,7 +10518,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               <MessageAdRotator userLanguage={userLanguage} />
             </div>
           )}
-          <div className="message-content">
+          <div className={`message-content${message.isStreaming ? ' is-streaming' : ''}`}>
             {message.isImage && (
               <>
                 {message.isThinking ? (
