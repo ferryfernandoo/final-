@@ -2261,8 +2261,16 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   };
 
   const cleanResponseText = (text) => {
-    if (!text) return '';
+    if (!text || typeof text !== 'string') return text || '';
     
+    // Strip search, recall memory, autonomous memory request, and reasoning tags
+    let cleaned = text;
+    cleaned = cleaned.replace(/\[SEARCH_REQUEST:[\s\S]*?\]/g, '');
+    cleaned = cleaned.replace(/\[RECALL_MEMORY:[\s\S]*?\]/g, '');
+    cleaned = cleaned.replace(/\[(MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|MEMORY_RECALL):[\s\S]*?\]/gi, '');
+    cleaned = cleaned.replace(/<\/?reasoning>/gi, '');
+    cleaned = cleaned.replace(/\[STEP:\s*[^\]]+\]/gi, '');
+
     const preserveCodeSections = (input) => {
       const map = new Map();
       let index = 0;
@@ -2308,11 +2316,12 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       return { text: newLines.join('\n'), map };
     };
 
-    const preserved = preserveCodeSections(text);
+    const preserved = preserveCodeSections(cleaned);
     const preservedTable = preserveTableSections(preserved.text);
-    let cleaned = preservedTable.text;
+    let s = preservedTable.text;
+
     // Convert simple HTML fragments that may come from model output into markdown/newlines
-    cleaned = cleaned
+    s = s
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>\s*<p>/gi, '\n\n')
       .replace(/<\/p>/gi, '\n')
@@ -2320,168 +2329,64 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
       .replace(/<b>(.*?)<\/b>/gi, '**$1**')
       .replace(/<em>(.*?)<\/em>/gi, '*$1*')
-      // Remove any other HTML tags
       .replace(/<[^>]+>/g, '');
 
-    // Ensure section headers and separators have explicit blank lines
-    // This forces patterns like **Jawaban:**, **Analisis:**, **Kesimpulan:** to sit on their own
-    cleaned = cleaned
-      .replace(/\*\*(Analisis|Kesimpulan):\*\*/gi, '')  // Remove analysis/conclusion sections entirely
-      .replace(/(\*\*[^\n]+\*\*)/g, '$1');  // Keep bold but don't add spacing
-
-    // Process line-by-line to format tables and protect them, adding clean spacing around them
-    const cleanedLines = cleaned.split('\n');
-    const formattedCleanedLines = [];
-    for (let i = 0; i < cleanedLines.length; i++) {
-      const currentLine = cleanedLines[i];
-      const prevLine = i > 0 ? cleanedLines[i - 1] : null;
-      
-      if (currentLine.includes('|')) {
-        // Add a blank line before the table starts if needed
-        if (prevLine !== null && !prevLine.includes('|') && prevLine.trim() !== '') {
-          formattedCleanedLines.push('');
-        }
-        formattedCleanedLines.push(currentLine);
-      } else {
-        // Add a blank line after the table ends if needed
-        if (prevLine !== null && prevLine.includes('|') && currentLine.trim() !== '') {
-          formattedCleanedLines.push('');
-        }
-        // Clean non-table lines
-        formattedCleanedLines.push(
-          currentLine
-            .replace(/(^|\s)(-{3,})(\s|$)/g, '')  // Remove separator lines
-            .replace(/--+/g, ' ')                // Remove long double-hyphen artifacts
-        );
-      }
-    }
-    cleaned = formattedCleanedLines.join('\n');
-    
     // Convert escaped newline sequences into real newlines
-    cleaned = cleaned
+    s = s
       .replace(/\\r\\n/g, '\n')
       .replace(/\\r/g, '\n')
       .replace(/\\n/g, '\n')
       .replace(/\\t/g, ' ');
 
-    // Ensure words and numbers are separated cleanly after streamed chunks
-    cleaned = cleaned.replace(/([A-Za-z])(?=\d)/g, '$1 ');
-    cleaned = cleaned.replace(/(\d)(?=[A-Za-z])/g, '$1 ');
+    // Remove single prefix label at very beginning of response (e.g. "Jawaban:" on line 1)
+    s = s.replace(/^\s*(\*\*)?Jawaban:?(\*\*)?\s*\n?/i, '');
 
-    // Convert excessive hashes to max 2 hashes (## for main headers)
-    cleaned = cleaned.replace(/#+/g, (match) => {
-      const count = match.length;
-      if (count >= 3) return '##';
-      return match;
-    });
-    
-    // Keep only critical blank lines (reduce from excessive spacing)
-    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    // Clean up broken dash markers and leftover artifacts
+    s = s.replace(/--\*\*/g, '').replace(/\*\*--/g, '');
 
-    // Clean up excessive asterisks and special chars, protecting table rows
-    cleaned = cleaned.split('\n').map(line => {
-      if (line.includes('|')) {
-        return line; // Keep table lines completely intact
-      }
-      return line
-        .replace(/\*{3,}/g, '**')
-        .replace(/-{3,}/g, '--')
-        .replace(/_{3,}/g, '__');
-    }).join('\n');
-    
-    // Normalize spacing around headers
-    cleaned = cleaned.replace(/\n\s*#+\s*/g, '\n');
-    cleaned = cleaned.replace(/^#+\s+/gm, '## ');
-    
-    // Remove duplicate header-like patterns
-    cleaned = cleaned.replace(/##\s*#+/g, '##');
-    
-    // Clean up excessive punctuation at line ends
-    cleaned = cleaned.replace(/([.!?]){2,}\s*\n/g, '$1\n');
-    
-    // Remove lines that are just special characters (like "###" alone)
-    cleaned = cleaned.split('\n').filter(line => {
-      const trimmed = line.trim();
-      // Keep line if it has actual content or is just spacing
-      return !/^[#\-_*]{2,}$/.test(trimmed);
-    }).join('\n');
-    
-    // Final cleanup: remove leading/trailing whitespace per line
-    // Trim each line but preserve single blank lines only
-    const rawLines = cleaned.split('\n');
-    const outLines = [];
+    // Normalize markdown horizontal dividers (---, ***, ___)
+    s = s.replace(/\n\s*[-*_]{3,}\s*\n/g, '\n\n---\n\n');
+
+    // Ensure headings have a blank line before them for proper markdown hierarchy
+    s = s.replace(/([^\n#])\n(#{1,6}\s+)/g, '$1\n\n$2');
+
+    // Process line-by-line to preserve spacing, headings, and lists
+    const rawLines = s.split('\n');
+    const cleanedLines = [];
     let lastWasBlank = false;
     for (let ln of rawLines) {
-      const t = ln.trim();
-      if (t === '') {
+      const trimmed = ln.trim();
+      if (trimmed === '') {
         if (!lastWasBlank) {
-          outLines.push('');
+          cleanedLines.push('');
           lastWasBlank = true;
         }
       } else {
-        outLines.push(t);
+        // If it's a standalone divider line, ensure it stays as ---
+        if (/^[-*_]{3,}$/.test(trimmed)) {
+          cleanedLines.push('---');
+        } else {
+          cleanedLines.push(ln);
+        }
         lastWasBlank = false;
       }
     }
+    s = cleanedLines.join('\n');
 
-    cleaned = outLines.join('\n');
+    // Collapse excessive blank lines (keep max 1 empty line between blocks)
+    s = s.replace(/\n{3,}/g, '\n\n');
 
     // Restore preserved table sections and apply ensurePerfectTable to each
     for (const [key, value] of preservedTable.map.entries()) {
-      cleaned = cleaned.replace(key, ensurePerfectTable(value));
+      s = s.replace(key, ensurePerfectTable(value));
     }
 
     // Restore preserved code sections unchanged
     for (const [key, value] of preserved.map.entries()) {
-      cleaned = cleaned.replace(key, value);
+      s = s.replace(key, value);
     }
 
-    // Remove explicit 'Jawaban:' or 'Kesimpulan:' headers so UI doesn't show literal labels
-    cleaned = cleaned.replace(/^\s*(\*\*)?Jawaban:(\*\*)?\s*\n?/gmi, '');
-    cleaned = cleaned.replace(/^[ \t]*Jawaban:[ \t]*$/gmi, '');
-    cleaned = cleaned.replace(/^\s*(\*\*)?Kesimpulan:(\*\*)?\s*\n?/gmi, '');
-    cleaned = cleaned.replace(/^[ \t]*Kesimpulan:[ \t]*$/gmi, '');
-
-    // Remove leftover broken markers like "--**" or "**--" and collapse excessive dashes
-    cleaned = cleaned.replace(/--\*\*/g, '').replace(/\*\*--/g, '').replace(/-{4,}/g, '---');
-
-    // Ensure at most one blank line between content
-    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
-
-    // Remove stray trailing dashes or leftover bullet artifacts at line ends
-    cleaned = cleaned
-      .replace(/\*\*-+/g, '**')
-      .replace(/-+\*\*/g, '**')
-      .replace(/\s*[-•]+\s*$/gm, '')
-      .replace(/\n-{1,}\n/g, '\n')
-      // remove hyphens trailing words before newline or end
-      .replace(/-+(?=\s*$|\n|\.|,)/gm, '')
-      .replace(/[-–—]+(?=\s*$|\n)/gm, '')
-      .replace(/-+(?=\s)/g, ' ')
-      .replace(/\s+[-–—]+(?=\s)/g, ' ')
-      // collapse repeated dashes and remove double-hyphen artifacts
-      .replace(/-{2,}/g, '-')
-      .replace(/--\*\*/g, '')
-      .replace(/\*\*--/g, '');
-
-    // Ensure required headers are consistently formatted as bold and on their own lines
-    cleaned = cleaned.replace(/\*{0,2}\s*(Jawaban|Analisis|Kesimpulan):\s*\*{0,2}/gi, '**$1:**\n\n');
-
-    // Normalize numbered lists: remove blank lines between consecutive numbered points
-    cleaned = cleaned.replace(/(\n\s*\d+\.[^\n]*)(?:\n[\s\u00A0]*)+(?=\s*\d+\.)/g, '$1\n');
-    cleaned = cleaned.replace(/\n{2,}(?=\s*\d+\.)/g, '\n');
-    // Ensure numbered lines start at line start
-    cleaned = cleaned.replace(/^\s*(\d+\.)/gm, '$1');
-
-    // Remove double-hyphen + bold artifacts including Unicode dash variants
-    cleaned = cleaned.replace(/[-\u2012-\u2015]{2,}\*{2,}/g, '');
-    cleaned = cleaned.replace(/\*{2,}[-\u2012-\u2015]{2,}/g, '');
-    // Remove stray bold markers that appear at end of lines (unpaired)
-    // cleaned = cleaned.replace(/\*\*(?=\s*$)/gm, '');
-    // DISABLED: Don't remove bold markers - let ReactMarkdown handle them
-    // cleaned = cleaned.replace(/\*\*(?=\s|$|[.,;:!?])/g, '');
-
-    return ensurePerfectTable(cleaned.trim());
+    return s.trim();
   };
 
   // Lightweight sanitizer for streaming text (fast, non-destructive)
@@ -2513,7 +2418,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
     const preserved = preserveCodeSections(cleaned);
     let s = preserved.text;
-    // Remove label header artifacts at the beginning of streaming text
+    // Remove label header artifacts at the very beginning of streaming text
     s = s.replace(/^\s*(\*\*)?Jawaban(\*\*)?\s*:?\s*/mi, '');
     s = s.replace(/^\s*(\*\*)?Jawaban(\*\*)?\s*$/gmi, '');
     s = s.replace(/^\s*\*\*Jawaban:\*\*\s*/gi, '');
@@ -2544,17 +2449,17 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         if (prevLine !== null && prevLine.includes('|') && currentLine.trim() !== '') {
           formattedStreamingLines.push('');
         }
-        // Clean non-table lines
-        formattedStreamingLines.push(currentLine.replace(/-{2,}/g, '-'));
+        // Clean non-table lines: preserve dividers intact
+        const trimmed = currentLine.trim();
+        if (/^[-*_]{3,}$/.test(trimmed)) {
+          formattedStreamingLines.push('---');
+        } else {
+          formattedStreamingLines.push(currentLine.replace(/--+/g, '-'));
+        }
       }
     }
     s = formattedStreamingLines.join('\n');
     
-    s = s.replace(/([A-Za-z])(?=\d)/g, '$1 ');
-    s = s.replace(/(\d)(?=[A-Za-z])/g, '$1 ');
-    
-    s = s.replace(/([a-z0-9%)]\}])\n\n(?!\s*(?:\d+\.|[-*+]>|\*\*|__|`|#{1,6}|[A-Z]|[|]))([a-z])/g, '$1 $2');
-    s = s.replace(/([a-z0-9%)]\}])\n(?!\s*(?:\d+\.|[-*+]>|\*\*|__|`|#{1,6}|[A-Z]|[|]))([a-z])/g, '$1 $2');
     // Collapse repeated blank lines during streaming
     s = s.replace(/\n{3,}/g, '\n\n');
 
@@ -6312,35 +6217,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       .replace(/\\t/g, ' ');
       processedText = removeExecutionLogLines(processedText);
 
-      // ===== NEWLINE INJECTION FIRST (before streaming check) =====
-      // AI often uses multiple spaces instead of newlines to separate items
-      // Pattern: "text   Capitalized" (3+ spaces) likely means new item
-      if (!processedText.includes('|')) {
-        processedText = processedText.replace(/\s{3,}(?=[A-Z])/g, '\n\n');
-      }
-
-      // Keep bold formatting intact - do not forcefully split bold tags across newlines
-      // processedText = processedText.replace(/([.!?])\*\*/g, '$1\n\n**');
-      // processedText = processedText.replace(/([^\n])\*\*([A-Z])/g, '$1\n\n**$2');
-
       // Hide any partial/incomplete IMAGE_REQUEST tags during typing animation
       if (isStreaming) {
         processedText = processedText.replace(/\[IMAGE_REQUEST:\s*.*?\]?/g, '');
       }
-
-    if (processedText.includes('...') && !processedText.includes('|')) {
-      const parts = processedText.split(/\.\.\./).filter(p => p.trim());
-      if (parts.length > 1) {
-        processedText = parts.map(p => {
-          const cleaned = p.trim();
-          // If it already starts with list marker, keep as is
-          if (/^[-*\d+]/.test(cleaned)) {
-            return cleaned;
-          }
-          return `- ${cleaned}`;
-        }).join('\n');
-      }
-    }
 
     // Extract file download info if present
     let downloadUrl = null;
@@ -6626,8 +6506,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         .replace(/(\d+)\.(\S)/g, '$1. $2')  // Ensure space after number dots
         .replace(/--\*\*/g, '')
         .replace(/\*\*--/g, '')
-        .replace(/-{2,}/g, '-')
-        .replace(/[-–—]+(?=\s*$)/gm, '')  // Remove trailing dashes
+        .split('\n')
+        .map(line => {
+          const trimmed = line.trim();
+          if (/^[-*_]{3,}$/.test(trimmed)) {
+            return '---';
+          }
+          return line
+            .replace(/--+/g, '-')
+            .replace(/(?<=\S\s*)[-–—]+(?=\s*$)/g, '');
+        })
+        .join('\n')
         .replace(/\n{3,}/g, '\n\n')  // Keep max 2 consecutive newlines (1 blank line)
         // Ensure headings have a blank line before them so markdown parses them properly
         .replace(/([^\n#])\n(#{1,6}\s+)/g, '$1\n\n$2')
@@ -9101,13 +8990,20 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
       // Helper: replace [Sumber N] with actual markdown links
       const replaceCitationsWithLinks = (text) => {
-        if (!sources || sources.length === 0) return text;
-        return text.replace(/\[Sumber\s*(\d+)\]/gi, (match, numStr) => {
+        if (!sources || sources.length === 0 || !text) return text || '';
+        return text.replace(/\[Sumber\s*(\d+)\](?!\()/gi, (match, numStr) => {
           const idx = parseInt(numStr, 10) - 1;
           if (idx >= 0 && idx < sources.length) {
             const s = sources[idx];
-            const domain = s.domain || s.link;
-            return `[${s.title || domain}](${s.link})`;
+            let domain = s.domain;
+            if (!domain && s.link) {
+              try {
+                domain = new URL(s.link).hostname.replace(/^www\./i, '');
+              } catch (e) {
+                domain = 'Web';
+              }
+            }
+            return `[${domain || 'Sumber ' + numStr}](${s.link})`;
           }
           return match;
         });
@@ -9392,7 +9288,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             msg.id === messageId
               ? { 
                   ...msg, 
-                  text: cleanResponseText(finalResponseText), 
+                  text: replaceCitationsWithLinks(cleanResponseText(finalResponseText)), 
                   isStreaming: false, 
                   isThinking: false,
                   isSearching: false,
