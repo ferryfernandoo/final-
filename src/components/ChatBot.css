@@ -11103,7 +11103,7 @@ pre.code-block code {
 }
 
 /* ============================================================
-   ✨ CLAUDE-INSPIRED MINIMALIST MODERN INPUT BOX (DEEPERNOVA AI)
+   ✨ ULTRA-MODERN PREMIUM AI CHAT INPUT BOX (DEEPERNOVA AI)
    ============================================================ */
 
 .input-container.claude-style {
@@ -11112,37 +11112,64 @@ pre.code-block code {
   align-items: stretch !important;
   justify-content: flex-start !important;
   width: 100% !important;
-  background: #ffffff !important;
-  border: 1.5px solid #e2e8f0 !important;
-  border-radius: 24px !important;
-  padding: 14px 16px 10px 18px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1.5px solid rgba(226, 232, 240, 0.85) !important;
+  border-radius: 26px !important;
+  padding: 15px 18px 11px 18px !important;
   gap: 8px !important;
-  min-height: 100px !important;
-  box-shadow: 0 4px 24px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03) !important;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  min-height: 98px !important;
+  box-shadow: 
+    0 12px 34px -4px rgba(15, 23, 42, 0.06), 
+    0 3px 10px -2px rgba(15, 23, 42, 0.03), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
   position: relative !important;
   box-sizing: border-box !important;
 }
 
 [data-theme="dark"] .input-container.claude-style {
-  background: #18181b !important;
-  border-color: #27272a !important;
-  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.4) !important;
+  background: rgba(24, 24, 27, 0.86) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 
+    0 18px 44px -6px rgba(0, 0, 0, 0.65), 
+    0 4px 14px -2px rgba(0, 0, 0, 0.4), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
 
 .input-container.claude-style:focus-within {
-  border-color: #cbd5e1 !important;
-  box-shadow: 0 8px 30px -4px rgba(15, 23, 42, 0.1), 0 0 0 2px rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(234, 88, 12, 0.5) !important;
+  box-shadow: 
+    0 16px 44px -4px rgba(234, 88, 12, 0.13), 
+    0 0 0 3.5px rgba(234, 88, 12, 0.11), 
+    inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+  transform: translateY(-1.5px) !important;
 }
 
 [data-theme="dark"] .input-container.claude-style:focus-within {
-  border-color: #3f3f46 !important;
-  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(249, 115, 22, 0.6) !important;
+  box-shadow: 
+    0 22px 50px -6px rgba(0, 0, 0, 0.75), 
+    0 0 0 3.5px rgba(249, 115, 22, 0.2), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  transform: translateY(-1.5px) !important;
 }
 
 .input-container.claude-style.generating {
-  border-color: rgba(234, 88, 12, 0.4) !important;
-  box-shadow: 0 6px 24px rgba(234, 88, 12, 0.08) !important;
+  border-color: rgba(234, 88, 12, 0.45) !important;
+  animation: modernInputAura 2.8s ease-in-out infinite alternate !important;
+}
+
+@keyframes modernInputAura {
+  0% {
+    box-shadow: 0 12px 34px -4px rgba(234, 88, 12, 0.12), 0 0 0 2px rgba(234, 88, 12, 0.15);
+  }
+  100% {
+    box-shadow: 0 16px 42px -2px rgba(234, 88, 12, 0.22), 0 0 0 3.5px rgba(234, 88, 12, 0.28);
+  }
 }
 
 /* Top Textarea Area */
@@ -11150,25 +11177,44 @@ pre.code-block code {
   width: 100% !important;
   flex: 1 !important;
   display: flex !important;
-  min-height: 48px !important;
+  min-height: 46px !important;
 }
 
 .input-container.claude-style .message-input,
 .input-form .input-container.claude-style .message-input {
   width: 100% !important;
-  padding: 0 !important;
-  font-size: 15px !important;
-  line-height: 1.55 !important;
+  padding: 2px 0 0 0 !important;
+  font-size: 15.5px !important;
+  line-height: 1.6 !important;
   color: #0f172a !important;
   background: transparent !important;
   border: none !important;
   outline: none !important;
   resize: none !important;
   box-shadow: none !important;
-  font-family: inherit !important;
+  font-family: var(--sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif) !important;
+  letter-spacing: -0.012em !important;
+  caret-color: #ea580c !important;
   max-height: 220px !important;
   min-height: 44px !important;
   overflow-y: auto !important;
+}
+
+.input-container.claude-style .message-input::-webkit-scrollbar {
+  width: 5px !important;
+}
+
+.input-container.claude-style .message-input::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.input-container.claude-style .message-input::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45) !important;
+  border-radius: 9999px !important;
+}
+
+.input-container.claude-style .message-input::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7) !important;
 }
 
 [data-theme="dark"] .input-container.claude-style .message-input,
@@ -11178,13 +11224,14 @@ pre.code-block code {
 
 .input-container.claude-style .message-input::placeholder {
   color: #94a3b8 !important;
-  font-size: 14.5px !important;
-  font-weight: 400 !important;
-  letter-spacing: 0 !important;
+  font-size: 15px !important;
+  font-weight: 450 !important;
+  letter-spacing: -0.01em !important;
+  transition: opacity 0.2s ease !important;
 }
 
 [data-theme="dark"] .input-container.claude-style .message-input::placeholder {
-  color: #64748b !important;
+  color: #71717a !important;
 }
 
 /* Bottom Toolbar Row */
@@ -11194,9 +11241,13 @@ pre.code-block code {
   justify-content: space-between !important;
   width: 100% !important;
   gap: 10px !important;
-  padding-top: 4px !important;
-  border-top: 1px solid transparent !important;
+  padding-top: 6px !important;
+  border-top: 1px solid rgba(241, 245, 249, 0.6) !important;
   margin-top: auto !important;
+}
+
+[data-theme="dark"] .input-card-toolbar {
+  border-top-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Left Tools (+ Button) */
@@ -11209,80 +11260,94 @@ pre.code-block code {
 }
 
 .claude-attach-btn {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
   padding: 0 !important;
   border-radius: 50% !important;
-  border: 1px solid #e2e8f0 !important;
-  background: #ffffff !important;
-  color: #64748b !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 [data-theme="dark"] .claude-attach-btn {
   background: #27272a !important;
-  border-color: #3f3f46 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
   color: #a1a1aa !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
 .claude-attach-btn:hover:not(:disabled) {
-  background: #f1f5f9 !important;
+  background: #ffffff !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
-  transform: scale(1.04) !important;
+  transform: scale(1.08) rotate(3deg) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 [data-theme="dark"] .claude-attach-btn:hover:not(:disabled) {
   background: #3f3f46 !important;
-  border-color: #52525b !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
   color: #ffffff !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4) !important;
 }
 
 .claude-attach-btn.active {
-  background: #0f172a !important;
-  border-color: #0f172a !important;
+  background: #ea580c !important;
+  border-color: #ea580c !important;
   color: #ffffff !important;
-  transform: rotate(45deg) !important;
+  transform: rotate(45deg) scale(1.04) !important;
+  box-shadow: 0 3px 10px rgba(234, 88, 12, 0.35) !important;
 }
 
 [data-theme="dark"] .claude-attach-btn.active {
-  background: #ffffff !important;
-  border-color: #ffffff !important;
-  color: #0f172a !important;
+  background: #ea580c !important;
+  border-color: #ea580c !important;
+  color: #ffffff !important;
+  transform: rotate(45deg) scale(1.04) !important;
+  box-shadow: 0 3px 12px rgba(234, 88, 12, 0.45) !important;
 }
 
 /* Claude Dropdown Menu */
 .claude-dropdown {
   position: absolute !important;
-  bottom: calc(100% + 10px) !important;
+  bottom: calc(100% + 12px) !important;
   left: 0 !important;
-  min-width: 250px !important;
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 16px !important;
-  padding: 6px !important;
-  box-shadow: 0 12px 36px -4px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+  min-width: 260px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 18px !important;
+  padding: 8px !important;
+  box-shadow: 
+    0 18px 42px -4px rgba(15, 23, 42, 0.16), 
+    0 0 0 1px rgba(0, 0, 0, 0.04) !important;
   z-index: 1000 !important;
-  animation: claudePopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  animation: claudePopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 [data-theme="dark"] .claude-dropdown {
-  background: #1e1e24 !important;
-  border-color: #2e2e38 !important;
-  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  background: rgba(24, 24, 27, 0.95) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 
+    0 20px 48px -4px rgba(0, 0, 0, 0.65), 
+    0 0 0 1px rgba(255, 255, 255, 0.06) !important;
 }
 
 @keyframes claudePopIn {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.97);
+    transform: translateY(8px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -11293,31 +11358,40 @@ pre.code-block code {
 .claude-dropdown .menu-item {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 11px !important;
   width: 100% !important;
-  padding: 8px 12px !important;
-  border-radius: 10px !important;
+  padding: 9px 12px !important;
+  border-radius: 12px !important;
   border: none !important;
   background: transparent !important;
   cursor: pointer !important;
-  transition: background 0.15s ease !important;
+  transition: all 0.16s ease !important;
   text-align: left !important;
 }
 
 .claude-dropdown .menu-item:hover:not(:disabled) {
-  background: #f8fafc !important;
+  background: #f1f5f9 !important;
+  transform: translateX(2px) !important;
 }
 
 [data-theme="dark"] .claude-dropdown .menu-item:hover:not(:disabled) {
   background: #27272a !important;
+  transform: translateX(2px) !important;
 }
 
 .claude-dropdown .menu-icon {
   font-size: 16px !important;
-  width: 24px !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 8px !important;
+  background: rgba(241, 245, 249, 0.8) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+[data-theme="dark"] .claude-dropdown .menu-icon {
+  background: rgba(39, 39, 42, 0.8) !important;
 }
 
 .claude-dropdown .menu-item-text {
@@ -11330,6 +11404,7 @@ pre.code-block code {
   font-size: 13px !important;
   font-weight: 600 !important;
   color: #1e293b !important;
+  letter-spacing: -0.01em !important;
 }
 
 [data-theme="dark"] .claude-dropdown .menu-item-title {
@@ -11339,6 +11414,7 @@ pre.code-block code {
 .claude-dropdown .menu-item-desc {
   font-size: 11px !important;
   color: #94a3b8 !important;
+  line-height: 1.35 !important;
 }
 
 /* Right Toolbar Group */
@@ -11357,45 +11433,52 @@ pre.code-block code {
 .claude-model-selector-btn {
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 12px !important;
-  padding: 5px 10px !important;
-  font-size: 12px !important;
+  gap: 7px !important;
+  background: rgba(248, 250, 252, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 9999px !important;
+  padding: 5px 12px !important;
+  font-size: 12.5px !important;
   font-weight: 600 !important;
   color: #334155 !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 [data-theme="dark"] .claude-model-selector-btn {
-  background: #27272a !important;
-  border-color: #3f3f46 !important;
+  background: rgba(39, 39, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
   color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
 .claude-model-selector-btn:hover {
-  background: #f1f5f9 !important;
+  background: #ffffff !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
 [data-theme="dark"] .claude-model-selector-btn:hover {
   background: #3f3f46 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
   color: #ffffff !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4) !important;
 }
 
 .claude-model-selector-btn.active {
-  background: #e2e8f0 !important;
-  border-color: #94a3b8 !important;
-  color: #0f172a !important;
+  background: rgba(234, 88, 12, 0.08) !important;
+  border-color: rgba(234, 88, 12, 0.35) !important;
+  color: #ea580c !important;
 }
 
 [data-theme="dark"] .claude-model-selector-btn.active {
-  background: #3f3f46 !important;
-  border-color: #71717a !important;
-  color: #ffffff !important;
+  background: rgba(234, 88, 12, 0.16) !important;
+  border-color: rgba(234, 88, 12, 0.45) !important;
+  color: #fb923c !important;
 }
 
 .model-btn-name {
@@ -11407,20 +11490,20 @@ pre.code-block code {
   font-size: 10px !important;
   font-weight: 700 !important;
   color: #ea580c !important;
-  background: rgba(234, 88, 12, 0.1) !important;
-  padding: 2px 6px !important;
-  border-radius: 6px !important;
+  background: rgba(234, 88, 12, 0.12) !important;
+  padding: 2px 7px !important;
+  border-radius: 9999px !important;
   letter-spacing: 0.02em !important;
 }
 
 [data-theme="dark"] .model-btn-badge {
   color: #fb923c !important;
-  background: rgba(251, 146, 60, 0.15) !important;
+  background: rgba(251, 146, 60, 0.18) !important;
 }
 
 .model-chevron {
   color: #94a3b8 !important;
-  transition: transform 0.2s ease !important;
+  transition: transform 0.22s ease !important;
 }
 
 .model-chevron.open {
@@ -11430,30 +11513,38 @@ pre.code-block code {
 /* Model Dropdown Popup */
 .claude-model-dropdown {
   position: absolute !important;
-  bottom: calc(100% + 10px) !important;
+  bottom: calc(100% + 12px) !important;
   right: 0 !important;
   width: 320px !important;
   max-width: calc(100vw - 32px) !important;
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 16px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 18px !important;
   padding: 10px !important;
-  box-shadow: 0 16px 40px -6px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 
+    0 18px 44px -6px rgba(15, 23, 42, 0.16), 
+    0 0 0 1px rgba(0, 0, 0, 0.04) !important;
   z-index: 1000 !important;
-  animation: claudePopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  animation: claudePopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 [data-theme="dark"] .claude-model-dropdown {
-  background: #1e1e24 !important;
-  border-color: #2e2e38 !important;
-  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.6) !important;
+  background: rgba(24, 24, 27, 0.95) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 
+    0 20px 48px -4px rgba(0, 0, 0, 0.65), 
+    0 0 0 1px rgba(255, 255, 255, 0.06) !important;
 }
 
 .model-dropdown-note-banner {
   background: rgba(234, 88, 12, 0.08) !important;
   border: 1px solid rgba(234, 88, 12, 0.22) !important;
-  border-radius: 10px !important;
-  padding: 8px 10px !important;
+  border-radius: 12px !important;
+  padding: 9px 12px !important;
   margin-bottom: 8px !important;
 }
 
@@ -11531,12 +11622,12 @@ pre.code-block code {
   flex-direction: column !important;
   gap: 3px !important;
   padding: 8px 10px !important;
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   border: 1px solid transparent !important;
   background: transparent !important;
   cursor: pointer !important;
   text-align: left !important;
-  transition: all 0.15s ease !important;
+  transition: all 0.18s ease !important;
 }
 
 .model-option-item:hover {
@@ -11548,13 +11639,13 @@ pre.code-block code {
 }
 
 .model-option-item.active {
-  background: rgba(234, 88, 12, 0.06) !important;
-  border-color: rgba(234, 88, 12, 0.25) !important;
+  background: rgba(234, 88, 12, 0.08) !important;
+  border-color: rgba(234, 88, 12, 0.28) !important;
 }
 
 [data-theme="dark"] .model-option-item.active {
-  background: rgba(234, 88, 12, 0.12) !important;
-  border-color: rgba(234, 88, 12, 0.35) !important;
+  background: rgba(234, 88, 12, 0.15) !important;
+  border-color: rgba(234, 88, 12, 0.4) !important;
 }
 
 .model-option-top {
@@ -11581,9 +11672,9 @@ pre.code-block code {
   font-size: 10px !important;
   font-weight: 700 !important;
   color: #ea580c !important;
-  background: rgba(234, 88, 12, 0.1) !important;
-  padding: 1px 5px !important;
-  border-radius: 4px !important;
+  background: rgba(234, 88, 12, 0.12) !important;
+  padding: 2px 6px !important;
+  border-radius: 6px !important;
   margin-left: auto !important;
 }
 
@@ -11607,19 +11698,19 @@ pre.code-block code {
 
 /* Minimalist Tool Icon Buttons (Mic & Voice Mode) */
 .claude-tool-btn {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
   border-radius: 50% !important;
-  border: none !important;
+  border: 1px solid transparent !important;
   background: transparent !important;
   color: #64748b !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
   padding: 0 !important;
 }
 
@@ -11629,24 +11720,27 @@ pre.code-block code {
 
 .claude-tool-btn:hover:not(:disabled) {
   background: #f1f5f9 !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
   color: #0f172a !important;
-  transform: scale(1.06) !important;
+  transform: scale(1.08) !important;
 }
 
 [data-theme="dark"] .claude-tool-btn:hover:not(:disabled) {
   background: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
 }
 
 .claude-tool-btn.mic-btn.listening {
   background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
   color: #ef4444 !important;
-  animation: claudeMicPulse 1.4s infinite !important;
+  animation: modernMicPulse 1.4s infinite !important;
 }
 
-@keyframes claudeMicPulse {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+@keyframes modernMicPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+  50% { transform: scale(1.1); box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
   100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
@@ -11654,13 +11748,13 @@ pre.code-block code {
 .claude-wave-bars {
   display: flex !important;
   align-items: center !important;
-  gap: 2px !important;
+  gap: 2.5px !important;
   height: 14px !important;
 }
 
 .claude-wave-bars .bar {
-  width: 2px !important;
-  border-radius: 2px !important;
+  width: 2.2px !important;
+  border-radius: 9999px !important;
   background: currentColor !important;
   transition: height 0.2s ease !important;
 }
@@ -11688,71 +11782,88 @@ pre.code-block code {
 
 /* Claude Send / Stop Action Button */
 .claude-action-btn {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
   border-radius: 50% !important;
   border: none !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
   padding: 0 !important;
 }
 
 .claude-action-btn.send-mode.empty {
   background: #f1f5f9 !important;
   color: #94a3b8 !important;
+  border: 1px solid rgba(226, 232, 240, 0.7) !important;
   cursor: not-allowed !important;
 }
 
 [data-theme="dark"] .claude-action-btn.send-mode.empty {
   background: #27272a !important;
   color: #52525b !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 .claude-action-btn.send-mode.has-text {
-  background: #0f172a !important;
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 55%, #fb923c 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2) !important;
+  border: none !important;
+  box-shadow: 
+    0 4px 14px rgba(234, 88, 12, 0.42), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-1px) scale(1.02) !important;
 }
 
 [data-theme="dark"] .claude-action-btn.send-mode.has-text {
-  background: #ffffff !important;
-  color: #0f172a !important;
-  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2) !important;
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 55%, #fb923c 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 
+    0 4px 16px rgba(234, 88, 12, 0.5), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
 
 .claude-action-btn.send-mode.has-text:hover:not(:disabled) {
-  transform: scale(1.08) !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.3) !important;
+  transform: translateY(-2px) scale(1.1) !important;
+  box-shadow: 
+    0 6px 20px rgba(234, 88, 12, 0.58), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
 }
 
 [data-theme="dark"] .claude-action-btn.send-mode.has-text:hover:not(:disabled) {
-  transform: scale(1.08) !important;
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-2px) scale(1.1) !important;
+  box-shadow: 
+    0 6px 22px rgba(234, 88, 12, 0.65), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
 }
 
 .claude-action-btn.send-mode.has-text:active:not(:disabled) {
-  transform: scale(0.94) !important;
+  transform: translateY(0) scale(0.95) !important;
 }
 
 /* Stop Mode Button */
 .claude-action-btn.stop-mode {
-  background: #ef4444 !important;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3) !important;
+  border: none !important;
+  box-shadow: 
+    0 4px 14px rgba(239, 68, 68, 0.42), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
 
 .claude-action-btn.stop-mode:hover {
   background: #dc2626 !important;
   transform: scale(1.08) !important;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.55) !important;
 }
 
 .claude-action-btn.stop-mode:active {
-  transform: scale(0.94) !important;
+  transform: scale(0.95) !important;
 }
 
 /* Responsive Tweaks */
@@ -15171,13 +15282,18 @@ pre.code-block code {
 /* Central Floating Input Box */
 .meta-hero-input-container {
   width: 100% !important;
-  background: #ffffff !important;
-  border: 1.5px solid #e5e7eb !important;
-  border-radius: 24px !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1.5px solid rgba(226, 232, 240, 0.85) !important;
+  border-radius: 26px !important;
+  box-shadow: 
+    0 12px 34px -4px rgba(15, 23, 42, 0.06), 
+    0 3px 10px -2px rgba(15, 23, 42, 0.03), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
   padding: 16px 20px 14px 20px !important;
   box-sizing: border-box !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 12px !important;
@@ -15188,8 +15304,12 @@ pre.code-block code {
 }
 
 .meta-hero-input-container:focus-within {
-  border-color: #ea580c !important;
-  box-shadow: 0 6px 24px rgba(234, 88, 12, 0.12), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(234, 88, 12, 0.5) !important;
+  box-shadow: 
+    0 16px 44px -4px rgba(234, 88, 12, 0.13), 
+    0 0 0 3.5px rgba(234, 88, 12, 0.11), 
+    inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+  transform: translateY(-1.5px) !important;
 }
 
 .meta-hero-textarea {
@@ -15202,8 +15322,10 @@ pre.code-block code {
   resize: none !important;
   min-height: 48px !important;
   max-height: 140px !important;
-  font-family: inherit !important;
-  line-height: 1.5 !important;
+  font-family: var(--sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif) !important;
+  line-height: 1.55 !important;
+  letter-spacing: -0.012em !important;
+  caret-color: #ea580c !important;
   padding: 0 !important;
   pointer-events: auto !important;
   cursor: text !important;
@@ -15214,8 +15336,10 @@ pre.code-block code {
 }
 
 .meta-hero-textarea::placeholder {
-  color: #9ca3af !important;
-  font-weight: 400 !important;
+  color: #94a3b8 !important;
+  font-size: 15.5px !important;
+  font-weight: 450 !important;
+  letter-spacing: -0.01em !important;
 }
 
 /* Dark theme meta-hero overrides */
@@ -15228,9 +15352,25 @@ pre.code-block code {
 .dark-theme .meta-hero-input-container,
 .dark-mode .meta-hero-input-container,
 [data-theme='dark'] .meta-hero-input-container {
-  background: #18181b !important;
-  border-color: #27272a !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  background: rgba(24, 24, 27, 0.86) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 
+    0 18px 44px -6px rgba(0, 0, 0, 0.65), 
+    0 4px 14px -2px rgba(0, 0, 0, 0.4), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark-theme .meta-hero-input-container:focus-within,
+.dark-mode .meta-hero-input-container:focus-within,
+[data-theme='dark'] .meta-hero-input-container:focus-within {
+  border-color: rgba(249, 115, 22, 0.6) !important;
+  box-shadow: 
+    0 22px 50px -6px rgba(0, 0, 0, 0.75), 
+    0 0 0 3.5px rgba(249, 115, 22, 0.2), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  transform: translateY(-1.5px) !important;
 }
 
 .dark-theme .meta-hero-textarea,
@@ -15242,22 +15382,23 @@ pre.code-block code {
 .dark-theme .meta-hero-textarea::placeholder,
 .dark-mode .meta-hero-textarea::placeholder,
 [data-theme='dark'] .meta-hero-textarea::placeholder {
-  color: #6b7280 !important;
+  color: #71717a !important;
 }
 
 .dark-theme .meta-hero-action-btn,
 .dark-mode .meta-hero-action-btn,
 [data-theme='dark'] .meta-hero-action-btn {
   background: #27272a !important;
-  border-color: #3f3f46 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
   color: #d1d5db !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
 .dark-theme .meta-pill-instan,
 .dark-mode .meta-pill-instan,
 [data-theme='dark'] .meta-pill-instan {
-  background: #27272a !important;
-  border-color: #3f3f46 !important;
+  background: rgba(39, 39, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
   color: #e4e4e7 !important;
 }
 
@@ -15283,6 +15424,7 @@ pre.code-block code {
   justify-content: space-between !important;
   width: 100% !important;
   margin-top: 4px !important;
+  padding-top: 4px !important;
 }
 
 .meta-toolbar-left,
@@ -15293,73 +15435,96 @@ pre.code-block code {
 }
 
 .meta-hero-action-btn {
-  width: 32px !important;
-  height: 32px !important;
+  width: 34px !important;
+  height: 34px !important;
   border-radius: 50% !important;
-  border: 1px solid #e5e7eb !important;
-  background: #ffffff !important;
-  color: #4b5563 !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  transition: all 0.18s ease !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
   font-size: 13px !important;
   padding: 0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 .meta-hero-action-btn:hover {
-  background: #f9fafb !important;
-  color: #111827 !important;
-  border-color: #d1d5db !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 .meta-hero-action-btn.mic.listening {
-  background: #fee2e2 !important;
-  color: #dc2626 !important;
-  border-color: #fca5a5 !important;
-  animation: pulse 1.2s infinite !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #ef4444 !important;
+  animation: modernMicPulse 1.4s infinite !important;
 }
 
 .meta-pill-instan {
   display: inline-flex !important;
   align-items: center !important;
-  padding: 4px 14px !important;
+  padding: 4px 13px !important;
   border-radius: 9999px !important;
-  border: 1px solid #e5e7eb !important;
-  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: rgba(248, 250, 252, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
   color: #374151 !important;
-  font-size: 12.5px !important;
-  font-weight: 500 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
   user-select: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 .meta-hero-send-btn {
-  width: 32px !important;
-  height: 32px !important;
+  width: 34px !important;
+  height: 34px !important;
   border-radius: 50% !important;
-  border: none !important;
-  background: #cbd5e1 !important;
-  color: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.7) !important;
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: not-allowed !important;
-  transition: all 0.18s ease !important;
-  font-size: 13px !important;
+  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  font-size: 13.5px !important;
   padding: 0 !important;
 }
 
+.dark-theme .meta-hero-send-btn,
+.dark-mode .meta-hero-send-btn,
+[data-theme='dark'] .meta-hero-send-btn {
+  background: #27272a !important;
+  color: #52525b !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
 .meta-hero-send-btn.active {
-  background: #ea580c !important;
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 55%, #fb923c 100%) !important;
   color: #ffffff !important;
+  border: none !important;
   cursor: pointer !important;
-  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4) !important;
+  box-shadow: 
+    0 4px 14px rgba(234, 88, 12, 0.42), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-1px) scale(1.02) !important;
 }
 
 .meta-hero-send-btn.active:hover {
-  background: #c2410c !important;
-  transform: scale(1.05) !important;
+  transform: translateY(-2px) scale(1.1) !important;
+  box-shadow: 
+    0 6px 20px rgba(234, 88, 12, 0.58), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+}
+
+.meta-hero-send-btn.active:active {
+  transform: translateY(0) scale(0.95) !important;
 }
 
 /* Quick Prompt Chips */
@@ -15746,30 +15911,34 @@ pre.code-block code {
     width: 100% !important;
     max-width: 600px !important;
     margin: 0 auto !important;
-    background: #ffffff !important;
-    border: 1.5px solid #e5e7eb !important;
-    border-radius: 24px !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1.5px solid rgba(226, 232, 240, 0.85) !important;
+    border-radius: 26px !important;
+    box-shadow: 0 12px 36px -4px rgba(15, 23, 42, 0.09), 0 4px 12px -2px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
     padding: 12px 16px 10px 16px !important;
     box-sizing: border-box !important;
-    transition: all 0.2s ease !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   .input-container.claude-style:focus-within {
-    border-color: #ea580c !important;
-    box-shadow: 0 6px 24px rgba(234, 88, 12, 0.14) !important;
+    border-color: rgba(234, 88, 12, 0.65) !important;
+    box-shadow: 0 16px 40px -4px rgba(234, 88, 12, 0.16), 0 0 0 3px rgba(234, 88, 12, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   }
 
   .input-container.claude-style .message-input {
     font-size: 15.5px !important;
-    line-height: 1.45 !important;
+    line-height: 1.55 !important;
     min-height: 40px !important;
-    color: #111827 !important;
+    color: #0f172a !important;
     background: transparent !important;
+    caret-color: #ea580c !important;
+    letter-spacing: -0.01em !important;
   }
 
   .input-container.claude-style .message-input::placeholder {
-    color: #9ca3af !important;
+    color: #94a3b8 !important;
   }
 
   .input-card-toolbar {
@@ -15777,39 +15946,42 @@ pre.code-block code {
     align-items: center !important;
     justify-content: space-between !important;
     width: 100% !important;
-    margin-top: 4px !important;
+    margin-top: 6px !important;
   }
 
   /* Left (+) button on mobile */
   .claude-attach-btn {
-    width: 32px !important;
-    height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
     border-radius: 50% !important;
-    border: 1px solid #e5e7eb !important;
-    background: #ffffff !important;
-    color: #4b5563 !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    background: rgba(248, 250, 252, 0.9) !important;
+    color: #475569 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   /* Right toolbar on mobile */
   .input-toolbar-right {
     display: flex !important;
     align-items: center !important;
-    gap: 6px !important;
+    gap: 7px !important;
   }
 
-  /* Model pill badge - clean "Instan" capsule */
+  /* Model pill badge - clean capsule */
   .claude-model-selector-btn {
-    padding: 4px 12px !important;
+    padding: 5px 12px !important;
     border-radius: 9999px !important;
-    border: 1px solid #e5e7eb !important;
-    background: #ffffff !important;
-    color: #374151 !important;
+    border: 1px solid rgba(226, 232, 240, 0.85) !important;
+    background: rgba(248, 250, 252, 0.9) !important;
+    color: #334155 !important;
     font-size: 12px !important;
     font-weight: 500 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
   }
 
   .model-btn-name {
@@ -15822,21 +15994,22 @@ pre.code-block code {
 
   .model-btn-badge {
     font-size: 12px !important;
-    color: #374151 !important;
+    color: #334155 !important;
   }
 
   /* Mic button on mobile */
   .claude-tool-btn.mic-btn {
-    width: 32px !important;
-    height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
     border-radius: 50% !important;
-    border: 1px solid #e5e7eb !important;
-    background: #ffffff !important;
-    color: #4b5563 !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    background: rgba(248, 250, 252, 0.9) !important;
+    color: #475569 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
   }
 
   /* Voice chat wave button - hide on mobile to match screenshot */
@@ -15846,22 +16019,23 @@ pre.code-block code {
 
   /* Send button on mobile */
   .claude-action-btn.send-mode {
-    width: 32px !important;
-    height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
     border-radius: 50% !important;
     border: none !important;
-    background: #cbd5e1 !important;
+    background: rgba(203, 213, 225, 0.6) !important;
     color: #ffffff !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   .claude-action-btn.send-mode.has-text {
-    background: #ea580c !important;
+    background: linear-gradient(135deg, #ea580c 0%, #f97316 55%, #fb923c 100%) !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4) !important;
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.42), 0 1px 3px rgba(234, 88, 12, 0.25) !important;
   }
 
   /* 5. Clean Action Buttons Under Bot Message */
