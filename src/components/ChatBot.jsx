@@ -4326,19 +4326,29 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     
     if (!messagesContainer) return; // Early return jika container belum ready
     
+    const getIsAtMessageBottom = () => {
+      const allMessages = messagesContainer.querySelectorAll('.message');
+      const lastMsg = allMessages.length > 0 ? allMessages[allMessages.length - 1] : null;
+      if (lastMsg) {
+        const containerRect = messagesContainer.getBoundingClientRect();
+        const msgRect = lastMsg.getBoundingClientRect();
+        // If bottom of last message is visible above the bottom input bar (within 130px):
+        return (msgRect.bottom - containerRect.bottom) <= 130;
+      }
+      const distanceFromBottom = 
+        messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+      return distanceFromBottom < 120;
+    };
+
     const handleScroll = () => {
       try {
-        const distanceFromBottom = 
-          messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-        const isAtBottom = distanceFromBottom < 120;
+        const isAtBottom = getIsAtMessageBottom();
         setIsScrolledUp(!isAtBottom);
 
-        // If user is at or near the bottom, release holdScroll
-        if (distanceFromBottom < 160) {
+        if (isAtBottom) {
           holdScrollRef.current = false;
         }
 
-        // If user manually scrolled with scrollbar or touch without active RAF
         if (!programmaticScrollRef.current) {
           stopGlide();
         }
@@ -4349,7 +4359,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     const handleWheel = (_e) => {
       try {
-        // ALWAYS kill any auto-scroll animation immediately when user scrolls wheel
         stopGlide();
 
         if (Math.abs(_e.deltaY) > 2) {
@@ -4357,13 +4366,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         }
 
         if (_e.deltaY < 0) {
-          // User scrolled up: pause auto-scroll to respect reading position
           holdScrollRef.current = true;
           setIsScrolledUp(true);
         } else if (_e.deltaY > 0) {
-          // User scrolled down: release holdScroll if approaching bottom
-          const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-          if (distanceFromBottom < 160) {
+          const isAtBottom = getIsAtMessageBottom();
+          if (isAtBottom) {
             holdScrollRef.current = false;
             setIsScrolledUp(false);
           }
@@ -7141,7 +7148,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     } catch (_e) {
       // ignore
     }
-    scrollToBottom(true);
+    scrollToBottom(false);
     setIsScrolledUp(false);
   };
 
@@ -12300,8 +12307,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           </div>
         )}
 
-        {/* Modern AI Chat spacer: only present while generating so user prompt can stay anchored */}
-        {isGenerating && (
+        {/* Modern AI Chat spacer: maintains ample room below prompt & AI response so the user bubble stays anchored at the top without collapsing */}
+        {messages.length > 0 && (
           <div className="chat-generating-spacer" aria-hidden="true" />
         )}
 

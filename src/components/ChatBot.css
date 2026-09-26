@@ -2432,9 +2432,8 @@
 }
 
 .chat-generating-spacer {
-  height: 20vh !important;
-  min-height: 120px !important;
-  max-height: 220px !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
   width: 100%;
   pointer-events: none;
   flex-shrink: 0;
@@ -2449,9 +2448,8 @@
   }
 
   .chat-generating-spacer {
-    height: 18vh !important;
-    min-height: 100px !important;
-    max-height: 180px !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
   }
 }
 
