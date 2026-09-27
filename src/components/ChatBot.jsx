@@ -1611,8 +1611,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
       // Calculate how much the virtual keyboard overlaps the bottom of the window
       const keyboardHeight = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
+      const isAndroidKb = window.screen && window.screen.height && (window.screen.height - vv.height > 180);
 
-      if (keyboardHeight > 50) {
+      if (keyboardHeight > 50 || isAndroidKb) {
         document.documentElement.style.setProperty('--keyboard-offset', `${Math.round(keyboardHeight)}px`);
         document.body.classList.add('mobile-keyboard-open');
       } else {
