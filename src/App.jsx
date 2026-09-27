@@ -219,6 +219,19 @@ function App() {
     };
   }, []);
 
+  // Synchronize active view class on document.body and document.documentElement for clean scroll behavior
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const allViews = ['view-landing', 'view-chat', 'view-documents', 'view-codedance', 'view-help', 'view-dte', 'view-office', 'view-universe'];
+    document.body.classList.remove(...allViews);
+    document.documentElement.classList.remove(...allViews);
+    
+    const activeClass = `view-${currentView || 'landing'}`;
+    document.body.classList.add(activeClass);
+    document.documentElement.classList.add(activeClass);
+    document.body.setAttribute('data-view', currentView || 'landing');
+  }, [currentView]);
+
   useEffect(() => {
     const verifyAuth = async () => {
       console.log('[AUTH] Connecting to API:', API_BASE_URL);

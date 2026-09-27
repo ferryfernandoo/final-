@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './LandingPage.css';
 
 const SEARCH_ENGINE_URL = 
@@ -15,6 +15,24 @@ const ORDER_DTE_URL =
 
 const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user }) => {
   const [activeFaq, setActiveFaq] = useState(null);
+
+  // Pastikan scrolling halaman vertikal aktif dan mulus di semua perangkat & browser
+  useEffect(() => {
+    document.documentElement.classList.add('view-landing');
+    document.body.classList.add('view-landing');
+    document.body.setAttribute('data-view', 'landing');
+
+    const prevHtmlOverflowY = document.documentElement.style.overflowY;
+    const prevBodyOverflowY = document.body.style.overflowY;
+
+    document.documentElement.style.overflowY = 'auto';
+    document.body.style.overflowY = 'visible';
+
+    return () => {
+      document.documentElement.style.overflowY = prevHtmlOverflowY;
+      document.body.style.overflowY = prevBodyOverflowY;
+    };
+  }, []);
 
   const features = [
     {

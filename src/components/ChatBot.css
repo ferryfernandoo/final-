@@ -16033,8 +16033,9 @@ pre.code-block code {
    📱 MOBILE & NARROW SCREEN (ANDROID) EXACT META AI REPLICA
    ============================================================ */
 @media (max-width: 768px) {
-  /* 0. Clean mobile container setup without position:fixed trapping */
-  html, body {
+  /* 0. Clean mobile container setup ONLY when actively in the ChatBot interface */
+  html:has(.chatbot-app), body:has(.chatbot-app),
+  html.view-chat, body.view-chat {
     width: 100% !important;
     height: 100% !important;
     margin: 0 !important;
