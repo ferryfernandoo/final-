@@ -2378,6 +2378,10 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     // Remove single prefix label at very beginning of response (e.g. "Jawaban:" on line 1)
     s = s.replace(/^\s*(\*\*)?Jawaban:?(\*\*)?\s*\n?/i, '');
 
+    // Strip opening thank you for search results or search data
+    s = s.replace(/^\s*(?:terima\s*kasih|makasih|thanks|thank\s*you)[^\n.!?]*(?:hasil\s*pencarian|pencariannya|informasi(?:nya)?|data\s*pencarian|search\s*results?)[^\n.!?]*[.!?\n]+\s*/i, '');
+    s = s.replace(/^\s*(?:berdasarkan\s*(?:data|informasi|hasil)\s*pencarian\s*yang\s*(?:anda|kamu|telah)\s*(?:berikan|disediakan))[^\n.!?]*[,.:!?\n]+\s*/i, '');
+
     // Clean up broken dash markers and leftover artifacts
     s = s.replace(/--\*\*/g, '').replace(/\*\*--/g, '');
 
@@ -2463,6 +2467,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     s = s.replace(/^\s*\*\*Kesimpulan:\*\*\s*/gi, '');
     s = s.replace(/^\s*\*\*Kesimpulan:\s*/gi, '');
     s = s.replace(/^\s*Kesimpulan:\s*/gi, '');
+    // Strip opening thank you for search results or search data
+    s = s.replace(/^\s*(?:terima\s*kasih|makasih|thanks|thank\s*you)[^\n.!?]*(?:hasil\s*pencarian|pencariannya|informasi(?:nya)?|data\s*pencarian|search\s*results?)[^\n.!?]*[.!?\n]+\s*/i, '');
+    s = s.replace(/^\s*(?:berdasarkan\s*(?:data|informasi|hasil)\s*pencarian\s*yang\s*(?:anda|kamu|telah)\s*(?:berikan|disediakan))[^\n.!?]*[,.:!?\n]+\s*/i, '');
     // Remove broken chunk separators and artifacts
     s = s.replace(/--\*\*/g, '');
     s = s.replace(/\*\*--/g, '');
@@ -9128,14 +9135,22 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const userQuery = userPrompt || lastSentPromptRef.current || 'the query';
       const accumulatedHistoryContext = searchContextHistoryRef.current[messageId].join('\n\n');
       
+      const nowTime = new Date();
+      const currentYear = nowTime.getFullYear();
+      const dayNameId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
+      const dateFormattedId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
+
       // Build a clear, focused conclusion prompt that connects to context
-      let conclusionPrompt = `--- HASIL PENCARIAN WEB TERVERIFIKASI ---\n${accumulatedHistoryContext}\n\n`;
+      let conclusionPrompt = `[INSTRUKSI SISTEM: Waktu saat ini adalah tahun ${currentYear}, hari ${dayNameId}, ${dateFormattedId}. DILARANG mengucapkan terima kasih atas hasil pencarian atau menyebut "terima kasih atas informasinya". Pengguna TIDAK memberikan data ini; data ini didapat otomatis oleh mesin pencari internal. LANGSUNG jawab pertanyaan pengguna secara komprehensif, terstruktur, dan akurat.]\n\n`;
+      conclusionPrompt += `Pertanyaan Pengguna: "${userQuery}"\n\n`;
+      conclusionPrompt += `--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${accumulatedHistoryContext}\n\n`;
       if (aiOverviewText) {
         conclusionPrompt += `--- RINGKASAN INTISARI PENCARIAN ---\n${aiOverviewText}\n\n`;
       }
-      conclusionPrompt += `Pertanyaan Pengguna: "${userQuery}"\n\n`;
       conclusionPrompt += `--- PANDUAN STRUKTUR & KUALITAS JAWABAN PENCARIAN (SANGAT PENTING) ---
-1. FORMAT SUPER RAPI, BERJENJANG & SCANNABLE (WAJIB):
+1. DILARANG BERTERIMA KASIH: Jangan pernah menulis "Terima kasih atas hasil pencariannya..." atau sejenisnya. Pengguna tidak memberikan informasi ini. Langsung mulai jawaban di paragraf pertama!
+2. WAJIB BERPEDOMAN PADA WAKTU SEKARANG: Tahun saat ini adalah ${currentYear} (BUKAN 2024). Semua analisis berita dan peristiwa terkini berpedoman pada tanggal hari ini: ${dateFormattedId}.
+3. FORMAT SUPER RAPI, BERJENJANG & SCANNABLE (WAJIB):
    - RINGKASAN INTI AWAL (1-2 kalimat): Awali jawaban langsung dengan inti/jawaban tegas atas pertanyaan pengguna di paragraf pertama.
    - SUBJUDUL TEMATIK (###): Gunakan heading markdown tingkat 3 (contoh: "### 1. Perkembangan Utama" atau "### Rincian Lengkap") untuk memecah informasi ke topik-topik terpisah.
    - POIN DENGAN JUDUL TEBAL (BOLD LEAD): Gunakan daftar bernomor atau bullet list di mana SETIAP BUTIR DIAWALI DENGAN JUDUL TEBAL:
@@ -9143,14 +9158,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    - SATU BARIS KOSONG (BLANK LINE): Pisahkan setiap paragraf, subjudul, dan butir poin dengan SATU BARIS KOSONG agar jawaban lega, berjarak nyaman, dan tidak menumpuk padat.
    - TEBALKAN DATA KRUSIAL: Cetak tebal angka penting, persentase, tanggal spesifik, atau nama lembaga kunci.
 
-2. KEAKURATAN & SITASI SUMBER:
+4. KEAKURATAN & SITASI SUMBER:
    - Manfaatkan data faktual dari HASIL PENCARIAN WEB di atas. Jangan membaca berita kaku seperti robot, sajikan secara cerdas dan mengalir.
    - Cantumkan sitasi link markdown: [Nama Sumber](URL) tepat di akhir kalimat fakta yang bersumber dari web.
 
-3. KNOWLEDGE FALLBACK PERCAYA DIRI:
+5. KNOWLEDGE FALLBACK PERCAYA DIRI:
    - Jika hasil web minim atau kurang relevan: Padukan mulus dengan pengetahuan internal Anda secara cerdas dan percaya diri tanpa meminta maaf dan tanpa menyalahkan hasil pencarian.
 
-4. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
+6. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
       
       console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
       
