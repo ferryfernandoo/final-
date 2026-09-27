@@ -1,2 +1,0 @@
-# Google AdSense ads.txt for deepernova.com
-google.com, pub-6822768824603153, DIRECT, f08c47fec0942fa0

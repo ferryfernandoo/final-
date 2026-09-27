@@ -24,8 +24,6 @@ import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch, enrichQueryWithDateIfRecent, detectUpfrontSearchIntent } from '../services/clientSearchService';
-import AdBanner from './AdBanner';
-import MessageAdRotator from './MessageAdRotator';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -10331,11 +10329,22 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             }}
             disabled={false}
             readOnly={false}
-            autoFocus
             rows={1}
             onFocus={() => {
               window.scrollTo(0, 0);
               document.body.scrollTop = 0;
+              const container = document.querySelector('.messages-container');
+              if (container) {
+                container.scrollTop = 0;
+                requestAnimationFrame(() => {
+                  window.scrollTo(0, 0);
+                  if (container) container.scrollTop = 0;
+                });
+                setTimeout(() => {
+                  window.scrollTo(0, 0);
+                  if (container) container.scrollTop = 0;
+                }, 60);
+              }
             }}
             style={{ pointerEvents: 'auto', cursor: 'text' }}
           />
@@ -10559,15 +10568,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return false;
       })();
 
-      const isEligibleUserAd = (() => {
-        if (message.sender !== 'user') return false;
-        let countAfter = 0;
-        for (let i = index + 1; i < messages.length; i++) {
-          if (messages[i]?.sender === 'user') countAfter++;
-        }
-        return countAfter < 3;
-      })();
-
       return (
         <div
           key={index}
@@ -10579,11 +10579,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           onTouchEnd={handleMessageMouseUp}
           style={{ marginBottom: message.sender === 'user' && expandedUserMessageId !== message.id ? '24px' : '0' }}
         >
-          {isEligibleUserAd && (
-            <div className="user-message-ad-wrapper">
-              <MessageAdRotator userLanguage={userLanguage} />
-            </div>
-          )}
           <div className={`message-content${message.isStreaming ? ' is-streaming' : ''}`}>
             {message.isImage && (
               <>
@@ -12031,11 +12026,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
 
 
-        {/* AdSense / Sponsor Ad Placement */}
-        <AdBanner 
-          className="sidebar-ad-slot"
-        />
-
         {/* Sidebar Footer (Settings & Profile) */}
         <div className="sidebar-footer">
           <div className="sidebar-profile-info">
@@ -12231,7 +12221,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           </div>
         )}
 
-        <div className={`messages-container ${isGenerating ? 'generating-active prefill-space' : ''}`}>
+        <div className={`messages-container ${isGenerating ? 'generating-active prefill-space' : ''}${messages.length === 0 ? ' empty-hero-active' : ''}`}>
         {compactView && messages.length > 1 && !inputValue.trim() && (
           <div className="show-previous-wrapper">
             <button 
