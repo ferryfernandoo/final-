@@ -1487,41 +1487,35 @@ const getMessageAttachedFiles = (message) => {
 };
 
 /**
- * Modern fluid typing pace engine:
- * 1. Awal (Start): "awal pelan ga terlalu pelan sih pas lah" -> ~2 chars/tick (~125 chars/sec) smooth ramp-up.
- * 2. Stabil (Cruising): "lalu stabil" -> ~4-6 chars/tick (~250-380 chars/sec) steady, delightful reading cadence.
- * 3. Akhir (Finish): "dan akhir ngebut" -> When generation finishes or buffer is draining, accelerate fast
- *    (14-36 chars/tick or instant final flush) so the response finishes cleanly without dragging 1 char at a time!
+/**
+ * Ultra-smooth fluid typing pace engine:
+ * Delivers a velvety, continuous reading cadence (1-3 chars/tick at 60fps) that flows
+ * like silk without multi-character bursts or screen freezes.
  */
 const getSmoothTypingStep = (diff, isFinished = false, currentLength = 0, totalLength = 0) => {
   if (diff <= 0) return 0;
 
-  // Phase 3: Final sprint when server stream completes -> "akhir ngebut"
+  // Stream finish drain: gentle ease-out deceleration
   if (isFinished) {
-    if (diff <= 35) return diff; // Snappy instant completion for the last few words
-    if (diff <= 100) return Math.max(14, Math.ceil(diff / 3)); // Rapid ~3-tick closeout (14-33 chars/tick)
-    if (diff <= 250) return Math.max(18, Math.ceil(diff / 5)); // Accelerated drain
-    if (diff <= 600) return 26;
-    return 36; // Fast flush for large backlogs
+    if (diff <= 4) return 1;
+    if (diff <= 12) return 2;
+    if (diff <= 28) return 3;
+    if (diff <= 70) return Math.min(diff, Math.max(4, Math.ceil(diff / 8)));
+    if (diff <= 180) return Math.min(diff, Math.max(6, Math.ceil(diff / 6)));
+    return Math.min(diff, 10);
   }
 
-  // Phase 1: Initial ramp-up -> "awal pelan ga terlalu pelan sih pas lah"
-  if (currentLength < 50 && diff < 80) {
-    return 2; // Smooth 2 chars/tick (~125 chars/sec), neither too sluggish nor abrupt
+  // Active streaming: velvety smooth human reading cadence (1-3 chars/frame at 60fps)
+  if (currentLength < 20) {
+    return 1; // Pure 1-char typewriter intro
   }
 
-  // Approaching the end of current accumulated buffer -> progressive speed boost
-  if (totalLength > 120 && (currentLength / totalLength) > 0.85) {
-    return Math.max(6, Math.min(diff, 12));
-  }
-
-  // Phase 2: Steady cruising pace -> "lalu stabil"
-  if (diff <= 25) return 3;
-  if (diff <= 70) return 4;
-  if (diff <= 150) return 5;
-  if (diff <= 300) return 7;
-  if (diff <= 600) return 10;
-  return 14;
+  if (diff <= 10) return 1; // 1 char/tick (~60 chars/sec)
+  if (diff <= 35) return 2; // 2 chars/tick (~120 chars/sec)
+  if (diff <= 80) return 3; // 3 chars/tick (~180 chars/sec)
+  if (diff <= 160) return 4;
+  if (diff <= 320) return 5;
+  return Math.min(diff, 8); // Never jump more than 8 chars per frame while streaming
 };
 
 const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser }) => {
@@ -7060,35 +7054,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     setTimeout(doScroll, 1000);
   };
 
-  // Continuous lock keeper: ensures user ask bubble stays firmly locked at top
-  // while ads mount/resize, images load, or stream finishes without ever dropping down
-  useEffect(() => {
-    const container = document.querySelector('.messages-container');
-    if (!container) return;
-
-    let resizeObserver = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      try {
-        resizeObserver = new ResizeObserver(() => {
-          if (isLockedToUserAskRef.current && !holdScrollRef.current) {
-            lockUserAskToTop(true);
-          }
-        });
-        resizeObserver.observe(container);
-      } catch (_e) {}
-    }
-
-    const intervalId = setInterval(() => {
-      if (isLockedToUserAskRef.current && !holdScrollRef.current) {
-        lockUserAskToTop(true);
-      }
-    }, 120);
-
-    return () => {
-      clearInterval(intervalId);
-      if (resizeObserver) resizeObserver.disconnect();
-    };
-  }, []);
+  // Viewport anchoring: user ask bubble is smoothly positioned when submitted.
+  // Continuous polling interval removed to guarantee 100% jitter-free, peaceful text generation.
 
   const lastProcessedUserMsgIdRef = useRef(null);
 
@@ -10577,7 +10544,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           onMouseUp={handleMessageMouseUp}
           onTouchStart={() => handleMessageMouseDown(message.id, message.text, message.sender === 'user')}
           onTouchEnd={handleMessageMouseUp}
-          style={{ marginBottom: message.sender === 'user' && expandedUserMessageId !== message.id ? '24px' : '0' }}
+          style={{ marginBottom: message.sender === 'user' && expandedUserMessageId !== message.id ? '10px' : '0' }}
         >
           <div className={`message-content${message.isStreaming ? ' is-streaming' : ''}`}>
             {message.isImage && (
