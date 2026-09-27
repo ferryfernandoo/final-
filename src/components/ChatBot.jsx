@@ -1979,20 +1979,6 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const lazyScrollAnimRef = useRef(null);
   const targetScrollTopRef = useRef(null);
 
-  // Auto focus greeting textarea when messages are empty
-  useEffect(() => {
-    if (messages.length === 0) {
-      const timer = setTimeout(() => {
-        if (textareaElementRef.current) {
-          try {
-            textareaElementRef.current.focus();
-          } catch (e) {}
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [messages.length, currentConversationId]);
-
   // True when any message is currently streaming or when sending/generating
   const isGenerating = useMemo(() => {
     if (isSendGenerating) return true;
