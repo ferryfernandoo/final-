@@ -2432,12 +2432,18 @@
 }
 
 .chat-generating-spacer {
-  height: 36px !important;
-  min-height: 36px !important;
+  height: 36px;
+  min-height: 36px;
   width: 100%;
   pointer-events: none;
   flex-shrink: 0;
   display: block;
+  transition: min-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chat-generating-spacer.is-active {
+  height: calc(100vh - 160px) !important;
+  min-height: calc(100vh - 160px) !important;
 }
 
 @media (max-width: 768px) {
@@ -2448,8 +2454,13 @@
   }
 
   .chat-generating-spacer {
-    height: 20px !important;
-    min-height: 20px !important;
+    height: 20px;
+    min-height: 20px;
+  }
+
+  .chat-generating-spacer.is-active {
+    height: calc(100dvh - 140px) !important;
+    min-height: calc(100dvh - 140px) !important;
   }
 }
 

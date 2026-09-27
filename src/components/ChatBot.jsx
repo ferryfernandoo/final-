@@ -5391,7 +5391,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     holdScrollRef.current = false;
     isLockedToUserAskRef.current = true;
     lockedUserMessageIdRef.current = newUserMessage.id;
-    scrollToUserMessage(true);
+    scrollToUserMessage(false);
 
     // Start streaming
     streamingStartTimeRef.current = Date.now();
@@ -6937,7 +6937,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (targetId) {
       targetUserMsg = container.querySelector(`[data-msg-id="${targetId}"]`);
     }
-    if (!targetUserMsg) {
+    // If targetId was specified but not yet mounted in DOM, wait for React commit
+    if (!targetUserMsg && !targetId) {
       targetUserMsg = userMessages[userMessages.length - 1];
     }
     if (!targetUserMsg) return null;
@@ -6954,7 +6955,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   };
 
   // Rock-solid lock: keeps user ask bubble anchored cleanly at the top
-  const lockUserAskToTop = (isImmediate = true) => {
+  const lockUserAskToTop = (isImmediate = false) => {
     if (holdScrollRef.current) return;
     const el = document.querySelector('.messages-container');
     if (!el) return;
@@ -7031,7 +7032,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   };
 
   // Scroll so the user message locks firmly to the top of the chat area
-  const scrollToUserMessage = (isImmediate = true) => {
+  const scrollToUserMessage = (isImmediate = false) => {
     holdScrollRef.current = false;
     isLockedToUserAskRef.current = true;
     const scrollElement = document.querySelector('.messages-container');
@@ -7054,10 +7055,24 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     setTimeout(doScroll, 1000);
   };
 
-  // Viewport anchoring: user ask bubble is smoothly positioned when submitted.
-  // Continuous polling interval removed to guarantee 100% jitter-free, peaceful text generation.
+  // Auto-focus latest user ask: when user sends chat and response begins generating,
+  // glide user bubble smoothly up to the top so user focus is 100% on the latest generation!
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    const prevMsg = messages.length > 1 ? messages[messages.length - 2] : null;
 
-  const lastProcessedUserMsgIdRef = useRef(null);
+    const latestUserMsg = lastMsg?.sender === 'user' ? lastMsg : (prevMsg?.sender === 'user' ? prevMsg : null);
+    if (!latestUserMsg) return;
+
+    if (isGenerating && lastProcessedUserMsgIdRef.current !== latestUserMsg.id) {
+      lastProcessedUserMsgIdRef.current = latestUserMsg.id;
+      lockedUserMessageIdRef.current = latestUserMsg.id;
+      isLockedToUserAskRef.current = true;
+      holdScrollRef.current = false;
+      scrollToUserMessage(false);
+    }
+  }, [messages, isGenerating]);
 
   // Auto-scroll logic during streaming is removed as requested by user.
   // The viewport stays peacefully anchored at the user message, with ample space for AI response.
@@ -8020,7 +8035,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       holdScrollRef.current = false;
       isLockedToUserAskRef.current = true;
       lockedUserMessageIdRef.current = userMessageForChat.id;
-      scrollToUserMessage(true);
+      scrollToUserMessage(false);
 
       // Execute search and synthesize with full conversational context!
       executeSearchAndSynthesize({
@@ -8093,7 +8108,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     holdScrollRef.current = false;
     isLockedToUserAskRef.current = true;
     lockedUserMessageIdRef.current = userMessageForChat.id;
-    scrollToUserMessage(true);
+    scrollToUserMessage(false);
 
     try {
       // Send to Deepernova AI with conversation history for advanced context
@@ -12266,7 +12281,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         {/* Modern AI Chat spacer: maintains ample room below prompt & AI response so the user bubble stays anchored at the top without collapsing */}
         {messages.length > 0 && (
-          <div className="chat-generating-spacer" aria-hidden="true" />
+          <div className={`chat-generating-spacer ${isGenerating ? 'is-active' : ''}`} aria-hidden="true" />
         )}
 
         <div ref={messagesEndRef} />
