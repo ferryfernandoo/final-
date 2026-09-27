@@ -38,29 +38,7 @@
       ]
     },
     {
-      "source": "/adsterra-banner.html",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss:; frame-ancestors 'self' https://deepernova.com https://www.deepernova.com; object-src 'none';"
-        }
-      ]
-    },
-    {
-      "source": "/",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate, max-age=0"
-        }
-      ]
-    },
-    {
-      "source": "/index.html",
+      "source": "/(index.html)?",
       "headers": [
         {
           "key": "Cache-Control",
@@ -120,22 +98,22 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://shed-hear-conclude-walking.trycloudflare.com/api/:path*"
+      "destination": "https://propose-rangers-oaks-definition.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://shed-hear-conclude-walking.trycloudflare.com/auth/:path*"
+      "destination": "https://propose-rangers-oaks-definition.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://shed-hear-conclude-walking.trycloudflare.com/download/:path*"
+      "destination": "https://propose-rangers-oaks-definition.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://shed-hear-conclude-walking.trycloudflare.com/watermarked/:path*"
+      "destination": "https://propose-rangers-oaks-definition.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]
