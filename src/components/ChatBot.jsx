@@ -3312,6 +3312,24 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     isSendGeneratingRef.current = false;
     isProcessingRef.current = false;
     setLoading(false);
+
+    if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+      requestAnimationFrame(() => {
+        if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+          lockUserAskToTop(true);
+        }
+      });
+      setTimeout(() => {
+        if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+          lockUserAskToTop(true);
+        }
+      }, 50);
+      setTimeout(() => {
+        if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+          lockUserAskToTop(true);
+        }
+      }, 150);
+    }
     setMessages((prev) => {
       const updated = prev.map((msg) => {
         if (msg.id === messageId) {
@@ -6940,8 +6958,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (targetId) {
         targetUserMsg = container.querySelector(`[data-msg-id="${targetId}"]`);
       }
-      // If targetId was specified but not yet mounted in DOM, wait for React commit
-      if (!targetUserMsg && !targetId) {
+      // If targetId was specified but not found in DOM yet, fallback to the last user message
+      if (!targetUserMsg) {
         targetUserMsg = userMessages[userMessages.length - 1];
       }
       if (!targetUserMsg) return null;
@@ -7084,6 +7102,36 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       console.warn('[ChatBot] Auto-focus user ask error:', err);
     }
   }, [messages, isGenerating]);
+
+  // When generating finishes, keep the user ask bubble firmly locked to top
+  const prevIsGeneratingRef = useRef(false);
+  useEffect(() => {
+    try {
+      if (prevIsGeneratingRef.current && !isGenerating) {
+        // Generating has just finished
+        if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+          requestAnimationFrame(() => {
+            if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+              lockUserAskToTop(true);
+            }
+          });
+          setTimeout(() => {
+            if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+              lockUserAskToTop(true);
+            }
+          }, 60);
+          setTimeout(() => {
+            if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+              lockUserAskToTop(true);
+            }
+          }, 180);
+        }
+      }
+      prevIsGeneratingRef.current = isGenerating;
+    } catch (_err) {
+      // safe guard
+    }
+  }, [isGenerating]);
 
   // Auto-scroll logic during streaming is removed as requested by user.
   // The viewport stays peacefully anchored at the user message, with ample space for AI response.
@@ -8334,6 +8382,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Ensure user ask bubble stays anchored at the top when generating completes
       if (isLockedToUserAskRef.current && !holdScrollRef.current) {
         lockUserAskToTop(true);
+        setTimeout(() => {
+          if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+            lockUserAskToTop(true);
+          }
+        }, 60);
       }
 
       if (abortController.signal.aborted) {
@@ -9261,6 +9314,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Ensure user ask bubble stays anchored at the top after search completion
       if (isLockedToUserAskRef.current && !holdScrollRef.current) {
         lockUserAskToTop(true);
+        setTimeout(() => {
+          if (isLockedToUserAskRef.current && !holdScrollRef.current) {
+            lockUserAskToTop(true);
+          }
+        }, 60);
       }
 
     } catch (searchError) {
@@ -12292,7 +12350,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         {/* Modern AI Chat spacer: maintains ample room below prompt & AI response so the user bubble stays anchored at the top without collapsing */}
         {messages.length > 0 && (
-          <div className={`chat-generating-spacer ${isGenerating ? 'is-active' : ''}`} aria-hidden="true" />
+          <div className="chat-generating-spacer" aria-hidden="true" />
         )}
 
         <div ref={messagesEndRef} />

@@ -2432,13 +2432,12 @@
 }
 
 .chat-generating-spacer {
-  height: 36px;
-  min-height: 36px;
+  height: calc(100vh - 160px) !important;
+  min-height: calc(100vh - 160px) !important;
   width: 100%;
   pointer-events: none;
   flex-shrink: 0;
   display: block;
-  transition: min-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .chat-generating-spacer.is-active {
@@ -2454,8 +2453,8 @@
   }
 
   .chat-generating-spacer {
-    height: 20px;
-    min-height: 20px;
+    height: calc(100dvh - 140px) !important;
+    min-height: calc(100dvh - 140px) !important;
   }
 
   .chat-generating-spacer.is-active {
