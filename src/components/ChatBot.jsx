@@ -2887,6 +2887,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const lastScrollTickRef = useRef(0);
   const isLockedToUserAskRef = useRef(false);
   const lockedUserMessageIdRef = useRef(null);
+  const lastProcessedUserMsgIdRef = useRef(null);
 
   const stopGlide = () => {
     if (lazyScrollAnimRef.current) {
@@ -6928,30 +6929,35 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Helper to accurately locate where the last user ask bubble should sit (locked at top)
   const getLastUserMessageTargetTop = (container) => {
-    if (!container) return null;
-    const userMessages = container.querySelectorAll('.message.user');
-    if (!userMessages || userMessages.length === 0) return null;
+    try {
+      if (!container) return null;
+      const userMessages = container.querySelectorAll('.message.user');
+      if (!userMessages || userMessages.length === 0) return null;
 
-    let targetUserMsg = null;
-    const targetId = lockedUserMessageIdRef.current || lastSentUserMessageIdRef.current;
-    if (targetId) {
-      targetUserMsg = container.querySelector(`[data-msg-id="${targetId}"]`);
+      let targetUserMsg = null;
+      const targetId = lockedUserMessageIdRef.current || lastSentUserMessageIdRef.current;
+      if (targetId) {
+        targetUserMsg = container.querySelector(`[data-msg-id="${targetId}"]`);
+      }
+      // If targetId was specified but not yet mounted in DOM, wait for React commit
+      if (!targetUserMsg && !targetId) {
+        targetUserMsg = userMessages[userMessages.length - 1];
+      }
+      if (!targetUserMsg) return null;
+
+      const containerRect = container.getBoundingClientRect();
+      const userBubble = targetUserMsg.querySelector('.message-content') || targetUserMsg.querySelector('.user-bubble-wrapper') || targetUserMsg;
+      if (!userBubble) return null;
+      const bubbleRect = userBubble.getBoundingClientRect();
+
+      // Position the user ask bubble cleanly at the top of the container (~8px breathing space below header)
+      const targetTop = container.scrollTop + (bubbleRect.top - containerRect.top) - 8;
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      return Math.max(0, Math.min(targetTop, maxScroll));
+    } catch (_e) {
+      return null;
     }
-    // If targetId was specified but not yet mounted in DOM, wait for React commit
-    if (!targetUserMsg && !targetId) {
-      targetUserMsg = userMessages[userMessages.length - 1];
-    }
-    if (!targetUserMsg) return null;
-
-    const containerRect = container.getBoundingClientRect();
-    const userBubble = targetUserMsg.querySelector('.message-content') || targetUserMsg.querySelector('.user-bubble-wrapper') || targetUserMsg;
-    const bubbleRect = userBubble.getBoundingClientRect();
-
-    // Position the user ask bubble cleanly at the top of the container (~8px breathing space below header)
-    const targetTop = container.scrollTop + (bubbleRect.top - containerRect.top) - 8;
-    const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-
-    return Math.max(0, Math.min(targetTop, maxScroll));
   };
 
   // Rock-solid lock: keeps user ask bubble anchored cleanly at the top
@@ -7058,19 +7064,23 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   // Auto-focus latest user ask: when user sends chat and response begins generating,
   // glide user bubble smoothly up to the top so user focus is 100% on the latest generation!
   useEffect(() => {
-    if (messages.length === 0) return;
-    const lastMsg = messages[messages.length - 1];
-    const prevMsg = messages.length > 1 ? messages[messages.length - 2] : null;
+    try {
+      if (!messages || messages.length === 0) return;
+      const lastMsg = messages[messages.length - 1];
+      const prevMsg = messages.length > 1 ? messages[messages.length - 2] : null;
 
-    const latestUserMsg = lastMsg?.sender === 'user' ? lastMsg : (prevMsg?.sender === 'user' ? prevMsg : null);
-    if (!latestUserMsg) return;
+      const latestUserMsg = lastMsg?.sender === 'user' ? lastMsg : (prevMsg?.sender === 'user' ? prevMsg : null);
+      if (!latestUserMsg || !latestUserMsg.id) return;
 
-    if (isGenerating && lastProcessedUserMsgIdRef.current !== latestUserMsg.id) {
-      lastProcessedUserMsgIdRef.current = latestUserMsg.id;
-      lockedUserMessageIdRef.current = latestUserMsg.id;
-      isLockedToUserAskRef.current = true;
-      holdScrollRef.current = false;
-      scrollToUserMessage(false);
+      if (isGenerating && lastProcessedUserMsgIdRef.current !== latestUserMsg.id) {
+        lastProcessedUserMsgIdRef.current = latestUserMsg.id;
+        lockedUserMessageIdRef.current = latestUserMsg.id;
+        isLockedToUserAskRef.current = true;
+        holdScrollRef.current = false;
+        scrollToUserMessage(false);
+      }
+    } catch (err) {
+      console.warn('[ChatBot] Auto-focus user ask error:', err);
     }
   }, [messages, isGenerating]);
 
