@@ -2562,8 +2562,13 @@ app.post('/api/chat', async (req, res) => {
       let systemMsg = msgs.find(m => m.role === 'system');
       let nonSystemMsgs = msgs.filter(m => m.role !== 'system');
 
-      // Allow remembering up to 24 non-system messages (20+ turns!)
-      if (nonSystemMsgs.length > 24) {
+      // Check if user query contains explicit topic-switching command
+      const EXPLICIT_TOPIC_SWITCH_REGEX = /\b(ganti\s+topik|topik\s+baru|pindah\s+topik|ganti\s+haluan|bahas\s+(yang\s+|hal\s+)?lain|ngobrol\s+(yang\s+|hal\s+)?lain|(?:mau\s+)?(?:tanya|nanya)\s+(?:yang\s+|hal\s+)?(?:lain|berbeda|baru)|skip\s*(?:dulu|aja|deh|lah)?|lupakan\s+(?:yang\s+|hal\s+)?(?:tadi|itu)|jangan\s+bahas\s+itu\s+lagi|stop\s+bahas\s+itu|bukan\s+itu\s+maksud(?:ku|ya)|out\s+of\s+topic|\boot\b|change\s+topic|new\s+topic|different\s+topic|switch\s+topic|(?:let's\s+)?talk\s+about\s+something\s+else|something\s+else|forget\s+(?:that|about\s+that)|never\s+mind\s+that|next\s+topic)\b/i;
+      if (userQuery && EXPLICIT_TOPIC_SWITCH_REGEX.test(userQuery)) {
+        console.log('[TOPIC SWITCH] Explicit topic switch detected in server! Dropping prior conversation history.');
+        nonSystemMsgs = nonSystemMsgs.slice(-1);
+      } else if (nonSystemMsgs.length > 24) {
+        // Allow remembering up to 24 non-system messages (20+ turns!)
         nonSystemMsgs = nonSystemMsgs.slice(-24);
       }
 
@@ -2600,11 +2605,11 @@ app.post('/api/chat', async (req, res) => {
         return { ...m, content: text };
       });
 
-      // System prompt budget: preserve full instructions, real-time clock & context (up to 6000 chars)
-      if (systemMsg && typeof systemMsg.content === 'string' && systemMsg.content.length > 6000) {
+      // System prompt budget: preserve full instructions, real-time clock & context (up to 12000 chars)
+      if (systemMsg && typeof systemMsg.content === 'string' && systemMsg.content.length > 12000) {
         systemMsg = {
           ...systemMsg,
-          content: systemMsg.content.substring(0, 6000)
+          content: systemMsg.content.substring(0, 12000)
         };
       }
 

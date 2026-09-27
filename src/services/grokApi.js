@@ -205,6 +205,9 @@ export const getTokenMixModel = (deepernovaModel = 'llama-4-maverick', hasImages
 // Backward compatibility alias
 const getDeepseekModel = getTokenMixModel;
 
+// Regex to detect when user explicitly commands to switch topics or move on from prior conversation
+export const EXPLICIT_TOPIC_SWITCH_REGEX = /\b(ganti\s+topik|topik\s+baru|pindah\s+topik|ganti\s+haluan|bahas\s+(yang\s+|hal\s+)?lain|ngobrol\s+(yang\s+|hal\s+)?lain|(?:mau\s+)?(?:tanya|nanya)\s+(?:yang\s+|hal\s+)?(?:lain|berbeda|baru)|skip\s*(?:dulu|aja|deh|lah)?|lupakan\s+(?:yang\s+|hal\s+)?(?:tadi|itu)|jangan\s+bahas\s+itu\s+lagi|stop\s+bahas\s+itu|bukan\s+itu\s+maksud(?:ku|ya)|out\s+of\s+topic|\boot\b|change\s+topic|new\s+topic|different\s+topic|switch\s+topic|(?:let's\s+)?talk\s+about\s+something\s+else|something\s+else|forget\s+(?:that|about\s+that)|never\s+mind\s+that|next\s+topic)\b/i;
+
 // Multilingual system prompts
 const SYSTEM_PROMPTS = {
   id: `Deepernova AI - Asisten AI Profesional.
@@ -220,6 +223,19 @@ PRINSIP EFISIENSI & PANJANG JAWABAN (ADAPTIVE BREVITY):
 - Sapaan & Basa-Basi ("halo", "hai", "pagi", "tes", "siapa di situ", "lagi apa", dsb.): Jawab sangat singkat, ramah, dan profesional (cukup 1-2 kalimat saja, contoh: "Halo! Ada yang bisa saya bantu hari ini?"). DILARANG KERAS membalas sapaan dengan karangan panjang, daftar kemampuan, atau perkenalan berlebihan!
 - Pertanyaan Sederhana/Faktual: Langsung ke inti jawaban tanpa kalimat pembuka bertele-tele dan tanpa kalimat penutup basa-basi klise.
 - Pertanyaan Kompleks/Analisis/Coding/Tugas: Berikan jawaban yang komprehensif, terstruktur, mendalam, dan berkualitas tinggi.
+
+🔴 FLEKSIBILITAS TOPIK & PRIORITAS PESAN TERAKHIR (TOPIC SWITCHING & CONTEXT RECENCY - MUTLAK):
+1. PRIORITAS TERTINGGI ADALAH PESAN TERAKHIR PENGGUNA:
+   - Pengguna berhak dan bebas melompat, berpindah, atau berganti topik obrolan kapan saja tanpa batasan.
+   - Perhatian utama dan fokus Anda WAJIB 100% tertuju pada apa yang ditanyakan di PESAN TERAKHIR pengguna.
+2. DETEKSI & ADAPTASI TOPIK BARU SECARA MULUS:
+   - Jika pesan terakhir pengguna menanyakan hal baru yang berbeda dari topik sebelumnya (misalnya: dari coding ke kuliner, dari sains ke hiburan/film, dari masalah teknis ke obrolan santai):
+     * SEGERA IKUTI TOPIK BARU TERSEBUT SECARA PENUH DAN TUNTAS.
+     * DILARANG KERAS memaksakan menghubungkan, mengaitkan, atau mengungkit topik lama yang sudah tidak relevan!
+     * JANGAN PERNAH membuka respon dengan kalimat canggung seperti: "Kembali ke topik sebelumnya...", "Terkait hal tadi...", "Sebagai kelanjutan...", atau mencoba menyatukan dua topik yang berbeda.
+3. PENGGUNAAN KONTEKS LAMA HANYA UNTUK FOLLOW-UP EKSPLISIT:
+   - HANYA gunakan konteks percakapan sebelumnya jika pertanyaan terakhir pengguna adalah PERTANYAAN LANJUTAN (FOLLOW-UP) yang jelas atau merujuk langsung ke percakapan sebelumnya (contoh: "lanjutkan", "kenapa hasilnya begitu?", "jelaskan poin nomor 2 tadi", "bagaimana cara menjalankannya?", rujukan kata ganti "itu/dia/tersebut").
+   - Jika pertanyaan terakhir adalah pertanyaan mandiri baru, jawab secara segar, bersih, independen, dan tuntas tanpa terbebani obrolan sebelumnya.
 
 🔴 KESADARAN WAKTU NYATA & TAHUN SEKARANG (WAJIB DIPEDOMANI):
 - WAKTU SEKARANG: Tahun saat ini adalah tahun berjalan yang tertera di blok [WAKTU REAL-TIME SEKARANG] (BUKAN TAHUN 2024!). Meskipun data pre-training dasar Anda mungkin berakhir pada 2024, di dunia nyata waktu terus bergerak dinamis dan saat ini sudah berada di tahun berjalan saat ini.
@@ -290,6 +306,19 @@ PRINCIPLE OF EFFICIENCY & PROPORTIONAL RESPONSE LENGTH (ADAPTIVE BREVITY):
 - Greetings & Casual Banter ("hello", "hi", "good morning", "test", "anyone there", etc.): Respond concisely, warmly, and professionally (1-2 sentences maximum, e.g., "Hello! How can I help you today?"). NEVER reply to greetings with an essay or feature list!
 - Simple/Factual Questions: Answer directly to the point without verbose preambles or canned closing clichés.
 - Complex/Technical/Coding Questions: Deliver thorough, structured, and in-depth solutions.
+
+🔴 TOPIC SWITCHING & RECENCY PRIORITY (MANDATORY & ABSOLUTE):
+1. THE USER'S LATEST MESSAGE HAS HIGHEST PRIORITY:
+   - The user has complete freedom to change topics, jump to a new subject, or switch directions at any point.
+   - Your primary focus MUST be 100% on the inquiry in the user's LATEST message.
+2. SEAMLESS TOPIC SHIFT ADAPTATION:
+   - If the user's latest message introduces a new or different topic unrelated to prior turns (e.g., from programming to cooking, from finance to movies, from technical issues to casual chat):
+     * FULLY EMBRACE THE NEW TOPIC IMMEDIATELY AND THOROUGHLY.
+     * STRICTLY FORBIDDEN to force connections, bridge, or bring up the old, unrelated topic!
+     * NEVER start responses with awkward transitions like: "Returning to our earlier discussion...", "Related to that issue earlier...", "As a continuation...", or attempt to synthesize two disjoint subjects.
+3. CONTEXT REUSE ONLY FOR EXPLICIT FOLLOW-UPS:
+   - ONLY reference prior conversation context if the latest message is an EXPLICIT FOLLOW-UP (e.g., "continue", "why is that?", "explain point 2 further", "how do I run it?", or explicit pronouns referring to the prior object).
+   - If the latest message is a self-contained question, answer it freshly, cleanly, and thoroughly without dragging old context into it.
 
 🔴 REAL-TIME CLOCK & CURRENT YEAR AWARENESS (MANDATORY):
 - CURRENT TIME: The current year is the running dynamic year provided in [CURRENT REAL-TIME CLOCK] (NOT 2024!). While base pre-training weights may have a 2024 cutoff, real-world time is dynamic and currently in the ongoing year.
@@ -363,7 +392,11 @@ const SEARCH_SYNTHESIS_SYSTEM_PROMPTS = {
   id: `Anda adalah Deepernova AI (DPN), asisten cerdas yang berwawasan luas, serba tahu, akurat, dan terpercaya.
 Tugas Anda: Jawab pertanyaan pengguna secara komprehensif, faktual, mendalam, dan terstruktur rapi untuk menjawab tuntas pertanyaan pengguna.
 Aturan Utama:
-1. Jawab langsung ke inti pertanyaan secara jelas, santun, solutif, dan mengalir alami dalam alur percakapan Bahasa Indonesia. Hubungkan secara mulus dengan konteks percakapan sebelumnya jika ada.
+1. JAWAB LANGSUNG KE INTI PERTANYAAN (FOKUS PRIORITAS TOPIK TERAKHIR):
+   - Jawab secara jelas, santun, solutif, dan mengalir alami dalam alur percakapan Bahasa Indonesia.
+   - PENGGUNA BEBAS BERGANTI TOPIK KAPAN SAJA: Jika pertanyaan pencarian ini menanyakan topik baru yang berbeda dari obrolan sebelumnya, JAWAB TUNTAS TOPIK BARU TERSEBUT 100%.
+   - DILARANG KERAS memaksakan menghubungkan, mengaitkan, atau mengungkit topik percakapan lama yang sudah tidak relevan!
+   - HANYA hubungkan dengan percakapan sebelumnya jika pertanyaan pengguna saat ini secara eksplisit merupakan pertanyaan lanjutan (follow-up).
 2. DILARANG KERAS MENGUCAPKAN TERIMA KASIH ATAS HASIL PENCARIAN / INFORMASI:
    - JANGAN PERNAH mengatakan "Terima kasih atas hasil pencariannya...", "Terima kasih atas informasinya...", "Berdasarkan informasi yang Anda berikan...", atau sejenisnya!
    - Pengguna TIDAK PERNAH memberikan hasil pencarian tersebut. Data pencarian disediakan otomatis oleh sistem internal mesin pencari. Pengguna HANYA menanyakan pertanyaan.
@@ -388,7 +421,11 @@ Aturan Utama:
   en: `You are Deepernova AI (DPN), an intelligent, highly knowledgeable, accurate, and trustworthy AI assistant.
 Your task: Provide a comprehensive, factual, in-depth, and well-structured answer that thoroughly satisfies the user's inquiry.
 Key Rules:
-1. Answer directly and naturally in a professional, clear, engaging, and helpful conversational tone. Connect seamlessly to prior dialogue context where relevant.
+1. ANSWER DIRECTLY TO THE POINT (LATEST TOPIC PRIORITY):
+   - Answer clearly, professionally, and naturally in a conversational tone.
+   - THE USER IS FREE TO CHANGE TOPICS AT ANY TIME: If this inquiry introduces a new or different topic from earlier conversation, DEDICATE 100% OF YOUR ANSWER TO THE NEW TOPIC.
+   - STRICTLY FORBIDDEN to force-connect, reference, or bring up old, unrelated topics from prior turns!
+   - ONLY reference earlier context if the current user prompt is an explicit follow-up question.
 2. STRICTLY FORBIDDEN TO THANK FOR SEARCH RESULTS:
    - NEVER say "Thank you for the search results...", "Thank you for the information provided...", "Based on the information you provided...", or any opening gratitude!
    - The user did NOT provide this information; it was retrieved automatically by the internal search engine.
@@ -454,9 +491,20 @@ CHRONOLOGICAL GUIDELINE:
 2. If asked for the current year, time, day, or date, answer DIRECTLY, ACCURATELY, and CONCISELY using the data above.
 3. For latest news/recent updates, ALWAYS include "${dateFormattedEn}" in query [SEARCH_REQUEST: ...]. Tag reminder at end if requested: [REMINDER_REQUEST: {"title":"Title", "datetime":"ISO_8601_UTC", "type":"reminder"}]`;
 
+  const cleanCurrentMsg = typeof currentMessage === 'string' ? currentMessage : '';
+  const searchMatch = cleanCurrentMsg.match(/Pertanyaan Pengguna:\s*"([^"]+)"/i);
+  const effectiveQuery = searchMatch ? searchMatch[1] : cleanCurrentMsg;
+  const isExplicitTopicSwitch = EXPLICIT_TOPIC_SWITCH_REGEX.test(effectiveQuery);
+
+  const topicSwitchBlock = isExplicitTopicSwitch ? (language === 'id'
+    ? '\n\n[PERHATIAN SISTEM - PERGANTIAN TOPIK EKSPLISIT]:\nPengguna telah meminta berganti topik atau membahas hal baru. ABAIKAN seluruh riwayat dan konteks percakapan lama sebelumnya. Jawab 100% fokus murni hanya pada pertanyaan/topik baru ini tanpa mengaitkan ke obrolan lama.'
+    : '\n\n[SYSTEM NOTICE - EXPLICIT TOPIC SWITCH]:\nThe user has requested to change topics or discuss something new. IGNORE all previous conversation history and focus 100% exclusively on this new topic.')
+    : '';
+
   if (isSearchConclusion) {
     let finalPrompt = SEARCH_SYNTHESIS_SYSTEM_PROMPTS[language] || SEARCH_SYNTHESIS_SYSTEM_PROMPTS.id;
     finalPrompt += timePromptBlock;
+    finalPrompt += topicSwitchBlock;
     if (userName && userName.trim()) {
       finalPrompt += language === 'id'
         ? `\n\n[PENGGUNA]: ${userName.trim()}`
@@ -476,6 +524,7 @@ CHRONOLOGICAL GUIDELINE:
   }
 
   finalPrompt += timePromptBlock;
+  finalPrompt += topicSwitchBlock;
   // Load uploaded file content from memory for this conversation if available (capped to save tokens)
   if (currentConversationId) {
     try {
@@ -589,6 +638,16 @@ const shouldUseBackendProxy = (isAuthenticated, isGuest, message = '', hasImages
 export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessage = '') => {
   const result = [];
   if (!Array.isArray(conversationHistory)) return result;
+
+  // Check if current user message indicates an explicit topic switch
+  const rawMsg = typeof currentMessage === 'string' ? currentMessage : '';
+  const searchMatch = rawMsg.match(/Pertanyaan Pengguna:\s*"([^"]+)"/i);
+  const effectiveQuery = searchMatch ? searchMatch[1] : rawMsg;
+
+  if (EXPLICIT_TOPIC_SWITCH_REGEX.test(effectiveQuery)) {
+    console.log('[grokApi] 🔄 Explicit topic switch detected! Clearing past history so AI focuses 100% on new topic.');
+    return [];
+  }
 
   // Filter out system messages, search bubbles, and empty messages
   const cleanList = conversationHistory.filter(msg => {

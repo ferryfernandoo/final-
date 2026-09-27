@@ -9140,8 +9140,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const dayNameId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
       const dateFormattedId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Build a clear, focused conclusion prompt that connects to context
-      let conclusionPrompt = `[INSTRUKSI SISTEM: Waktu saat ini adalah tahun ${currentYear}, hari ${dayNameId}, ${dateFormattedId}. DILARANG mengucapkan terima kasih atas hasil pencarian atau menyebut "terima kasih atas informasinya". Pengguna TIDAK memberikan data ini; data ini didapat otomatis oleh mesin pencari internal. LANGSUNG jawab pertanyaan pengguna secara komprehensif, terstruktur, dan akurat.]\n\n`;
+      // Build a clear, focused conclusion prompt with strict latest-topic priority
+      let conclusionPrompt = `[INSTRUKSI SISTEM: Waktu saat ini adalah tahun ${currentYear}, hari ${dayNameId}, ${dateFormattedId}. DILARANG mengucapkan terima kasih atas hasil pencarian atau menyebut "terima kasih atas informasinya". Pengguna TIDAK memberikan data ini; data ini didapat otomatis oleh mesin pencari internal. FOKUS SEPENUHNYA pada Pertanyaan Pengguna terbaru di bawah. Jika pengguna berganti topik baru, JAWAB TUNTAS TOPIK BARU TERSEBUT tanpa mengaitkan ke percakapan lama. LANGSUNG jawab pertanyaan pengguna secara komprehensif, terstruktur, dan akurat.]\n\n`;
       conclusionPrompt += `Pertanyaan Pengguna: "${userQuery}"\n\n`;
       conclusionPrompt += `--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${accumulatedHistoryContext}\n\n`;
       if (aiOverviewText) {
@@ -9165,7 +9165,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 5. KNOWLEDGE FALLBACK PERCAYA DIRI:
    - Jika hasil web minim atau kurang relevan: Padukan mulus dengan pengetahuan internal Anda secara cerdas dan percaya diri tanpa meminta maaf dan tanpa menyalahkan hasil pencarian.
 
-6. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
+6. FOKUS MURNI PADA TOPIK TERAKHIR (TOPIC SWITCHING):
+   - Jawab HANYA berdasarkan "Pertanyaan Pengguna" di atas dan data hasil pencarian web terkait.
+   - Jika pertanyaan pengguna di atas adalah topik baru yang berbeda dari percakapan sebelumnya, DILARANG KERAS memaksakan mengaitkan, menghubungkan, atau mengungkit topik lama yang tidak relevan!
+
+7. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
       
       console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
       
@@ -9335,7 +9339,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         );
         
         const userQuery = userPrompt || lastSentPromptRef.current || searchQuery;
-        const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda secara akurat dan percaya diri.]\n\nPertanyaan pengguna: "${userQuery}"`;
+        const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda secara akurat dan percaya diri. Jika pertanyaan ini membahas topik baru yang berbeda, fokus penuh 100% pada topik baru ini tanpa mengaitkan ke percakapan lama sebelumnya.]\n\nPertanyaan pengguna: "${userQuery}"`;
         
         const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
         const historyWithSearchRequest = sourceHistory.map(msg => 
