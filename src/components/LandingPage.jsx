@@ -7,11 +7,6 @@ const SEARCH_ENGINE_URL =
     ? 'http://localhost:3000'
     : 'https://series-light-christ-resolve.trycloudflare.com');
 
-const ORDER_DTE_URL = 
-  import.meta.env?.VITE_ORDER_DTE_URL || 
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:5173'
-    : 'https://operator-hewlett-switched-identify.trycloudflare.com');
 
 const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user }) => {
   const [activeFaq, setActiveFaq] = useState(null);
@@ -71,9 +66,9 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
       desc: 'Akses data, fakta, dan berita internet terkini secara real-time.'
     },
     {
-      icon: '🏭',
-      title: 'Order DTE Portal',
-      desc: 'Sistem operasional order & maintenance regu (Group A-D) dengan verifikasi tanda tangan digital dan notifikasi email.'
+      icon: '🔒',
+      title: 'Cloud Vault 3GB',
+      desc: 'Penyimpanan berkas cloud aman terenkripsi untuk dokumen dan riwayat penting Anda.'
     },
   ];
 
@@ -126,15 +121,6 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               <span>🔍 Search Engine</span>
               <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '999px', padding: '1px 6px', color: '#38bdf8' }}>Live</span>
             </a>
-            <button 
-              type="button"
-              onClick={() => onNavigate?.('dte')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}
-              title="Buka Halaman Sistem Manajemen Order DTE (/dte)"
-            >
-              <span>🏭 Order DTE</span>
-              <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '999px', padding: '1px 6px', color: '#10b981' }}>Live</span>
-            </button>
             <button 
               onClick={() => onNavigate?.('help')} 
               style={{ background: 'none', border: 'none', color: '#fb923c', fontWeight: '700', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}
@@ -236,39 +222,6 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           </div>
         </div>
 
-        {/* Order DTE Management System Announcement Card */}
-        <div className="lp-dte-banner">
-          <div className="lp-dte-banner-glow"></div>
-          <div className="lp-dte-banner-inner">
-            <div className="lp-dte-banner-left">
-              <div className="lp-dte-banner-badge">
-                <span className="lp-dte-banner-pulse"></span>
-                <span>SISTEM OPERASIONAL DTE RESMI</span>
-              </div>
-              <h3 className="lp-dte-banner-title">
-                Sistem Order & Manajemen Maintenance DTE 🏭
-              </h3>
-              <p className="lp-dte-banner-desc">
-                Pantau pesanan pekerjaan (Work Order), maintenance unit mesin, shift regu (Group A, B, C, D), tanda tangan digital operator, dan notifikasi email terintegrasi.
-              </p>
-            </div>
-            <div className="lp-dte-banner-right">
-              <button
-                type="button"
-                onClick={() => onNavigate?.('dte')}
-                className="lp-dte-banner-btn"
-                title="Buka Halaman Sistem Order DTE (/dte)"
-                style={{ cursor: 'pointer' }}
-              >
-                <span>Buka Halaman DTE ➔</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14"></path>
-                  <path d="m12 5 7 7-7 7"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
 
 
         {/* Apple Squircle Liquid Glass Chat Preview Card */}
@@ -418,13 +371,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             >
               🔍 Search Engine
             </a>
-            <button 
-              type="button"
-              onClick={() => onNavigate?.('dte')} 
-              style={{ color: '#10b981', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px', padding: 0 }}
-            >
-              🏭 Order DTE
-            </button>
+
             <button onClick={() => onNavigate?.('help')} style={{ color: '#ea580c', fontWeight: 'bold' }}>Pusat Bantuan</button>
           </div>
         </div>
