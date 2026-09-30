@@ -3325,6 +3325,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     isSendGeneratingRef.current = false;
     isProcessingRef.current = false;
     setLoading(false);
+    setConvLoading(false);
 
     if (isLockedToUserAskRef.current && !holdScrollRef.current) {
       requestAnimationFrame(() => {
@@ -8734,15 +8735,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         clearTimeout(timeoutInternetCheckRef.current);
         timeoutInternetCheckRef.current = null;
       }
-      if (isProcessingRef.current && !isSearchAbortedRef.current && !isRecallAbortedRef.current) {
-        isProcessingRef.current = false;
-        console.log('[ChatBot] 🔓 Processing lock cleared - ready for next message');
-      }
-      if (!isSearchAbortedRef.current && !isRecallAbortedRef.current) {
-        setIsSendGenerating(false);
-        isSendGeneratingRef.current = false;
-        setLoading(false);
-      }
+      isProcessingRef.current = false;
+      setIsSendGenerating(false);
+      isSendGeneratingRef.current = false;
+      setLoading(false);
+      setConvLoading(false);
+      console.log('[ChatBot] 🔓 Finished message processing & fully restored send button');
     }
   };
 
@@ -13010,9 +13008,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 </button>
               ) : (
                 <button 
-                  type="submit"
+                  type={(!inputValue.trim() && textQueue.length === 0) ? "button" : "submit"}
                   className={`claude-action-btn send-mode ${(inputValue.trim() || textQueue.length > 0) ? 'has-text' : 'empty'}`}
-                  disabled={isTokenUsageLimited() || (!inputValue.trim() && textQueue.length === 0)}
+                  disabled={isTokenUsageLimited()}
+                  onClick={(e) => {
+                    if (!inputValue.trim() && textQueue.length === 0) {
+                      e.preventDefault();
+                      textareaElementRef.current?.focus();
+                    }
+                  }}
                   title={userLanguage === 'id' ? "Kirim pesan" : "Send message"}
                 >
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">

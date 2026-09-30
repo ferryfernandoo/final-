@@ -11878,15 +11878,36 @@ pre.code-block code {
 
 .claude-action-btn.send-mode.empty {
   background: #f1f5f9 !important;
-  color: #94a3b8 !important;
-  border: 1px solid rgba(226, 232, 240, 0.7) !important;
-  cursor: not-allowed !important;
+  color: #64748b !important;
+  border: 1px solid rgba(203, 213, 225, 0.95) !important;
+  cursor: pointer !important;
+  opacity: 0.95 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
 }
 
+.claude-action-btn.send-mode.empty:hover {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+  border-color: #94a3b8 !important;
+}
+
+.dark-theme .claude-action-btn.send-mode.empty,
+.dark-mode .claude-action-btn.send-mode.empty,
 [data-theme="dark"] .claude-action-btn.send-mode.empty {
-  background: #27272a !important;
-  color: #52525b !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-theme .claude-action-btn.send-mode.empty:hover,
+.dark-mode .claude-action-btn.send-mode.empty:hover,
+[data-theme="dark"] .claude-action-btn.send-mode.empty:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
 }
 
 .claude-action-btn.send-mode.has-text {
@@ -15604,9 +15625,10 @@ pre.code-block code {
 .dark-theme .meta-hero-send-btn,
 .dark-mode .meta-hero-send-btn,
 [data-theme='dark'] .meta-hero-send-btn {
-  background: #27272a !important;
-  color: #52525b !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 .meta-hero-send-btn.active {
@@ -16330,9 +16352,9 @@ pre.code-block code {
     width: 34px !important;
     height: 34px !important;
     border-radius: 50% !important;
-    border: none !important;
-    background: rgba(203, 213, 225, 0.6) !important;
-    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #f1f5f9 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;

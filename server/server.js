@@ -2685,38 +2685,33 @@ app.post('/api/chat', async (req, res) => {
           requestedModel.toLowerCase().includes('flash')
         );
 
-        // Khusus DeeperNova Flash: Istimewa - memory maksimal 100 token, prompt singkat, super cepat & efisien
+        // Khusus DeeperNova Flash: Memory context window 1000 token, penalaran terstruktur & jawab panjang tanpa hilang arah
         if (isDeepernovaModel) {
-          const FLASH_SYSTEM_PROMPT = 'Kamu DeeperNova Flash. Jawab sangat singkat, padat, langsung to the point tanpa pengantar.';
+          const FLASH_SYSTEM_PROMPT = 
+            'Kamu adalah DeeperNova AI, sistem penalaran murni yang cerdas, logis, dan analitis. ' +
+            'Berikan jawaban yang lengkap, mendalam, dan terstruktur rapi. ' +
+            'Gunakan alur penalaran yang runtut dan jelas, langsung menjawab inti persoalan secara tuntas ' +
+            'tanpa bertele-tele, tanpa pengulangan kata yang sia-sia, dan konsisten terarah pada topik.';
           
-          let lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-          let userText = '';
-          if (lastUserMsg) {
-            if (typeof lastUserMsg.content === 'string') {
-              userText = lastUserMsg.content;
-            } else if (Array.isArray(lastUserMsg.content)) {
-              userText = lastUserMsg.content.map(c => (typeof c === 'string' ? c : (c.text || ''))).join(' ');
+          // Budget daya ingat context window 1000 token (~3000 karakter prompt history)
+          const MAX_FLASH_CHARS = 3000;
+          let runningChars = 0;
+          const recentTurns = [];
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m.role === 'system') continue;
+            let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
+            if (runningChars + mText.length <= MAX_FLASH_CHARS) {
+              recentTurns.unshift({ role: m.role, content: mText });
+              runningChars += mText.length;
+            } else {
+              if (recentTurns.length === 0 && m.role === 'user') {
+                recentTurns.unshift({ role: m.role, content: mText.slice(-MAX_FLASH_CHARS) });
+              }
+              break;
             }
           }
-          userText = (userText || '').trim();
-
-          // Budget maksimal daya ingat 100 token (~300 karakter total prompt)
-          const MAX_FLASH_CHARS = 300;
-          const lastAsstMsg = [...messages].reverse().find(m => m.role === 'assistant');
-          let asstText = '';
-          if (lastAsstMsg && typeof lastAsstMsg.content === 'string') {
-            asstText = lastAsstMsg.content.trim();
-          }
-
-          const flashMessages = [{ role: 'system', content: FLASH_SYSTEM_PROMPT }];
-          if (asstText && (asstText.length + userText.length) <= (MAX_FLASH_CHARS - 60)) {
-            flashMessages.push({ role: 'assistant', content: asstText.substring(0, 80) });
-          }
-          if (userText.length > MAX_FLASH_CHARS) {
-            userText = userText.substring(userText.length - MAX_FLASH_CHARS);
-          }
-          flashMessages.push({ role: 'user', content: userText });
-          messages = flashMessages;
+          messages = [{ role: 'system', content: FLASH_SYSTEM_PROMPT }, ...recentTurns];
         } else {
           // Model lain: memori standar
           messages = enforceChunkedContextMemory(messages, 3500);
@@ -2728,10 +2723,10 @@ app.post('/api/chat', async (req, res) => {
         // ROUTE 1: NATIVE DEEPERNOVA AI ENGINE (LOCAL PORT 8000) - NO TOKENMIX!
         if (isDeepernovaModel) {
           const deepernovaTarget = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
-          console.log(`[CHAT] Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) [100-token memory, ultra-fast]`);
+          console.log([CHAT] Using NATIVE DEEPERNOVA AI ENGINE () [1000-token context, long-reasoning mode]);
 
           try {
-            const nativeMaxTokens = Math.min(req.body.max_tokens || 80, 150);
+            const nativeMaxTokens = Math.min(req.body.max_tokens || 1024, 2048);
             tokenmixResponse = await fetch(deepernovaTarget, {
               method: 'POST',
               headers: {
@@ -2741,7 +2736,7 @@ app.post('/api/chat', async (req, res) => {
               body: JSON.stringify({
                 model: 'deepernova v1 flash 1',
                 messages: messages,
-                temperature: 0.0,
+                temperature: req.body.temperature || 0.4,
                 max_tokens: nativeMaxTokens,
                 stream: shouldStream,
               }),
