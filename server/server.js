@@ -2637,7 +2637,14 @@ app.post('/api/chat', async (req, res) => {
     };
     const enforceContextWindow1000 = enforceChunkedContextMemory;
 
-    messages = enforceChunkedContextMemory(messages, 3500);
+    const requestedModelEarly = req.body.model || 'deepernova v1 flash 1';
+    const isDeepernovaEarly = requestedModelEarly && (
+      requestedModelEarly.toLowerCase().includes('deepernova') ||
+      requestedModelEarly.toLowerCase().includes('flash')
+    );
+    if (!isDeepernovaEarly) {
+      messages = enforceChunkedContextMemory(messages, 3500);
+    }
 
     // Check if streaming is requested
     const shouldStream = req.body.stream === true;
@@ -2671,25 +2678,60 @@ app.post('/api/chat', async (req, res) => {
           }
         }
         
-        // Final check: chunked context memory ceiling (up to 3,500 tokens for 20+ turns)
-        messages = enforceChunkedContextMemory(messages, 3500);
-        
         const requestedModel = req.body.model || 'deepernova v1 flash 1';
         const isDeepernovaModel = requestedModel && (
           requestedModel.toLowerCase().includes('deepernova') ||
-          requestedModel.toLowerCase().includes('flash 1')
+          requestedModel.toLowerCase().includes('flash 1') ||
+          requestedModel.toLowerCase().includes('flash')
         );
+
+        // Khusus DeeperNova Flash: Istimewa - memory maksimal 100 token, prompt singkat, super cepat & efisien
+        if (isDeepernovaModel) {
+          const FLASH_SYSTEM_PROMPT = 'Kamu DeeperNova Flash. Jawab sangat singkat, padat, langsung to the point tanpa pengantar.';
+          
+          let lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+          let userText = '';
+          if (lastUserMsg) {
+            if (typeof lastUserMsg.content === 'string') {
+              userText = lastUserMsg.content;
+            } else if (Array.isArray(lastUserMsg.content)) {
+              userText = lastUserMsg.content.map(c => (typeof c === 'string' ? c : (c.text || ''))).join(' ');
+            }
+          }
+          userText = (userText || '').trim();
+
+          // Budget maksimal daya ingat 100 token (~300 karakter total prompt)
+          const MAX_FLASH_CHARS = 300;
+          const lastAsstMsg = [...messages].reverse().find(m => m.role === 'assistant');
+          let asstText = '';
+          if (lastAsstMsg && typeof lastAsstMsg.content === 'string') {
+            asstText = lastAsstMsg.content.trim();
+          }
+
+          const flashMessages = [{ role: 'system', content: FLASH_SYSTEM_PROMPT }];
+          if (asstText && (asstText.length + userText.length) <= (MAX_FLASH_CHARS - 60)) {
+            flashMessages.push({ role: 'assistant', content: asstText.substring(0, 80) });
+          }
+          if (userText.length > MAX_FLASH_CHARS) {
+            userText = userText.substring(userText.length - MAX_FLASH_CHARS);
+          }
+          flashMessages.push({ role: 'user', content: userText });
+          messages = flashMessages;
+        } else {
+          // Model lain: memori standar
+          messages = enforceChunkedContextMemory(messages, 3500);
+        }
 
         let tokenmixResponse = null;
         let lastError = null;
 
-        // 🚀 ROUTE 1: NATIVE DEEPERNOVA AI ENGINE (LOCAL PORT 8000) - NO TOKENMIX!
+        // ROUTE 1: NATIVE DEEPERNOVA AI ENGINE (LOCAL PORT 8000) - NO TOKENMIX!
         if (isDeepernovaModel) {
           const deepernovaTarget = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
-          console.log(`[CHAT] 🚀 Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) - NO TOKENMIX!`);
+          console.log(`[CHAT] Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) [100-token memory, ultra-fast]`);
 
           try {
-            const nativeMaxTokens = Math.min(req.body.max_tokens || 512, 1024);
+            const nativeMaxTokens = Math.min(req.body.max_tokens || 80, 150);
             tokenmixResponse = await fetch(deepernovaTarget, {
               method: 'POST',
               headers: {
@@ -2699,7 +2741,7 @@ app.post('/api/chat', async (req, res) => {
               body: JSON.stringify({
                 model: 'deepernova v1 flash 1',
                 messages: messages,
-                temperature: req.body.temperature || 0.4,
+                temperature: 0.0,
                 max_tokens: nativeMaxTokens,
                 stream: shouldStream,
               }),

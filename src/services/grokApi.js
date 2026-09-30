@@ -778,19 +778,39 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     userMessageContent = `${message}${localMemoryContext}`;
   }
 
-  const systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '');
+  const isFlashModel = deepernovaModel && (
+    deepernovaModel.toLowerCase().includes('deepernova') ||
+    deepernovaModel.toLowerCase().includes('flash')
+  );
 
-  const messages = [
-    {
-      role: 'system',
-      content: systemPromptContent,
-    },
-    ...contextMessages,
-    {
-      role: 'user',
-      content: userMessageContent,
-    },
-  ];
+  let systemPromptContent;
+  let finalMessages;
+
+  if (isFlashModel) {
+    // Ultra-singkat prompt khusus DeeperNova Flash 1
+    systemPromptContent = 'Kamu DeeperNova Flash. Jawab sangat singkat, padat, langsung to the point tanpa pengantar.';
+    userMessageContent = typeof message === 'string' ? message.trim() : message;
+
+    // Daya ingat dibatasi maksimal 100 token: hanya ambil 1 jawaban bot terakhir jika singkat (< 100 char)
+    const lastBotMsg = conversationHistory.filter(m => m.sender === 'bot' || m.role === 'assistant').pop();
+    let flashContext = [];
+    if (lastBotMsg && lastBotMsg.text && lastBotMsg.text.length < 100) {
+      flashContext.push({ role: 'assistant', content: lastBotMsg.text.trim() });
+    }
+
+    finalMessages = [
+      { role: 'system', content: systemPromptContent },
+      ...flashContext,
+      { role: 'user', content: userMessageContent }
+    ];
+  } else {
+    systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '');
+    finalMessages = [
+      { role: 'system', content: systemPromptContent },
+      ...contextMessages,
+      { role: 'user', content: userMessageContent }
+    ];
+  }
 
   try {
     const response = await fetchWithTimeout(
@@ -807,18 +827,17 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           sessionId: conversationId || null,
           conversationId: conversationId || null,
           personality: personality || 'mentor',
-          messages: messages,
-          temperature: 0.5,
-          max_tokens: 512,
-          presence_penalty: 0.2,
-          frequency_penalty: 0.3,
+          messages: finalMessages,
+          temperature: isFlashModel ? 0.0 : 0.5,
+          max_tokens: isFlashModel ? 80 : 512,
+          presence_penalty: isFlashModel ? 0.0 : 0.2,
+          frequency_penalty: isFlashModel ? 0.0 : 0.3,
           stream: true,
           stream_options: { include_usage: true },
         }),
       },
       TIMEOUT_CONFIG.fetchTimeoutMs
     );
-
     if (!response.ok) {
       try {
         const errJson = await response.json();
