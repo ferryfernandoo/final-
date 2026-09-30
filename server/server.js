@@ -2723,7 +2723,7 @@ app.post('/api/chat', async (req, res) => {
         // ROUTE 1: NATIVE DEEPERNOVA AI ENGINE (LOCAL PORT 8000) - NO TOKENMIX!
         if (isDeepernovaModel) {
           const deepernovaTarget = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
-          console.log([CHAT] Using NATIVE DEEPERNOVA AI ENGINE () [1000-token context, long-reasoning mode]);
+          console.log(`[CHAT] Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) [1000-token context, long-reasoning mode]`);
 
           try {
             const nativeMaxTokens = Math.min(req.body.max_tokens || 1024, 2048);
