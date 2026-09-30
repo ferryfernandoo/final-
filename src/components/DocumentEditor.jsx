@@ -1737,7 +1737,7 @@ Anda dapat membatalkan tindakan ini kapan saja dengan mengetik \`/undo\` atau me
       null,                   // conversationId
       'formal',               // personality
       abortCtrl,              // abortController
-      'deepernova 1.0super flash', // model
+      'deepernova v1 flash 1', // model
       auth.isAuthenticated,   // isAuthenticated
       auth.isGuest,           // isGuest
       auth.userName,          // userName
@@ -3481,7 +3481,7 @@ Ingat, format '[RUN_AGENT: Topik]' ini sangat krusial agar UI bisa memunculkan t
         null,            // conversationId
         'formal',        // personality
         abortCtrl,       // abortController
-        'deepernova 1.0super flash', // model
+        'deepernova v1 flash 1', // model
         auth.isAuthenticated,   // isAuthenticated
         auth.isGuest,           // isGuest
         auth.userName,          // userName

@@ -260,7 +260,7 @@ const apiKey = process.env.DEEPERNOVA_API_KEY;`}</pre>
                   <code>POST /chat/completions</code>
                   <h4>Request body</h4>
                   <pre>{`{
-  "model": "deepernova-chat",
+  "model": "deepernova v1 flash 1",
   "messages": [
     { "role": "system", "content": "You are a helpful assistant." },
     { "role": "user", "content": "Generate a short product description." }
@@ -289,7 +289,7 @@ const apiKey = process.env.DEEPERNOVA_API_KEY;`}</pre>
 }`}</pre>
                   <h4>Important fields</h4>
                   <ul>
-                    <li><strong>model</strong>: selects the AI model.</li>
+                    <li><strong>model</strong>: selects the AI model (default: <code>deepernova v1 flash 1</code>).</li>
                     <li><strong>messages</strong>: conversation history used by the model.</li>
                     <li><strong>temperature</strong>: controls randomness.</li>
                     <li><strong>max_tokens</strong>: caps the output length.</li>
@@ -335,7 +335,7 @@ const apiKey = process.env.DEEPERNOVA_API_KEY;`}</pre>
     'Authorization': 'Bearer YOUR_API_KEY'
   },
   body: JSON.stringify({
-    model: 'deepernova-chat',
+    model: 'deepernova v1 flash 1',
     messages: [
       { role: 'user', content: 'Tell me about Deepernova.' }
     ]
@@ -354,7 +354,7 @@ const apiKey = process.env.DEEPERNOVA_API_KEY;`}</pre>
     'Authorization': 'Bearer YOUR_API_KEY'
   },
   body: JSON.stringify({
-    model: 'deepernova-chat',
+    model: 'deepernova v1 flash 1',
     messages: [
       { role: 'user', content: 'Tell me about Deepernova.' }
     ]
@@ -381,7 +381,7 @@ headers = {
     'Authorization': f'Bearer {api_key}'
 }
 payload = {
-    'model': 'deepernova-chat',
+    'model': 'deepernova v1 flash 1',
     'messages': [
         { 'role': 'user', 'content': 'Write a summary of Deepernova.' }
     ]
@@ -402,7 +402,7 @@ headers = {
     'Authorization': f'Bearer {api_key}'
 }
 payload = {
-    'model': 'deepernova-chat',
+    'model': 'deepernova v1 flash 1',
     'messages': [
         { 'role': 'user', 'content': 'Write a summary of Deepernova.' }
     ]
@@ -421,7 +421,7 @@ print(response.json())`}</pre>
                           onClick={() => copyToClipboard(`curl https://api.deepernova.id/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
-  -d '{"model":"deepernova-chat","messages":[{"role":"user","content":"What can you do?"}]}'`, 'curl-code')}
+  -d '{"model":"deepernova v1 flash 1","messages":[{"role":"user","content":"What can you do?"}]}'`, 'curl-code')}
                         >
                           {copiedText === 'curl-code' ? '✓ Copied' : 'Copy'}
                         </button>
@@ -429,7 +429,7 @@ print(response.json())`}</pre>
                       <pre className="code-block-content">{`curl https://api.deepernova.id/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
-  -d '{"model":"deepernova-chat","messages":[{"role":"user","content":"What can you do?"}]}'`}</pre>
+  -d '{"model":"deepernova v1 flash 1","messages":[{"role":"user","content":"What can you do?"}]}'`}</pre>
                     </div>
                   )}
                 </section>

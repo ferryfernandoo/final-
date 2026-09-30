@@ -1227,14 +1227,26 @@ const DEFAULT_PERSONALITY = 'formal';
 
 export const DEEPERNOVA_MODELS = [
   {
+    id: 'deepernova v1 flash 1',
+    name: 'deepernova v1 flash 1',
+    shortName: 'v1 flash 1',
+    speed: 'Super Cepat',
+    speedEn: 'Super Fast',
+    icon: '⚡',
+    desc: 'Model default penalaran murni, logika deduktif tajam & respon instan (Hanya Teks)',
+    descEn: 'Default pure reasoning model, sharp deductive logic & instant response (Text Only)',
+    supportsVision: false
+  },
+  {
     id: 'deepernova 1.0super flash',
     name: 'deepernova 1.0super flash',
     shortName: '1.0super flash',
     speed: 'Super Cepat',
     speedEn: 'Super Fast',
-    icon: '⚡',
+    icon: '✨',
     desc: 'Respons kilat, penalaran tajam & multimodal vision berkecepatan tinggi',
-    descEn: 'Ultra-fast response, sharp reasoning & high-speed multimodal vision'
+    descEn: 'Ultra-fast response, sharp reasoning & high-speed multimodal vision',
+    supportsVision: true
   },
   {
     id: 'deepernova-2.3-pro',
@@ -1244,7 +1256,8 @@ export const DEEPERNOVA_MODELS = [
     speedEn: 'Smart',
     icon: '🧠',
     desc: 'Pemikiran mendalam, analisis data & coding terstruktur',
-    descEn: 'Deep reasoning, data analysis & structured coding'
+    descEn: 'Deep reasoning, data analysis & structured coding',
+    supportsVision: true
   },
   {
     id: 'deepernova-4.6-giga',
@@ -1254,7 +1267,8 @@ export const DEEPERNOVA_MODELS = [
     speedEn: 'Super AI',
     icon: '🚀',
     desc: 'Model flagship kapabilitas tertinggi & penalaran kompleks',
-    descEn: 'Flagship model with ultimate reasoning & complex generation'
+    descEn: 'Flagship model with ultimate reasoning & complex generation',
+    supportsVision: true
   }
 ];
 
@@ -1922,7 +1936,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [customAlert, setCustomAlert] = useState(null); // Modern alert system
   const [showInputMenu, setShowInputMenu] = useState(false); // Show/hide input menu
   const [showModelMenu, setShowModelMenu] = useState(false); // Show/hide model selection dropdown
-  const [selectedModel, setSelectedModel] = useState('deepernova 1.0super flash'); // Model selection
+  const [selectedModel, setSelectedModel] = useState('deepernova v1 flash 1'); // Model selection (default)
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
   }, [selectedModel]);
@@ -2733,6 +2747,12 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   };
 
   const handleOpenCamera = () => {
+    if (currentModelObj?.supportsVision === false) {
+      alert(userLanguage === 'id'
+        ? `Model ${currentModelObj.name} berbasis teks dan tidak mendukung analisis gambar/kamera. Silakan pilih model lain untuk mengambil foto.`
+        : `The ${currentModelObj.name} model is text-only and does not support image/camera analysis. Please select another model.`);
+      return;
+    }
     setShowCameraModal(true);
     setCapturedPhoto(null);
     setCameraError(null);
@@ -4813,6 +4833,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Handle image upload from file input or camera file object
   const handleImageUpload = async (e) => {
+    if (currentModelObj?.supportsVision === false) {
+      alert(userLanguage === 'id'
+        ? `Model ${currentModelObj.name} berbasis teks dan tidak mendukung analisis gambar. Silakan pilih model lain jika ingin mengunggah gambar.`
+        : `The ${currentModelObj.name} model is text-only and does not support image analysis. Please select another model to upload images.`);
+      return;
+    }
     const rawFiles = e?.target?.files || e?.files || (e instanceof File ? [e] : []);
     const files = Array.from(rawFiles);
     if (!files.length) return;
@@ -12803,37 +12829,46 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               </button>
               {showInputMenu && (
                 <div className="file-menu-dropdown claude-dropdown">
-                  <button
-                    type="button"
-                    className="menu-item"
-                    onClick={() => {
-                      handleOpenCamera();
-                      setShowInputMenu(false);
-                    }}
-                    disabled={loading}
-                  >
-                    <span className="menu-icon"><i className="fas fa-camera" style={{ color: '#ef4444' }}></i></span>
-                    <div className="menu-item-text">
-                      <span className="menu-item-title">{userLanguage === 'id' ? 'Ambil Foto (Kamera Live)' : 'Take Photo (Live Camera)'}</span>
-                      <span className="menu-item-desc">{userLanguage === 'id' ? 'Foto langsung objek / dokumen' : 'Live camera capture'}</span>
-                    </div>
-                  </button>
+                  {currentModelObj?.supportsVision !== false ? (
+                    <>
+                      <button
+                        type="button"
+                        className="menu-item"
+                        onClick={() => {
+                          handleOpenCamera();
+                          setShowInputMenu(false);
+                        }}
+                        disabled={loading}
+                      >
+                        <span className="menu-icon"><i className="fas fa-camera" style={{ color: '#ef4444' }}></i></span>
+                        <div className="menu-item-text">
+                          <span className="menu-item-title">{userLanguage === 'id' ? 'Ambil Foto (Kamera Live)' : 'Take Photo (Live Camera)'}</span>
+                          <span className="menu-item-desc">{userLanguage === 'id' ? 'Foto langsung objek / dokumen' : 'Live camera capture'}</span>
+                        </div>
+                      </button>
 
-                  <button
-                    type="button"
-                    className="menu-item"
-                    onClick={() => {
-                      window.imageUploadInput?.click();
-                      setShowInputMenu(false);
-                    }}
-                    disabled={loading}
-                  >
-                    <span className="menu-icon"><i className="fas fa-image" style={{ color: '#3b82f6' }}></i></span>
-                    <div className="menu-item-text">
-                      <span className="menu-item-title">{userLanguage === 'id' ? 'Upload Gambar / Galeri' : 'Upload Image / Gallery'}</span>
-                      <span className="menu-item-desc">{userLanguage === 'id' ? 'Analisis visual & reasoning' : 'Visual analysis'}</span>
+                      <button
+                        type="button"
+                        className="menu-item"
+                        onClick={() => {
+                          window.imageUploadInput?.click();
+                          setShowInputMenu(false);
+                        }}
+                        disabled={loading}
+                      >
+                        <span className="menu-icon"><i className="fas fa-image" style={{ color: '#3b82f6' }}></i></span>
+                        <div className="menu-item-text">
+                          <span className="menu-item-title">{userLanguage === 'id' ? 'Upload Gambar / Galeri' : 'Upload Image / Gallery'}</span>
+                          <span className="menu-item-desc">{userLanguage === 'id' ? 'Analisis visual & reasoning' : 'Visual analysis'}</span>
+                        </div>
+                      </button>
+                    </>
+                  ) : (
+                    <div className="menu-item-disabled-notice" style={{ padding: '8px 14px', fontSize: '11.5px', color: '#94a3b8', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', margin: '4px 8px' }}>
+                      <i className="fas fa-info-circle" style={{ marginRight: '6px', color: '#38bdf8' }}></i>
+                      {userLanguage === 'id' ? `Model ${currentModelObj.name} hanya teks (fitur gambar nonaktif)` : `${currentModelObj.name} is text-only (image upload disabled)`}
                     </div>
-                  </button>
+                  )}
 
                   <button
                     type="button"
@@ -12894,26 +12929,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
                 {showModelMenu && (
                   <div className="claude-model-dropdown">
-                    <div className="model-dropdown-note-banner">
-                      <div className="model-dropdown-note-badge">
-                        <i className="fas fa-info-circle"></i>
-                        <span>{userLanguage === 'id' ? 'Catatan Pengembang' : 'Developer Note'}</span>
-                      </div>
-                      <p className="model-dropdown-note-desc">
-                        {userLanguage === 'id'
-                          ? 'Berhubung sedang dikembangkannya model AI kami yang seperti di bawah, maka kami memutuskan untuk efisiensi peluncuran dengan menggunakan API AI pihak ketiga yaitu ChatGPT Luna.'
-                          : 'As our in-house AI models listed below are currently under development, for launch efficiency we are utilizing a third-party AI API (ChatGPT Luna).'}
-                      </p>
-                    </div>
                     <div className="model-dropdown-header">
                       <div className="model-dropdown-header-title">
                         <span>{userLanguage === 'id' ? 'Model Deepernova AI' : 'Deepernova AI Models'}</span>
                       </div>
-                      <span className="model-dropdown-disabled-warning">
-                        {userLanguage === 'id'
-                          ? 'Di bawah ini model saat ini belum berfungsi'
-                          : 'Models below are currently not functional'}
-                      </span>
                     </div>
                     <div className="model-dropdown-list">
                       {DEEPERNOVA_MODELS.map((m) => (

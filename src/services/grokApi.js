@@ -180,6 +180,8 @@ const DEEPSEEK_API_KEY = '';
 
 // Deepernova Model Mapping to TokenMix llama-4-maverick backend with Vision
 const DEEPERNOVA_TEXT_MODEL_MAP = {
+  'deepernova v1 flash 1': 'llama-4-maverick',
+  'deepernova-v1-flash-1': 'llama-4-maverick',
   'deepernova 1.0super flash': 'llama-4-maverick',
   'deepernova-1.0-super-flash': 'llama-4-maverick',
   'deepernova 1.0 super flash': 'llama-4-maverick',
@@ -897,7 +899,7 @@ export const appendToGlobalMemory = async (newQuestion, isAuthenticated, isGuest
   return;
 };
 
-export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova 1.0super flash', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = []) => {
+export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova v1 flash 1', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = []) => {
   let lastError = null;
   const operationStartTime = Date.now();
   

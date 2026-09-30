@@ -567,7 +567,7 @@ const VoiceChat = ({ onClose, userLanguage = 'id', isAuthenticated = false, isGu
           },
           credentials: 'include', // Include auth cookies
           body: JSON.stringify({
-            model: 'deepernova 1.0super flash',
+            model: 'deepernova v1 flash 1',
             messages: [...messages, { role: 'user', content: userMessage }].map((m) => ({
               role: m.role,
               content: m.text || m.content,
@@ -587,7 +587,7 @@ const VoiceChat = ({ onClose, userLanguage = 'id', isAuthenticated = false, isGu
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'deepernova 1.0super flash',
+            model: 'deepernova v1 flash 1',
             messages: [...messages, { role: 'user', content: userMessage }].map((m) => ({
               role: m.role,
               content: m.text || m.content,
