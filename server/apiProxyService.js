@@ -12,9 +12,8 @@ import { apiKeyManager } from './apiKeyManager.js';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || process.env.VITE_DEEPSEEK_API_KEY || '';
 // Use mock server only when explicitly requested
 const USE_MOCK = process.env.USE_MOCK === 'true';
-const DEEPSEEK_API_URL = USE_MOCK 
-  ? 'http://localhost:3002/v1/chat/completions'
-  : 'https://api.deepseek.com/chat/completions';
+const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
+const DEEPSEEK_API_URL = DEEPERNOVA_API_URL;
 
 /**
  * Sanitizes text to remove any third-party AI provider disclosures
@@ -225,6 +224,12 @@ class ApiProxyService {
     return {
       object: 'list',
       data: [
+        {
+          id: 'deepernova v1 flash 1',
+          object: 'model',
+          created: 1700000000,
+          owned_by: 'deepernova'
+        },
         {
           id: 'deepernova-full',
           object: 'model',

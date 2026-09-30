@@ -803,7 +803,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
         signal: abortController?.signal,
         body: JSON.stringify({
-          model: 'llama-4-maverick',
+          model: deepernovaModel || 'deepernova v1 flash 1',
           sessionId: conversationId || null,
           conversationId: conversationId || null,
           personality: personality || 'mentor',
@@ -977,7 +977,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
       language,
       personality,
       abortController,
-      'llama-4-maverick',
+      deepernovaModel || 'deepernova v1 flash 1',
       userName,
       sessionMessageCount,
       safeUploadedImages,
@@ -999,7 +999,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
 // Keeps TokenMix credentials completely private on the server.
 // ============================================================
 export const sendAgenticMessage = async (messages, abortController = null) => {
-  const resolvedModel = 'llama-4-maverick';
+  const resolvedModel = 'deepernova v1 flash 1';
   console.log(`[AGENTIC] Routing agentic request to backend proxy: ${API_BASE_URL}/api/chat`);
   
   try {

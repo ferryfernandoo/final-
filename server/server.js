@@ -144,6 +144,7 @@ const TOKENMIX_API_KEY = sanitizeTokenKey(RAW_TOKENMIX_KEY);
 const TOKENMIX_API_KEYS = Array.from(new Set([TOKENMIX_API_KEY, DEFAULT_TOKENMIX_KEY].filter(Boolean)));
 const TOKENMIX_CHAT_API_KEY = TOKENMIX_API_KEY;
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
+const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
 const DEFAULT_CHAT_MODEL = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
 
 // Backward compatibility references
@@ -2667,77 +2668,108 @@ app.post('/api/chat', async (req, res) => {
         // Final check: chunked context memory ceiling (up to 3,500 tokens for 20+ turns)
         messages = enforceChunkedContextMemory(messages, 3500);
         
-        // TokenMix model llama-4-maverick handles both standard text and vision multimodal
-        const requestedModel = req.body.model || DEFAULT_CHAT_MODEL;
-        let selectedModel = 'llama-4-maverick';
-        if (requestedModel && !requestedModel.includes('deepseek') && !requestedModel.includes('deepernova')) {
-          selectedModel = requestedModel;
-        }
+        const requestedModel = req.body.model || 'deepernova v1 flash 1';
+        const isDeepernovaModel = requestedModel && (
+          requestedModel.toLowerCase().includes('deepernova') ||
+          requestedModel.toLowerCase().includes('flash 1')
+        );
 
-        console.log(`[CHAT] Streaming requested: ${shouldStream}, Model: ${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
-
-        // Call TokenMix API with selected model (supports key rotation)
         let tokenmixResponse = null;
         let lastError = null;
 
-        for (let idx = 0; idx < TOKENMIX_API_KEYS.length; idx++) {
-          const key = TOKENMIX_API_KEYS[idx];
-          let attempts = 0;
-          const maxAttempts = 3;
-          while (attempts < maxAttempts) {
-            try {
-              console.log(`[CHAT] Attempting chat request with key index ${idx} (attempt ${attempts + 1})...`);
-              tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${key}`,
-                },
-                body: JSON.stringify({
-                  model: selectedModel,
-                  messages: messages,
-                  temperature: req.body.temperature || 0.5,
-                  max_tokens: req.body.max_tokens || 1024,
-                  presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
-                  frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
-                  stream: shouldStream,
-                }),
-              });
+        // 🚀 ROUTE 1: NATIVE DEEPERNOVA AI ENGINE (LOCAL PORT 8000) - NO TOKENMIX!
+        if (isDeepernovaModel) {
+          const deepernovaTarget = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
+          console.log(`[CHAT] 🚀 Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) - NO TOKENMIX!`);
 
-              if (tokenmixResponse.ok) {
-                console.log(`[CHAT] Request succeeded with key index ${idx}`);
-                lastError = null;
-                break;
-              } else {
-                const errText = await tokenmixResponse.text();
-                const status = tokenmixResponse.status;
-                lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
-                
-                if ((status === 429 || status >= 500) && attempts < maxAttempts - 1) {
-                  const backoff = (attempts + 1) * 1500;
-                  console.warn(`[CHAT] Key index ${idx} status ${status}. Retrying in ${backoff}ms...`);
-                  await new Promise(resolve => setTimeout(resolve, backoff));
-                  attempts++;
-                  continue;
+          try {
+            tokenmixResponse = await fetch(deepernovaTarget, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer deepernova-native-key',
+              },
+              body: JSON.stringify({
+                model: 'deepernova v1 flash 1',
+                messages: messages,
+                temperature: req.body.temperature || 0.4,
+                max_tokens: req.body.max_tokens || 1024,
+                stream: shouldStream,
+              }),
+            });
+
+            if (!tokenmixResponse.ok) {
+              const errTxt = await tokenmixResponse.text();
+              throw new Error(`DeeperNova Native Engine HTTP ${tokenmixResponse.status}: ${errTxt}`);
+            }
+            console.log('[CHAT] ✅ Native DeeperNova AI responded successfully (100% in-house)!');
+          } catch (nativeErr) {
+            console.error('[CHAT] ⚠️ DeeperNova Native Engine error:', nativeErr.message);
+            throw new Error(`Gagal terhubung ke AI DeeperNova lokal di ${deepernovaTarget}. Pastikan server API DeeperNova aktif di port 8000 (python start_api_server.py). Detail: ${nativeErr.message}`);
+          }
+        } else {
+          // ROUTE 2: Third-party models fallback
+          let selectedModel = requestedModel;
+          console.log(`[CHAT] Streaming requested: ${shouldStream}, Model: ${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
+
+          for (let idx = 0; idx < TOKENMIX_API_KEYS.length; idx++) {
+            const key = TOKENMIX_API_KEYS[idx];
+            let attempts = 0;
+            const maxAttempts = 3;
+            while (attempts < maxAttempts) {
+              try {
+                console.log(`[CHAT] Attempting chat request with key index ${idx} (attempt ${attempts + 1})...`);
+                tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${key}`,
+                  },
+                  body: JSON.stringify({
+                    model: selectedModel,
+                    messages: messages,
+                    temperature: req.body.temperature || 0.5,
+                    max_tokens: req.body.max_tokens || 1024,
+                    presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
+                    frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
+                    stream: shouldStream,
+                  }),
+                });
+
+                if (tokenmixResponse.ok) {
+                  console.log(`[CHAT] Request succeeded with key index ${idx}`);
+                  lastError = null;
+                  break;
+                } else {
+                  const errText = await tokenmixResponse.text();
+                  const status = tokenmixResponse.status;
+                  lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
+
+                  if ((status === 429 || status >= 500) && attempts < maxAttempts - 1) {
+                    const backoff = (attempts + 1) * 1500;
+                    console.warn(`[CHAT] Key index ${idx} status ${status}. Retrying in ${backoff}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, backoff));
+                    attempts++;
+                    continue;
+                  }
+                  break;
                 }
-                
-                console.warn(`[CHAT] Key rotation warning: ${lastError.message}`);
-                break; // Exit retry loop and switch key if not 429
+              } catch (e) {
+                lastError = e;
+                console.warn(`[CHAT] Key rotation error with index ${idx}: ${e.message}`);
+                break;
               }
-            } catch (e) {
-              lastError = e;
-              console.warn(`[CHAT] Key rotation error with index ${idx}: ${e.message}`);
-              break; // Switch key on network exception
+            }
+            if (tokenmixResponse && tokenmixResponse.ok) {
+              break;
             }
           }
-          if (tokenmixResponse && tokenmixResponse.ok) {
-            break;
+
+          if (lastError || !tokenmixResponse) {
+            throw lastError || new Error('All third-party API keys failed.');
           }
         }
 
-        if (lastError || !tokenmixResponse) {
-          throw lastError || new Error('All TokenMix API keys failed.');
-        }
 
         if (shouldStream) {
           // Set response headers for streaming
