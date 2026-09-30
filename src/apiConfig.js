@@ -1,5 +1,5 @@
 // Cloudflare Tunnel backend URL (live proxy target)
-const CLOUDFLARE_BACKEND_URL = 'https://propose-rangers-oaks-definition.trycloudflare.com';
+const CLOUDFLARE_BACKEND_URL = 'https://bread-donor-utc-hon.trycloudflare.com';
 
 const getApiBaseUrl = () => {
   // 1. In browser, prioritize same-origin relative URL for known proxy hosts
@@ -31,6 +31,11 @@ const getApiBaseUrl = () => {
 };
 
 export const API_BASE_URL = getApiBaseUrl();
+
+// Direct DeeperNova AI Public Endpoint (Cloudflare Tunnel to GPU Engine)
+export const DEEPERNOVA_AI_PUBLIC_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DEEPERNOVA_PUBLIC_API_URL) ||
+  'https://dam-installation-plugin-presenting.trycloudflare.com';
 
 // Order DTE Portal URL (Local Vite Port 5173 or Public Cloudflare Tunnel)
 export const ORDER_DTE_URL =

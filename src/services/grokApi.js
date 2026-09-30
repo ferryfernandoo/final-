@@ -178,30 +178,30 @@ const TOKENMIX_API_KEYS = [];
 const TOKENMIX_API_KEY = '';
 const DEEPSEEK_API_KEY = '';
 
-// Deepernova Model Mapping to TokenMix llama-4-maverick backend with Vision
-const DEEPERNOVA_TEXT_MODEL_MAP = {
-  'deepernova v1 flash 1': 'llama-4-maverick',
-  'deepernova-v1-flash-1': 'llama-4-maverick',
-  'deepernova 1.0super flash': 'llama-4-maverick',
-  'deepernova-1.0-super-flash': 'llama-4-maverick',
-  'deepernova 1.0 super flash': 'llama-4-maverick',
-  'deepernova-1.2-flash': 'llama-4-maverick',
-  'deepernova-2.3-pro': 'llama-4-maverick',
-  'deepernova-4.6-giga': 'llama-4-maverick',
-  'llama-4-maverick': 'llama-4-maverick',
+// Native DeeperNova Model & Third-Party Fallback Mapping
+const normalizeDeepernovaModel = (deepernovaModel = 'deepernova v1 flash 1') => {
+  if (!deepernovaModel) return 'deepernova v1 flash 1';
+  const lower = deepernovaModel.toLowerCase();
+  if (lower.includes('deepernova') || lower.includes('flash 1')) {
+    return 'deepernova v1 flash 1';
+  }
+  return deepernovaModel;
 };
 
-const normalizeDeepernovaModel = (deepernovaModel = 'llama-4-maverick') => {
-  return 'llama-4-maverick';
+export const resolveModelForRequest = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+  if (hasImages) {
+    // If vision is required and DeeperNova is text-only, route to vision-capable model
+    return 'llama-4-maverick';
+  }
+  return deepernovaModel || 'deepernova v1 flash 1';
 };
 
-export const resolveModelForRequest = (deepernovaModel = 'llama-4-maverick', hasImages = false) => {
-  return 'llama-4-maverick';
-};
-
-// Helper function to get actual model name for TokenMix chat API
-export const getTokenMixModel = (deepernovaModel = 'llama-4-maverick', hasImages = false) => {
-  return 'llama-4-maverick';
+// Helper function to get actual model name
+export const getTokenMixModel = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+  if (hasImages) {
+    return 'llama-4-maverick';
+  }
+  return deepernovaModel || 'deepernova v1 flash 1';
 };
 
 // Backward compatibility alias
@@ -729,7 +729,7 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 };
 
 // Function untuk call backend proxy
-const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'llama-4-maverick', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true) => {
+const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova v1 flash 1', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true) => {
   const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
   

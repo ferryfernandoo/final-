@@ -65,6 +65,23 @@ async function waitForPort(port, maxWaitMs = 30000) {
   return false;
 }
 
+function killPort(port) {
+  try {
+    const out = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' });
+    const lines = out.trim().split('\n');
+    for (const line of lines) {
+      if (line.includes('LISTENING')) {
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && pid !== '0' && pid !== String(process.pid)) {
+          log.info(`Membersihkan proses lama di port ${port} (PID: ${pid})...`);
+          try { execSync(`taskkill /f /pid ${pid}`, { stdio: 'ignore' }); } catch {}
+        }
+      }
+    }
+  } catch {}
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -151,7 +168,7 @@ function launchTunnel(port, logFilePath) {
 // CONFIG UPDATE
 // ─────────────────────────────────────────────
 
-function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
+function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
   log.info('Memperbarui konfigurasi proyek secara otomatis...');
 
   // 1. Update .env
@@ -184,6 +201,18 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
       /VPS_PUBLIC_URL=\S+/g,
       `VPS_PUBLIC_URL=${backendUrl}`
     );
+    if (aiUrl) {
+      if (envContent.includes('DEEPERNOVA_PUBLIC_API_URL=')) {
+        envContent = envContent.replace(/DEEPERNOVA_PUBLIC_API_URL=\S+/g, `DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`);
+      } else {
+        envContent += `\nDEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`;
+      }
+      if (envContent.includes('VITE_DEEPERNOVA_PUBLIC_API_URL=')) {
+        envContent = envContent.replace(/VITE_DEEPERNOVA_PUBLIC_API_URL=\S+/g, `VITE_DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`);
+      } else {
+        envContent += `\nVITE_DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`;
+      }
+    }
     fs.writeFileSync(envPath, envContent, 'utf8');
     log.success('.env berhasil diperbarui.');
   }
@@ -192,9 +221,11 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl) {
   const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
   const tunnelConfig = {
     backendUrl,
+    aiUrl: aiUrl || oldTunnel.aiUrl || null,
     searchEngineUrl,
     dteUrl: dteUrl || null,
     backendPort: 3001,
+    aiPort: 8000,
     searchEnginePort: 3000,
     dtePort: 5173,
     status: "LIVE",
@@ -366,11 +397,27 @@ async function main() {
   // ── Step 0: Kill proses cloudflared lama ───
   log.info('Membersihkan cloudflared lama...');
   try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
+  killPort(3001);
   await sleep(1000);
 
   // Pastikan C:\deepernova-data siap
   if (!fs.existsSync('C:\\deepernova-data')) {
     try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch {}
+  }
+
+  // ── Step 0.5: Nyalakan DeeperNova AI Server (port 8000) ───
+  log.title('🧠 STEP 0.5: DeeperNova AI Engine (CUDA GT 1030)');
+  const AI_DIR = 'f:\\llm deepernova';
+  if (await checkPortOpen(8000)) {
+    log.success('DeeperNova AI Engine sudah aktif di port 8000 (CUDA).');
+  } else if (fs.existsSync(AI_DIR)) {
+    startProcess('python', ['start_api_server.py'], AI_DIR, 'DeeperNova AI Engine');
+    log.info('Menunggu DeeperNova AI Engine siap di port 8000 (max 35 detik)...');
+    if (await waitForPort(8000, 35000)) {
+      log.success('DeeperNova AI Engine siap di port 8000.');
+    } else {
+      log.warn('DeeperNova AI Engine belum siap, lanjut...');
+    }
   }
 
   // ── Step 1: Nyalakan Search Engine (port 3000) ───
@@ -458,6 +505,7 @@ async function main() {
   log.title('🌐 STEP 6: Cloudflare Tunnels');
 
   const backendLog = path.join(ROOT_DIR, 'tunnel-backend.log');
+  const aiLog = path.join(ROOT_DIR, 'tunnel-ai.log');
   const searchLog = path.join(ROOT_DIR, 'tunnel-search.log');
   const dteLog = path.join(ROOT_DIR, 'tunnel-dte.log');
 
@@ -473,6 +521,7 @@ async function main() {
   let backendUrl = null;
   let searchEngineUrl = null;
   let dteUrl = null;
+  let aiUrl = null;
 
   // Cek apakah cloudflared.exe ada
   if (!fs.existsSync(CLOUDFLARED_BIN)) {
@@ -486,6 +535,7 @@ async function main() {
     // Launch semua tunnels dengan Promise.allSettled (1 gagal tidak stop semua)
     const tunnelTasks = [
       launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
+      launchTunnel(8000, aiLog).catch(e => { log.warn(`AI tunnel: ${e.message}`); return null; }),
       launchTunnel(3000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
     ];
     if (dteExists) {
@@ -497,19 +547,21 @@ async function main() {
     const results = await Promise.all(tunnelTasks);
 
     backendUrl = results[0] || oldTunnel.backendUrl || 'http://localhost:3001';
-    searchEngineUrl = results[1] || oldTunnel.searchEngineUrl || 'http://localhost:3000';
+    aiUrl = results[1] || oldTunnel.aiUrl || 'http://localhost:8000';
+    searchEngineUrl = results[2] || oldTunnel.searchEngineUrl || 'http://localhost:3000';
     if (dteExists) {
-      dteUrl = (results[2]) || oldTunnel.dteUrl || null;
+      dteUrl = (results[3]) || oldTunnel.dteUrl || null;
     }
   }
 
   log.success(`Backend Tunnel   : ${backendUrl}`);
+  log.success(`AI Engine Tunnel : ${aiUrl}`);
   log.success(`Search Tunnel    : ${searchEngineUrl}`);
   if (dteUrl) log.success(`DTE Tunnel       : ${dteUrl}`);
 
   // ── Step 7: Update semua config files ───
   log.title('⚙️  STEP 7: Update Konfigurasi');
-  updateConfigFiles(backendUrl, searchEngineUrl, dteUrl);
+  updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl);
 
   // ── Step 8: Build Frontend ───
   log.title('🔨 STEP 8: Build Frontend');

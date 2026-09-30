@@ -2474,7 +2474,13 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  if (!TOKENMIX_CHAT_API_KEY) {
+  const reqModelEarly = req.body?.model || 'deepernova v1 flash 1';
+  const isDeepernovaEarly = reqModelEarly && (
+    reqModelEarly.toLowerCase().includes('deepernova') ||
+    reqModelEarly.toLowerCase().includes('flash 1')
+  );
+
+  if (!isDeepernovaEarly && !TOKENMIX_CHAT_API_KEY) {
     return res.status(500).json({
       success: false,
       error: 'Deepernova chat service not configured',
