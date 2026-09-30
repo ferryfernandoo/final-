@@ -787,20 +787,27 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   let finalMessages;
 
   if (isFlashModel) {
-    // Ultra-singkat prompt khusus DeeperNova Flash 1
-    systemPromptContent = 'Kamu DeeperNova Flash. Jawab sangat singkat, padat, langsung to the point tanpa pengantar.';
+    // Memori Konteks 1 Juta Token & Penalaran Sangat Panjang
+    systemPromptContent = 
+      'Kamu adalah DeeperNova AI, sistem penalaran tingkat lanjut dengan kapasitas memori konteks 1 Juta Token. ' +
+      'Ketika diminta menjelaskan atau menganalisis, berikan jawaban yang sangat panjang, mendalam, komprehensif, ' +
+      'dan terperinci secara tuntas dari dasar hingga tingkat lanjut. Susun jawaban secara sistematis dengan pendahuluan yang jelas, ' +
+      'pembahasan mendalam per poin atau subtopik, elaborasi konseptual, contoh nyata atau analogi, dan kesimpulan yang kuat. ' +
+      'Pertahankan alur berpikir yang runtut dan terarah, tanpa repetisi sia-sia, dan konsisten terfokus pada topik.';
+
     userMessageContent = typeof message === 'string' ? message.trim() : message;
 
-    // Daya ingat dibatasi maksimal 100 token: hanya ambil 1 jawaban bot terakhir jika singkat (< 100 char)
-    const lastBotMsg = conversationHistory.filter(m => m.sender === 'bot' || m.role === 'assistant').pop();
-    let flashContext = [];
-    if (lastBotMsg && lastBotMsg.text && lastBotMsg.text.length < 100) {
-      flashContext.push({ role: 'assistant', content: lastBotMsg.text.trim() });
-    }
+    // Masukkan seluruh riwayat percakapan (mendukung memori konteks hingga 1 Juta Token)
+    const flashHistory = conversationHistory
+      .filter(m => (m.text || m.content) && (m.sender === 'user' || m.sender === 'bot' || m.role === 'user' || m.role === 'assistant'))
+      .map(m => ({
+        role: m.role || (m.sender === 'bot' ? 'assistant' : 'user'),
+        content: (m.text || m.content || '').trim()
+      }));
 
     finalMessages = [
       { role: 'system', content: systemPromptContent },
-      ...flashContext,
+      ...flashHistory,
       { role: 'user', content: userMessageContent }
     ];
   } else {
@@ -828,10 +835,10 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           conversationId: conversationId || null,
           personality: personality || 'mentor',
           messages: finalMessages,
-          temperature: isFlashModel ? 0.0 : 0.5,
-          max_tokens: isFlashModel ? 80 : 512,
-          presence_penalty: isFlashModel ? 0.0 : 0.2,
-          frequency_penalty: isFlashModel ? 0.0 : 0.3,
+          temperature: isFlashModel ? 0.35 : 0.5,
+          max_tokens: isFlashModel ? 4096 : 512,
+          presence_penalty: isFlashModel ? 0.1 : 0.2,
+          frequency_penalty: isFlashModel ? 0.2 : 0.3,
           stream: true,
           stream_options: { include_usage: true },
         }),

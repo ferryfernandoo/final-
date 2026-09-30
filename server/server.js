@@ -2685,33 +2685,31 @@ app.post('/api/chat', async (req, res) => {
           requestedModel.toLowerCase().includes('flash')
         );
 
-        // Khusus DeeperNova Flash: Memory context window 1000 token, penalaran terstruktur & jawab panjang tanpa hilang arah
+        // Khusus DeeperNova Flash: Memori konteks 1 Juta Token, jawaban sangat panjang & temperatur optimal 0.35
         if (isDeepernovaModel) {
           const FLASH_SYSTEM_PROMPT = 
-            'Kamu adalah DeeperNova AI, sistem penalaran murni yang cerdas, logis, dan analitis. ' +
-            'Berikan jawaban yang lengkap, mendalam, dan terstruktur rapi. ' +
-            'Gunakan alur penalaran yang runtut dan jelas, langsung menjawab inti persoalan secara tuntas ' +
-            'tanpa bertele-tele, tanpa pengulangan kata yang sia-sia, dan konsisten terarah pada topik.';
+            'Kamu adalah DeeperNova AI, sistem penalaran tingkat lanjut dengan kapasitas memori konteks 1 Juta Token. ' +
+            'Ketika diminta menjelaskan atau menganalisis, berikan jawaban yang sangat panjang, mendalam, komprehensif, ' +
+            'dan terperinci secara tuntas dari dasar hingga tingkat lanjut. Susun jawaban secara sistematis dengan pendahuluan yang jelas, ' +
+            'pembahasan mendalam per poin atau subtopik, elaborasi konseptual, contoh nyata atau analogi, dan kesimpulan yang kuat. ' +
+            'Pertahankan alur berpikir yang runtut dan terarah, tanpa repetisi sia-sia, dan konsisten terfokus pada topik.';
           
-          // Budget daya ingat context window 1000 token (~3000 karakter prompt history)
-          const MAX_FLASH_CHARS = 3000;
+          // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
+          const MAX_1M_CHARS = 3000000;
           let runningChars = 0;
-          const recentTurns = [];
+          const cleanHistory = [];
           for (let i = messages.length - 1; i >= 0; i--) {
             const m = messages[i];
             if (m.role === 'system') continue;
             let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
-            if (runningChars + mText.length <= MAX_FLASH_CHARS) {
-              recentTurns.unshift({ role: m.role, content: mText });
+            if (runningChars + mText.length <= MAX_1M_CHARS) {
+              cleanHistory.unshift({ role: m.role, content: mText });
               runningChars += mText.length;
             } else {
-              if (recentTurns.length === 0 && m.role === 'user') {
-                recentTurns.unshift({ role: m.role, content: mText.slice(-MAX_FLASH_CHARS) });
-              }
               break;
             }
           }
-          messages = [{ role: 'system', content: FLASH_SYSTEM_PROMPT }, ...recentTurns];
+          messages = [{ role: 'system', content: FLASH_SYSTEM_PROMPT }, ...cleanHistory];
         } else {
           // Model lain: memori standar
           messages = enforceChunkedContextMemory(messages, 3500);
@@ -2723,10 +2721,10 @@ app.post('/api/chat', async (req, res) => {
         // ROUTE 1: NATIVE DEEPERNOVA AI ENGINE (LOCAL PORT 8000) - NO TOKENMIX!
         if (isDeepernovaModel) {
           const deepernovaTarget = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
-          console.log(`[CHAT] Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) [1000-token context, long-reasoning mode]`);
+          console.log(`[CHAT] Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) [1M-token context, ultra-long reasoning mode]`);
 
           try {
-            const nativeMaxTokens = Math.min(req.body.max_tokens || 1024, 2048);
+            const nativeMaxTokens = Math.min(req.body.max_tokens || 4096, 8192);
             tokenmixResponse = await fetch(deepernovaTarget, {
               method: 'POST',
               headers: {
@@ -2736,7 +2734,7 @@ app.post('/api/chat', async (req, res) => {
               body: JSON.stringify({
                 model: 'deepernova v1 flash 1',
                 messages: messages,
-                temperature: req.body.temperature || 0.4,
+                temperature: req.body.temperature || 0.35,
                 max_tokens: nativeMaxTokens,
                 stream: shouldStream,
               }),
