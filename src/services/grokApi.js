@@ -805,6 +805,12 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         content: (m.text || m.content || '').trim()
       }));
 
+    // Pastikan tidak menduplikasi pesan user terbaru
+    if (flashHistory.length > 0 && flashHistory[flashHistory.length - 1].role === 'user' && 
+        flashHistory[flashHistory.length - 1].content === userMessageContent) {
+      flashHistory.pop();
+    }
+
     finalMessages = [
       { role: 'system', content: systemPromptContent },
       ...flashHistory,
