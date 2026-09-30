@@ -809,7 +809,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           personality: personality || 'mentor',
           messages: messages,
           temperature: 0.5,
-          max_tokens: 1500,
+          max_tokens: 512,
           presence_penalty: 0.2,
           frequency_penalty: 0.3,
           stream: true,

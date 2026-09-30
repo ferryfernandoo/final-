@@ -2689,6 +2689,7 @@ app.post('/api/chat', async (req, res) => {
           console.log(`[CHAT] 🚀 Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) - NO TOKENMIX!`);
 
           try {
+            const nativeMaxTokens = Math.min(req.body.max_tokens || 512, 1024);
             tokenmixResponse = await fetch(deepernovaTarget, {
               method: 'POST',
               headers: {
@@ -2699,7 +2700,7 @@ app.post('/api/chat', async (req, res) => {
                 model: 'deepernova v1 flash 1',
                 messages: messages,
                 temperature: req.body.temperature || 0.4,
-                max_tokens: req.body.max_tokens || 1024,
+                max_tokens: nativeMaxTokens,
                 stream: shouldStream,
               }),
             });
@@ -2778,14 +2779,16 @@ app.post('/api/chat', async (req, res) => {
 
 
         if (shouldStream) {
-          // Set response headers for streaming
-          res.setHeader('Content-Type', 'text/event-stream');
+          // Set response headers for streaming - unblock Cloudflare edge buffer immediately
+          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
           res.setHeader('Cache-Control', 'no-cache, no-transform');
           res.setHeader('Connection', 'keep-alive');
           res.setHeader('X-Accel-Buffering', 'no');
           if (typeof res.flushHeaders === 'function') {
             res.flushHeaders();
           }
+          // Immediate comment chunk to flush HTTP edge buffers (Cloudflare/reverse proxies)
+          res.write(': connected\n\n');
 
           const sessionId = req.body.sessionId || req.body.conversationId || null;
           const userMessageId = req.body.userMessageId || null;
