@@ -1,12 +1,12 @@
 {
-  "backendUrl": "https://bread-donor-utc-hon.trycloudflare.com",
-  "aiUrl": "https://dam-installation-plugin-presenting.trycloudflare.com",
-  "searchEngineUrl": "https://series-light-christ-resolve.trycloudflare.com",
-  "dteUrl": "https://operator-hewlett-switched-identify.trycloudflare.com",
+  "backendUrl": "https://harbor-members-command-arizona.trycloudflare.com",
+  "aiUrl": "https://met-polished-vienna-fleece.trycloudflare.com",
+  "searchEngineUrl": "https://cult-mem-resolved-division.trycloudflare.com",
+  "dteUrl": "https://org-march-serious-expressions.trycloudflare.com",
   "backendPort": 3001,
   "aiPort": 8000,
   "searchEnginePort": 3000,
   "dtePort": 5173,
   "status": "LIVE",
-  "updatedAt": "2026-09-30T14:43:53Z"
+  "updatedAt": "2026-10-01T00:21:43.311Z"
 }
