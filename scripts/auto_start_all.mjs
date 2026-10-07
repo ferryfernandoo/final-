@@ -23,7 +23,9 @@ import net from 'node:net';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const SEARCH_DIR = 'C:\\deepernova-search-main';
+const SEARCH_DIR = fs.existsSync('F:\\search engine\\search-engine')
+  ? 'F:\\search engine\\search-engine'
+  : 'C:\\deepernova-search-main';
 const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
 const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
 
@@ -409,15 +411,16 @@ async function main() {
   log.title('🧠 STEP 0.5: DeeperNova AI Engine (TokenMix Meta AI)');
   log.success('TokenMix Meta AI Cloud Engine siap (Llama 4 Maverick & Llama 3.3 70B - Zero Local Model).');
 
-  // ── Step 1: Nyalakan Search Engine (port 3000) ───
-  log.title('📦 STEP 1: Search Engine');
-  if (await checkPortOpen(3000)) {
-    log.success('Search Engine sudah aktif di port 3000.');
+  // ── Step 1: Nyalakan Search Engine (port 4000) ───
+  log.title('📦 STEP 1: Search Engine (Port 4000)');
+  if (await checkPortOpen(4000)) {
+    log.success('Search Engine sudah aktif di port 4000.');
   } else if (fs.existsSync(SEARCH_DIR)) {
-    startProcess('node', ['--max-old-space-size=1536', '--expose-gc', 'src/server.js'], SEARCH_DIR, 'Deepernova Search Engine');
-    log.info('Menunggu Search Engine siap di port 3000 (max 40 detik)...');
-    if (await waitForPort(3000, 40000)) {
-      log.success('Search Engine siap di port 3000.');
+    const serverFile = fs.existsSync(path.join(SEARCH_DIR, 'server.js')) ? 'server.js' : 'src/server.js';
+    startProcess('node', [serverFile], SEARCH_DIR, 'Deepernova Search Engine');
+    log.info('Menunggu Search Engine siap di port 4000 (max 40 detik)...');
+    if (await waitForPort(4000, 40000)) {
+      log.success('Search Engine siap di port 4000.');
     } else {
       log.warn('Search Engine belum siap, tapi proses lanjut...');
     }
@@ -524,7 +527,7 @@ async function main() {
     // Launch semua tunnels dengan Promise.allSettled (1 gagal tidak stop semua)
     const tunnelTasks = [
       launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
-      launchTunnel(3000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
+      launchTunnel(4000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
     ];
     if (dteExists) {
       tunnelTasks.push(

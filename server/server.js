@@ -728,17 +728,24 @@ app.post(['/auth/logout', '/api/auth/logout'], (req, res) => {
 // Mount OpenAI compatible AI Gateway endpoints (/v1/chat/completions, etc.)
 app.use('/v1', apiProxyRoutes);
 
-// High-Speed Search Engine API Proxies (/api/v1/search, /api/v1/images, /api/v1/news)
-const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:3000/api/v1';
+// High-Speed Search Engine API Proxies (/api/v1/search, /api/v1/search-fast, /api/v1/images, /api/v1/suggest, etc.)
+const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000';
 const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
 
 const proxyToSearchEngine = async (endpoint, req, res) => {
   try {
-    const targetUrl = new URL(`${SEARCH_ENGINE_TARGET}${endpoint}`);
+    const baseTarget = SEARCH_ENGINE_TARGET.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
+    let targetEndpoint = endpoint;
+    if (endpoint === '/images') targetEndpoint = '/search-images';
+
+    const targetUrl = new URL(`${baseTarget}${targetEndpoint}`);
     if (req.query) {
       Object.keys(req.query).forEach(k => {
         if (req.query[k] !== undefined) targetUrl.searchParams.append(k, String(req.query[k]));
       });
+    }
+    if ((targetEndpoint === '/search' || targetEndpoint === '/search-fast') && !targetUrl.searchParams.has('crawl')) {
+      targetUrl.searchParams.set('crawl', '0');
     }
 
     const upstream = await fetch(targetUrl.toString(), {
@@ -765,7 +772,13 @@ const proxyToSearchEngine = async (endpoint, req, res) => {
 };
 
 app.all('/api/v1/search', (req, res) => proxyToSearchEngine('/search', req, res));
-app.all('/api/v1/images', (req, res) => proxyToSearchEngine('/images', req, res));
+app.all('/api/v1/search-fast', (req, res) => proxyToSearchEngine('/search-fast', req, res));
+app.all('/api/v1/images', (req, res) => proxyToSearchEngine('/search-images', req, res));
+app.all('/api/v1/search-images', (req, res) => proxyToSearchEngine('/search-images', req, res));
+app.all('/api/v1/suggest', (req, res) => proxyToSearchEngine('/suggest', req, res));
+app.all('/api/v1/explain', (req, res) => proxyToSearchEngine('/explain', req, res));
+app.all('/api/v1/status', (req, res) => proxyToSearchEngine('/status', req, res));
+app.all('/api/v1/crawled-results', (req, res) => proxyToSearchEngine('/crawled-results', req, res));
 app.all('/api/v1/news', (req, res) => proxyToSearchEngine('/news', req, res));
 app.use('/api/v1', apiProxyRoutes);
 
@@ -4916,7 +4929,7 @@ app.get('/health', (req, res) => {
 
 // ==================== DEEPERNOVA HIGH-SPEED SEARCH ENGINE ====================
 // Sub-20ms BM25 + AI Context + Images + News with SerpApi Failover
-const DEEPERNOVA_SEARCH_API_URL = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:3000/api/v1';
+const DEEPERNOVA_SEARCH_API_URL = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000';
 const DEEPERNOVA_SEARCH_API_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
 
 function cleanSearchText(str) {
@@ -4957,7 +4970,7 @@ async function handleUnifiedSearch(req, res) {
     let imagesData = null;
     let engineUsed = 'deepernova_bm25';
 
-    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API
+    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API on Port 4000
     try {
       const searchHeaders = {
         'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
@@ -4966,14 +4979,15 @@ async function handleUnifiedSearch(req, res) {
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const baseSearchUrl = DEEPERNOVA_SEARCH_API_URL.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
 
       // Query web search and images in parallel for rich experience
       const [searchResp, imagesResp] = await Promise.allSettled([
-        fetch(`${DEEPERNOVA_SEARCH_API_URL}/search?q=${encodeURIComponent(q)}&limit=${limit}`, {
+        fetch(`${baseSearchUrl}/search?q=${encodeURIComponent(q)}&limit=${limit}&crawl=${req.query?.crawl !== undefined ? req.query.crawl : '0'}`, {
           headers: searchHeaders,
           signal: controller.signal
         }),
-        fetch(`${DEEPERNOVA_SEARCH_API_URL}/images?q=${encodeURIComponent(q)}&limit=8`, {
+        fetch(`${baseSearchUrl}/search-images?q=${encodeURIComponent(q)}&limit=8`, {
           headers: searchHeaders,
           signal: controller.signal
         })
@@ -4983,6 +4997,13 @@ async function handleUnifiedSearch(req, res) {
 
       if (searchResp.status === 'fulfilled' && searchResp.value.ok) {
         searchData = await searchResp.value.json();
+        console.log(`[SEARCH] ✓ Deepernova search responded with ${searchData?.results?.length || 0} results`);
+      } else {
+        console.warn('[SEARCH FAIL]', {
+          status: searchResp.status,
+          http: searchResp.value?.status,
+          reason: searchResp.reason?.message
+        });
       }
 
       if (imagesResp.status === 'fulfilled' && imagesResp.value.ok) {
@@ -5030,17 +5051,18 @@ async function handleUnifiedSearch(req, res) {
         url: item.url || '',
         snippet: cleanSearchText(item.snippet) || '',
         domain: domain,
-        thumbnail: item.lead_image_url || item.logo_url || null,
+        thumbnail: item.image || item.lead_image_url || item.logo_url || null,
         position: idx + 1
       };
     });
 
-    const inlineImages = (imagesData?.results || []).map(img => ({
-      thumbnail: img.imageUrl,
-      link: img.pageUrl || img.imageUrl,
+    const rawImages = imagesData?.images || imagesData?.results || [];
+    const inlineImages = rawImages.map(img => ({
+      thumbnail: img.image || img.imageUrl,
+      link: img.url || img.pageUrl || img.imageUrl,
       title: img.title || img.pageTitle || q,
-      source: img.pageUrl || img.imageUrl,
-      sourceDomain: img.domain || ''
+      source: img.url || img.pageUrl || img.imageUrl,
+      sourceDomain: ''
     }));
 
     const responsePayload = {
@@ -5138,10 +5160,15 @@ app.use('/api/v1', (req, res, next) => {
 });
 
 // ==================== DEEPERNOVA SEARCH ENGINE API/V1 TRANSPARENT PROXY ====================
-// Allows hitting /api/v1/search, /api/v1/images, /api/v1/news directly via backend domain
+// Allows hitting /api/v1/search, /api/v1/search-fast, /api/v1/images, /api/v1/suggest, /api/v1/status directly
 app.use('/api/v1', async (req, res) => {
   try {
-    const targetUrl = `${DEEPERNOVA_SEARCH_API_URL}${req.url}`;
+    const baseTarget = DEEPERNOVA_SEARCH_API_URL.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
+    let subPath = req.url;
+    if (subPath.startsWith('/images')) {
+      subPath = subPath.replace('/images', '/search-images');
+    }
+    const targetUrl = `${baseTarget}${subPath}`;
     const headers = { ...req.headers };
     delete headers.host;
     if (!headers['x-api-key'] && !headers['authorization']) {

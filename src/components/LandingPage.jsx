@@ -4,7 +4,7 @@ import './LandingPage.css';
 const SEARCH_ENGINE_URL = 
   import.meta.env?.VITE_SEARCH_ENGINE_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:3000'
+    ? 'http://localhost:4000'
     : 'https://son-dave-dicke-published.trycloudflare.com');
 
 
@@ -185,60 +185,37 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
 
       {/* Hero Section */}
       <section className="lp-hero">
-        <span className="lp-hero-tag">DEEPERNOVA AI</span>
+        <div className="lp-hero-tag-wrap">
+          <span className="lp-hero-tag">
+            <span className="lp-hero-tag-dot"></span>
+            DEEPERNOVA AI 2.0 • INDONESIAN RESEARCH
+          </span>
+        </div>
         <h1 className="lp-hero-h1">
           Kecerdasan Buatan <br />
-          <span className="lp-accent">Tanpa Batas.</span>
+          <span className="lp-accent">Cerdas, Cepat & Mandiri.</span>
         </h1>
         <p className="lp-hero-sub">
-          Obrolan multi-model, pembuat file Word/Excel/PPT otomatis, analisis gambar, dan alarm mandiri. Cepat, akurat, dan 100% gratis.
+          Obrolan multi-model cerdas, dokumen generator Word/Excel/PPT otomatis, serta search engine web mandiri berkecepatan tinggi. 100% gratis tanpa langganan.
         </p>
 
         <div className="lp-hero-btns">
           <button onClick={onStartChat} className="lp-btn-hero">
             Mulai Chat Sekarang ➔
           </button>
-          <button onClick={() => onNavigate?.('api')} className="lp-btn-hero-api">
-            ⚡ AI & API Platforms
-          </button>
           <button onClick={onOpenOffice} className="lp-btn-hero-outline">
             Document Studio
           </button>
         </div>
 
-        {/* AI & Search Engine API Platforms Showcase Banner */}
-        <div className="lp-search-banner lp-api-showcase-banner">
-          <div className="lp-search-banner-glow"></div>
-          <div className="lp-search-banner-inner">
-            <div className="lp-search-banner-left">
-              <div className="lp-search-banner-badge" style={{ background: 'linear-gradient(90deg, rgba(234, 88, 12, 0.2), rgba(245, 158, 11, 0.2))', borderColor: 'rgba(234, 88, 12, 0.4)', color: '#ea580c' }}>
-                <span className="lp-search-banner-pulse" style={{ background: '#ea580c' }}></span>
-                <span>DEEPERNOVA DEVELOPER ECOSYSTEM</span>
-              </div>
-              <h3 className="lp-search-banner-title">
-                ⚡ AI & Search Engine API Platforms
-              </h3>
-              <p className="lp-search-banner-desc">
-                Infrastruktur cloud mandiri siap pakai untuk developer dengan <strong>1.000.000 Token Gratis</strong>. Hubungkan aplikasi Anda dengan AI canggih dan search engine berkecepatan sub-20ms.
-              </p>
-              <div className="lp-api-badges-row">
-                <span className="lp-api-chip">🌟 DeeperNova Gold 1.5 (OpenAI Compatible)</span>
-                <span className="lp-api-chip">🔍 Search Engine API (/api/v1/search)</span>
-                <span className="lp-api-chip">🎁 100% Free Quota</span>
-              </div>
-            </div>
-            <div className="lp-search-banner-right">
-              <button
-                onClick={() => onNavigate?.('api')}
-                className="lp-search-banner-btn lp-api-platform-btn"
-              >
-                <span>Buka API Platforms ➔</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14"></path>
-                  <path d="m12 5 7 7-7 7"></path>
-                </svg>
-              </button>
-            </div>
+        {/* Minimalist Modern API & Search Engine Ecosystem Strip */}
+        <div className="lp-api-minimal-strip" onClick={() => onNavigate?.('api')} role="button" tabIndex={0}>
+          <div className="lp-api-minimal-pill">
+            <span className="lp-api-minimal-badge">⚡ DEVELOPER API</span>
+            <span className="lp-api-minimal-text">
+              DeeperNova Gold 1.5 & Search Engine API (/api/v1/search) • <strong>1.000.000 Token Gratis</strong>
+            </span>
+            <span className="lp-api-minimal-arrow">Buka Konsol ➔</span>
           </div>
         </div>
 

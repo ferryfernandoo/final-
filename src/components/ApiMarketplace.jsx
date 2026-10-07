@@ -951,7 +951,7 @@ print(response.choices[0].message.content)`}</code></pre>
                       <code className="base-url-val">{apiBaseUrl}/api/v1/search?q=query_anda</code>
                     </div>
 
-                    <h4>Daftar Endpoint Search Engine:</h4>
+                    <h4>Daftar Endpoint DeeperNova Search Engine API:</h4>
                     <div className="table-responsive">
                       <table className="param-table">
                         <thead>
@@ -964,18 +964,33 @@ print(response.choices[0].message.content)`}</code></pre>
                         <tbody>
                           <tr>
                             <td><code>GET /api/v1/search</code></td>
-                            <td>Pencarian web organik umum</td>
+                            <td>Pencarian web organik presisi tinggi (BM25 & PageRank)</td>
                             <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
+                          </tr>
+                          <tr>
+                            <td><code>GET /api/v1/search-fast</code></td>
+                            <td>Pencarian instan sub-10ms indeks lokal SQLite</td>
+                            <td><code>q</code> (kata kunci), <code>limit</code> (1-50), <code>ai</code> (false/true)</td>
                           </tr>
                           <tr>
                             <td><code>GET /api/v1/images</code></td>
-                            <td>Pencarian gambar web</td>
+                            <td>Pencarian gambar terindeks dari halaman web</td>
                             <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
                           </tr>
                           <tr>
-                            <td><code>GET /api/v1/news</code></td>
-                            <td>Pencarian berita terkini</td>
-                            <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
+                            <td><code>GET /api/v1/suggest</code></td>
+                            <td>Autocomplete & saran pelengkap query pencarian</td>
+                            <td><code>q</code> (kata kunci)</td>
+                          </tr>
+                          <tr>
+                            <td><code>GET /api/v1/status</code></td>
+                            <td>Status kesehatan node, antrean crawler & metrik indeks</td>
+                            <td><em>Tidak ada parameter</em></td>
+                          </tr>
+                          <tr>
+                            <td><code>POST /api/v1/explain</code></td>
+                            <td>Analisis pembobotan kata dan skor relevansi dokumen</td>
+                            <td>Body: <code>{`{ "q": "kata kunci", "url": "..." }`}</code></td>
                           </tr>
                         </tbody>
                       </table>
@@ -995,53 +1010,65 @@ async function searchWeb(query) {
   const url = "${apiBaseUrl}/api/v1/search?q=" + encodeURIComponent(query) + "&limit=5";
   const response = await fetch(url, {
     headers: {
-      "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
+      "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY",
+      "X-API-Key": "YOUR_DEEPERNOVA_API_KEY"
     }
   });
 
   const data = await response.json();
-  console.log("Status:", data.status, "Durasi:", data.duration_ms + "ms");
-  data.results.forEach((res, i) => {
-    console.log(\`\${i + 1}. \${res.title} - \${res.link}\`);
+  console.log("Query:", data.query, "Hasil:", data.results?.length);
+  (data.results || []).forEach((res, i) => {
+    console.log(\`\${i + 1}. \${res.title} - \${res.url || res.link}\`);
   });
 }
 
-searchWeb("perkembangan AI Indonesia");`}</code></pre>
+searchWeb("indonesia");`}</code></pre>
                       )}
                       {searchCodeLanguage === 'python' && (
                         <pre><code>{`import requests
 
 url = "${apiBaseUrl}/api/v1/search"
-params = {"q": "perkembangan AI Indonesia", "limit": 5}
-headers = {"Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"}
+params = {"q": "indonesia", "limit": 5}
+headers = {
+    "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY",
+    "X-API-Key": "YOUR_DEEPERNOVA_API_KEY"
+}
 
 response = requests.get(url, params=params, headers=headers)
 data = response.json()
 
-print(f"Durasi pencarian: {data.get('duration_ms', 0)} ms")
+print(f"Total hasil: {len(data.get('results', []))}")
 for idx, item in enumerate(data.get('results', []), 1):
-    print(f"{idx}. {item['title']} -> {item['link']}")`}</code></pre>
+    print(f"{idx}. {item.get('title')} -> {item.get('url')}")`}</code></pre>
                       )}
                       {searchCodeLanguage === 'curl' && (
-                        <pre><code>{`curl -X GET "${apiBaseUrl}/api/v1/search?q=indonesia&limit=5" \\
+                        <pre><code>{`# 1. Pencarian Web Utama
+curl -X GET "${apiBaseUrl}/api/v1/search?q=indonesia&limit=5" \\
+  -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"
+
+# 2. Pencarian Instan (Fast Search)
+curl -X GET "${apiBaseUrl}/api/v1/search-fast?q=indonesia&limit=5" \\
+  -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"
+
+# 3. Pencarian Gambar
+curl -X GET "${apiBaseUrl}/api/v1/images?q=indonesia&limit=5" \\
   -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"`}</code></pre>
                       )}
                     </div>
 
-                    <h4>Contoh Respons JSON:</h4>
+                    <h4>Contoh Respons JSON (/api/v1/search):</h4>
                     <pre><code>{`{
-  "status": "success",
   "query": "indonesia",
-  "duration_ms": 14,
-  "total": 10,
   "results": [
     {
-      "title": "Republik Indonesia - Portal Resmi Informasi Nasional",
-      "link": "https://indonesia.go.id",
-      "snippet": "Informasi resmi pemerintah Republik Indonesia, kebijakan, pariwisata, dan layanan publik.",
-      "score": 0.94
+      "url": "https://media.licdn.com",
+      "title": "indonesia",
+      "snippet": "Community And Social Services jobs in Gambir, Jakarta, Indonesia...",
+      "image": "https://media.licdn.com/dms/image/...",
+      "score": 1000000000000
     }
-  ]
+  ],
+  "cached": false
 }`}</code></pre>
                   </section>
                 </div>
