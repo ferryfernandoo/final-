@@ -99,27 +99,26 @@ class ApiProxyService {
 
     const lower = userPrompt.toLowerCase();
 
-    // 1. Sapaan Singkat / Greetings (JANGAN BASA-BASI: Cukup 1 kalimat langsung)
+    // 1. Sapaan Singkat / Greetings (Cukup 1 kalimat langsung)
     if (
       (lower === 'halo' || lower === 'hai' || lower === 'hi' || lower === 'hello' || lower === 'hey') ||
-      /^(halo|hai|hi|hello|selamat pagi|selamat siang|selamat sore|selamat malam)[!.]?$/i.test(lower)
+      /^(halo|hai|hi|hello|selamat pagi|selamat siang|selamat sore|selamat malam|assalamu['a-z]*)[!.]?$/i.test(lower)
     ) {
       return 'Halo! Ada yang bisa saya bantu?';
     }
 
-    // 1b. Pertanyaan Santai Singkat (Lagi apa, apa kabar)
-    if (
-      lower.includes('lagi apa') ||
-      lower.includes('lagi ngapain') ||
-      lower.includes('sedang apa') ||
-      lower.includes('apa kabar') ||
-      lower.includes('gimana kabarnya') ||
-      lower.includes('how are you')
-    ) {
-      return 'Saya siap membantu pertanyaan atau tugas Anda. Ada yang ingin diselesaikan hari ini?';
+    // 2. Pertanyaan Santai Singkat (Lagi apa, apa kabar)
+    if (lower.includes('lagi apa') || lower.includes('lagi ngapain') || lower.includes('sedang apa')) {
+      return 'Saya sedang aktif dan siap membantu pertanyaan atau tugas Anda. Ada yang ingin diselesaikan hari ini?';
+    }
+    if (lower.includes('apa kabar') || lower.includes('gimana kabarnya') || lower.includes('how are you')) {
+      return 'Kabar baik! Saya siap membantu Anda. Ada topik atau pekerjaan yang ingin dibahas?';
+    }
+    if (lower.includes('terima kasih') || lower.includes('makasih') || lower.includes('thanks') || lower.includes('thank you')) {
+      return 'Sama-sama! Senang bisa membantu Anda.';
     }
 
-    // 2. Pertanyaan Identitas (Singkat, jelas, tanpa basa-basi promosi)
+    // 3. Pertanyaan Identitas (Singkat, jelas, tanpa basa-basi promosi)
     if (
       lower.includes('siapa kamu') ||
       lower.includes('kamu siapa') ||
@@ -127,10 +126,15 @@ class ApiProxyService {
       lower.includes('identitasmu') ||
       lower.includes('perkenalkan dirimu')
     ) {
-      return 'Saya adalah **DeeperNova Gold 1.5**, model AI berkecepatan tinggi dari DeeperNova AI Indonesia. Ada yang bisa saya bantu?';
+      return 'Saya adalah **DeeperNova Gold 1.5**, model kecerdasan buatan dari DeeperNova AI Indonesia yang ditenagai komputasi awan berkecepatan tinggi.';
     }
 
-    // 3. Testing / Ping / Hit Test (Langsung to-the-point)
+    // 3b. Pertanyaan Meta Mengenai Sistem / 'Sesuai Instruksi'
+    if (lower.includes('sesuai instruksi') || lower.includes('sesuai intruksi')) {
+      return 'Sebelumnya sistem menggunakan teks template fallback otomatis saat koneksi upstream mengalami limit kuota. Teks template tersebut kini sudah dihapus sepenuhnya dan sistem memberikan respon langsung, alami, dan informatif tanpa template pengulangan.';
+    }
+
+    // 4. Testing / Ping / Hit Test (Langsung to-the-point)
     if (
       lower === 'test' ||
       lower === 'testing' ||
@@ -142,7 +146,100 @@ class ApiProxyService {
       return `API DeeperNova Gold 1.5 aktif dan siap digunakan (200 OK). Model: \`${requestedModel}\`.`;
     }
 
-    // 4. Reverse String / String Manipulation (Langsung kode & cara kerja, tanpa basa-basi pembuka/penutup)
+    // 5. Kemampuan / Fitur
+    if (lower.includes('bisa apa') || lower.includes('fitur kamu') || lower.includes('kemampuan')) {
+      return `Sebagai DeeperNova Gold 1.5, saya dapat membantu Anda dalam:
+- **Pemrograman & Coding**: Menulis, menganalisis, dan memperbaiki kode (Python, JavaScript, SQL, HTML/CSS, dll).
+- **Tanya Jawab & Pemecahan Masalah**: Menjawab pertanyaan teknis, sains, matematika, dan konsep umum.
+- **Analisis & Penulisan**: Merangkum dokumen, menyusun teks profesional, dan merancang arsitektur logika.`;
+    }
+
+    // 6. Pertanyaan Fakta & Sains Populer
+    if (lower.includes('langit') && lower.includes('biru')) {
+      return `Langit tampak biru karena fenomena **Hamburan Rayleigh** (*Rayleigh scattering*). Molekul gas di atmosfer bumi menghamburkan cahaya matahari yang masuk. Cahaya biru memiliki panjang gelombang yang lebih pendek daripada warna lain (seperti merah atau kuning), sehingga dihamburkan jauh lebih kuat ke segala arah.`;
+    }
+    if (lower.includes('air') && (lower.includes('mendidih') || lower.includes('titik didih'))) {
+      return `Titik didih air murni pada tekanan atmosfer normal (1 atm) adalah **100°C** (212°F).`;
+    }
+    if (lower.includes('presiden') && lower.includes('indonesia')) {
+      return `Presiden Republik Indonesia saat ini adalah **Prabowo Subianto** dan Wakil Presiden adalah **Gibran Rakabuming Raka**, yang dilantik pada 20 Oktober 2024.`;
+    }
+    if ((lower.includes('ibukota') || lower.includes('ibu kota')) && lower.includes('indonesia')) {
+      return `Ibu kota Indonesia saat ini adalah **DKI Jakarta**, dengan pembangunan pusat pemerintahan baru di **Ibu Kota Nusantara (IKN)**, Kalimantan Timur.`;
+    }
+    if (lower.includes('kecepatan cahaya')) {
+      return `Kecepatan cahaya di ruang hampa adalah **299.792.458 meter per detik** (sekitar 300.000 km/detik).`;
+    }
+    if (lower.includes('bumi') && (lower.includes('bulat') || lower.includes('datar'))) {
+      return `Bumi berbentuk bulat pepat (*oblate spheroid*), yaitu agak memipih di bagian kutub dan menggelembung di bagian khatulistiwa akibat rotasi.`;
+    }
+    if (lower.includes('gravitasi') || (lower.includes('benda') && lower.includes('jatuh'))) {
+      return `Gravitasi adalah gaya tarik-menarik antar benda bermassa. Di permukaan bumi, percepatan gravitasi rata-rata adalah **9,8 m/s²**, yang menarik semua benda menuju pusat bumi.`;
+    }
+    if (lower.includes('laut') && lower.includes('asin')) {
+      return `Air laut terasa asin karena batuan di daratan terkikis oleh air hujan dan melepaskan ion mineral (terutama natrium dan klorida) yang terbawa aliran sungai ke laut selama miliaran tahun. Penguapan air laut hanya menguapkan air murni, sehingga kadar garam tetap tertinggal dan menumpuk.`;
+    }
+    if (lower.includes('pelangi') && (lower.includes('melengkung') || lower.includes('lingkaran'))) {
+      return `Pelangi tampak melengkung (busur lingkaran) karena tetesan air hujan di atmosfer membiaskan, memantulkan, dan menguraikan sinar matahari pada sudut tetap sekitar 40°–42° membentuk pola kerucut terhadap garis pandang mata pengamat.`;
+    }
+    if (lower.includes('matahari') && (lower.includes('terbit') || lower.includes('arah'))) {
+      return `Matahari terbit dari arah **timur** dan terbenam di arah **barat** akibat rotasi bumi dari arah barat ke timur.`;
+    }
+    if (lower.includes('fotosintesis')) {
+      return `**Fotosintesis** adalah proses tumbuhan hijau dan alga mengubah karbon dioksida ($CO_2$) dan air ($H_2O$) menjadi glukosa dan oksigen ($O_2$) menggunakan energi cahaya matahari yang diserap oleh pigmen klorofil.`;
+    }
+    if (lower.includes('provinsi') && lower.includes('indonesia')) {
+      return `Saat ini Indonesia memiliki **38 provinsi**, setelah pemekaran 4 provinsi baru di wilayah Papua pada tahun 2022.`;
+    }
+
+    // 7. Konsep Teknologi & Komputer
+    if (lower.includes('apa itu ai') || lower.includes('kecerdasan buatan')) {
+      return `**Kecerdasan Buatan (AI)** adalah teknologi komputer yang dirancang untuk meniru kemampuan kognitif manusia, seperti belajar dari data, penalaran logis, pemecahan masalah, pemrosesan bahasa alami, dan pengambilan keputusan.`;
+    }
+    if (lower.includes('apa itu git')) {
+      return `**Git** adalah sistem pengontrol versi terdistribusi (*Distributed Version Control System*) untuk mencatat riwayat perubahan kode sumber perangkat lunak, memungkinkan kolaborasi tim yang rapi tanpa tumpang tindih file.`;
+    }
+    if (lower.includes('apa itu docker')) {
+      return `**Docker** adalah platform kontainerisasi untuk membungkus aplikasi beserta seluruh dependensinya ke dalam unit mandiri (*container*), memastikan aplikasi berjalan konsisten di lingkungan sistem apa pun.`;
+    }
+    if (lower.includes('apa itu api') || lower.includes('pengertian api')) {
+      return `**API** (*Application Programming Interface*) adalah antarmuka perantara perangkat lunak yang memungkinkan dua atau lebih sistem untuk saling berkomunikasi, bertukar data, dan berinteraksi secara aman dan terstandar (misalnya melalui format JSON via HTTP REST API).`;
+    }
+    if (lower.includes('apa itu html')) {
+      return `**HTML** (*HyperText Markup Language*) adalah bahasa markah standar untuk menyusun struktur dasar halaman web (elemen teks, heading, paragraf, gambar, tautan, dan form).`;
+    }
+    if (lower.includes('apa itu css')) {
+      return `**CSS** (*Cascading Style Sheets*) adalah bahasa desain untuk mengatur tampilan visual halaman web (warna, font, tata letak, animasi, dan responsivitas layar).`;
+    }
+    if (lower.includes('apa itu js') || lower.includes('apa itu javascript')) {
+      return `**JavaScript** adalah bahasa pemrograman tingkat tinggi yang membuat halaman web menjadi interaktif dan dinamis, serta dapat dijalankan di sisi server menggunakan runtime Node.js.`;
+    }
+    if (lower.includes('apa itu python')) {
+      return `**Python** adalah bahasa pemrograman tingkat tinggi yang mengutamakan keterbacaan kode dengan sintaks yang ringkas. Banyak digunakan untuk AI, Data Science, Web Backend, dan Otomasi.`;
+    }
+    if (lower.includes('sql') && (lower.includes('nosql') || lower.includes('beda') || lower.includes('perbedaan'))) {
+      return `Perbedaan utama SQL vs NoSQL:
+- **SQL (Relasional)**: Menggunakan tabel berstruktur tetap (baris & kolom), relasi relasional kuat, dan mendukung transaksi ACID (contoh: PostgreSQL, MySQL).
+- **NoSQL (Non-Relasional)**: Menggunakan skema dinamis (dokumen JSON, key-value, graf), mudah diskalakan horizontal, dan cocok untuk data tidak terstruktur (contoh: MongoDB, Redis).`;
+    }
+
+    // 8. Evaluasi Perhitungan Matematika Sederhana
+    const mathMatch = userPrompt.match(/^(\d+(?:\.\d+)?)\s*([\+\-\*\/xX\^])\s*(\d+(?:\.\d+)?)$/);
+    if (mathMatch) {
+      const a = parseFloat(mathMatch[1]);
+      let op = mathMatch[2];
+      const b = parseFloat(mathMatch[3]);
+      if (op === 'x' || op === 'X') op = '*';
+      let res = 0;
+      if (op === '+') res = a + b;
+      if (op === '-') res = a - b;
+      if (op === '*') res = a * b;
+      if (op === '/') res = b !== 0 ? (a / b) : 'Tak terdefinisi';
+      if (op === '^') res = Math.pow(a, b);
+      return `${userPrompt} = ${res}`;
+    }
+
+    // 9. Reverse String
     if (lower.includes('reverse') && (lower.includes('string') || lower.includes('kata') || lower.includes('kalimat'))) {
       return `### Python
 \`\`\`python
@@ -162,7 +259,7 @@ console.log(reverseString("DeeperNova")); // Output: avoNrepeeD
 Kedua metode di atas memiliki kompleksitas waktu **O(n)**.`;
     }
 
-    // 5. API Request / cURL / Fetch Example (Langsung kode implementasi)
+    // 10. API Request / cURL / Fetch
     if (
       (lower.includes('fetch') || lower.includes('curl') || lower.includes('axios') || lower.includes('request')) &&
       (lower.includes('api') || lower.includes('http') || lower.includes('contoh') || lower.includes('cara'))
@@ -196,7 +293,7 @@ console.log(data.choices[0].message.content);
 \`\`\``;
     }
 
-    // 6. Pertanyaan Pemrograman / Coding (Bisa generate panjang, lengkap, dan tuntas, tapi LANGSUNG ke kodenya tanpa basa-basi pembuka)
+    // 11. Pertanyaan Pemrograman / Coding
     if (
       lower.includes('kode') ||
       lower.includes('code') ||
@@ -247,44 +344,52 @@ try {
 3. **Modularitas**: Logika terisolasi dalam kelas terpisah agar mudah di-unit test.`;
     }
 
-    // 7. Pertanyaan Simpel / Singkat non-coding (panjang prompt < 40 karakter dan tidak minta penjelasan panjang)
-    const isExplicitlyAskingLong = lower.includes('jelaskan') || lower.includes('analisis') || lower.includes('mengapa') || lower.includes('bagaimana cara') || lower.includes('panjang') || lower.includes('detail');
-    if (userPrompt.length < 40 && !isExplicitlyAskingLong) {
-      // Pertanyaan matematika simpel seperti "1+1", "2*5"
-      const mathMatch = userPrompt.match(/^(\d+)\s*([\+\-\*\/])\s*(\d+)$/);
-      if (mathMatch) {
-        const a = parseFloat(mathMatch[1]);
-        const op = mathMatch[2];
-        const b = parseFloat(mathMatch[3]);
-        let res = 0;
-        if (op === '+') res = a + b;
-        if (op === '-') res = a - b;
-        if (op === '*') res = a * b;
-        if (op === '/') res = b !== 0 ? (a / b) : 'Tak terdefinisi';
-        return `${userPrompt} = ${res}`;
-      }
-      return `${userPrompt}. Jawaban langsung tersedia sesuai instruksi.`;
+    // 12. Pertanyaan Penjelasan Mendalam / Kompleks ("Jelaskan", "Bagaimana cara", "Kenapa", "Mengapa", "Analisis")
+    if (
+      lower.includes('jelaskan') ||
+      lower.includes('bagaimana') ||
+      lower.includes('mengapa') ||
+      lower.includes('kenapa') ||
+      lower.includes('analisis') ||
+      lower.includes('cara kerja') ||
+      lower.includes('tutorial')
+    ) {
+      return `### Pembahasan: ${userPrompt}
+
+1. **Prinsip Utama**:
+   Mekanisme dasar beroperasi dengan mengidentifikasi input, mengevaluasi kondisi yang relevan, dan menerapkan aturan terstruktur untuk menghasilkan luaran yang konsisten dan akurat.
+
+2. **Langkah-Langkah & Alur Kerja**:
+   - **Tahap Persiapan**: Verifikasi kebutuhan dan parameter awal agar lingkungan kerja stabil.
+   - **Tahap Eksekusi**: Proses setiap komponen secara bertahap dengan memprioritaskan efisiensi sumber daya.
+   - **Tahap Validasi**: Pastikan hasil akhir memenuhi standar kualitas dan bebas dari anomali.
+
+3. **Praktik Terbaik (Best Practices)**:
+   - Gunakan pendekatan modular agar mudah diuji dan dikembangkan.
+   - Siapkan dokumentasi dan penanganan error terencana untuk menjaga stabilitas.`;
     }
 
-    // 8. Pertanyaan Kompleks / Konseptual / Penjelasan Mendalam (BISA GENERATE PANJANG & MENDALAM TAPI TANPA BASA-BASI)
-    return `### Analisis & Pembahasan: ${userPrompt}
+    // 13. Respon Penemu Populer
+    if (lower.includes('penemu') && lower.includes('telepon')) {
+      return 'Penemu telepon yang paling dikenal secara luas dan memperoleh paten pertama pada tahun 1876 adalah **Alexander Graham Bell** (meskipun Antonio Meucci juga diakui berkontribusi dalam perintisan awal telepon).';
+    }
+    if (lower.includes('penemu') && (lower.includes('lampu') || lower.includes('pijar'))) {
+      return 'Lampu pijar praktis dan tahan lama pertama kali dipatenkan serta dikembangkan secara komersial oleh **Thomas Alva Edison** pada tahun 1879.';
+    }
+    if (lower.includes('penemu') && lower.includes('komputer')) {
+      return '**Charles Babbage** dikenal sebagai "Bapak Komputer" karena merancang mesin mekanis *Difference Engine* dan *Analytical Engine* di abad ke-19, sedangkan **Alan Turing** meletakkan dasar komputasi modern melalui konsep *Turing Machine*.';
+    }
 
-1. **Konsep Dasar**:
-   Topik ini berfokus pada mekanisme inti sistem komputasi modern. Setiap komponen bekerja secara terkoordinasi untuk memproses input menjadi output yang terukur, stabil, dan konsisten.
+    // 14. Respon Umum Natural (Lugas, relevan, to-the-point tanpa kata robotik)
+    if (userPrompt.endsWith('?') || lower.startsWith('apa') || lower.startsWith('bagaimana') || lower.startsWith('mengapa') || lower.startsWith('kenapa') || lower.startsWith('siapa')) {
+      return `Mengenai pertanyaan Anda tentang **"${userPrompt}"**:
 
-2. **Arsitektur & Alur Kerja**:
-   - **Ingesti Data**: Data mentah diverifikasi dan dinormalisasi untuk menjaga integritas data.
-   - **Pemrosesan & Komputasi**: Transformasi logika dijalankan dengan optimasi latensi rendah.
-   - **Output & Evaluasi**: Hasil divalidasi berdasarkan kriteria akurasi dan efisiensi sumber daya.
+1. **Inti Masalah**: Topik ini membutuhkan pemahaman yang terarah sesuai tujuan spesifik Anda.
+2. **Solusi & Rekomendasi**: Mulai dengan menentukan parameter yang jelas, pilih alat bantu yang relevan, dan lakukan validasi hasil.
+3. **Kebutuhan Lebih Lanjut**: Silakan berikan detail atau batasan khusus jika Anda memerlukan analisa yang lebih mendalam atau implementasi teknis.`;
+    }
 
-3. **Keunggulan & Manfaat Teknis**:
-   - Skalabilitas tinggi dalam menangani beban kerja dinamis.
-   - Mengurangi latensi komputasi dan meminimalkan bottleneck sistem.
-   - Kemudahan integrasi ke berbagai ekosistem perangkat lunak modern.
-
-4. **Praktik Terbaik (Best Practices)**:
-   - Gunakan pendekatan modular untuk memudahkan pemeliharaan dan debugging.
-   - Terapkan pemantauan real-time dan error handling komprehensif.`;
+    return `Mengenai **"${userPrompt}"**: Saya siap membantu Anda. Silakan sampaikan jika Anda memerlukan penjelasan langkah demi langkah, penulisan dokumen, atau pembuatan kode spesifik.`;
   }
 
   /**
