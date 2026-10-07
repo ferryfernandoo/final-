@@ -140,9 +140,16 @@ initializeDatabase();
 // TokenMix chat API using llama-4-maverick by default (Text + Vision native)
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
 const DEFAULT_TOKENMIX_KEY = 'sk-tm-UKH9Ou7bqCXFHwnuGxMUA6tISG4W3kjwLH5NG05UJN2GfFH0';
+const SECONDARY_TOKENMIX_KEY = 'sk-tm-09SZCY0QOp4uBbOV3kmIbbi5s24TJTIqsbjXEBoyKyK1IbLM';
 const RAW_TOKENMIX_KEY = process.env.TOKENMIX_API_KEY || process.env.TOKENMIX_CHAT_API_KEY || process.env.VITE_TOKENMIX_API_KEY || DEFAULT_TOKENMIX_KEY;
+const RAW_SECONDARY_KEY = process.env.TOKENMIX_SECONDARY_API_KEY || process.env.TOKENMIX_FALLBACK_API_KEY || SECONDARY_TOKENMIX_KEY;
 const TOKENMIX_API_KEY = sanitizeTokenKey(RAW_TOKENMIX_KEY);
-const TOKENMIX_API_KEYS = Array.from(new Set([TOKENMIX_API_KEY, DEFAULT_TOKENMIX_KEY].filter(Boolean)));
+const TOKENMIX_API_KEYS = Array.from(new Set([
+  sanitizeTokenKey(RAW_TOKENMIX_KEY),
+  sanitizeTokenKey(RAW_SECONDARY_KEY),
+  DEFAULT_TOKENMIX_KEY,
+  SECONDARY_TOKENMIX_KEY
+].filter(Boolean)));
 const TOKENMIX_CHAT_API_KEY = TOKENMIX_API_KEY;
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';

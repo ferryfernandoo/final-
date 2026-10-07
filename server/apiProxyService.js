@@ -13,7 +13,20 @@ import { apiKeyManager } from './apiKeyManager.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
 
-const TOKENMIX_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || 'sk-tm-UKH9Ou7bqCXFHwnuGxMUA6tISG4W3kjwLH5NG05UJN2GfFH0';
+const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
+const PRIMARY_TOKENMIX_KEY = 'sk-tm-UKH9Ou7bqCXFHwnuGxMUA6tISG4W3kjwLH5NG05UJN2GfFH0';
+const SECONDARY_TOKENMIX_KEY = 'sk-tm-09SZCY0QOp4uBbOV3kmIbbi5s24TJTIqsbjXEBoyKyK1IbLM';
+
+const RAW_PRIMARY_KEY = process.env.TOKENMIX_API_KEY || process.env.TOKENMIX_CHAT_API_KEY || PRIMARY_TOKENMIX_KEY;
+const RAW_SECONDARY_KEY = process.env.TOKENMIX_SECONDARY_API_KEY || process.env.TOKENMIX_FALLBACK_API_KEY || SECONDARY_TOKENMIX_KEY;
+
+const TOKENMIX_API_KEYS = Array.from(new Set([
+  sanitizeTokenKey(RAW_PRIMARY_KEY),
+  sanitizeTokenKey(RAW_SECONDARY_KEY),
+  PRIMARY_TOKENMIX_KEY,
+  SECONDARY_TOKENMIX_KEY
+].filter(Boolean)));
+const TOKENMIX_API_KEY = TOKENMIX_API_KEYS[0];
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 
 class ApiProxyService {
@@ -535,29 +548,34 @@ ATURAN KOMUNIKASI MUTLAK:
     let upstreamError = null;
     const startTime = Date.now();
 
-    try {
-      const response = await fetch(TOKENMIX_CHAT_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${TOKENMIX_API_KEY}`
-        },
-        body: JSON.stringify(outbound),
-        timeout: 15000
-      });
+    for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
+      const activeKey = TOKENMIX_API_KEYS[i];
+      try {
+        const response = await fetch(TOKENMIX_CHAT_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeKey}`
+          },
+          body: JSON.stringify(outbound),
+          timeout: 15000
+        });
 
-      if (!response.ok) {
-        const errBody = await response.text();
-        console.warn(`[ApiProxyService] TokenMix returned status ${response.status}: ${errBody.substring(0, 150)}. Activating DeeperNova Gold 1.5 Standby Fallback.`);
-        upstreamError = { status: response.status, body: errBody };
+        if (response.ok) {
+          responseData = await response.json();
+          upstreamError = null;
+          break; // Key berhasil, stop loop
+        } else {
+          const errBody = await response.text();
+          console.warn(`[ApiProxyService] TokenMix key index ${i} failed (${response.status}): ${errBody.substring(0, 150)}. Rotating to next key...`);
+          upstreamError = { status: response.status, body: errBody };
+          responseData = null;
+        }
+      } catch (netErr) {
+        console.warn(`[ApiProxyService] Network error with TokenMix key index ${i}: ${netErr.message}`);
+        upstreamError = { status: 500, message: netErr.message };
         responseData = null;
-      } else {
-        responseData = await response.json();
       }
-    } catch (netErr) {
-      console.warn(`[ApiProxyService] Network/upstream error connecting to TokenMix: ${netErr.message}. Activating DeeperNova Gold 1.5 Standby Fallback.`);
-      upstreamError = { status: 500, message: netErr.message };
-      responseData = null;
     }
 
     // Fallback ke Groq (Llama 3.3 70B) jika TokenMix gagal dan GROQ_API_KEY tersedia
@@ -730,30 +748,36 @@ ATURAN KOMUNIKASI MUTLAK:
     let useStandbyStream = false;
     let upstreamStream = null;
 
-    try {
-      const response = await fetch(TOKENMIX_CHAT_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${TOKENMIX_API_KEY}`
-        },
-        body: JSON.stringify(outbound),
-        timeout: 15000
-      });
+    let streamError = null;
+    for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
+      const activeKey = TOKENMIX_API_KEYS[i];
+      try {
+        const response = await fetch(TOKENMIX_CHAT_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeKey}`
+          },
+          body: JSON.stringify(outbound),
+          timeout: 15000
+        });
 
-      let streamError = null;
-      if (!response.ok) {
-        const errBody = await response.text();
-        console.warn(`[ApiProxyService Stream] TokenMix returned status ${response.status}: ${errBody.substring(0, 150)}. Activating Standby Fallback Stream.`);
-        streamError = { status: response.status, body: errBody };
+        if (response.ok) {
+          upstreamStream = response.body;
+          useStandbyStream = false;
+          streamError = null;
+          break; // Key streaming berhasil, stop loop
+        } else {
+          const errBody = await response.text();
+          console.warn(`[ApiProxyService Stream] TokenMix key index ${i} returned status ${response.status}: ${errBody.substring(0, 150)}. Rotating to next key...`);
+          streamError = { status: response.status, body: errBody };
+          useStandbyStream = true;
+        }
+      } catch (netErr) {
+        console.warn(`[ApiProxyService Stream] Network error with TokenMix key index ${i}: ${netErr.message}`);
+        streamError = { status: 500, message: netErr.message };
         useStandbyStream = true;
-      } else {
-        upstreamStream = response.body;
       }
-    } catch (netErr) {
-      console.warn(`[ApiProxyService Stream] Network error: ${netErr.message}. Activating Standby Fallback Stream.`);
-      streamError = { status: 500, message: netErr.message };
-      useStandbyStream = true;
     }
 
     // Fallback ke Groq jika TokenMix gagal dan GROQ_API_KEY tersedia
