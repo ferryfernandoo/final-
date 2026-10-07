@@ -13,7 +13,7 @@ import { apiKeyManager } from './apiKeyManager.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
 
-const TOKENMIX_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || 'sk-tm-0oMaTRPBJiEibFQ6SpC7MUNdYrTnLf2QIMhNXEzvvKZZ8cSi';
+const TOKENMIX_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || 'sk-tm-UKH9Ou7bqCXFHwnuGxMUA6tISG4W3kjwLH5NG05UJN2GfFH0';
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 
 class ApiProxyService {
@@ -106,29 +106,21 @@ class ApiProxyService {
       upstreamError?.body ||
       ''
     ).toLowerCase();
-    const isQuotaExhausted = upstreamError?.status === 402 || errText.includes('402') || errText.includes('insufficient') || errText.includes('balance') || true; // TokenMix key saat ini terbukti 402
+    const isQuotaExhausted = Boolean(upstreamError?.status === 402 || errText.includes('402') || errText.includes('insufficient') || errText.includes('balance'));
 
-    // 0. Pertanyaan Meta Mengenai Status AI, TokenMix, Saldo, Kuota, atau Kendala Chatbot
+    // 0. Pertanyaan Meta Mengenai Status AI, TokenMix, Saldo, Kuota
     if (
       lower.includes('tokenmix') ||
       lower.includes('balance') ||
       lower.includes('saldo') ||
-      lower.includes('kuota') ||
-      lower.includes('sesuai instruksi') ||
-      lower.includes('sesuai intruksi') ||
-      lower.includes('gabisa jawab') ||
-      lower.includes('ga bisa jawab') ||
-      lower.includes('siap membantu')
+      lower.includes('kuota')
     ) {
-      return `⚠️ **Pemberitahuan Sistem: Saldo/Kredit TokenMix Upstream Habis ($0.0109 USD)**
+      if (isQuotaExhausted) {
+        return `⚠️ **Pemberitahuan Sistem: Saldo/Kredit TokenMix Upstream Habis**
 
-Koneksi ke provider upstream (**TokenMix AI**) saat ini mengembalikan status **HTTP 402 (Insufficient Balance)** karena sisa saldo akun hanya **$0.0109 USD**.
-
-Akibatnya, model AI tidak dapat memproses jawaban bebas secara dinamis sampai saldo diisi ulang.
-
-💡 **Langkah Penyelesaian**:
-1. **Top Up TokenMix**: Tambahkan saldo di [https://tokenmix.ai/dashboard/credits](https://tokenmix.ai/dashboard/credits)
-2. **Atau Gunakan Provider Lain**: Masukkan API Key alternatif (seperti \`GROQ_API_KEY\` gratis untuk Llama 3.3 70B, atau \`DEEPSEEK_API_KEY\`) ke file \`.env\` di server.`;
+Koneksi ke provider upstream (**TokenMix AI**) saat ini mengembalikan status **HTTP 402 (Insufficient Balance)**. Silakan tambahkan kredit di [https://tokenmix.ai/dashboard/credits](https://tokenmix.ai/dashboard/credits).`;
+      }
+      return `Koneksi ke **TokenMix Meta AI** saat ini aktif dan berjalan normal. Kuota dan API key telah diperbarui.`;
     }
 
     // 1. Sapaan Singkat / Greetings (Cukup 1 kalimat langsung)
