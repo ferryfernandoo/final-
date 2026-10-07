@@ -99,35 +99,38 @@ class ApiProxyService {
 
     const lower = userPrompt.toLowerCase();
 
-    // 1. Greeting & Identity / Self-Introduction
+    // 1. Sapaan Singkat / Greetings (JANGAN BASA-BASI: Cukup 1 kalimat langsung)
     if (
-      lower.includes('perkenalkan') ||
-      lower.includes('siapa kamu') ||
-      lower.includes('siapa anda') ||
-      lower.includes('who are you') ||
-      lower.includes('introduce yourself') ||
-      lower.includes('tentang dirimu') ||
-      lower.includes('deepernova gold') ||
-      (lower.startsWith('halo') && lower.length < 35) ||
-      (lower.startsWith('hai') && lower.length < 35) ||
-      (lower.startsWith('hello') && lower.length < 35) ||
-      (lower.startsWith('hi') && lower.length < 20)
+      (lower === 'halo' || lower === 'hai' || lower === 'hi' || lower === 'hello' || lower === 'hey') ||
+      /^(halo|hai|hi|hello|selamat pagi|selamat siang|selamat sore|selamat malam)[!.]?$/i.test(lower)
     ) {
-      return `Halo! Saya adalah **DeeperNova Gold 1.5**, model kecerdasan buatan (AI) generasi terbaru yang dikembangkan oleh **DeeperNova AI Indonesia**.
-
-Saya dirancang sebagai model inferensi berkecepatan tinggi dengan kemampuan pemahaman multimodal, penalaran mendalam, dan arsitektur komputasi awan yang dioptimalkan untuk pengembang aplikasi dan pengguna umum.
-
-### 🌟 Fitur & Kapabilitas Utama:
-1. ⚡ **Ultra-Fast Low-Latency Inference**: Menghasilkan respon cepat dengan latensi rendah melalui API gateway terintegrasi.
-2. 💻 **Rekayasa Perangkat Lunak & Kode**: Menulis, menganalisis struktur, melakukan debugging, dan mengoptimalkan kode (Python, JavaScript/Node.js, TypeScript, Go, Rust, SQL, dll).
-3. 🧠 **Penalaran Kompleks**: Mampu memecahkan masalah logika, perhitungan matematis, dan perumusan strategi teknis.
-4. 📚 **Konteks Luas (128K Context)**: Memproses dokumen panjang, riwayat percakapan bertahap, dan instruksi berlapis tanpa kehilangan konteks.
-5. 🌐 **Dukungan Bahasa Alami**: Sangat fasih dalam Bahasa Indonesia baku maupun kasual, serta Bahasa Inggris.
-
-Ada topik, kode program, atau solusi spesifik yang ingin kita diskusikan bersama hari ini?`;
+      return 'Halo! Ada yang bisa saya bantu?';
     }
 
-    // 2. Testing / Connectivity / Health Check
+    // 1b. Pertanyaan Santai Singkat (Lagi apa, apa kabar)
+    if (
+      lower.includes('lagi apa') ||
+      lower.includes('lagi ngapain') ||
+      lower.includes('sedang apa') ||
+      lower.includes('apa kabar') ||
+      lower.includes('gimana kabarnya') ||
+      lower.includes('how are you')
+    ) {
+      return 'Saya siap membantu pertanyaan atau tugas Anda. Ada yang ingin diselesaikan hari ini?';
+    }
+
+    // 2. Pertanyaan Identitas (Singkat, jelas, tanpa basa-basi promosi)
+    if (
+      lower.includes('siapa kamu') ||
+      lower.includes('kamu siapa') ||
+      lower.includes('who are you') ||
+      lower.includes('identitasmu') ||
+      lower.includes('perkenalkan dirimu')
+    ) {
+      return 'Saya adalah **DeeperNova Gold 1.5**, model AI berkecepatan tinggi dari DeeperNova AI Indonesia. Ada yang bisa saya bantu?';
+    }
+
+    // 3. Testing / Ping / Hit Test (Langsung to-the-point)
     if (
       lower === 'test' ||
       lower === 'testing' ||
@@ -136,95 +139,64 @@ Ada topik, kode program, atau solusi spesifik yang ingin kita diskusikan bersama
       lower.includes('test api') ||
       lower.includes('cek koneksi')
     ) {
-      return `🚀 **DeeperNova Gold 1.5 API Gateway: Connected & Operational**
-
-Koneksi ke endpoint API DeeperNova AI berhasil diverifikasi dengan status **200 OK**. Kuota 1.000.000 Free Token Anda aktif dan siap digunakan untuk inferensi produksi maupun pengembangan.
-
-- **Engine Model**: \`${requestedModel}\`
-- **Region**: Cloud Production Node
-- **Protokol**: OpenAI-Compatible REST / JSON
-
-Silakan kirimkan request prompt, pertanyaan logika, atau tugas coding Anda!`;
+      return `API DeeperNova Gold 1.5 aktif dan siap digunakan (200 OK). Model: \`${requestedModel}\`.`;
     }
 
-    // 3. Reverse String / String Manipulation
+    // 4. Reverse String / String Manipulation (Langsung kode & cara kerja, tanpa basa-basi pembuka/penutup)
     if (lower.includes('reverse') && (lower.includes('string') || lower.includes('kata') || lower.includes('kalimat'))) {
-      return `Berikut adalah contoh implementasi fungsi **Reverse String** (membalikkan teks) dalam **Python** dan **JavaScript**:
-
-### 1. Menggunakan Python
+      return `### Python
 \`\`\`python
 def reverse_string(text: str) -> str:
-    # Menggunakan string slicing [start:stop:step] dengan step -1
     return text[::-1]
 
-# Contoh Penggunaan:
-kata_asli = "DeeperNova"
-hasil = reverse_string(kata_asli)
-print(f"Hasil balik: {hasil}")  # Output: avoNrepeeD
+print(reverse_string("DeeperNova"))  # Output: avoNrepeeD
 \`\`\`
 
-### 2. Menggunakan JavaScript (Modern ES6+)
+### JavaScript
 \`\`\`javascript
-function reverseString(str) {
-  // Pecah menjadi array huruf, balikkan urutannya, lalu gabungkan kembali
-  return str.split('').reverse().join('');
-}
+const reverseString = (str) => [...str].reverse().join('');
 
-// Atau menggunakan arrow function yang ringkas:
-const reverseStringArrow = (str) => [...str].reverse().join('');
-
-console.log(reverseStringArrow("DeeperNova")); // Output: "avoNrepeeD"
+console.log(reverseString("DeeperNova")); // Output: avoNrepeeD
 \`\`\`
 
-Kedua metode di atas memiliki kompleksitas waktu **O(n)** dan sangat efisien untuk pemrosesan teks.`;
+Kedua metode di atas memiliki kompleksitas waktu **O(n)**.`;
     }
 
-    // 4. API Request / Fetch / cURL example
+    // 5. API Request / cURL / Fetch Example (Langsung kode implementasi)
     if (
       (lower.includes('fetch') || lower.includes('curl') || lower.includes('axios') || lower.includes('request')) &&
       (lower.includes('api') || lower.includes('http') || lower.includes('contoh') || lower.includes('cara'))
     ) {
-      return `Berikut adalah contoh cara melakukan request ke endpoint **DeeperNova API** menggunakan **cURL** dan **JavaScript (Fetch)**:
-
-### 1. Menggunakan cURL (Terminal / Command Line)
+      return `### cURL
 \`\`\`bash
 curl -X POST "https://api.deepernova.id/v1/chat/completions" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
     "model": "deepernova-gold-1.5",
-    "messages": [
-      {"role": "user", "content": "Halo DeeperNova!"}
-    ],
-    "temperature": 0.7
+    "messages": [{"role": "user", "content": "Halo"}]
   }'
 \`\`\`
 
-### 2. Menggunakan Node.js / Browser (Fetch API)
+### JavaScript (Fetch API)
 \`\`\`javascript
-async function callDeeperNova(prompt, apiKey) {
-  const response = await fetch('https://api.deepernova.id/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': \`Bearer \${apiKey}\`
-    },
-    body: JSON.stringify({
-      model: 'deepernova-gold-1.5',
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-
-  const data = await response.json();
-  return data.choices[0].message.content;
-}
-
-// Panggil fungsi:
-// callDeeperNova("Jelaskan arsitektur web modern", "YOUR_API_KEY").then(console.log);
+const response = await fetch('https://api.deepernova.id/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    model: 'deepernova-gold-1.5',
+    messages: [{ role: 'user', content: 'Halo' }]
+  })
+});
+const data = await response.json();
+console.log(data.choices[0].message.content);
 \`\`\``;
     }
 
-    // 5. General Coding & Programming Request
+    // 6. Pertanyaan Pemrograman / Coding (Bisa generate panjang, lengkap, dan tuntas, tapi LANGSUNG ke kodenya tanpa basa-basi pembuka)
     if (
       lower.includes('kode') ||
       lower.includes('code') ||
@@ -238,91 +210,81 @@ async function callDeeperNova(prompt, apiKey) {
       lower.includes('html') ||
       lower.includes('sql')
     ) {
-      return `Tentu! Berikut adalah solusi teknis dan implementasi kode terstruktur untuk kebutuhan Anda:
-
-\`\`\`javascript
+      return `\`\`\`javascript
 /**
  * Implementasi Solusi DeeperNova Gold 1.5
- * Dioptimalkan untuk performa tinggi, keterbacaan, dan penanganan kesalahan (error handling).
+ * Penanganan error, struktur modular, dan performa tinggi.
  */
-
 class SolutionHandler {
   constructor(options = {}) {
     this.options = options;
   }
 
   process(data) {
-    if (!data) {
-      throw new Error("Input data tidak boleh kosong.");
-    }
+    if (!data) throw new Error("Input data tidak boleh kosong.");
     
-    // Logika pemrosesan
-    const result = {
+    return {
       timestamp: new Date().toISOString(),
       payload: data,
       status: "SUCCESS"
     };
-
-    return result;
   }
 }
 
-// Contoh eksekusi:
+// Eksekusi:
 try {
   const handler = new SolutionHandler();
   const output = handler.process("${userPrompt.replace(/"/g, '\\"') || 'Input Data'}");
-  console.log("Hasil Pemrosesan:", output);
+  console.log("Output:", output);
 } catch (error) {
-  console.error("Terjadi kesalahan:", error.message);
+  console.error("Error:", error.message);
 }
 \`\`\`
 
-### Penjelasan & Rekomendasi:
-1. **Validasi Input**: Selalu pastikan argumen diverifikasi sebelum diproses untuk mencegah runtime error.
-2. **Error Handling**: Bungkus pemanggilan dalam blok \`try...catch\` untuk memastikan ketahanan aplikasi.
-3. **Modularitas**: Pisahkan logika bisnis ke dalam fungsi atau class yang terpisah agar mudah di-unit test.`;
+**Poin Implementasi:**
+1. **Validasi Input**: Mencegah runtime error pada parameter kosong.
+2. **Error Handling**: Blok \`try...catch\` memastikan aplikasi tidak crash saat terjadi exception.
+3. **Modularitas**: Logika terisolasi dalam kelas terpisah agar mudah di-unit test.`;
     }
 
-    // 6. Explanation / Question Query (Apa itu, Jelaskan, dll)
-    if (
-      lower.includes('apa itu') ||
-      lower.includes('jelaskan') ||
-      lower.includes('bagaimana') ||
-      lower.includes('kenapa') ||
-      lower.includes('mengapa') ||
-      lower.includes('what is') ||
-      lower.includes('explain')
-    ) {
-      return `Mengenai pertanyaan Anda: **"${userPrompt}"**, berikut adalah penjelasan komprehensif dan terstruktur:
+    // 7. Pertanyaan Simpel / Singkat non-coding (panjang prompt < 40 karakter dan tidak minta penjelasan panjang)
+    const isExplicitlyAskingLong = lower.includes('jelaskan') || lower.includes('analisis') || lower.includes('mengapa') || lower.includes('bagaimana cara') || lower.includes('panjang') || lower.includes('detail');
+    if (userPrompt.length < 40 && !isExplicitlyAskingLong) {
+      // Pertanyaan matematika simpel seperti "1+1", "2*5"
+      const mathMatch = userPrompt.match(/^(\d+)\s*([\+\-\*\/])\s*(\d+)$/);
+      if (mathMatch) {
+        const a = parseFloat(mathMatch[1]);
+        const op = mathMatch[2];
+        const b = parseFloat(mathMatch[3]);
+        let res = 0;
+        if (op === '+') res = a + b;
+        if (op === '-') res = a - b;
+        if (op === '*') res = a * b;
+        if (op === '/') res = b !== 0 ? (a / b) : 'Tak terdefinisi';
+        return `${userPrompt} = ${res}`;
+      }
+      return `${userPrompt}. Jawaban langsung tersedia sesuai instruksi.`;
+    }
 
-### 📌 Ringkasan Konsep
-Topik ini berfokus pada fondasi penting dalam teknologi dan sistem komputasi modern. Pemahaman yang baik mengenai hal ini memungkinkan pembangunan arsitektur yang andal, scalable, dan efisien.
+    // 8. Pertanyaan Kompleks / Konseptual / Penjelasan Mendalam (BISA GENERATE PANJANG & MENDALAM TAPI TANPA BASA-BASI)
+    return `### Analisis & Pembahasan: ${userPrompt}
 
-### 🔍 Poin-Poin Utama:
-1. **Definisi & Esensi**: Komponen utama bekerja secara terkoordinasi untuk memproses input menjadi hasil yang terukur dan konsisten.
-2. **Mekanisme Kerja**: Setiap langkah dijalankan secara sistematis dengan mempertimbangkan efisiensi sumber daya dan integritas data.
-3. **Keuntungan & Manfaat**:
+1. **Konsep Dasar**:
+   Topik ini berfokus pada mekanisme inti sistem komputasi modern. Setiap komponen bekerja secara terkoordinasi untuk memproses input menjadi output yang terukur, stabil, dan konsisten.
+
+2. **Arsitektur & Alur Kerja**:
+   - **Ingesti Data**: Data mentah diverifikasi dan dinormalisasi untuk menjaga integritas data.
+   - **Pemrosesan & Komputasi**: Transformasi logika dijalankan dengan optimasi latensi rendah.
+   - **Output & Evaluasi**: Hasil divalidasi berdasarkan kriteria akurasi dan efisiensi sumber daya.
+
+3. **Keunggulan & Manfaat Teknis**:
    - Skalabilitas tinggi dalam menangani beban kerja dinamis.
-   - Mengurangi latensi dan meningkatkan efisiensi operasional.
-   - Mudah diintegrasikan dengan teknologi modern lainnya.
-4. **Implementasi Praktis**: Dalam praktiknya, teknik ini banyak diterapkan pada pipeline pengolahan data, backend API mikro-layanan, dan automasi cerdas.
+   - Mengurangi latensi komputasi dan meminimalkan bottleneck sistem.
+   - Kemudahan integrasi ke berbagai ekosistem perangkat lunak modern.
 
-Apakah Anda ingin mendalami aspek teknis tertentu atau melihat studi kasus implementasinya secara langsung?`;
-    }
-
-    // 7. Fallback General Helpful Answer
-    return `Terima kasih atas pertanyaan Anda: **"${userPrompt}"**.
-
-Sebagai **DeeperNova Gold 1.5**, saya siap membantu menyelesaikan kebutuhan Anda. Berikut adalah analisis dan jawaban terarah:
-
-1. **Pemahaman Masalah**: Permintaan Anda telah dianalisis untuk memberikan respon yang relevan, akurat, dan dapat diterapkan langsung.
-2. **Langkah Solusi**:
-   - Pastikan parameter dan lingkungan kerja Anda telah dikonfigurasi dengan tepat.
-   - Terapkan pendekatan modular untuk kemudahan pengujian dan pemeliharaan.
-   - Evaluasi output untuk memastikan hasil sesuai dengan ekspektasi.
-3. **Optimasi Lanjutan**: Jika Anda memerlukan variasi kode, integrasi database, atau penyesuaian khusus, silakan berikan instruksi tambahan.
-
-Ada bagian spesifik yang ingin Anda diskusikan lebih lanjut?`;
+4. **Praktik Terbaik (Best Practices)**:
+   - Gunakan pendekatan modular untuk memudahkan pemeliharaan dan debugging.
+   - Terapkan pemantauan real-time dan error handling komprehensif.`;
   }
 
   /**
@@ -421,10 +383,14 @@ Ada bagian spesifik yang ingin Anda diskusikan lebih lanjut?`;
     outbound.stream = false;
     outbound.messages = Array.isArray(outbound.messages) ? outbound.messages : [];
 
-    // System prompt asserting DeeperNova Gold 1.5 identity
+    // System prompt asserting DeeperNova Gold 1.5 identity with anti-basa-basi & adaptive length rules
     const identityPrompt = {
       role: 'system',
-      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5. You are running on high-speed cloud infrastructure. You are knowledgeable, helpful, precise, respectful, and professional.`
+      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5.
+ATURAN KOMUNIKASI MUTLAK:
+1. JANGAN BASA-BASI: Dilarang menggunakan kalimat pembuka klise ("Tentu saja!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya", "Sebagai model AI...") dan dilarang menggunakan kalimat penutup basa-basi ("Semoga membantu!", "Ada hal lain yang ingin ditanyakan?"). Langsung masuk ke inti jawaban.
+2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan to-the-point (1-3 kalimat). Jangan bertele-tele.
+3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan, analisis, perancangan, atau tugas coding/pemrograman, generate jawaban yang panjang, lengkap, mendalam, dan tuntas sesuai kebutuhan, namun tetap langsung fokus pada isi tanpa basa-basi pengantar.`
     };
 
     const hasSystem = outbound.messages.some(m => m.role === 'system');
@@ -588,7 +554,11 @@ Ada bagian spesifik yang ingin Anda diskusikan lebih lanjut?`;
 
     const identityPrompt = {
       role: 'system',
-      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5. You are running on high-speed cloud infrastructure. You are knowledgeable, helpful, precise, respectful, and professional.`
+      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5.
+ATURAN KOMUNIKASI MUTLAK:
+1. JANGAN BASA-BASI: Dilarang menggunakan kalimat pembuka klise ("Tentu saja!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya", "Sebagai model AI...") dan dilarang menggunakan kalimat penutup basa-basi ("Semoga membantu!", "Ada hal lain yang ingin ditanyakan?"). Langsung masuk ke inti jawaban.
+2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan to-the-point (1-3 kalimat). Jangan bertele-tele.
+3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan, analisis, perancangan, atau tugas coding/pemrograman, generate jawaban yang panjang, lengkap, mendalam, dan tuntas sesuai kebutuhan, namun tetap langsung fokus pada isi tanpa basa-basi pengantar.`
     };
 
     const hasSystem = outbound.messages.some(m => m.role === 'system');

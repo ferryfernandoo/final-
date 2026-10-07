@@ -52,18 +52,22 @@ export function generateInstantBoronResponse(prompt = '') {
   const p = prompt.toLowerCase().trim();
 
   if (/^(halo|hai|hi|hey|assalamu|selamat|pagi|siang|sore|malam)\b/i.test(p) || p.length < 5) {
-    return 'Halo! Saya DeeperNova Boron 1.1, model kecerdasan buatan lokal on-device Anda yang beroperasi 100% mandiri di perangkat ini. Ada yang bisa saya bantu untuk Anda hari ini?';
+    return 'Halo! Ada yang bisa saya bantu?';
   }
 
   if (/(siapa kamu|kamu siapa|identitas|siapa pembuatmu|siapa ciptakan|model apa)/i.test(p)) {
-    return 'Saya adalah DeeperNova Boron 1.1, model kecerdasan buatan lokal on-device kebanggaan DeeperNova AI Indonesia. Saya dirancang untuk berjalan mandiri langsung di perangkat Anda tanpa ketergantungan server eksternal, menjaga privasi data Anda tetap aman dan memberikan respons super cepat!';
+    return 'Saya adalah DeeperNova Boron 1.1, model kecerdasan buatan on-device dari DeeperNova AI Indonesia. Ada yang bisa saya bantu?';
   }
 
   if (/(bisa apa|kemampuan|fitur)/i.test(p)) {
-    return 'Sebagai model AI lokal DeeperNova Boron 1.1, saya dapat membantu Anda dalam:\n\n1. **Percakapan & Tanya Jawab**: Menjawab berbagai pertanyaan pengetahuan umum dan analisis.\n2. **Pemrograman & Coding**: Menulis, memeriksa, dan mengoptimalkan kode (Python, JavaScript, HTML/CSS, SQL, dll).\n3. **Analisis Dokumen & Teks**: Merangkum artikel, menyusun esai, laporan kerja, atau surat formal.\n4. **Kreativitas**: Menulis cerita, puisi, ide konten, dan brainstorming.\n\nSilakan sampaikan tugas atau pertanyaan yang ingin Anda selesaikan!';
+    return `Sebagai model AI lokal DeeperNova Boron 1.1, saya dapat membantu Anda dalam:
+- **Tanya Jawab & Pengetahuan Umum**
+- **Pemrograman & Coding** (Python, JavaScript, HTML/CSS, SQL, dll)
+- **Analisis & Rangkuman Teks / Dokumen**
+- **Penulisan Kreatif & Perancangan Logika**`;
   }
 
-  return `Halo! Saya DeeperNova Boron 1.1. Mengenai pertanyaan Anda:\n\nSaya telah memproses pertanyaan Anda secara lokal on-device. Silakan tanyakan lebih spesifik atau berikan detail tambahan agar saya dapat memberikan solusi dan penjelasan yang paling tepat untuk Anda!`;
+  return `Pertanyaan Anda telah diproses. Silakan tanyakan hal yang lebih spesifik atau berikan detail tugas yang ingin diselesaikan.`;
 }
 
 /**
