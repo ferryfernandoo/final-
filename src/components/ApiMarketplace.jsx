@@ -380,6 +380,13 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
           </div>
 
           <div className="api-nav-actions">
+            <button 
+              className="btn-back-home" 
+              onClick={() => onNavigate?.('landing')}
+              title="Kembali ke Beranda Utama"
+            >
+              ← Beranda
+            </button>
             {apiKeys.length > 0 ? (
               <button className="btn-get-started" onClick={() => setShowCreateKeyModal(true)}>
                 + Buat API Key

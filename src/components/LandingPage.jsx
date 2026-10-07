@@ -122,11 +122,11 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               href={SEARCH_ENGINE_URL} 
               target="_blank" 
               rel="noopener noreferrer" 
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#38bdf8', fontWeight: '700', textDecoration: 'none' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981', fontWeight: '700', textDecoration: 'none' }}
               title="Kunjungi DeeperNova Search Engine Mandiri"
             >
               <span>🔍 Search Engine</span>
-              <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '999px', padding: '1px 6px', color: '#38bdf8' }}>Live</span>
+              <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '999px', padding: '1px 6px', color: '#10b981' }}>Live</span>
             </a>
             <button 
               onClick={() => onNavigate?.('help')} 
@@ -387,7 +387,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               href={SEARCH_ENGINE_URL} 
               target="_blank" 
               rel="noopener noreferrer" 
-              style={{ color: '#38bdf8', fontWeight: '600', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}
+              style={{ color: '#10b981', fontWeight: '600', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}
             >
               🔍 Search Engine
             </a>
