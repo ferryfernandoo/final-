@@ -24,7 +24,7 @@ import GlobalMemorySettings from './GlobalMemorySettings';
 import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, enrichQueryWithDateIfRecent, detectUpfrontSearchIntent } from '../services/clientSearchService';
+import { executeWebSearch, enrichQueryWithDateIfRecent } from '../services/clientSearchService';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -8150,55 +8150,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // 🔍 UPFRONT WEB SEARCH DETECTION:
-    // If user's prompt needs real-time search, start search immediately from the beginning.
-    // Prevents the AI from hallucinating or answering 'ngawur' before searching.
-    const upfrontSearch = detectUpfrontSearchIntent(cleanUserText, userLanguage);
-    if (upfrontSearch && upfrontSearch.shouldSearch && imagesToPass.length === 0) {
-      console.log('[ChatBot] 🔍 Upfront search intent detected from the start:', upfrontSearch);
-      
-      const finalSearchQuery = enrichQueryWithDateIfRecent(upfrontSearch.searchQuery, cleanUserText, userLanguage);
 
-      // Immediately switch bot placeholder into searching state with strictly empty text
-      setMessages(prev => prev.map(msg => 
-        msg.id === placeholderId 
-          ? {
-              ...msg,
-              text: '', // STRICTLY EMPTY! Never display ngawur/hallucinated text!
-              isStreaming: false,
-              isSearching: true,
-              searchQuery: finalSearchQuery,
-              searchSteps: [{
-                query: finalSearchQuery,
-                isSearching: true,
-                sources: [],
-                images: []
-              }]
-            }
-          : msg
-      ));
-
-      triggeredSearchRequestsRef.current.add(placeholderId);
-      clearLoadingPhaseTimers();
-      setLoading(false);
-      setConvLoading(true);
-
-      // Lock user ask bubble cleanly at the top of the viewport
-      holdScrollRef.current = false;
-      isLockedToUserAskRef.current = true;
-      lockedUserMessageIdRef.current = userMessageForChat.id;
-      scrollToUserMessage(false);
-
-      // Execute search and synthesize with full conversational context!
-      executeSearchAndSynthesize({
-        messageId: placeholderId,
-        searchQuery: finalSearchQuery,
-        userPrompt: cleanUserText,
-        baseHistory: updatedConversationHistory
-      });
-
-      return;
-    }
     
     // Keep the visual payload available for the model, but do not force a UI decision.
     // The assistant should decide naturally whether to read an image or edit it.
@@ -9338,8 +9290,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         isAuthenticated, 
         isGuest, 
         userName || user?.name, 
-        false, 
-        sessionMessageCount + 2
+        sessionMessageCount + 2, 
+        []
       );
 
       let finalResponseText = '';
