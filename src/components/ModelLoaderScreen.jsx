@@ -196,7 +196,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>
-            Memuat Model AI Lokal
+            Menyiapkan DeeperNova Gold 1.5
           </h2>
 
           <p style={{
@@ -206,7 +206,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
             maxWidth: '320px',
             lineHeight: '1.5'
           }}>
-            Model AI offline sedang disiapkan ke memori perangkat agar respons chat instan dan 100% tanpa internet.
+            Menghubungkan ke infrastruktur cloud DeeperNova Gold 1.5 berkecepatan tinggi untuk pengalaman chat instan.
           </p>
         </div>
 

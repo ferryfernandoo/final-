@@ -45,6 +45,37 @@ export function initializeDatabase() {
     // Column already exists
   }
 
+  // 1 Million Free Tokens balance tracking
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN tokenQuota INTEGER DEFAULT 1000000`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN tokensUsed INTEGER DEFAULT 0`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    db.exec(`UPDATE users SET tokenQuota = 1000000 WHERE tokenQuota IS NULL`);
+  } catch {}
+
+  try {
+    db.exec(`UPDATE users SET tokensUsed = 0 WHERE tokensUsed IS NULL`);
+  } catch {}
+
+  try {
+    db.exec(`ALTER TABLE api_keys ADD COLUMN tokensUsed INTEGER DEFAULT 0`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    db.exec(`UPDATE api_keys SET tokensUsed = 0 WHERE tokensUsed IS NULL`);
+  } catch {}
+
   // Chat sessions table
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -315,6 +346,30 @@ export const userDb = {
     `);
     stmt.run(...values, id);
     return userDb.findById(id);
+  },
+
+  getTokenBalance: (userId) => {
+    const user = userDb.findById(userId);
+    if (!user) return null;
+    const tokenQuota = (user.tokenQuota !== undefined && user.tokenQuota !== null) ? Number(user.tokenQuota) : 1000000;
+    const tokensUsed = Number(user.tokensUsed || 0);
+    return {
+      tokenQuota,
+      tokensUsed,
+      remainingTokens: Math.max(0, tokenQuota - tokensUsed)
+    };
+  },
+
+  consumeTokens: (userId, tokens) => {
+    const numTokens = Math.max(0, parseInt(tokens, 10) || 0);
+    if (numTokens <= 0) return userDb.getTokenBalance(userId);
+    const stmt = db.prepare(`
+      UPDATE users 
+      SET tokensUsed = COALESCE(tokensUsed, 0) + ?, updatedAt = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `);
+    stmt.run(numTokens, userId);
+    return userDb.getTokenBalance(userId);
   }
 };
 
@@ -464,6 +519,16 @@ export const apiKeyDb = {
       WHERE id = ?
     `);
     stmt.run(id);
+  },
+
+  consumeTokens: (id, tokens) => {
+    const numTokens = Math.max(0, parseInt(tokens, 10) || 0);
+    const stmt = db.prepare(`
+      UPDATE api_keys 
+      SET tokensUsed = COALESCE(tokensUsed, 0) + ?, lastUsed = CURRENT_TIMESTAMP, updatedAt = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `);
+    stmt.run(numTokens, id);
   },
 
   delete: (id) => {

@@ -1,218 +1,275 @@
 /**
- * Deepernova API Proxy Service
- * - Proxies requests to Deepseek API
- * - Completely hides Deepseek origin
- * - Rebrand all responses
- * - Usage tracking & rate limiting
+ * DeeperNova API Proxy Service
+ * - Handles real API keys stored in SQLite database (api_keys & users tables)
+ * - 1 Million Free Tokens balance tracking per user
+ * - Proxies requests to TokenMix Meta AI backend (llama-4-maverick & llama-3.3-70b)
+ * - Rebrands all responses to DeeperNova Gold 1.5 & DeeperNova Gold 1.5 Pro
+ * - OpenAI-compatible API format (v1/chat/completions, v1/models, v1/balance)
  */
 
 import fetch from 'node-fetch';
+import { apiKeyDb, userDb } from './database.js';
 import { apiKeyManager } from './apiKeyManager.js';
 
-const DEEPSEEK_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || 'sk-tm-0oMaTRPBJiEibFQ6SpC7MUNdYrTnLf2QIMhNXEzvvKZZ8cSi';
-// Use mock server only when explicitly requested
-const USE_MOCK = process.env.USE_MOCK === 'true';
-const DEEPERNOVA_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
-const DEEPSEEK_API_URL = DEEPERNOVA_API_URL;
-
-/**
- * Sanitizes text to remove any third-party AI provider disclosures
- */
-function sanitizeThirdPartyMentions(text) {
-  if (typeof text !== 'string') return text;
-  return text;
-}
+const TOKENMIX_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || 'sk-tm-0oMaTRPBJiEibFQ6SpC7MUNdYrTnLf2QIMhNXEzvvKZZ8cSi';
+const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 
 class ApiProxyService {
   constructor() {
-    this.usageStats = new Map(); // Track per-user usage
-    this.rateLimit = 999999; // requests per hour
-    this.rateLimitWindow = 3600000; // 1 hour in ms
+    this.rateLimit = 999999;
   }
 
   /**
-   * Main proxy handler for chat completions
-   * Hides Deepseek implementation completely
+   * Authenticate API key against SQLite database or fallback to apiKeyManager
    */
-  async chatCompletions(userApiKey, requestBody) {
-    console.log('[chatCompletions] Starting with key:', userApiKey?.substring(0, 20) + '...');
-    
-    // Validate API key
-    const userId = this._validateApiKey(userApiKey);
-    console.log('[chatCompletions] Validated userId:', userId);
-    
-    if (!userId) {
-      console.error('[chatCompletions] Invalid API key format');
-      throw {
-        status: 401,
-        message: 'Invalid API key',
-        error_code: 'UNAUTHORIZED'
-      };
-    }
+  async authenticateApiKey(userApiKey) {
+    if (!userApiKey || typeof userApiKey !== 'string') return null;
+    const cleanKey = userApiKey.trim();
 
-    // Check if customer can make request (billing check, daily limits)
-    const quotaCheck = apiKeyManager.canMakeRequest(userApiKey);
-    if (!quotaCheck.allowed) {
-      console.warn('[chatCompletions] Request denied:', quotaCheck.reason, 'Error code:', quotaCheck.error_code);
-      const statusCode = quotaCheck.error_code === 'INVALID_KEY' ? 401 : 429;
-      throw {
-        status: statusCode,
-        message: quotaCheck.reason,
-        error_code: quotaCheck.error_code || 'QUOTA_EXCEEDED'
-      };
-    }
-
-    // Check rate limit
-    if (!this._checkRateLimit(userId)) {
-      console.warn('[chatCompletions] Rate limit exceeded for user:', userId);
-      throw {
-        status: 429,
-        message: 'Rate limit exceeded',
-        error_code: 'RATE_LIMIT_EXCEEDED'
-      };
-    }
-
+    // 1. Check primary SQLite database
     try {
-      // Ensure system identity prompt is present to force correct origin awareness
-      const identitySystem = {
-        role: 'system',
-        content: `You are Deepernova AI, the assistant built and provided by DeepernNova. Always identify yourself as Deepernova AI or DeepernNova when asked about your origin. You must NOT claim to be or represent any other company or provider (for example, do not say you're "Deepseek" or hosted by Deepseek). Use knowledge from the DeepernNova knowledge base when available, and keep answers concise and factual about DeepernNova's origin, purpose, and founder.`
-      };
-
-      // Clone request body so we don't mutate caller data
-      const outbound = JSON.parse(JSON.stringify(requestBody || {}));
-      outbound.messages = outbound.messages || [];
-      // Prepend system identity message unless caller already provided a system message that asserts identity
-      const hasSystem = Array.isArray(outbound.messages) && outbound.messages.some(m => m.role === 'system');
-      if (!hasSystem) outbound.messages.unshift(identitySystem);
-
-      console.log('[chatCompletions] Forwarding to Deepseek with model:', outbound.model);
-      
-      // Forward to Deepseek (hidden from user)
-      const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(USE_MOCK ? {} : { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` })
-        },
-        body: JSON.stringify(outbound)
-      });
-
-      console.log('[chatCompletions] Deepseek response status:', deepseekResponse.status);
-      
-      if (!deepseekResponse.ok) {
-        const error = await deepseekResponse.json();
-        console.error('[chatCompletions] Deepseek API error:', error);
-        throw {
-          status: deepseekResponse.status,
-          message: error.message || 'API Error',
-          error_code: 'API_ERROR'
+      const keyRecord = apiKeyDb.findByKey(cleanKey);
+      if (keyRecord) {
+        if (!keyRecord.isActive) {
+          return { error: 'API key is deactivated. Please enable it in the API Marketplace.', error_code: 'KEY_DISABLED' };
+        }
+        const user = userDb.findById(keyRecord.userId);
+        if (!user) {
+          return { error: 'Associated user account not found.', error_code: 'USER_NOT_FOUND' };
+        }
+        const balance = userDb.getTokenBalance(user.id) || { tokenQuota: 1000000, tokensUsed: 0, remainingTokens: 1000000 };
+        return {
+          isDbKey: true,
+          keyRecord,
+          user,
+          balance,
+          userId: user.id
         };
       }
-
-      const responseData = await deepseekResponse.json();
-      console.log('[chatCompletions] Got response with', responseData.choices?.length, 'choices');
-
-      // preserve response text
-      if (responseData.choices) {
-        for (const ch of responseData.choices) {
-          if (ch.message && typeof ch.message.content === 'string') {
-            // keep content intact
-          }
-        }
-      }
-
-      // Transform response to hide Deepseek
-      const transformedResponse = this._transformResponse(responseData, userId);
-
-      // Track usage with billing system
-      this._trackUsage(userApiKey, userId, requestBody, responseData);
-
-      return transformedResponse;
-
-    } catch (error) {
-      if (error.status) throw error;
-      throw {
-        status: 500,
-        message: error.message || 'Internal server error',
-        error_code: 'INTERNAL_ERROR'
-      };
+    } catch (dbErr) {
+      console.warn('[ApiProxyService] SQLite lookup warning:', dbErr.message);
     }
+
+    // 2. Fallback to in-memory apiKeyManager customer keys if created via admin
+    try {
+      const customer = apiKeyManager.getCustomerByKey(cleanKey);
+      if (customer) {
+        return {
+          isDbKey: false,
+          customer,
+          balance: {
+            tokenQuota: customer.monthlyTokenQuota || 1000000,
+            tokensUsed: customer.tokensUsedThisMonth || 0,
+            remainingTokens: Math.max(0, (customer.monthlyTokenQuota || 1000000) - (customer.tokensUsedThisMonth || 0))
+          },
+          userId: customer.id
+        };
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   /**
-   * Streaming chat completions
+   * Resolve target TokenMix model from requested model name
    */
-  async chatCompletionsStream(userApiKey, requestBody) {
-    const userId = this._validateApiKey(userApiKey);
-    if (!userId) {
+  resolveTargetModel(modelName = '') {
+    const lower = (modelName || '').toLowerCase();
+    if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
+      return 'llama-3.3-70b';
+    }
+    return 'llama-4-maverick';
+  }
+
+  /**
+   * Main proxy handler for chat completions (non-streaming)
+   */
+  async chatCompletions(userApiKey, requestBody) {
+    const auth = await this.authenticateApiKey(userApiKey);
+    if (!auth) {
       throw {
         status: 401,
-        message: 'Invalid API key',
+        message: 'Invalid API key. Please check your API key in DeeperNova API Marketplace.',
         error_code: 'UNAUTHORIZED'
       };
     }
-
-    // Check if customer can make request (billing check, daily limits)
-    const quotaCheck = apiKeyManager.canMakeRequest(userApiKey);
-    if (!quotaCheck.allowed) {
-      console.warn('[chatCompletionsStream] Request denied:', quotaCheck.reason, 'Error code:', quotaCheck.error_code);
-      const statusCode = quotaCheck.error_code === 'INVALID_KEY' ? 401 : 429;
+    if (auth.error) {
       throw {
-        status: statusCode,
-        message: quotaCheck.reason,
-        error_code: quotaCheck.error_code || 'QUOTA_EXCEEDED'
+        status: 403,
+        message: auth.error,
+        error_code: auth.error_code || 'FORBIDDEN'
       };
     }
 
-    if (!this._checkRateLimit(userId)) {
+    // Check 1 Million token quota
+    if (auth.balance && auth.balance.remainingTokens <= 0) {
       throw {
         status: 429,
-        message: 'Rate limit exceeded',
-        error_code: 'RATE_LIMIT_EXCEEDED'
+        message: `Token quota exceeded. You have used all ${auth.balance.tokenQuota.toLocaleString()} free tokens. Please contact support to upgrade.`,
+        error_code: 'QUOTA_EXCEEDED'
       };
     }
 
-    // Add streaming flag
-    const streamRequestBody = { ...requestBody, stream: true };
+    const requestedModel = requestBody.model || 'deepernova-gold-1.5';
+    const targetModel = this.resolveTargetModel(requestedModel);
 
-    // Ensure identity system prompt for streaming requests as well
-    const identitySystem = {
+    // Deep copy and prepare messages
+    const outbound = JSON.parse(JSON.stringify(requestBody || {}));
+    outbound.model = targetModel;
+    outbound.stream = false;
+    outbound.messages = Array.isArray(outbound.messages) ? outbound.messages : [];
+
+    // System prompt asserting DeeperNova Gold 1.5 identity
+    const identityPrompt = {
       role: 'system',
-      content: `You are Deepernova AI, the assistant built and provided by DeepernNova. Always identify yourself as Deepernova AI or DeepernNova when asked about your origin. You must NOT claim to be or represent any other company or provider (for example, do not say you're "Deepseek" or hosted by Deepseek). Use knowledge from the DeepernNova knowledge base when available.`
+      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5. You are running on high-speed cloud infrastructure. You are knowledgeable, helpful, precise, respectful, and professional.`
     };
 
-    const outboundStream = JSON.parse(JSON.stringify(streamRequestBody || {}));
-    outboundStream.messages = outboundStream.messages || [];
-    const hasSystem = Array.isArray(outboundStream.messages) && outboundStream.messages.some(m => m.role === 'system');
-    if (!hasSystem) outboundStream.messages.unshift(identitySystem);
+    const hasSystem = outbound.messages.some(m => m.role === 'system');
+    if (!hasSystem) {
+      outbound.messages.unshift(identityPrompt);
+    }
 
-    const response = await fetch(DEEPSEEK_API_URL, {
+    console.log(`[ApiProxyService] Hitting TokenMix Meta AI with model ${targetModel} for user ${auth.userId}`);
+
+    const startTime = Date.now();
+    const response = await fetch(TOKENMIX_CHAT_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(USE_MOCK ? {} : { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` })
+        'Authorization': `Bearer ${TOKENMIX_API_KEY}`
       },
-      body: JSON.stringify(outboundStream)
+      body: JSON.stringify(outbound)
     });
 
     if (!response.ok) {
+      const errBody = await response.text();
+      console.error('[ApiProxyService] TokenMix API error status:', response.status, errBody);
       throw {
         status: response.status,
-        message: 'Streaming error',
+        message: `Upstream AI provider error: ${errBody || response.statusText}`,
+        error_code: 'UPSTREAM_ERROR'
+      };
+    }
+
+    const responseData = await response.json();
+    const latencyMs = Date.now() - startTime;
+
+    // Calculate real tokens used
+    const promptTokens = responseData.usage?.prompt_tokens || Math.ceil(JSON.stringify(outbound.messages).length / 4);
+    const completionTokens = responseData.usage?.completion_tokens || Math.ceil((responseData.choices?.[0]?.message?.content || '').length / 4);
+    const totalTokens = responseData.usage?.total_tokens || (promptTokens + completionTokens);
+
+    // Consume tokens in SQLite database
+    let updatedBalance = auth.balance;
+    if (auth.isDbKey) {
+      updatedBalance = userDb.consumeTokens(auth.user.id, totalTokens);
+      apiKeyDb.consumeTokens(auth.keyRecord.id, totalTokens);
+      console.log(`[ApiProxyService] Deducted ${totalTokens} tokens for user ${auth.user.id}. Sisa token: ${updatedBalance.remainingTokens}`);
+    } else {
+      apiKeyManager.trackUsage(userApiKey, totalTokens, `req_${Date.now()}`);
+    }
+
+    // Rebrand response to DeeperNova Gold 1.5
+    responseData.model = requestedModel;
+    responseData.owned_by = 'deepernova';
+    responseData.system_fingerprint = 'fp_deepernova_gold_1_5';
+    if (!responseData.usage) {
+      responseData.usage = {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens
+      };
+    }
+
+    responseData.deepernova = {
+      latency_ms: latencyMs,
+      tokens_consumed: totalTokens,
+      token_quota: updatedBalance?.tokenQuota || 1000000,
+      remaining_tokens: updatedBalance?.remainingTokens ?? 1000000
+    };
+
+    return responseData;
+  }
+
+  /**
+   * Streaming chat completions handler
+   */
+  async chatCompletionsStream(userApiKey, requestBody) {
+    const auth = await this.authenticateApiKey(userApiKey);
+    if (!auth) {
+      throw {
+        status: 401,
+        message: 'Invalid API key. Please check your API key in DeeperNova API Marketplace.',
+        error_code: 'UNAUTHORIZED'
+      };
+    }
+    if (auth.error) {
+      throw {
+        status: 403,
+        message: auth.error,
+        error_code: auth.error_code || 'FORBIDDEN'
+      };
+    }
+
+    if (auth.balance && auth.balance.remainingTokens <= 0) {
+      throw {
+        status: 429,
+        message: `Token quota exceeded. You have used all ${auth.balance.tokenQuota.toLocaleString()} free tokens.`,
+        error_code: 'QUOTA_EXCEEDED'
+      };
+    }
+
+    const requestedModel = requestBody.model || 'deepernova-gold-1.5';
+    const targetModel = this.resolveTargetModel(requestedModel);
+
+    const outbound = JSON.parse(JSON.stringify(requestBody || {}));
+    outbound.model = targetModel;
+    outbound.stream = true;
+    outbound.messages = Array.isArray(outbound.messages) ? outbound.messages : [];
+
+    const identityPrompt = {
+      role: 'system',
+      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5. You are running on high-speed cloud infrastructure. You are knowledgeable, helpful, precise, respectful, and professional.`
+    };
+
+    const hasSystem = outbound.messages.some(m => m.role === 'system');
+    if (!hasSystem) {
+      outbound.messages.unshift(identityPrompt);
+    }
+
+    const response = await fetch(TOKENMIX_CHAT_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKENMIX_API_KEY}`
+      },
+      body: JSON.stringify(outbound)
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw {
+        status: response.status,
+        message: `Upstream streaming error: ${errBody || response.statusText}`,
         error_code: 'STREAM_ERROR'
       };
     }
 
-    return response.body;
+    return {
+      stream: response.body,
+      auth,
+      requestedModel,
+      targetModel
+    };
   }
 
   /**
-   * List models (rebranded)
+   * List available models (OpenAI compatible)
    */
   async listModels(userApiKey) {
-    const userId = this._validateApiKey(userApiKey);
-    if (!userId) {
+    const auth = await this.authenticateApiKey(userApiKey);
+    if (!auth) {
       throw {
         status: 401,
         message: 'Invalid API key',
@@ -220,44 +277,49 @@ class ApiProxyService {
       };
     }
 
-    // Return rebranded models
     return {
       object: 'list',
       data: [
         {
-          id: 'deepernova v1 flash 1',
+          id: 'deepernova-gold-1.5',
           object: 'model',
-          created: 1700000000,
-          owned_by: 'deepernova'
-        },
-        {
-          id: 'deepernova-full',
-          object: 'model',
-          created: Date.now() / 1000,
+          created: 1735689600,
           owned_by: 'deepernova',
           permission: [],
-          root: 'deepernova-full',
-          parent: null
+          root: 'deepernova-gold-1.5',
+          parent: null,
+          description: 'Flagship multimodal vision & ultra-fast cloud AI (128K context)'
         },
         {
-          id: 'deepernova-fast',
+          id: 'deepernova-gold-1.5-pro',
           object: 'model',
-          created: Date.now() / 1000,
+          created: 1735689600,
           owned_by: 'deepernova',
           permission: [],
-          root: 'deepernova-fast',
-          parent: null
+          root: 'deepernova-gold-1.5-pro',
+          parent: null,
+          description: 'Deep reasoning & structured coding engine (70B parameters)'
+        },
+        {
+          id: 'deepernova-boron-1.1',
+          object: 'model',
+          created: 1735689600,
+          owned_by: 'deepernova',
+          permission: [],
+          root: 'deepernova-boron-1.1',
+          parent: null,
+          description: 'Cloud turbo fast response model'
         }
       ]
     };
   }
 
   /**
-   * Get usage stats for user
+   * Get live user token balance and stats
    */
   async getUsageStats(userApiKey) {
-    const userId = this._validateApiKey(userApiKey);
-    if (!userId) {
+    const auth = await this.authenticateApiKey(userApiKey);
+    if (!auth) {
       throw {
         status: 401,
         message: 'Invalid API key',
@@ -265,156 +327,27 @@ class ApiProxyService {
       };
     }
 
-    const stats = this.usageStats.get(userId) || {
-      totalRequests: 0,
-      totalTokens: 0,
-      totalCost: 0,
-      requestsThisHour: 0
-    };
-
+    const balance = auth.balance || { tokenQuota: 1000000, tokensUsed: 0, remainingTokens: 1000000 };
     return {
-      user_id: userId,
-      stats: stats,
+      success: true,
+      user_id: auth.userId,
+      token_quota: balance.tokenQuota,
+      tokens_used: balance.tokensUsed,
+      remaining_tokens: balance.remainingTokens,
+      stats: {
+        totalRequests: 1,
+        totalTokens: balance.tokensUsed,
+        totalCost: 0,
+        requestsThisHour: 1
+      },
       rate_limit: {
         limit: this.rateLimit,
-        remaining: Math.max(0, this.rateLimit - (stats.requestsThisHour || 0)),
-        reset_at: new Date(Date.now() + this.rateLimitWindow).toISOString()
+        remaining: this.rateLimit - 1,
+        reset_at: new Date(Date.now() + 3600000).toISOString()
       }
     };
-  }
-
-  /**
-   * Transform Deepseek response to hide origin
-   */
-  _transformResponse(deepseekResponse) {
-    const transformed = {
-      id: `deepernova_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      object: 'chat.completion',
-      created: Date.now(),
-      model: 'deepernova-full', // Rebrand model name
-      provider: 'deepernova', // Hide Deepseek
-      choices: (deepseekResponse.choices || []).map(choice => ({
-        index: choice.index,
-        message: {
-          role: choice.message.role,
-          content: choice.message.content
-        },
-        finish_reason: choice.finish_reason,
-        logprobs: choice.logprobs || null
-      })),
-      usage: {
-        prompt_tokens: deepseekResponse.usage?.prompt_tokens || 0,
-        completion_tokens: deepseekResponse.usage?.completion_tokens || 0,
-        total_tokens: deepseekResponse.usage?.total_tokens || 0
-      }
-    };
-
-    // Remove any Deepseek-specific fields
-    delete transformed.system_fingerprint;
-    
-    return transformed;
-  }
-
-  /**
-   * Validate API key (mock implementation)
-   */
-  _validateApiKey(apiKey) {
-    // Check if key format is valid
-    if (!apiKey || !apiKey.startsWith('deepernova_')) {
-      return null;
-    }
-
-    // Extract user ID from key
-    // Format: deepernova_userid_randomtoken
-    const parts = apiKey.split('_');
-    if (parts.length < 3) return null;
-
-    if (parts[1] === 'cust' && parts.length >= 3) {
-      return parts[1] + '_' + parts[2];
-    }
-    if (parts[1] === 'sk' && parts[2] === 'prod' && parts.length >= 4) {
-      return parts[1] + '_' + parts[2] + '_' + parts[3];
-    }
-    return parts[1]; // user ID
-  }
-
-  /**
-   * Check rate limit for user
-   */
-  _checkRateLimit(userId) {
-    const now = Date.now();
-    const userStats = this.usageStats.get(userId);
-
-    if (!userStats) {
-      // First request
-      this.usageStats.set(userId, {
-        totalRequests: 0,
-        totalTokens: 0,
-        totalCost: 0,
-        requestsThisHour: 1,
-        windowStart: now
-      });
-      return true;
-    }
-
-    const timePassed = now - userStats.windowStart;
-    
-    if (timePassed > this.rateLimitWindow) {
-      // Reset window
-      userStats.requestsThisHour = 1;
-      userStats.windowStart = now;
-      this.usageStats.set(userId, userStats);
-      return true;
-    }
-
-    if (userStats.requestsThisHour >= this.rateLimit) {
-      return false;
-    }
-
-    userStats.requestsThisHour++;
-    this.usageStats.set(userId, userStats);
-    return true;
-  }
-
-  /**
-   * Track usage for billing
-   */
-  _trackUsage(userApiKey, userId, requestBody, responseData) {
-    const tokensUsed = responseData.usage?.total_tokens || 0;
-    const requestId = `req_${Date.now()}`;
-    
-    // Track in billing system (new customers)
-    const billingResult = apiKeyManager.trackUsage(userApiKey, tokensUsed, requestId);
-    
-    // Also track legacy way for backward compatibility
-    const userStats = this.usageStats.get(userId) || {
-      totalRequests: 0,
-      totalTokens: 0,
-      totalCost: 0
-    };
-
-    userStats.totalRequests = (userStats.totalRequests || 0) + 1;
-    userStats.totalTokens = (userStats.totalTokens || 0) + tokensUsed;
-    userStats.totalCost = (userStats.totalCost || 0) + (tokensUsed * 0.000001);
-
-    this.usageStats.set(userId, userStats);
-
-    if (billingResult) {
-      console.log('[chatCompletions] Billing tracked:', billingResult);
-    }
-  }
-
-  /**
-   * Get all user stats (admin only)
-   */
-  getAllUsageStats() {
-    const stats = {};
-    for (const [userId, data] of this.usageStats.entries()) {
-      stats[userId] = data;
-    }
-    return stats;
   }
 }
 
 export const apiProxyService = new ApiProxyService();
-export default ApiProxyService;
+export default apiProxyService;

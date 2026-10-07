@@ -1257,65 +1257,67 @@ const DEFAULT_PERSONALITY = 'formal';
 
 export const DEEPERNOVA_MODELS = [
   {
-    id: 'llama-4-maverick',
-    name: 'Meta Llama 4 Maverick',
-    shortName: 'Llama 4',
-    speed: 'Meta AI (TokenMix)',
-    speedEn: 'Meta AI (TokenMix)',
-    icon: '🦙',
-    badge: 'DEFAULT • META AI',
-    desc: 'Model flagship Meta Llama 4 via TokenMix API. Mendukung multimodal vision (gambar), streaming sangat cepat, dan penalaran cerdas.',
-    descEn: 'Flagship Meta Llama 4 model via TokenMix API. Supports multimodal vision (images), ultra-fast streaming, and intelligent reasoning.',
+    id: 'deepernova-gold-1.5',
+    name: 'DeeperNova Gold 1.5',
+    shortName: 'Gold 1.5',
+    speed: 'Super Cepat • Cloud AI',
+    speedEn: 'Ultra Fast • Cloud AI',
+    icon: '🌟',
+    badge: 'FLAGSHIP • GOLD 1.5',
+    desc: 'Model flagship DeeperNova Gold 1.5. Mendukung multimodal vision (gambar & dokumen), streaming sangat cepat, dan penalaran cerdas.',
+    descEn: 'Flagship DeeperNova Gold 1.5 model. Supports multimodal vision (images & docs), ultra-fast streaming, and intelligent reasoning.',
     supportsVision: true,
     isLocalOffline: false
   },
   {
-    id: 'llama-3.3-70b',
-    name: 'Meta Llama 3.3 70B',
-    shortName: 'Llama 3.3 70B',
-    speed: 'Penalaran Dalam (TokenMix)',
-    speedEn: 'Deep Reasoning (TokenMix)',
+    id: 'deepernova-gold-1.5-pro',
+    name: 'DeeperNova Gold 1.5 Pro',
+    shortName: 'Gold 1.5 Pro',
+    speed: 'Penalaran Dalam & Coding (70B)',
+    speedEn: 'Deep Reasoning & Coding (70B)',
     icon: '🧠',
-    badge: 'META 70B REASONING',
-    desc: 'Model Meta Llama 3.3 70-Billion parameter via TokenMix API. Spesialis pemikiran mendalam, analisis data & coding terstruktur.',
-    descEn: 'Meta Llama 3.3 70-Billion parameter model via TokenMix API. Specialist in deep reasoning, data analysis & structured coding.',
+    badge: 'DEEP THINKING 70B',
+    desc: 'Model DeeperNova Gold 1.5 Pro arsitektur 70B. Spesialis pemikiran mendalam, analisis data kompleks, logika matematika & coding terstruktur.',
+    descEn: 'DeeperNova Gold 1.5 Pro 70B model. Specialist in deep reasoning, complex data analysis, mathematical logic & structured coding.',
     supportsVision: false,
     isLocalOffline: false
   },
   {
     id: 'deepernova-boron-1.1',
-    name: 'DeeperNova Boron (Meta AI)',
-    shortName: 'Boron (Meta)',
-    speed: 'Meta AI (TokenMix)',
-    speedEn: 'Meta AI (TokenMix)',
+    name: 'DeeperNova Boron 1.1',
+    shortName: 'Boron 1.1',
+    speed: 'Respons Cepat • Cloud AI',
+    speedEn: 'Fast Response • Cloud AI',
     icon: '⚡',
-    badge: 'META POWERED',
-    desc: 'Ditenagai oleh Meta Llama via TokenMix API dengan pemrosesan cloud responsif dan penalaran tinggi.',
-    descEn: 'Powered by Meta Llama via TokenMix API with responsive cloud processing and high reasoning.',
+    badge: 'CLOUD TURBO',
+    desc: 'Model cloud responsif dengan latensi ultra rendah untuk percakapan lincah dan cerdas.',
+    descEn: 'Responsive cloud model with ultra-low latency for agile and smart conversation.',
     supportsVision: true,
     isLocalOffline: false
   },
   {
     id: 'deepernova-2.3-pro',
-    name: 'Deepernova 2.3 Pro (Meta AI)',
+    name: 'Deepernova 2.3 Pro',
     shortName: 'Pro 2.3',
-    speed: 'Meta 70B (TokenMix)',
-    speedEn: 'Meta 70B (TokenMix)',
-    icon: '🧠',
-    desc: 'Pemikiran mendalam & coding terstruktur via Meta Llama di TokenMix AI.',
-    descEn: 'Deep reasoning & structured coding via Meta Llama on TokenMix AI.',
+    speed: 'Analisis & Logika Tinggi',
+    speedEn: 'High Logic & Analysis',
+    icon: '🔬',
+    badge: 'PRO ENGINE',
+    desc: 'Penalaran logika bisnis dan analisis mendalam berbasis cloud.',
+    descEn: 'Cloud-based business logic reasoning and deep analysis.',
     supportsVision: true,
     isLocalOffline: false
   },
   {
     id: 'deepernova-4.6-giga',
-    name: 'Deepernova 4.6 Giga (Meta AI)',
+    name: 'Deepernova 4.6 Giga',
     shortName: 'Giga 4.6',
-    speed: 'Meta Flagship (TokenMix)',
-    speedEn: 'Meta Flagship (TokenMix)',
+    speed: 'Kapabilitas Maksimal',
+    speedEn: 'Max Capability',
     icon: '🚀',
-    desc: 'Model kapabilitas tertinggi via Meta Llama di TokenMix AI.',
-    descEn: 'Top-tier capabilities via Meta Llama on TokenMix AI.',
+    badge: 'GIGA CLOUD',
+    desc: 'Model kapabilitas tertinggi untuk pemrosesan skala besar.',
+    descEn: 'Highest capability model for enterprise large-scale processing.',
     supportsVision: true,
     isLocalOffline: false
   }
@@ -1979,7 +1981,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [customAlert, setCustomAlert] = useState(null); // Modern alert system
   const [showInputMenu, setShowInputMenu] = useState(false); // Show/hide input menu
   const [showModelMenu, setShowModelMenu] = useState(false); // Show/hide model selection dropdown
-  const [selectedModel, setSelectedModel] = useState('llama-4-maverick'); // Model selection (default Meta Llama 4 Maverick TokenMix)
+  const [selectedModel, setSelectedModel] = useState('deepernova-gold-1.5'); // Default DeeperNova Gold 1.5 Flagship Cloud AI
   const [localModelProgress, setLocalModelProgress] = useState({ pct: 0, statusText: '', isLoading: false });
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];

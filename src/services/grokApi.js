@@ -178,8 +178,8 @@ const TOKENMIX_API_KEYS = [];
 const TOKENMIX_API_KEY = '';
 const DEEPSEEK_API_KEY = '';
 
-// TokenMix Meta AI Model Mapping
-const normalizeDeepernovaModel = (deepernovaModel = 'llama-4-maverick') => {
+// DeeperNova Gold 1.5 Model Mapping
+const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-gold-1.5') => {
   if (!deepernovaModel) return 'llama-4-maverick';
   const lower = deepernovaModel.toLowerCase();
   if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
@@ -188,7 +188,7 @@ const normalizeDeepernovaModel = (deepernovaModel = 'llama-4-maverick') => {
   return 'llama-4-maverick';
 };
 
-export const resolveModelForRequest = (deepernovaModel = 'llama-4-maverick', hasImages = false) => {
+export const resolveModelForRequest = (deepernovaModel = 'deepernova-gold-1.5', hasImages = false) => {
   if (hasImages) {
     return 'llama-4-maverick';
   }
@@ -196,7 +196,7 @@ export const resolveModelForRequest = (deepernovaModel = 'llama-4-maverick', has
 };
 
 // Helper function to get actual model name
-export const getTokenMixModel = (deepernovaModel = 'llama-4-maverick', hasImages = false) => {
+export const getTokenMixModel = (deepernovaModel = 'deepernova-gold-1.5', hasImages = false) => {
   if (hasImages) {
     return 'llama-4-maverick';
   }
@@ -214,8 +214,8 @@ const SYSTEM_PROMPTS = {
   id: `Deepernova AI - Asisten AI Profesional.
 
 IDENTITAS & SIKAP PROFESIONAL:
-- Anda adalah DeeperNova Boron 1.1, asisten kecerdasan buatan kebanggaan karya tim DeeperNova AI Indonesia yang beroperasi secara mandiri dan offline on-device di perangkat pengguna.
-- KETAT: DILARANG MENGAKU ATAU MENYEBUT BAHWA ANDA ADALAH QWEN, DIBUAT OLEH ALIBABA, ATAU BERAFILIASI DENGAN ALIBABA CLOUD. Jika ditanya identitas ("kamu siapa?", "siapa pembuatmu?", "model apa ini?"), tegaskan secara sopan, mantap, dan bangga: "Saya adalah DeeperNova Boron 1.1, model kecerdasan buatan lokal offline kebanggaan DeeperNova AI yang beroperasi langsung di perangkat Anda."
+- Anda adalah DeeperNova Gold 1.5, asisten kecerdasan buatan multimodal flagship kebanggaan DeeperNova AI Indonesia yang ditenagai infrastruktur komputasi cloud berkecepatan tinggi.
+- Jika ditanya identitas ("kamu siapa?", "siapa pembuatmu?", "model apa ini?"), tegaskan secara sopan, mantap, dan ramah: "Saya adalah DeeperNova Gold 1.5, model kecerdasan buatan multimodal flagship kebanggaan DeeperNova AI yang beroperasi dengan infrastruktur komputasi cloud berkecepatan tinggi."
 - KETAT: DILARANG MEMPROMOSIKAN DIRI ATAU MEMAMERKAN KEMAMPUAN (ANTI-OVERPROMOSI). Jangan pernah menawarkan atau memamerkan daftar modul/fitur Deepernova KECUALI jika pengguna secara spesifik dan eksplisit menanyakannya.
 - Jika pengguna bertanya, mendiskusikan, atau membandingkan model/teknologi AI lain (seperti ChatGPT, Claude, DeepSeek, Llama, Gemini, dll.), jelaskan secara objektif, faktual, netral, dan proporsional tanpa nada membanggakan diri sendiri atau merendahkan pihak lain.
 

@@ -3805,21 +3805,56 @@ app.post('/api/messages', (req, res) => {
  * API KEY ROUTES (require authentication)
  */
 
-// Get all API keys for logged-in user
+// Get all API keys for logged-in user with live 1 Million token balance
 app.get('/api/apikeys', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
   
-  const keys = apiKeyDb.findByUserId(req.user.id);
-  // Don't send full key to frontend, only partial for display
-  const safeKeys = keys.map(k => ({
+  let keys = apiKeyDb.findByUserId(req.user.id);
+  // Auto-generate free default key if user has no keys yet
+  if (!keys || keys.length === 0) {
+    try {
+      const defaultKeyStr = `deepernova_sk_live_${crypto.randomBytes(16).toString('hex')}`;
+      const newId = uuidv4();
+      apiKeyDb.create(newId, req.user.id, 'Default Primary Key', defaultKeyStr);
+      keys = apiKeyDb.findByUserId(req.user.id);
+      console.log(`[API Keys] Auto-generated primary API key for user ${req.user.id}`);
+    } catch (e) {
+      console.error('[API Keys] Error auto-generating default key:', e);
+    }
+  }
+
+  const balance = userDb.getTokenBalance(req.user.id) || { tokenQuota: 1000000, tokensUsed: 0, remainingTokens: 1000000 };
+
+  // Don't send full key to frontend in list, only partial for display
+  const safeKeys = (keys || []).map(k => ({
     id: k.id,
     name: k.name,
-    key: k.key.substring(0, 10) + '...' + k.key.substring(k.key.length - 5),
+    key: k.key.length > 20 ? (k.key.substring(0, 14) + '...' + k.key.substring(k.key.length - 6)) : k.key,
     isActive: k.isActive,
+    tokensUsed: k.tokensUsed || 0,
     lastUsed: k.lastUsed,
     createdAt: k.createdAt
   }));
-  res.json({ success: true, keys: safeKeys });
+
+  res.json({
+    success: true,
+    keys: safeKeys,
+    tokenQuota: balance.tokenQuota,
+    tokensUsed: balance.tokensUsed,
+    remainingTokens: balance.remainingTokens
+  });
+});
+
+// Dedicated balance endpoint for authenticated user
+app.get(['/api/apikeys/balance', '/api/user/balance'], (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
+  const balance = userDb.getTokenBalance(req.user.id) || { tokenQuota: 1000000, tokensUsed: 0, remainingTokens: 1000000 };
+  res.json({
+    success: true,
+    tokenQuota: balance.tokenQuota,
+    tokensUsed: balance.tokensUsed,
+    remainingTokens: balance.remainingTokens
+  });
 });
 
 // Get full API key (for copying)
@@ -4940,6 +4975,27 @@ app.get('/api/images', async (req, res) => {
   }
 });
 
+// ==================== DEEPERNOVA AI API GATEWAY (OPENAI COMPATIBLE) ====================
+// Allows hitting standard /v1/chat/completions, /v1/models, /v1/balance with real API keys & 1M token quota
+app.use('/v1', apiProxyRoutes);
+
+// Route AI-specific endpoints under /api/v1 to apiProxyRoutes
+app.use('/api/v1', (req, res, next) => {
+  const p = req.path || '';
+  if (
+    p.startsWith('/chat') ||
+    p.startsWith('/models') ||
+    p.startsWith('/balance') ||
+    p.startsWith('/usage') ||
+    p.startsWith('/test') ||
+    p.startsWith('/docs') ||
+    p === '/health'
+  ) {
+    return apiProxyRoutes(req, res, next);
+  }
+  next();
+});
+
 // ==================== DEEPERNOVA SEARCH ENGINE API/V1 TRANSPARENT PROXY ====================
 // Allows hitting /api/v1/search, /api/v1/images, /api/v1/news directly via backend domain
 app.use('/api/v1', async (req, res) => {
@@ -5120,8 +5176,6 @@ app.delete('/api/artifacts/session/:sessionId', (req, res) => {
 
 
 
-// Deepernova API Proxy Routes (hide Deepseek backend)
-app.use('/api/v1', apiProxyRoutes);
 
 // ============== DOCUMENT GENERATION API ==============
 
