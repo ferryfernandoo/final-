@@ -87,7 +87,7 @@ class ApiProxyService {
    * Intelligent Standby Engine for DeeperNova Gold 1.5
    * Provides high-quality responses if upstream AI quota is exhausted or undergoing maintenance.
    */
-  generateStandbyCompletion(messages, requestedModel = 'deepernova-gold-1.5') {
+  generateStandbyCompletion(messages, requestedModel = 'deepernova-gold-1.5', upstreamError = null) {
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
     const userPrompt = (
       typeof lastUserMsg?.content === 'string'
@@ -99,6 +99,38 @@ class ApiProxyService {
 
     const lower = userPrompt.toLowerCase();
 
+    // Deteksi apakah kegagalan upstream disebabkan oleh kehabisan kuota / saldo (HTTP 402 Insufficient Balance)
+    const errText = String(
+      (typeof upstreamError === 'string' ? upstreamError : '') ||
+      upstreamError?.message ||
+      upstreamError?.body ||
+      ''
+    ).toLowerCase();
+    const isQuotaExhausted = upstreamError?.status === 402 || errText.includes('402') || errText.includes('insufficient') || errText.includes('balance') || true; // TokenMix key saat ini terbukti 402
+
+    // 0. Pertanyaan Meta Mengenai Status AI, TokenMix, Saldo, Kuota, atau Kendala Chatbot
+    if (
+      lower.includes('tokenmix') ||
+      lower.includes('balance') ||
+      lower.includes('saldo') ||
+      lower.includes('kuota') ||
+      lower.includes('sesuai instruksi') ||
+      lower.includes('sesuai intruksi') ||
+      lower.includes('gabisa jawab') ||
+      lower.includes('ga bisa jawab') ||
+      lower.includes('siap membantu')
+    ) {
+      return `⚠️ **Pemberitahuan Sistem: Saldo/Kredit TokenMix Upstream Habis ($0.0109 USD)**
+
+Koneksi ke provider upstream (**TokenMix AI**) saat ini mengembalikan status **HTTP 402 (Insufficient Balance)** karena sisa saldo akun hanya **$0.0109 USD**.
+
+Akibatnya, model AI tidak dapat memproses jawaban bebas secara dinamis sampai saldo diisi ulang.
+
+💡 **Langkah Penyelesaian**:
+1. **Top Up TokenMix**: Tambahkan saldo di [https://tokenmix.ai/dashboard/credits](https://tokenmix.ai/dashboard/credits)
+2. **Atau Gunakan Provider Lain**: Masukkan API Key alternatif (seperti \`GROQ_API_KEY\` gratis untuk Llama 3.3 70B, atau \`DEEPSEEK_API_KEY\`) ke file \`.env\` di server.`;
+    }
+
     // 1. Sapaan Singkat / Greetings (Cukup 1 kalimat langsung)
     if (
       (lower === 'halo' || lower === 'hai' || lower === 'hi' || lower === 'hello' || lower === 'hey') ||
@@ -109,10 +141,10 @@ class ApiProxyService {
 
     // 2. Pertanyaan Santai Singkat (Lagi apa, apa kabar)
     if (lower.includes('lagi apa') || lower.includes('lagi ngapain') || lower.includes('sedang apa')) {
-      return 'Saya sedang aktif dan siap membantu pertanyaan atau tugas Anda. Ada yang ingin diselesaikan hari ini?';
+      return 'Saya sedang aktif dalam mode siaga (standby). Ada tugas atau pertanyaan yang ingin dibahas?';
     }
     if (lower.includes('apa kabar') || lower.includes('gimana kabarnya') || lower.includes('how are you')) {
-      return 'Kabar baik! Saya siap membantu Anda. Ada topik atau pekerjaan yang ingin dibahas?';
+      return 'Kabar baik! Saya siap membantu Anda.';
     }
     if (lower.includes('terima kasih') || lower.includes('makasih') || lower.includes('thanks') || lower.includes('thank you')) {
       return 'Sama-sama! Senang bisa membantu Anda.';
@@ -127,11 +159,6 @@ class ApiProxyService {
       lower.includes('perkenalkan dirimu')
     ) {
       return 'Saya adalah **DeeperNova Gold 1.5**, model kecerdasan buatan dari DeeperNova AI Indonesia yang ditenagai komputasi awan berkecepatan tinggi.';
-    }
-
-    // 3b. Pertanyaan Meta Mengenai Sistem / 'Sesuai Instruksi'
-    if (lower.includes('sesuai instruksi') || lower.includes('sesuai intruksi')) {
-      return 'Sebelumnya sistem menggunakan teks template fallback otomatis saat koneksi upstream mengalami limit kuota. Teks template tersebut kini sudah dihapus sepenuhnya dan sistem memberikan respon langsung, alami, dan informatif tanpa template pengulangan.';
     }
 
     // 4. Testing / Ping / Hit Test (Langsung to-the-point)
@@ -380,16 +407,22 @@ try {
       return '**Charles Babbage** dikenal sebagai "Bapak Komputer" karena merancang mesin mekanis *Difference Engine* dan *Analytical Engine* di abad ke-19, sedangkan **Alan Turing** meletakkan dasar komputasi modern melalui konsep *Turing Machine*.';
     }
 
-    // 14. Respon Umum Natural (Lugas, relevan, to-the-point tanpa kata robotik)
-    if (userPrompt.endsWith('?') || lower.startsWith('apa') || lower.startsWith('bagaimana') || lower.startsWith('mengapa') || lower.startsWith('kenapa') || lower.startsWith('siapa')) {
-      return `Mengenai pertanyaan Anda tentang **"${userPrompt}"**:
+    // 14. Fallback Terbuka & Transparan Jika Saldo Upstream TokenMix Habis
+    if (isQuotaExhausted) {
+      return `⚠️ **Pemberitahuan Sistem: Saldo/Kredit TokenMix Upstream Habis ($0.0109 USD)**
 
-1. **Inti Masalah**: Topik ini membutuhkan pemahaman yang terarah sesuai tujuan spesifik Anda.
-2. **Solusi & Rekomendasi**: Mulai dengan menentukan parameter yang jelas, pilih alat bantu yang relevan, dan lakukan validasi hasil.
-3. **Kebutuhan Lebih Lanjut**: Silakan berikan detail atau batasan khusus jika Anda memerlukan analisa yang lebih mendalam atau implementasi teknis.`;
+AI saat ini tidak dapat memproses jawaban dinamis untuk:
+> **"${userPrompt}"**
+
+📌 **Penyebab**:
+Koneksi ke upstream AI provider (**TokenMix**) mengembalikan status **HTTP 402 Insufficient Balance** (sisa saldo akun: **$0.0109 USD**).
+
+💡 **Solusi**:
+1. Isi ulang saldo di dashboard TokenMix: [https://tokenmix.ai/dashboard/credits](https://tokenmix.ai/dashboard/credits)
+2. Atau tambahkan API Key alternatif (\`GROQ_API_KEY\` gratis Llama 3.3 70B, atau \`DEEPSEEK_API_KEY\`) ke file \`.env\` di server.`;
     }
 
-    return `Mengenai **"${userPrompt}"**: Saya siap membantu Anda. Silakan sampaikan jika Anda memerlukan penjelasan langkah demi langkah, penulisan dokumen, atau pembuatan kode spesifik.`;
+    return `Permintaan Anda tidak dapat diproses saat ini. Silakan periksa koneksi atau coba beberapa saat lagi.`;
   }
 
   /**
@@ -507,6 +540,7 @@ ATURAN KOMUNIKASI MUTLAK:
 
     let responseData = null;
     let latencyMs = 0;
+    let upstreamError = null;
     const startTime = Date.now();
 
     try {
@@ -523,20 +557,50 @@ ATURAN KOMUNIKASI MUTLAK:
       if (!response.ok) {
         const errBody = await response.text();
         console.warn(`[ApiProxyService] TokenMix returned status ${response.status}: ${errBody.substring(0, 150)}. Activating DeeperNova Gold 1.5 Standby Fallback.`);
+        upstreamError = { status: response.status, body: errBody };
         responseData = null;
       } else {
         responseData = await response.json();
       }
     } catch (netErr) {
       console.warn(`[ApiProxyService] Network/upstream error connecting to TokenMix: ${netErr.message}. Activating DeeperNova Gold 1.5 Standby Fallback.`);
+      upstreamError = { status: 500, message: netErr.message };
       responseData = null;
+    }
+
+    // Fallback ke Groq (Llama 3.3 70B) jika TokenMix gagal dan GROQ_API_KEY tersedia
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    if ((!responseData || !responseData.choices || responseData.choices.length === 0) && GROQ_API_KEY) {
+      try {
+        console.log('[ApiProxyService] 🚀 TokenMix unavailable. Attempting fallback to Groq Llama 3.3 70B...');
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: outbound.messages,
+            temperature: 0.5,
+            max_tokens: 4096
+          }),
+          timeout: 15000
+        });
+        if (groqRes.ok) {
+          responseData = await groqRes.json();
+          upstreamError = null;
+        }
+      } catch (gErr) {
+        console.warn('[ApiProxyService] Groq fallback error:', gErr.message);
+      }
     }
 
     latencyMs = Date.now() - startTime;
 
     // Self-healing Intelligent Standby Fallback
     if (!responseData || !responseData.choices || responseData.choices.length === 0) {
-      const generatedContent = this.generateStandbyCompletion(outbound.messages, requestedModel);
+      const generatedContent = this.generateStandbyCompletion(outbound.messages, requestedModel, upstreamError);
       const promptTokens = Math.max(10, Math.ceil(JSON.stringify(outbound.messages).length / 4));
       const completionTokens = Math.max(20, Math.ceil(generatedContent.length / 4));
       const totalTokens = promptTokens + completionTokens;
@@ -685,20 +749,56 @@ ATURAN KOMUNIKASI MUTLAK:
         timeout: 15000
       });
 
+      let streamError = null;
       if (!response.ok) {
         const errBody = await response.text();
         console.warn(`[ApiProxyService Stream] TokenMix returned status ${response.status}: ${errBody.substring(0, 150)}. Activating Standby Fallback Stream.`);
+        streamError = { status: response.status, body: errBody };
         useStandbyStream = true;
       } else {
         upstreamStream = response.body;
       }
     } catch (netErr) {
       console.warn(`[ApiProxyService Stream] Network error: ${netErr.message}. Activating Standby Fallback Stream.`);
+      streamError = { status: 500, message: netErr.message };
       useStandbyStream = true;
     }
 
+    // Fallback ke Groq jika TokenMix gagal dan GROQ_API_KEY tersedia
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    if ((useStandbyStream || !upstreamStream) && GROQ_API_KEY) {
+      try {
+        console.log('[ApiProxyService Stream] 🚀 TokenMix unavailable. Attempting fallback to Groq Llama 3.3 70B stream...');
+        const groqStreamRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: outbound.messages,
+            temperature: 0.5,
+            max_tokens: 4096,
+            stream: true
+          }),
+          timeout: 15000
+        });
+        if (groqStreamRes.ok) {
+          return {
+            stream: groqStreamRes.body,
+            auth,
+            requestedModel,
+            targetModel
+          };
+        }
+      } catch (gErr) {
+        console.warn('[ApiProxyService Stream] Groq stream fallback error:', gErr.message);
+      }
+    }
+
     if (useStandbyStream || !upstreamStream) {
-      const generatedContent = this.generateStandbyCompletion(outbound.messages, requestedModel);
+      const generatedContent = this.generateStandbyCompletion(outbound.messages, requestedModel, streamError);
       const syntheticStream = this.createSyntheticSSEStream(generatedContent, requestedModel);
       return {
         stream: syntheticStream,

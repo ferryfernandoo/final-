@@ -3060,10 +3060,44 @@ app.post('/api/chat', async (req, res) => {
           }
         }
 
+        // Fallback ke Groq (Llama 3.3 70B) jika GROQ_API_KEY tersedia di .env
+        const GROQ_API_KEY = process.env.GROQ_API_KEY;
+        if ((lastError || !tokenmixResponse || !tokenmixResponse.ok) && GROQ_API_KEY) {
+          try {
+            console.log('[CHAT] 🚀 TokenMix unavailable. Attempting fallback to Groq Llama 3.3 70B...');
+            const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${GROQ_API_KEY}`
+              },
+              signal: upstreamAbortController.signal,
+              body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: messages,
+                temperature: req.body.temperature || 0.5,
+                max_tokens: req.body.max_tokens || 4096,
+                stream: shouldStream
+              })
+            });
+            if (groqRes.ok) {
+              console.log('[CHAT] ✅ Groq fallback succeeded!');
+              tokenmixResponse = groqRes;
+              reqRecord.responseStream = groqRes;
+              lastError = null;
+            } else {
+              const groqErrText = await groqRes.text();
+              console.warn(`[CHAT] Groq fallback failed (${groqRes.status}): ${groqErrText.slice(0, 100)}`);
+            }
+          } catch (groqErr) {
+            console.warn('[CHAT] Groq fallback error:', groqErr.message);
+          }
+        }
+
         let standbyStream = null;
         if (lastError || !tokenmixResponse || !tokenmixResponse.ok) {
-          console.warn('[CHAT] All TokenMix keys failed or quota exhausted. Activating DeeperNova Standby Fallback for web chat.');
-          const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel);
+          console.warn('[CHAT] Upstream AI failed or quota exhausted. Activating transparent DeeperNova Standby Fallback for web chat.');
+          const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel, lastError);
           standbyStream = apiProxyService.createSyntheticSSEStream(standbyContent, selectedModel);
         }
 
@@ -3181,7 +3215,7 @@ app.post('/api/chat', async (req, res) => {
             res.setHeader('Content-Type', 'application/json');
             res.json(data);
           } else {
-            const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel);
+            const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel, lastError);
             res.setHeader('Content-Type', 'application/json');
             res.json({
               id: `chatcmpl-dn-${uuidv4().substring(0, 12)}`,
