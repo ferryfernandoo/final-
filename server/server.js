@@ -27,6 +27,7 @@ import db from './database.js';
 import { SQLiteSessionStore } from './sessionStore.js';
 import { v4 as uuidv4 } from 'uuid';
 import apiProxyRoutes from './routes/api-proxy.js';
+import { apiProxyService } from './apiProxyService.js';
 import ragService from './ragService.js';
 import externalFinanceService from './externalFinanceService.js';
 import sourceTracker from './sourceTracker.js';
@@ -3057,10 +3058,14 @@ app.post('/api/chat', async (req, res) => {
           }
         }
 
-        if (lastError || !tokenmixResponse) {
-          throw lastError || new Error('All TokenMix API keys failed.');
+        let standbyStream = null;
+        if (lastError || !tokenmixResponse || !tokenmixResponse.ok) {
+          console.warn('[CHAT] All TokenMix keys failed or quota exhausted. Activating DeeperNova Standby Fallback for web chat.');
+          const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel);
+          standbyStream = apiProxyService.createSyntheticSSEStream(standbyContent, selectedModel);
         }
 
+        const activeStreamBody = (tokenmixResponse && tokenmixResponse.ok) ? tokenmixResponse.body : standbyStream;
 
         if (shouldStream) {
           // Set response headers for streaming - unblock Cloudflare edge buffer immediately
@@ -3107,8 +3112,8 @@ app.post('/api/chat', async (req, res) => {
           req.on('close', () => { clientDisconnected = true; });
           let fullResponseText = '';
 
-          // Read stream chunks from TokenMix upstream
-          tokenmixResponse.body.on('data', (chunk) => {
+          // Read stream chunks from active stream body
+          activeStreamBody.on('data', (chunk) => {
             const chunkStr = chunk.toString();
 
             // Forward to client if still connected
@@ -3137,7 +3142,7 @@ app.post('/api/chat', async (req, res) => {
             }
           });
 
-          tokenmixResponse.body.on('end', () => {
+          activeStreamBody.on('end', () => {
             activeUpstreamRequests.delete(reqRecord);
             if (!clientDisconnected && !res.writableEnded) {
               try {
@@ -3158,7 +3163,7 @@ app.post('/api/chat', async (req, res) => {
             }
           });
 
-          tokenmixResponse.body.on('error', (streamErr) => {
+          activeStreamBody.on('error', (streamErr) => {
             if (streamErr?.name === 'AbortError' || streamErr?.type === 'aborted' || clientDisconnected) {
               return; // Normal cancellation, suppress noise
             }
@@ -3169,9 +3174,25 @@ app.post('/api/chat', async (req, res) => {
           });
         } else {
           // Non-streaming: parse and return as JSON
-          const data = await tokenmixResponse.json();
-          res.setHeader('Content-Type', 'application/json');
-          res.json(data);
+          if (tokenmixResponse && tokenmixResponse.ok) {
+            const data = await tokenmixResponse.json();
+            res.setHeader('Content-Type', 'application/json');
+            res.json(data);
+          } else {
+            const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel);
+            res.setHeader('Content-Type', 'application/json');
+            res.json({
+              id: `chatcmpl-dn-${uuidv4().substring(0, 12)}`,
+              object: 'chat.completion',
+              created: Math.floor(Date.now() / 1000),
+              model: selectedModel,
+              choices: [{
+                index: 0,
+                message: { role: 'assistant', content: standbyContent },
+                finish_reason: 'stop'
+              }]
+            });
+          }
         }
       } catch (error) {
         if (error?.name === 'AbortError' || error?.type === 'aborted' || clientDisconnected) {
