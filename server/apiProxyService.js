@@ -8,8 +8,9 @@
  */
 
 import fetch from 'node-fetch';
-import { apiKeyDb, userDb } from './database.js';
+import { apiKeyDb, userDb, apiLogDb } from './database.js';
 import { apiKeyManager } from './apiKeyManager.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const TOKENMIX_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || 'sk-tm-0oMaTRPBJiEibFQ6SpC7MUNdYrTnLf2QIMhNXEzvvKZZ8cSi';
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
@@ -166,6 +167,26 @@ class ApiProxyService {
       updatedBalance = userDb.consumeTokens(auth.user.id, totalTokens);
       apiKeyDb.consumeTokens(auth.keyRecord.id, totalTokens);
       console.log(`[ApiProxyService] Deducted ${totalTokens} tokens for user ${auth.user.id}. Sisa token: ${updatedBalance.remainingTokens}`);
+
+      // Log request into database for reports and future admin dashboard
+      try {
+        apiLogDb.create(
+          uuidv4(),
+          auth.keyRecord.id,
+          auth.user.id,
+          '/v1/chat/completions',
+          requestedModel,
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          200,
+          latencyMs,
+          null,
+          'DeeperNova API Client'
+        );
+      } catch (logErr) {
+        console.warn('[ApiProxyService] Logging warning:', logErr.message);
+      }
     } else {
       apiKeyManager.trackUsage(userApiKey, totalTokens, `req_${Date.now()}`);
     }
@@ -328,17 +349,24 @@ class ApiProxyService {
     }
 
     const balance = auth.balance || { tokenQuota: 1000000, tokensUsed: 0, remainingTokens: 1000000 };
+    const history = auth.userId ? apiLogDb.getUserHistory(auth.userId, 7) : [];
+    const recentLogs = auth.userId ? apiLogDb.getRecentLogs(auth.userId, 20) : [];
+
+    const totalRequests = history.reduce((acc, h) => acc + (h.requestCount || 0), 0);
+
     return {
       success: true,
       user_id: auth.userId,
       token_quota: balance.tokenQuota,
       tokens_used: balance.tokensUsed,
       remaining_tokens: balance.remainingTokens,
+      history: history,
+      recent_logs: recentLogs,
       stats: {
-        totalRequests: 1,
+        totalRequests: totalRequests || (balance.tokensUsed > 0 ? 1 : 0),
         totalTokens: balance.tokensUsed,
         totalCost: 0,
-        requestsThisHour: 1
+        requestsThisHour: totalRequests
       },
       rate_limit: {
         limit: this.rateLimit,

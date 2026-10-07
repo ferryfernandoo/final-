@@ -11994,9 +11994,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               setShowApiDashboard(true);
               setShowFloatingMenu(false);
             }}
-            title="API & Pricing"
+            title="AI & API Platforms"
           >
-            <i className="fas fa-plug" style={{ marginRight: '8px' }}></i>API
+            <i className="fas fa-plug" style={{ marginRight: '8px' }}></i>AI & API Platforms
           </button>
           <button
             className="floating-menu-item"

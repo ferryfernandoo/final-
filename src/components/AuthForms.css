@@ -916,3 +916,203 @@
   color: #3b2a1a;
 }
 
+/* ===== AUTO @DEEPERNOVA.COM INPUT GROUP ===== */
+.input-with-domain {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ffcca3;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.input-with-domain:focus-within {
+  border-color: #ff8c42;
+  box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.15);
+}
+
+.input-with-domain input {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: #1e293b;
+  text-overflow: ellipsis;
+}
+
+.auto-domain-badge {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(249, 115, 22, 0.15));
+  color: #ea580c;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
+  margin-right: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(234, 88, 12, 0.2);
+  white-space: nowrap;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.domain-help-text {
+  font-size: 12px;
+  color: #8a6b4a;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.domain-help-text strong {
+  color: #ea580c;
+}
+
+/* ===== MODERN GMAIL INTERCEPTOR MODAL ===== */
+.gmail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.gmail-modal-card {
+  background: #ffffff;
+  border: 1px solid rgba(234, 88, 12, 0.2);
+  border-radius: 20px;
+  max-width: 460px;
+  width: 100%;
+  padding: 28px 24px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25), 0 0 40px rgba(234, 88, 12, 0.12);
+  text-align: center;
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.gmail-modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ea580c, #f59e0b, #ea580c);
+}
+
+.gmail-icon-glow {
+  width: 60px;
+  height: 60px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 16px auto;
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
+}
+
+.gmail-modal-card h3 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.gmail-modal-card p {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.gmail-migration-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.gmail-old {
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.gmail-arrow {
+  color: #ea580c;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.gmail-new {
+  color: #ea580c;
+  font-weight: 700;
+  font-size: 14px;
+  background: rgba(234, 88, 12, 0.08);
+  padding: 3px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.gmail-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gmail-btn-confirm {
+  background: linear-gradient(135deg, #ea580c, #f97316);
+  color: #ffffff;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(234, 88, 12, 0.25);
+  transition: all 0.2s ease;
+}
+
+.gmail-btn-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 25px rgba(234, 88, 12, 0.35);
+}
+
+.gmail-btn-dismiss {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gmail-btn-dismiss:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+

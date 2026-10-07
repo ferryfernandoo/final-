@@ -11,6 +11,7 @@ import AIManagerOffice from './components/AIManagerOffice'
 import CodeDanceIDE from './components/CodeDanceIDE'
 import HelpCenter from './components/HelpCenter'
 import DtePortal from './components/DtePortal'
+import ApiMarketplace from './components/ApiMarketplace'
 import CloudSyncModal from './components/CloudSyncModal'
 import { CookieConsent } from './components/CookieConsent'
 import { ConversationPersistenceService } from './services/conversationPersistenceService'
@@ -133,6 +134,7 @@ function App() {
       if (path === '/universe' || hash === '#universe') return 'universe';
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
       if (path === '/dte' || hash === '#dte') return 'dte';
+      if (path === '/api' || hash === '#api') return 'api';
       if (path === '/landing' || hash === '#landing' || hash === '#home') return 'landing';
       if (path === '/' || path === '') {
         return isNativePlatform() ? 'chat' : 'landing';
@@ -180,6 +182,7 @@ function App() {
         universe: '/universe',
         office: '/office',
         dte: '/dte',
+        api: '/api',
         landing: '/'
       };
       if (routeMap[view]) {
@@ -211,6 +214,7 @@ function App() {
       else if (path === '/universe' || hash === '#universe') setCurrentView('universe');
       else if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') setCurrentView('office');
       else if (path === '/dte' || hash === '#dte') setCurrentView('dte');
+      else if (path === '/api' || hash === '#api') setCurrentView('api');
       else if (path === '/' || path === '/landing' || hash === '#landing' || hash === '#home') setCurrentView(isNativePlatform() ? 'chat' : 'landing');
     };
     window.addEventListener('popstate', handleUrlChange);
@@ -608,6 +612,50 @@ function App() {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
         <DtePortal onNavigate={handleNavigate} />
+      </ErrorBoundary>
+    );
+  }
+
+  // 1.7. Dedicated AI & API Platforms (/api) (Publicly accessible documentation, live hit tester, usage reports)
+  if (currentView === 'api') {
+    return (
+      <ErrorBoundary onNavigate={handleNavigate}>
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => handleNavigate('landing')}
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              left: '24px',
+              zIndex: 9999,
+              background: 'rgba(15, 23, 42, 0.9)',
+              color: '#ffffff',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              padding: '10px 18px',
+              borderRadius: '999px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '700',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            ← Kembali ke Beranda
+          </button>
+          <ApiMarketplace 
+            onLogout={handleLogout} 
+            onNavigate={handleNavigate}
+            user={user}
+            isAuthenticated={isAuthenticated}
+            onLoginRequest={() => {
+              setPendingPostLoginRedirect('api');
+              setShowLoginView(true);
+            }}
+          />
+        </div>
       </ErrorBoundary>
     );
   }

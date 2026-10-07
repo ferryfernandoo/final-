@@ -26,9 +26,9 @@ async function runTests() {
   console.log('🧪 Starting Enterprise Zero-Trust Drive Hardening Verification...\n');
 
   // Login User A
-  const userA = await loginOrRegister('vault_owner@deepmail.com', 'Vault Owner');
+  const userA = await loginOrRegister('vault_owner@deepernova.com', 'Vault Owner');
   // Login User B (Attacker / snooper)
-  const userB = await loginOrRegister('vault_attacker@deepmail.com', 'Vault Attacker');
+  const userB = await loginOrRegister('vault_attacker@deepernova.com', 'Vault Attacker');
 
   console.log(`✅ 1. Authenticated User A (${userA.user?.email}) & User B (${userB.user?.email}) successfully.`);
 

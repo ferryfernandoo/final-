@@ -6,7 +6,7 @@
 
 import express from 'express';
 import { apiProxyService } from '../apiProxyService.js';
-import { userDb, apiKeyDb } from '../database.js';
+import { userDb, apiKeyDb, apiLogDb } from '../database.js';
 
 const router = express.Router();
 
@@ -22,7 +22,7 @@ router.options('*', (req, res) => {
 });
 
 /**
- * Middleware: Extract API key from headers, body, or query
+ * Middleware: Extract API key from headers, body, query, or active session
  */
 const apiKeyMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -36,7 +36,15 @@ const apiKeyMiddleware = (req, res, next) => {
     req.apiKey = String(req.body.api_key).trim();
   } else if (req.query && req.query.api_key) {
     req.apiKey = String(req.query.api_key).trim();
-  } else {
+  } else if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+    // Session authenticated fallback
+    const keys = apiKeyDb.findByUserId(req.user.id);
+    if (keys && keys.length > 0) {
+      req.apiKey = keys[0].key;
+    }
+  }
+
+  if (!req.apiKey) {
     return res.status(401).json({
       error: {
         message: 'Missing or invalid Authorization header. Pass Bearer <API_KEY> in the Authorization header.',
@@ -58,6 +66,7 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
 
     if (stream) {
       try {
+        const streamStartTime = Date.now();
         const streamResult = await apiProxyService.chatCompletionsStream(req.apiKey, req.body);
         const { stream: responseStream, auth, requestedModel } = streamResult;
 
@@ -116,6 +125,25 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
               console.log(`[Stream] Deducted ${consumedTokens} tokens for user ${auth.user.id}`);
             } catch (err) {
               console.warn('[Stream Token Deduction]', err.message);
+            }
+
+            try {
+              apiLogDb.create(
+                `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                auth.keyRecord?.id || null,
+                auth.user?.id || null,
+                '/v1/chat/completions',
+                requestedModel || 'deepernova-gold-1.5',
+                Math.ceil(JSON.stringify(req.body.messages || []).length / 4),
+                Math.ceil(generatedTextLen / 4),
+                consumedTokens,
+                200,
+                Date.now() - streamStartTime,
+                req.ip,
+                req.headers['user-agent']
+              );
+            } catch (logErr) {
+              console.warn('[Stream Log Insert Error]', logErr.message);
             }
           }
           res.end();
@@ -199,10 +227,10 @@ router.get('/balance', apiKeyMiddleware, async (req, res) => {
 });
 
 /**
- * GET /usage
- * Usage statistics endpoint
+ * GET /usage & GET /usage/history
+ * Live usage statistics & 7-day token history
  */
-router.get('/usage', apiKeyMiddleware, async (req, res) => {
+router.get(['/usage', '/usage/history'], apiKeyMiddleware, async (req, res) => {
   try {
     const stats = await apiProxyService.getUsageStats(req.apiKey);
     res.json(stats);
@@ -213,6 +241,27 @@ router.get('/usage', apiKeyMiddleware, async (req, res) => {
         type: 'api_error',
         code: error.error_code || 'INTERNAL_ERROR'
       }
+    });
+  }
+});
+
+/**
+ * GET /admin/stats
+ * Aggregated server-side metrics from api_usage_logs for future admin dashboard
+ */
+router.get('/admin/stats', async (req, res) => {
+  try {
+    const summary = apiLogDb.getAdminSummary();
+    res.json({
+      success: true,
+      service: 'DeeperNova API Management Platform',
+      timestamp: new Date().toISOString(),
+      summary
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });

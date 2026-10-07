@@ -655,10 +655,27 @@ app.post(['/auth/register', '/api/auth/register'], async (req, res) => {
       return res.status(400).json({ success: false, error: 'Semua bidang (nama, email, password) wajib diisi.' });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    let cleanEmail = email.toLowerCase().trim();
+
+    // Reject @gmail.com and @googlemail.com
+    if (cleanEmail.endsWith('@gmail.com') || cleanEmail.endsWith('@googlemail.com')) {
+      return res.status(400).json({
+        success: false,
+        isGmailError: true,
+        error: 'Tidak dapat menggunakan Google Mail (@gmail.com). Silakan gunakan identitas DeeperNova Anda (@deepernova.com).'
+      });
+    }
+
+    // Auto-append @deepernova.com if no domain provided
+    if (!cleanEmail.includes('@')) {
+      cleanEmail = `${cleanEmail}@deepernova.com`;
+    } else if (cleanEmail.endsWith('@deepmail.com')) {
+      cleanEmail = cleanEmail.replace(/@deepmail\.com$/, '@deepernova.com');
+    }
+
     const existing = userDb.findByEmail(cleanEmail);
     if (existing) {
-      return res.status(400).json({ success: false, error: 'Email ini sudah terdaftar. Silakan gunakan menu Login.' });
+      return res.status(400).json({ success: false, error: `Email "${cleanEmail}" sudah terdaftar. Silakan gunakan menu Login.` });
     }
 
     const hashedPassword = await hashPassword(password);
@@ -696,6 +713,53 @@ app.post(['/auth/logout', '/api/auth/logout'], (req, res) => {
     res.json({ success: true, message: 'Berhasil logout' });
   });
 });
+
+// ============================================================================
+// DEEPERNOVA AI & SEARCH ENGINE API PROXY ROUTES (/v1 & /api/v1)
+// ============================================================================
+// Mount OpenAI compatible AI Gateway endpoints (/v1/chat/completions, etc.)
+app.use('/v1', apiProxyRoutes);
+
+// High-Speed Search Engine API Proxies (/api/v1/search, /api/v1/images, /api/v1/news)
+const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:3000/api/v1';
+const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
+
+const proxyToSearchEngine = async (endpoint, req, res) => {
+  try {
+    const targetUrl = new URL(`${SEARCH_ENGINE_TARGET}${endpoint}`);
+    if (req.query) {
+      Object.keys(req.query).forEach(k => {
+        if (req.query[k] !== undefined) targetUrl.searchParams.append(k, String(req.query[k]));
+      });
+    }
+
+    const upstream = await fetch(targetUrl.toString(), {
+      method: req.method,
+      headers: {
+        'Authorization': req.headers.authorization || `Bearer ${SEARCH_ENGINE_KEY}`,
+        'X-API-Key': req.headers['x-api-key'] || SEARCH_ENGINE_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined
+    });
+
+    const data = await upstream.json();
+    return res.status(upstream.status).json(data);
+  } catch (err) {
+    console.warn(`[Search Engine Proxy Error] ${endpoint}:`, err.message);
+    return res.status(502).json({
+      error: {
+        message: 'Search Engine service temporarily unavailable',
+        details: err.message
+      }
+    });
+  }
+};
+
+app.all('/api/v1/search', (req, res) => proxyToSearchEngine('/search', req, res));
+app.all('/api/v1/images', (req, res) => proxyToSearchEngine('/images', req, res));
+app.all('/api/v1/news', (req, res) => proxyToSearchEngine('/news', req, res));
+app.use('/api/v1', apiProxyRoutes);
 
 
 // Ensure temp directory exists
@@ -3039,6 +3103,8 @@ app.post('/api/chat', async (req, res) => {
             }
           }
 
+          let clientDisconnected = false;
+          req.on('close', () => { clientDisconnected = true; });
           let fullResponseText = '';
 
           // Read stream chunks from TokenMix upstream
@@ -3558,24 +3624,30 @@ app.post('/auth/login', (req, res, next) => {
 // Register with email and password
 app.post('/auth/register', async (req, res) => {
   const { email, name, password } = req.body;
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  let normalizedEmail = String(email || '').trim().toLowerCase();
   const displayName = String(name || '').trim();
 
   if (!normalizedEmail || !displayName) {
     return res.status(400).json({ error: 'Name and email are required.' });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-    return res.status(400).json({ error: 'Invalid email format.' });
+  // Reject @gmail.com
+  if (normalizedEmail.endsWith('@gmail.com') || normalizedEmail.endsWith('@googlemail.com')) {
+    return res.status(400).json({
+      error: 'Tidak dapat menggunakan Google Mail (@gmail.com). Silakan gunakan identitas DeeperNova Anda (@deepernova.com).',
+      isGmailError: true
+    });
   }
 
-  // Enforce @deepmail.com domain for all accounts
-  if (!normalizedEmail.endsWith('@deepmail.com')) {
-    return res.status(400).json({ error: 'Email harus menggunakan domain @deepmail.com (contoh: user@deepmail.com)' });
+  // Auto-append @deepernova.com if no @
+  if (!normalizedEmail.includes('@')) {
+    normalizedEmail = `${normalizedEmail}@deepernova.com`;
+  } else if (normalizedEmail.endsWith('@deepmail.com')) {
+    normalizedEmail = normalizedEmail.replace(/@deepmail\.com$/, '@deepernova.com');
   }
 
-  if (!password || password.length < 8) {
-    return res.status(400).json({ error: 'Password minimal 8 karakter.' });
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: 'Password minimal 6 karakter.' });
   }
 
   try {

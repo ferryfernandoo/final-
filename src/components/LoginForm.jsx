@@ -4,7 +4,7 @@ import { safeSetItem } from '../utils/safeStorage.js';
 import './AuthForms.css';
 
 const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
-  const [email, setEmail] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -12,26 +12,71 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
 
+  // Modern Gmail Interceptor Modal State
+  const [showGmailModal, setShowGmailModal] = useState(false);
+  const [interceptedGmail, setInterceptedGmail] = useState('');
+  const [suggestedUsername, setSuggestedUsername] = useState('');
+
+  const checkGmailAndPrompt = (val) => {
+    const raw = (val || '').trim().toLowerCase();
+    if (raw.endsWith('@gmail.com') || raw.endsWith('@googlemail.com') || raw.includes('@gmail') || raw.includes('@googlemail')) {
+      const extracted = raw.split('@')[0].trim() || 'user';
+      setInterceptedGmail(val);
+      setSuggestedUsername(extracted);
+      setShowGmailModal(true);
+      return true;
+    }
+    return false;
+  };
+
+  const handleUsernameChange = (e) => {
+    const val = e.target.value;
+    setUsernameInput(val);
+    if (val.endsWith('@gmail.com') || val.endsWith('@googlemail.com')) {
+      checkGmailAndPrompt(val);
+    }
+  };
+
+  const handleInputBlur = () => {
+    if (usernameInput) {
+      checkGmailAndPrompt(usernameInput);
+    }
+  };
+
+  const applySuggestedDeepernova = () => {
+    setUsernameInput(suggestedUsername);
+    setShowGmailModal(false);
+    setError(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setErrorType(null);
 
-    if (!email.trim()) {
-      setError('Email harus diisi');
+    const trimmedInput = usernameInput.trim();
+    if (!trimmedInput) {
+      setError('Username / Email DeeperNova harus diisi');
       setErrorType('validation');
       return;
     }
-    // Enforce @deepmail.com domain for all accounts
-    if (!email.toLowerCase().endsWith('@deepmail.com')) {
-      setError('Email harus menggunakan domain @deepmail.com (contoh: user@deepmail.com)');
-      setErrorType('validation');
+
+    if (checkGmailAndPrompt(trimmedInput)) {
       return;
     }
+
     if (!password) {
       setError('Password harus diisi');
       setErrorType('validation');
       return;
+    }
+
+    // Resolve final email: user doesn't need to type @deepernova.com
+    let finalEmail = trimmedInput.toLowerCase();
+    if (!finalEmail.includes('@')) {
+      finalEmail = `${finalEmail}@deepernova.com`;
+    } else if (finalEmail.endsWith('@deepmail.com')) {
+      finalEmail = finalEmail.replace(/@deepmail\.com$/, '@deepernova.com');
     }
 
     setLoading(true);
@@ -41,7 +86,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ 
-          email: email.toLowerCase().trim(), 
+          email: finalEmail, 
           password 
         })
       });
@@ -50,8 +95,16 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
 
       if (!response.ok) {
         // Handle specific error types from backend
-        if (data.message === 'Username tidak ditemukan') {
-          setError(`❌ Username tidak ditemukan. Email "${email}" belum terdaftar.`);
+        if (data.code === 'GMAIL_NOT_ALLOWED' || data.isGmailError) {
+          checkGmailAndPrompt(usernameInput);
+          return;
+        }
+
+        if (data.message && data.message.includes('belum terdaftar')) {
+          setError(`❌ Akun "${finalEmail}" belum terdaftar. Silakan gunakan menu Daftar.`);
+          setErrorType('user-not-found');
+        } else if (data.message === 'Username tidak ditemukan') {
+          setError(`❌ Username/Email "${finalEmail}" belum terdaftar.`);
           setErrorType('user-not-found');
         } else if (data.message === 'Password salah') {
           setError('🔐 Password salah. Silakan cek kembali password Anda.');
@@ -63,7 +116,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
         throw new Error(data.error || data.message || 'Login gagal');
       }
 
-      setEmail('');
+      setUsernameInput('');
       setPassword('');
       onLoginSuccess?.(data.user);
     } catch (err) {
@@ -94,7 +147,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
     }
   };
 
-  // waktu lokal untuk ucapan selamat
+  // Waktu lokal untuk ucapan selamat
   const now = new Date();
   const hour = now.getHours();
   let timeLabel = '';
@@ -110,7 +163,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
         <aside className="auth-side-left" aria-hidden="true">
           <div className="visual-brand">
             <h1 className="brand-title">🚀 Deepernova AI</h1>
-            <p className="brand-subtitle">AI gratis untuk semua siswa Indonesia</p>
+            <p className="brand-subtitle">Platform AI mandiri & berkecepatan tinggi Indonesia</p>
             <div className="brand-deco" />
           </div>
         </aside>
@@ -119,43 +172,52 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
           <div className="auth-card">
             <div className="mobile-brand-header">
               <h2>🚀 Deepernova AI</h2>
-              <p>AI Studio lokal, cepat, dan aman</p>
+              <p>Platform AI Cloud Mandiri, Cepat & Aman</p>
             </div>
 
-            <p className="auth-welcome">Selamat datang</p>
+            <p className="auth-welcome">Selamat datang kembali</p>
 
             {error && <div className={`error-message ${errorType || ''}`}>{error}</div>}
 
             <div className="guest-quick-card">
-              <div className="guest-quick-badge">⚡ Masuk instan</div>
-              <h3>Mulai pakai AI Lokal tanpa akun</h3>
-              <p>Semua riwayat tetap ada di perangkat Anda, cepat, dan bebas login.</p>
+              <div className="guest-quick-badge">⚡ Masuk Instan</div>
+              <h3>Mulai pakai AI tanpa login</h3>
+              <p>Coba langsung percakapan dan studio tanpa perlu mendaftar akun.</p>
               <button
                 className="guest-btn primary"
                 type="button"
                 onClick={handleGuestAccess}
                 disabled={loading || guestLoading}
               >
-                {guestLoading ? 'Membuka AI Lokal...' : '🚀 Masuk AI Lokal Instan'}
+                {guestLoading ? 'Membuka AI Cloud...' : '🚀 Mulai Mode Tamu Instan'}
               </button>
-              <div className="guest-privacy-inline">🔒 Privasi lokal • data tidak wajib dikirim ke server</div>
+              <div className="guest-privacy-inline">🔒 Sesi instan aman & berkecepatan tinggi</div>
             </div>
 
-            <div className="auth-divider">atau lanjut dengan email</div>
+            <div className="auth-divider">atau masuk dengan akun DeeperNova</div>
 
             <form className="auth-form" onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="login-email">Email</label>
-                <input
-                  id="login-email"
-                  name="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@deepmail.com"
-                  autoComplete="email"
-                  disabled={loading}
-                />
+                <label htmlFor="login-email">Username / Akun</label>
+                <div className="input-with-domain">
+                  <input
+                    id="login-email"
+                    name="username"
+                    type="text"
+                    value={usernameInput}
+                    onChange={handleUsernameChange}
+                    onBlur={handleInputBlur}
+                    placeholder="Contoh: nando"
+                    autoComplete="username"
+                    disabled={loading}
+                    autoCapitalize="none"
+                    spellCheck="false"
+                  />
+                  <span className="auto-domain-badge">@deepernova.com</span>
+                </div>
+                <p className="domain-help-text">
+                  ✨ Domain <strong>@deepernova.com</strong> terpasang otomatis. Cukup masukkan username Anda.
+                </p>
               </div>
 
               <div className="form-group">
@@ -176,6 +238,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
                     className="toggle-password"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={loading}
+                    aria-label="Toggle password visibility"
                   >
                     {showPassword ? '👁️' : '👁️‍🗨️'}
                   </button>
@@ -187,7 +250,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? 'Masuk...' : 'Masuk ke Akun'}
               </button>
             </form>
 
@@ -210,6 +273,45 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
         </main>
       </div>
 
+      {/* Modern Pop-up Interceptor Modal for @gmail.com */}
+      {showGmailModal && (
+        <div className="gmail-modal-overlay" onClick={() => setShowGmailModal(false)}>
+          <div className="gmail-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="gmail-icon-glow">🚫</div>
+            <h3>Google Mail (@gmail.com) Tidak Didukung</h3>
+            <p>
+              Ekosistem DeeperNova AI menggunakan sistem identitas terpadu <strong>@deepernova.com</strong> demi privasi independen dan keamanan penuh.
+            </p>
+
+            <div className="gmail-migration-box">
+              <span className="gmail-old">{interceptedGmail || 'email@gmail.com'}</span>
+              <span className="gmail-arrow">➔</span>
+              <span className="gmail-new">{suggestedUsername}@deepernova.com</span>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#475569', marginBottom: '18px' }}>
+              Kami arahkan akun Anda secara otomatis ke <strong>{suggestedUsername}@deepernova.com</strong>.
+            </p>
+
+            <div className="gmail-modal-actions">
+              <button
+                type="button"
+                className="gmail-btn-confirm"
+                onClick={applySuggestedDeepernova}
+              >
+                ✨ Gunakan @deepernova.com (Otomatis)
+              </button>
+              <button
+                type="button"
+                className="gmail-btn-dismiss"
+                onClick={() => setShowGmailModal(false)}
+              >
+                Tutup & Ubah Manual
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

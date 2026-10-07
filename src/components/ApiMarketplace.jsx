@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import './ApiMarketplace.css';
 
-const ApiMarketplace = ({ onLogout }) => {
-  const [currentPage, setCurrentPage] = useState('landing');
+const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRequest }) => {
+  const [currentPage, setCurrentPage] = useState('landing'); // 'landing', 'docs', 'dashboard', 'usage'
   const [apiKeys, setApiKeys] = useState([]);
   const [tokenQuota, setTokenQuota] = useState(1000000);
   const [tokensUsed, setTokensUsed] = useState(0);
@@ -13,8 +13,13 @@ const ApiMarketplace = ({ onLogout }) => {
   const [showCreateKeyModal, setShowCreateKeyModal] = useState(false);
   const [showFullKeyModal, setShowFullKeyModal] = useState(false);
   const [copiedText, setCopiedText] = useState('');
+  
+  // Documentation Tab State
+  const [docsSection, setDocsSection] = useState('ai'); // 'ai' or 'search'
   const [activeTab, setActiveTab] = useState('getting-started');
   const [codeLanguage, setCodeLanguage] = useState('javascript');
+  const [searchCodeLanguage, setSearchCodeLanguage] = useState('javascript');
+  
   const [navOpen, setNavOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [selectedKeyFull, setSelectedKeyFull] = useState('');
@@ -25,17 +30,31 @@ const ApiMarketplace = ({ onLogout }) => {
   // Interactive Live Hit Tester State
   const [testKeyId, setTestKeyId] = useState('');
   const [testModel, setTestModel] = useState('deepernova-gold-1.5');
-  const [testPrompt, setTestPrompt] = useState('Halo DeeperNova Gold 1.5! Bagaimana performamu hari ini dan apa saja keunggulanmu?');
+  const [testPrompt, setTestPrompt] = useState('Halo DeeperNova Gold 1.5! Berikan 3 tips belajar coding yang efektif.');
   const [testingApi, setTestingApi] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
-  const totalKeys = apiKeys.length;
-  const activeKeys = apiKeys.filter((key) => key.isActive).length;
+  // Usage Reports & Analytics State
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageHistory, setUsageHistory] = useState([]);
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [usageStatsOverview, setUsageStatsOverview] = useState({
+    totalRequests: 0,
+    totalTokens: 0,
+    avgLatency: 0
+  });
+
   const apiBaseUrl = API_BASE_URL;
 
   useEffect(() => {
     fetchApiKeys();
   }, []);
+
+  useEffect(() => {
+    if (currentPage === 'usage') {
+      fetchUsageAnalytics();
+    }
+  }, [currentPage, apiKeys]);
 
   const fetchApiKeys = async () => {
     try {
@@ -50,23 +69,74 @@ const ApiMarketplace = ({ onLogout }) => {
         if (data.tokensUsed !== undefined) setTokensUsed(data.tokensUsed);
         if (data.remainingTokens !== undefined) setRemainingTokens(data.remainingTokens);
         
-        // Auto-select first key for test hit if not set
         if (data.keys && data.keys.length > 0 && !testKeyId) {
           const activeKey = data.keys.find(k => k.isActive) || data.keys[0];
           setTestKeyId(activeKey.id);
         }
       }
     } catch (error) {
-      console.error('Error fetching API keys:', error);
-      setErrorMsg('Gagal memuat API keys');
+      console.warn('API keys fetch:', error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchUsageAnalytics = async () => {
+    try {
+      setUsageLoading(true);
+      // Determine active key for auth header if needed
+      let activeKeyStr = '';
+      if (apiKeys.length > 0) {
+        const fullKeyRes = await fetch(`${apiBaseUrl}/api/apikeys/${apiKeys[0].id}/full`, {
+          credentials: 'include'
+        }).catch(() => null);
+        if (fullKeyRes && fullKeyRes.ok) {
+          const kData = await fullKeyRes.json();
+          if (kData.fullKey) activeKeyStr = kData.fullKey;
+        }
+      }
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (activeKeyStr) {
+        headers['Authorization'] = `Bearer ${activeKeyStr}`;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/v1/usage`, {
+        headers,
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setUsageHistory(data.history || []);
+          setRecentLogs(data.recent_logs || []);
+          if (data.token_quota !== undefined) setTokenQuota(data.token_quota);
+          if (data.tokens_used !== undefined) setTokensUsed(data.tokens_used);
+          if (data.remaining_tokens !== undefined) setRemainingTokens(data.remaining_tokens);
+
+          const totReq = (data.history || []).reduce((acc, h) => acc + (h.requestCount || 0), 0);
+          const avgLat = (data.history || []).length > 0
+            ? Math.round((data.history || []).reduce((acc, h) => acc + (h.avgLatency || 0), 0) / (data.history.length || 1))
+            : 0;
+
+          setUsageStatsOverview({
+            totalRequests: totReq || (data.tokens_used > 0 ? 1 : 0),
+            totalTokens: data.tokens_used || 0,
+            avgLatency: avgLat || 120
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Usage analytics fetch error:', err.message);
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
   const createNewApiKey = async () => {
     if (!newKeyName.trim()) {
-      setErrorMsg('Silakan masukkan nama untuk API key');
+      setErrorMsg('Masukkan nama untuk API Key');
       return;
     }
     try {
@@ -75,7 +145,7 @@ const ApiMarketplace = ({ onLogout }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: newKeyName })
+        body: JSON.stringify({ name: newKeyName.trim() })
       });
       const data = await response.json();
       if (data.success) {
@@ -86,7 +156,7 @@ const ApiMarketplace = ({ onLogout }) => {
         setErrorMsg('');
         await fetchApiKeys();
       } else {
-        setErrorMsg(data.error || 'Gagal membuat API key');
+        setErrorMsg(data.error || 'Gagal membuat API Key');
       }
     } catch (error) {
       console.error('Error creating API key:', error);
@@ -107,7 +177,6 @@ const ApiMarketplace = ({ onLogout }) => {
         setShowFullKeyModal(true);
       }
     } catch (error) {
-      console.error('Error fetching full key:', error);
       setErrorMsg('Gagal memuat API key lengkap');
     }
   };
@@ -121,14 +190,13 @@ const ApiMarketplace = ({ onLogout }) => {
       if (data.success) {
         navigator.clipboard.writeText(data.fullKey);
         setCopiedText(`key-${keyId}`);
-        setSuccessMsg('API Key berhasil disalin ke clipboard!');
+        setSuccessMsg('API Key berhasil disalin!');
         setTimeout(() => {
           setCopiedText('');
           setSuccessMsg('');
         }, 3000);
       }
     } catch (err) {
-      console.error('Error copying key:', err);
       setErrorMsg('Gagal menyalin key');
     }
   };
@@ -144,17 +212,16 @@ const ApiMarketplace = ({ onLogout }) => {
       const data = await response.json();
       if (data.success) {
         await fetchApiKeys();
-      } else {
-        setErrorMsg(data.error || 'Gagal memperbarui API key');
       }
     } catch (error) {
-      console.error('Error updating API key:', error);
-      setErrorMsg('Gagal memperbarui API key');
+      setErrorMsg('Gagal mengubah status key');
     }
   };
 
   const deleteApiKey = async (keyId) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus API key ini?')) return;
+    if (!window.confirm('Hapus API key ini? Aplikasi yang menggunakannya tidak dapat mengakses API lagi.')) {
+      return;
+    }
     try {
       const response = await fetch(`${apiBaseUrl}/api/apikeys/${keyId}`, {
         method: 'DELETE',
@@ -163,600 +230,881 @@ const ApiMarketplace = ({ onLogout }) => {
       const data = await response.json();
       if (data.success) {
         await fetchApiKeys();
-        setErrorMsg('');
-      } else {
-        setErrorMsg(data.error || 'Gagal menghapus API key');
       }
     } catch (error) {
-      console.error('Error deleting API key:', error);
       setErrorMsg('Gagal menghapus API key');
     }
   };
 
-  const copyToClipboard = (text, label) => {
+  const copyToClipboard = (text, id) => {
     navigator.clipboard.writeText(text);
-    setCopiedText(label);
+    setCopiedText(id);
     setTimeout(() => setCopiedText(''), 2500);
   };
 
-  // 🚀 LIVE TEST HIT API
   const handleLiveHitTest = async () => {
     if (!testKeyId) {
-      setErrorMsg('Silakan pilih salah satu API Key aktif untuk melakukan test.');
+      setErrorMsg('Pilih API Key terlebih dahulu untuk pengujian.');
       return;
     }
+
+    setTestingApi(true);
+    setTestResult(null);
+    setErrorMsg('');
+
     try {
-      setTestingApi(true);
-      setErrorMsg('');
-      setTestResult(null);
-
-      // 1. Fetch the real full key
-      const keyResp = await fetch(`${apiBaseUrl}/api/apikeys/${testKeyId}/full`, { credentials: 'include' });
-      const keyData = await keyResp.json();
+      const keyRes = await fetch(`${apiBaseUrl}/api/apikeys/${testKeyId}/full`, {
+        credentials: 'include'
+      });
+      const keyData = await keyRes.json();
       if (!keyData.success || !keyData.fullKey) {
-        throw new Error(keyData.error || 'Gagal mengambil secret key untuk testing');
+        throw new Error('Gagal mengambil secret key untuk pengetesan.');
       }
-      const realKey = keyData.fullKey;
 
-      // 2. Perform live request to /v1/chat/completions
-      const startTime = Date.now();
-      const hitResp = await fetch(`${apiBaseUrl}/v1/chat/completions`, {
+      const activeSecretKey = keyData.fullKey;
+
+      const hitRes = await fetch(`${apiBaseUrl}/api/v1/test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${realKey}`
+          'Authorization': `Bearer ${activeSecretKey}`
         },
         body: JSON.stringify({
-          model: testModel,
-          messages: [{ role: 'user', content: testPrompt }],
-          max_tokens: 300,
-          temperature: 0.7
+          prompt: testPrompt.trim(),
+          model: testModel
         })
       });
 
-      const latencyMs = Date.now() - startTime;
-      const hitData = await hitResp.json();
+      const hitData = await hitRes.json();
 
-      if (!hitResp.ok || hitData.error) {
-        const errorDetail = hitData.error?.message || hitData.error || `HTTP ${hitResp.status} Error`;
+      if (hitRes.ok && hitData.success) {
+        setTestResult({
+          success: true,
+          status: hitData.status || 200,
+          latencyMs: hitData.latency_ms || 0,
+          model: hitData.model || testModel,
+          reply: hitData.reply || '',
+          tokensConsumed: hitData.tokens_consumed || 0,
+          promptTokens: Math.ceil(testPrompt.length / 4),
+          completionTokens: Math.ceil((hitData.reply || '').length / 4),
+          remainingTokens: hitData.remaining_tokens ?? remainingTokens,
+          tokenQuota: hitData.token_quota ?? tokenQuota
+        });
+
+        if (hitData.remaining_tokens !== undefined) {
+          setRemainingTokens(hitData.remaining_tokens);
+        }
+        await fetchApiKeys();
+      } else {
         setTestResult({
           success: false,
-          status: hitResp.status,
-          latencyMs,
-          error: errorDetail
+          status: hitRes.status,
+          error: hitData.error || hitData.message || 'Hit test gagal dieksekusi.'
         });
-        return;
       }
-
-      const replyContent = hitData.choices?.[0]?.message?.content || '(Respons kosong)';
-      const consumed = hitData.deepernova?.tokens_consumed || hitData.usage?.total_tokens || 0;
-      const newRemaining = hitData.deepernova?.remaining_tokens ?? Math.max(0, remainingTokens - consumed);
-
-      setTestResult({
-        success: true,
-        status: 200,
-        latencyMs,
-        model: hitData.model || testModel,
-        reply: replyContent,
-        tokensConsumed: consumed,
-        promptTokens: hitData.usage?.prompt_tokens || 0,
-        completionTokens: hitData.usage?.completion_tokens || 0,
-        remainingTokens: newRemaining
-      });
-
-      // Instantly refresh balance in state
-      setTokensUsed(prev => prev + consumed);
-      setRemainingTokens(newRemaining);
-      await fetchApiKeys();
-
     } catch (err) {
-      console.error('[Live Hit Test Error]', err);
       setTestResult({
         success: false,
         status: 500,
-        error: err.message || 'Koneksi ke endpoint API gagal.'
+        error: err.message || 'Koneksi ke backend API gagal.'
       });
     } finally {
       setTestingApi(false);
     }
   };
 
-  const percentageUsed = Math.min(100, Math.round((tokensUsed / (tokenQuota || 1000000)) * 100));
+  // Helper chart computation for 7-day trend
+  const chartDays = (() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const found = usageHistory.find(h => h.date === iso);
+      days.push({
+        date: iso,
+        label: d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+        tokens: found ? (found.totalTokens || 0) : 0,
+        requests: found ? (found.requestCount || 0) : 0
+      });
+    }
+    return days;
+  })();
+
+  const maxTokensInChart = Math.max(100, ...chartDays.map(d => d.tokens));
+  const maxRequestsInChart = Math.max(5, ...chartDays.map(d => d.requests));
 
   return (
     <div className="api-marketplace">
+      {/* Sticky Top Navbar */}
       <nav className="api-nav">
         <div className="nav-container">
-          <div className="logo">
-            <h1>🌟 DeeperNova Gold 1.5 API</h1>
-            <span className="tagline">Enterprise High-Speed Cloud AI Gateway</span>
+          <div className="logo" onClick={() => setCurrentPage('landing')} style={{ cursor: 'pointer' }}>
+            <h1>⚡ DeeperNova API Platforms</h1>
+            <span className="tagline">Enterprise AI Gateway & Sub-20ms Search Engine</span>
           </div>
-          <button className="nav-toggle" onClick={() => setNavOpen((prev) => !prev)} aria-label="Toggle navigation menu" aria-expanded={navOpen}>
-            {navOpen ? '×' : '☰'}
+
+          <button 
+            className="nav-toggle" 
+            onClick={() => setNavOpen(prev => !prev)} 
+            aria-label="Toggle navigation menu"
+          >
+            {navOpen ? '✕' : '☰'}
           </button>
+
           <div className={`api-nav-menu ${navOpen ? 'open' : 'collapsed'}`}>
-            <button className={`api-nav-btn ${currentPage === 'landing' ? 'active' : ''}`} onClick={() => { setCurrentPage('landing'); setNavOpen(false); }}>Home</button>
-            <button className={`api-nav-btn ${currentPage === 'docs' ? 'active' : ''}`} onClick={() => { setCurrentPage('docs'); setNavOpen(false); }}>Dokumentasi</button>
-            <button className={`api-nav-btn ${currentPage === 'pricing' ? 'active' : ''}`} onClick={() => { setCurrentPage('pricing'); setNavOpen(false); }}>Pricing</button>
-            <button className={`api-nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`} onClick={() => { setCurrentPage('dashboard'); setNavOpen(false); }}>Dashboard & Keys</button>
+            <button 
+              className={`api-nav-btn ${currentPage === 'landing' ? 'active' : ''}`} 
+              onClick={() => { setCurrentPage('landing'); setNavOpen(false); }}
+            >
+              Beranda
+            </button>
+            <button 
+              className={`api-nav-btn ${currentPage === 'docs' ? 'active' : ''}`} 
+              onClick={() => { setCurrentPage('docs'); setNavOpen(false); }}
+            >
+              Dokumentasi API
+            </button>
+            <button 
+              className={`api-nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`} 
+              onClick={() => { setCurrentPage('dashboard'); setNavOpen(false); }}
+            >
+              Dashboard & Keys
+            </button>
+            <button 
+              className={`api-nav-btn ${currentPage === 'usage' ? 'active' : ''}`} 
+              onClick={() => { setCurrentPage('usage'); setNavOpen(false); }}
+            >
+              📊 Laporan Usage & Grafik
+            </button>
           </div>
+
           <div className="api-nav-actions">
             {apiKeys.length > 0 ? (
-              <button className="btn-logout" onClick={onLogout}>Logout</button>
+              <button className="btn-get-started" onClick={() => setShowCreateKeyModal(true)}>
+                + Buat API Key
+              </button>
+            ) : isAuthenticated ? (
+              <button className="btn-get-started" onClick={() => setShowCreateKeyModal(true)}>
+                Dapatkan Kunci API
+              </button>
             ) : (
-              <button className="btn-get-started" onClick={() => setShowCreateKeyModal(true)}>Buat API Key</button>
+              <button className="btn-get-started" onClick={onLoginRequest || (() => onNavigate?.('landing'))}>
+                Login / Daftar Akun
+              </button>
             )}
           </div>
         </div>
       </nav>
 
-      {/* Free 1 Million Token Balance Bar */}
-      <div style={{
-        background: 'linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
-        color: '#ffffff',
-        padding: '12px 20px',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        fontSize: '14px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '18px' }}>🎁</span>
+      {/* Free 1 Million Token Welcome Ribbon */}
+      <div className="token-welcome-ribbon">
+        <div className="token-welcome-left">
+          <span className="token-gift-icon">🎁</span>
           <span>
-            <strong>Free Welcome Quota:</strong> 1.000.000 Token (Input + Output)
+            <strong>Free Developer Quota:</strong> 1.000.000 Token Input & Output Gratis (Semua Akun Aktif)
           </span>
-          <span style={{
-            background: 'rgba(16, 185, 129, 0.2)',
-            color: '#34d399',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            fontSize: '11px',
-            fontWeight: '700'
-          }}>
-            ACTIVE FREE TIER
-          </span>
+          <span className="token-free-badge">100% FREE ACTIVE</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div>
-            Sisa Saldo: <strong style={{ color: '#38bdf8' }}>{remainingTokens.toLocaleString()} Token</strong> / {tokenQuota.toLocaleString()}
-          </div>
-          <div style={{
-            width: '120px',
-            height: '8px',
-            background: 'rgba(255, 255, 255, 0.15)',
-            borderRadius: '999px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: `${Math.max(5, 100 - percentageUsed)}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg, #10b981, #06b6d4)',
-              borderRadius: '999px'
-            }} />
-          </div>
-          <button
-            onClick={fetchApiKeys}
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              color: '#ffffff',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            🔄 Refresh
-          </button>
+        <div className="token-welcome-right">
+          <span>Sisa Saldo: <strong>{remainingTokens.toLocaleString()}</strong> Token</span>
         </div>
       </div>
 
-      <div className="content-container">
-        {errorMsg && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#ef4444',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            margin: '16px auto',
-            maxWidth: '1200px'
-          }}>
-            ⚠️ {errorMsg}
-          </div>
-        )}
+      {/* Notifications */}
+      {successMsg && <div className="alert-toast success">✓ {successMsg}</div>}
+      {errorMsg && <div className="alert-toast error">⚠️ {errorMsg}</div>}
 
-        {successMsg && (
-          <div style={{
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            color: '#10b981',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            margin: '16px auto',
-            maxWidth: '1200px'
-          }}>
-            ✅ {successMsg}
-          </div>
-        )}
-
+      <div className="api-container">
+        {/* ============================================================ */}
+        {/* PAGE 1: LANDING & OVERVIEW */}
+        {/* ============================================================ */}
         {currentPage === 'landing' && (
-          <div className="landing-page">
-            <div className="hero">
-              <span style={{
-                display: 'inline-block',
-                background: 'linear-gradient(90deg, #f59e0b, #d97706)',
-                color: '#ffffff',
-                padding: '4px 12px',
-                borderRadius: '20px',
-                fontSize: '12px',
-                fontWeight: '800',
-                marginBottom: '12px',
-                letterSpacing: '0.05em'
-              }}>
-                🌟 FLAGSHIP CLOUD AI
-              </span>
-              <h1>DeeperNova Gold 1.5 API</h1>
-              <p>Infrastruktur kecerdasan buatan berkecepatan tinggi berskala industri. Dukungan OpenAI format, multimodal vision, streaming instan, dan 1.000.000 token gratis untuk setiap akun terdaftar.</p>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
-                <button className="btn-get-started" onClick={() => setCurrentPage('dashboard')}>Masuk ke Dashboard & API Keys</button>
-                <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px' }} onClick={() => setCurrentPage('docs')}>Lihat Dokumentasi API</button>
-              </div>
-            </div>
+          <div className="api-landing-page">
+            <header className="hero-section">
+              <div className="hero-badge">⚡ DUA API POWERFUL DALAM SATU PLATFORM</div>
+              <h1 className="hero-title">
+                AI Gateway Generasi Baru & <br />
+                <span className="gradient-text">Mesin Pencari Berkecepatan Tinggi</span>
+              </h1>
+              <p className="hero-subtitle">
+                Hubungkan aplikasi web, mobile, bot, dan backend Anda ke model AI <strong>DeeperNova Gold 1.5</strong> (OpenAI-compatible) serta <strong>DeeperNova Search Engine API</strong> sub-20ms. Gratis 1.000.000 Token.
+              </p>
 
-            <div className="features">
-              <div className="feature-card">
-                <h3>⚡ DeeperNova Gold 1.5</h3>
-                <p>Model flagship multimodal vision dengan konteks 128K dan latensi streaming ultra rendah.</p>
+              <div className="hero-cta-group">
+                <button className="btn-primary-large" onClick={() => setCurrentPage('dashboard')}>
+                  🚀 Buka Dashboard & Buat Kunci
+                </button>
+                <button className="btn-secondary-large" onClick={() => setCurrentPage('docs')}>
+                  📖 Lihat Dokumentasi Lengkap
+                </button>
+                <button className="btn-secondary-large" onClick={() => setCurrentPage('usage')}>
+                  📊 Lihat Laporan Usage
+                </button>
               </div>
-              <div className="feature-card">
-                <h3>🧠 DeeperNova Gold 1.5 Pro</h3>
-                <p>Arsitektur 70B untuk penalaran mendalam, analisis data kompleks, logika matematika, dan penulisan kode terstruktur.</p>
-              </div>
-              <div className="feature-card">
-                <h3>🎁 1 Juta Token Gratis</h3>
-                <p>Setiap akun mendapatkan kuota gratis 1.000.000 input & output token yang siap digunakan langsung.</p>
-              </div>
-              <div className="feature-card">
-                <h3>🔌 Kompatibel OpenAI</h3>
-                <p>Drop-in replacement untuk SDK OpenAI (Python, Node.js, cURL) cukup dengan mengganti baseURL dan Authorization key.</p>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {currentPage === 'docs' && (
-          <div className="docs-page">
-            <h2>Dokumentasi DeeperNova Gold 1.5 API</h2>
-            <div className="docs-sidebar docs-nav">
-              <button className={`doc-tab ${activeTab === 'getting-started' ? 'active' : ''}`} onClick={() => setActiveTab('getting-started')}>Getting Started</button>
-              <button className={`doc-tab ${activeTab === 'authentication' ? 'active' : ''}`} onClick={() => setActiveTab('authentication')}>Autentikasi</button>
-              <button className={`doc-tab ${activeTab === 'models' ? 'active' : ''}`} onClick={() => setActiveTab('models')}>Pilihan Model</button>
-              <button className={`doc-tab ${activeTab === 'chat-api' ? 'active' : ''}`} onClick={() => setActiveTab('chat-api')}>Chat Completions</button>
-              <button className={`doc-tab ${activeTab === 'examples' ? 'active' : ''}`} onClick={() => setActiveTab('examples')}>Contoh Kode</button>
-            </div>
+              {/* Two Platform Pillars Card */}
+              <div className="platform-pillars-grid">
+                <div className="pillar-card ai-pillar">
+                  <div className="pillar-icon">🌟</div>
+                  <h3>DeeperNova Gold 1.5 AI API</h3>
+                  <p>Inference cloud ultra-cepat dengan arsitektur multimodal vision dan penalaran mendalam.</p>
+                  <ul className="pillar-list">
+                    <li>✓ Kompatibel 100% dengan OpenAI SDK & LangChain</li>
+                    <li>✓ Jendela Konteks Luas 128.000 Token</li>
+                    <li>✓ Dukungan Streaming Real-Time (SSE)</li>
+                    <li>✓ Model: Gold 1.5 & Gold 1.5 Pro (70B)</li>
+                  </ul>
+                  <button className="btn-pillar" onClick={() => { setDocsSection('ai'); setCurrentPage('docs'); }}>
+                    Dokumentasi AI API ➔
+                  </button>
+                </div>
 
-            <div className="docs-content">
-              {activeTab === 'getting-started' && (
-                <section>
-                  <h3>Memulai Cepat (Quickstart)</h3>
-                  <p>DeeperNova Gold 1.5 API menyediakan endpoint yang 100% kompatibel dengan standar OpenAI API.</p>
-                  <div className="doc-highlight">
-                    <p><strong>Base URL Produksi:</strong></p>
-                    <code>{window.location.origin}/v1</code>
+                <div className="pillar-card search-pillar">
+                  <div className="pillar-icon">🔍</div>
+                  <h3>DeeperNova Search Engine API</h3>
+                  <p>Mesin pencari mandiri berkecepatan tinggi dengan latensi sub-20ms dan indeks web real-time.</p>
+                  <ul className="pillar-list">
+                    <li>✓ Endpoint: <code>/api/v1/search</code>, <code>/images</code>, <code>/news</code></li>
+                    <li>✓ Latensi pencarian rata-rata 12ms - 18ms</li>
+                    <li>✓ Anti-typo cerdas & pembobotan BM25 presisi</li>
+                    <li>✓ Web grounding siap diintegrasikan ke RAG / Agent</li>
+                  </ul>
+                  <button className="btn-pillar" onClick={() => { setDocsSection('search'); setCurrentPage('docs'); }}>
+                    Dokumentasi Search Engine API ➔
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {/* Live Interactive Code Preview */}
+            <section className="preview-section">
+              <div className="preview-header">
+                <h3>Integrasi Instan dalam 3 Baris Kode</h3>
+                <p>Cukup arahkan <code>baseURL</code> ke DeeperNova dan masukkan API Key Anda.</p>
+              </div>
+
+              <div className="code-box-wrapper">
+                <div className="code-box-header">
+                  <div className="window-dots">
+                    <span></span><span></span><span></span>
                   </div>
-                  <h4>Langkah Integrasi:</h4>
-                  <ol>
-                    <li>Buka tab <strong>Dashboard</strong> untuk melihat atau membuat API Key Anda.</li>
-                    <li>Salin API Key rahasia Anda (berawalan <code>deepernova_</code>).</li>
-                    <li>Gunakan pada aplikasi Anda dengan header <code>Authorization: Bearer &lt;API_KEY&gt;</code>.</li>
-                    <li>Nikmati <strong>1.000.000 token gratis</strong> untuk input & output!</li>
-                  </ol>
-                </section>
-              )}
+                  <span className="code-box-title">Node.js / OpenAI SDK Integration</span>
+                  <button 
+                    className="copy-btn-snippet" 
+                    onClick={() => copyToClipboard(`import OpenAI from "openai";
 
-              {activeTab === 'authentication' && (
-                <section>
-                  <h3>Autentikasi API Key</h3>
-                  <p>Setiap request harus menyertakan API Key pada header HTTP:</p>
-                  <div className="code-block">
-                    <code>Authorization: Bearer YOUR_DEEPERNOVA_API_KEY</code>
-                    <button onClick={() => copyToClipboard('Authorization: Bearer YOUR_DEEPERNOVA_API_KEY', 'auth-header')}>Copy</button>
-                  </div>
-                  <h4>Header Lengkap:</h4>
-                  <pre>{`POST ${window.location.origin}/v1/chat/completions
-Content-Type: application/json
-Authorization: Bearer YOUR_DEEPERNOVA_API_KEY`}</pre>
-                </section>
-              )}
-
-              {activeTab === 'models' && (
-                <section>
-                  <h3>Model yang Tersedia</h3>
-                  <div style={{ display: 'grid', gap: '16px', marginTop: '16px' }}>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <h4 style={{ color: '#f59e0b', margin: 0 }}>🌟 deepernova-gold-1.5 (Default)</h4>
-                      <p style={{ marginTop: '8px', color: '#cbd5e1' }}>
-                        Model multimodal flagship unggulan DeeperNova. Mendukung analisis teks & gambar (vision), streaming super cepat, dan konteks 128K.
-                      </p>
-                    </div>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <h4 style={{ color: '#818cf8', margin: 0 }}>🧠 deepernova-gold-1.5-pro</h4>
-                      <p style={{ marginTop: '8px', color: '#cbd5e1' }}>
-                        Model penalaran mendalam dan coding (arsitektur 70B). Dirancang khusus untuk tugas logika rumit, penulisan program, debugging, dan analisis komprehensif.
-                      </p>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {activeTab === 'chat-api' && (
-                <section>
-                  <h3>Chat Completions Endpoint</h3>
-                  <code>POST /v1/chat/completions</code>
-                  <h4>Request Payload (JSON):</h4>
-                  <pre>{`{
-  "model": "deepernova-gold-1.5",
-  "messages": [
-    { "role": "system", "content": "You are DeeperNova Gold 1.5, a helpful assistant." },
-    { "role": "user", "content": "Jelaskan konsep machine learning dalam 2 kalimat." }
-  ],
-  "temperature": 0.7,
-  "max_tokens": 500,
-  "stream": false
-}`}</pre>
-                  <h4>Response Format:</h4>
-                  <pre>{`{
-  "id": "chatcmpl-deepernova-123",
-  "object": "chat.completion",
-  "model": "deepernova-gold-1.5",
-  "choices": [
-    {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "Machine learning adalah cabang kecerdasan buatan..."
-      },
-      "finish_reason": "stop"
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 28,
-    "completion_tokens": 34,
-    "total_tokens": 62
-  },
-  "deepernova": {
-    "tokens_consumed": 62,
-    "remaining_tokens": 999938
-  }
-}`}</pre>
-                </section>
-              )}
-
-              {activeTab === 'examples' && (
-                <section>
-                  <h3>Contoh Integrasi Kode</h3>
-                  <div className="code-lang-tabs">
-                    <button className={`code-lang-btn ${codeLanguage === 'javascript' ? 'active' : ''}`} onClick={() => setCodeLanguage('javascript')}>Node.js / JS</button>
-                    <button className={`code-lang-btn ${codeLanguage === 'python' ? 'active' : ''}`} onClick={() => setCodeLanguage('python')}>Python (OpenAI SDK)</button>
-                    <button className={`code-lang-btn ${codeLanguage === 'curl' ? 'active' : ''}`} onClick={() => setCodeLanguage('curl')}>cURL</button>
-                  </div>
-
-                  {codeLanguage === 'javascript' && (
-                    <div className="code-block-wrapper">
-                      <pre className="code-block-content">{`// Node.js (fetch / Axios)
-const response = await fetch('${window.location.origin}/v1/chat/completions', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer YOUR_API_KEY'
-  },
-  body: JSON.stringify({
-    model: 'deepernova-gold-1.5',
-    messages: [
-      { role: 'user', content: 'Halo DeeperNova Gold 1.5!' }
-    ]
-  })
+const openai = new OpenAI({
+  apiKey: "deepernova_sk_live_YOUR_KEY",
+  baseURL: "${apiBaseUrl}/v1"
 });
 
-const data = await response.json();
-console.log(data.choices[0].message.content);`}</pre>
-                    </div>
-                  )}
+const response = await openai.chat.completions.create({
+  model: "deepernova-gold-1.5",
+  messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
+});
 
-                  {codeLanguage === 'python' && (
-                    <div className="code-block-wrapper">
-                      <pre className="code-block-content">{`# Python dengan OpenAI SDK Resmi
-from openai import OpenAI
+console.log(response.choices[0].message.content);`, 'quick-snippet')}
+                  >
+                    {copiedText === 'quick-snippet' ? '✓ Tersalin' : 'Salin Kode'}
+                  </button>
+                </div>
+                <pre className="code-snippet-pre">
+                  <code>{`import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: "deepernova_sk_live_YOUR_KEY",
+  baseURL: "${apiBaseUrl}/v1"
+});
+
+const response = await openai.chat.completions.create({
+  model: "deepernova-gold-1.5",
+  messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
+});
+
+console.log(response.choices[0].message.content);`}</code>
+                </pre>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* PAGE 2: USAGE REPORTS & ANALYTICS WITH GRAPHIC / CHART */}
+        {/* ============================================================ */}
+        {currentPage === 'usage' && (
+          <div className="usage-page">
+            <div className="page-header-row">
+              <div>
+                <h2>📊 Laporan Penggunaan & Grafik Usage</h2>
+                <p>Pantau konsumsi token, volume request harian, dan metrik latensi API Anda secara transparan.</p>
+              </div>
+              <button className="btn-secondary" onClick={fetchUsageAnalytics} disabled={usageLoading}>
+                {usageLoading ? 'Memperbarui...' : '🔄 Refresh Data Usage'}
+              </button>
+            </div>
+
+            {/* Metrics Overview Cards */}
+            <div className="metrics-cards-grid">
+              <div className="metric-box">
+                <div className="metric-icon">🔥</div>
+                <div className="metric-info">
+                  <span className="metric-label">Total Token Terpakai</span>
+                  <span className="metric-val">{(tokensUsed || usageStatsOverview.totalTokens).toLocaleString()}</span>
+                  <span className="metric-sub">Token diproses</span>
+                </div>
+              </div>
+
+              <div className="metric-box">
+                <div className="metric-icon">🎁</div>
+                <div className="metric-info">
+                  <span className="metric-label">Sisa Kuota Gratis</span>
+                  <span className="metric-val">{remainingTokens.toLocaleString()}</span>
+                  <span className="metric-sub">dari 1.000.000 token</span>
+                </div>
+              </div>
+
+              <div className="metric-box">
+                <div className="metric-icon">🚀</div>
+                <div className="metric-info">
+                  <span className="metric-label">Total Request</span>
+                  <span className="metric-val">{usageStatsOverview.totalRequests}</span>
+                  <span className="metric-sub">Panggilan API</span>
+                </div>
+              </div>
+
+              <div className="metric-box">
+                <div className="metric-icon">⚡</div>
+                <div className="metric-info">
+                  <span className="metric-label">Rata-Rata Latensi</span>
+                  <span className="metric-val">{usageStatsOverview.avgLatency || 120} ms</span>
+                  <span className="metric-sub">Super responsif</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Visual Usage Chart (7-Day Token Trend) */}
+            <div className="chart-card-wrapper">
+              <div className="chart-header">
+                <div>
+                  <h3>📈 Grafik Tren Penggunaan Token Harian (7 Hari Terakhir)</h3>
+                  <p className="chart-subtitle">Akumulasi input dan output token per hari yang tercatat di server.</p>
+                </div>
+                <span className="chart-badge">Live Server Database Sync</span>
+              </div>
+
+              <div className="chart-canvas-container">
+                <div className="chart-bars-row">
+                  {chartDays.map((item, idx) => {
+                    const heightPercent = maxTokensInChart > 0 
+                      ? Math.max(8, Math.round((item.tokens / maxTokensInChart) * 100))
+                      : 8;
+
+                    return (
+                      <div key={idx} className="chart-bar-col">
+                        <div className="chart-bar-tooltip">
+                          <strong>{item.date}</strong><br />
+                          {item.tokens.toLocaleString()} Token<br />
+                          {item.requests} Request
+                        </div>
+                        <div className="chart-bar-track">
+                          <div 
+                            className="chart-bar-fill" 
+                            style={{ height: `${heightPercent}%` }}
+                          ></div>
+                        </div>
+                        <span className="chart-bar-label">{item.label}</span>
+                        <span className="chart-bar-val">{item.tokens > 0 ? `${item.tokens}t` : '0'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Request Count Trend Chart */}
+            <div className="chart-card-wrapper" style={{ marginTop: '20px' }}>
+              <div className="chart-header">
+                <div>
+                  <h3>📊 Grafik Volume Panggilan Request Harian</h3>
+                  <p className="chart-subtitle">Frekuensi pemanggilan endpoint API DeeperNova per hari.</p>
+                </div>
+              </div>
+
+              <div className="chart-canvas-container">
+                <div className="chart-bars-row">
+                  {chartDays.map((item, idx) => {
+                    const heightPercent = maxRequestsInChart > 0 
+                      ? Math.max(8, Math.round((item.requests / maxRequestsInChart) * 100))
+                      : 8;
+
+                    return (
+                      <div key={idx} className="chart-bar-col">
+                        <div className="chart-bar-tooltip">
+                          <strong>{item.date}</strong><br />
+                          {item.requests} Request Berhasil
+                        </div>
+                        <div className="chart-bar-track">
+                          <div 
+                            className="chart-bar-fill requests-fill" 
+                            style={{ height: `${heightPercent}%` }}
+                          ></div>
+                        </div>
+                        <span className="chart-bar-label">{item.label}</span>
+                        <span className="chart-bar-val">{item.requests} req</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Request Logs Table */}
+            <div className="logs-table-card" style={{ marginTop: '24px' }}>
+              <div className="chart-header">
+                <div>
+                  <h3>📋 Riwayat Pemanggilan API Terkini (Server Database Logs)</h3>
+                  <p className="chart-subtitle">Catatan historis setiap panggilan API yang tercatat di database server.</p>
+                </div>
+              </div>
+
+              {recentLogs.length === 0 ? (
+                <div className="empty-logs-box">
+                  <p>Belum ada rekaman pemanggilan API untuk akun ini.</p>
+                  <button className="btn-primary" onClick={() => setCurrentPage('dashboard')}>
+                    Coba Hit API Sekarang di Dashboard
+                  </button>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="logs-table">
+                    <thead>
+                      <tr>
+                        <th>Waktu (WIB)</th>
+                        <th>Endpoint</th>
+                        <th>Model</th>
+                        <th>Token In/Out</th>
+                        <th>Total Token</th>
+                        <th>Status</th>
+                        <th>Latensi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentLogs.map((log) => (
+                        <tr key={log.id}>
+                          <td style={{ fontSize: '12px', color: '#64748b' }}>
+                            {new Date(log.createdAt).toLocaleString('id-ID')}
+                          </td>
+                          <td><code>{log.endpoint}</code></td>
+                          <td><span className="model-chip">{log.model}</span></td>
+                          <td>{log.promptTokens || 0} / {log.completionTokens || 0}</td>
+                          <td><strong>{(log.totalTokens || 0).toLocaleString()}</strong></td>
+                          <td>
+                            <span className={`status-pill ${log.statusCode < 400 ? 'ok' : 'err'}`}>
+                              HTTP {log.statusCode}
+                            </span>
+                          </td>
+                          <td>{log.latencyMs} ms</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* PAGE 3: DOCUMENTATION (AI API & SEARCH ENGINE API) */}
+        {/* ============================================================ */}
+        {currentPage === 'docs' && (
+          <div className="docs-page">
+            <div className="docs-header">
+              <h2>Dokumentasi Lengkap DeeperNova API</h2>
+              <p>Pilih platform API yang ingin Anda integrasikan dengan panduan langkah demi langkah.</p>
+
+              {/* Sub-Tabs: AI vs Search Engine */}
+              <div className="docs-platform-selector">
+                <button 
+                  className={`docs-platform-btn ${docsSection === 'ai' ? 'active' : ''}`}
+                  onClick={() => setDocsSection('ai')}
+                >
+                  🌟 DeeperNova Gold 1.5 AI API
+                </button>
+                <button 
+                  className={`docs-platform-btn ${docsSection === 'search' ? 'active' : ''}`}
+                  onClick={() => setDocsSection('search')}
+                >
+                  🔍 DeeperNova Search Engine API
+                </button>
+              </div>
+            </div>
+
+            {/* --- AI API DOCUMENTATION --- */}
+            {docsSection === 'ai' && (
+              <div className="docs-content-wrapper">
+                <div className="docs-subnav">
+                  <button className={`docs-subnav-btn ${activeTab === 'getting-started' ? 'active' : ''}`} onClick={() => setActiveTab('getting-started')}>Quickstart</button>
+                  <button className={`docs-subnav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>Chat Completions</button>
+                  <button className={`docs-subnav-btn ${activeTab === 'models' ? 'active' : ''}`} onClick={() => setActiveTab('models')}>Model AI</button>
+                  <button className={`docs-subnav-btn ${activeTab === 'balance' ? 'active' : ''}`} onClick={() => setActiveTab('balance')}>Cek Kuota & Saldo</button>
+                </div>
+
+                <div className="docs-body">
+                  {activeTab === 'getting-started' && (
+                    <section className="docs-section">
+                      <h3>1. Memulai Integrasi DeeperNova Gold 1.5</h3>
+                      <p>
+                        DeeperNova Gold 1.5 sepenuhnya kompatibel dengan format <strong>OpenAI API</strong>. Anda cukup mengganti <code>baseURL</code> dan <code>apiKey</code> pada library OpenAI resmi.
+                      </p>
+
+                      <div className="base-url-card">
+                        <span className="base-url-label">Endpoint Base URL Resmi:</span>
+                        <code className="base-url-val">{apiBaseUrl}/v1</code>
+                        <button className="btn-copy-small" onClick={() => copyToClipboard(`${apiBaseUrl}/v1`, 'base-url-ai')}>
+                          {copiedText === 'base-url-ai' ? '✓ Tersalin' : 'Copy'}
+                        </button>
+                      </div>
+
+                      <div className="lang-selector-row">
+                        <button className={`lang-btn ${codeLanguage === 'javascript' ? 'active' : ''}`} onClick={() => setCodeLanguage('javascript')}>Node.js</button>
+                        <button className={`lang-btn ${codeLanguage === 'python' ? 'active' : ''}`} onClick={() => setCodeLanguage('python')}>Python</button>
+                        <button className={`lang-btn ${codeLanguage === 'curl' ? 'active' : ''}`} onClick={() => setCodeLanguage('curl')}>cURL</button>
+                      </div>
+
+                      <div className="code-display-box">
+                        {codeLanguage === 'javascript' && (
+                          <pre><code>{`import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.DEEPERNOVA_API_KEY, // Kunci API DeeperNova Anda
+  baseURL: "${apiBaseUrl}/v1"
+});
+
+async function main() {
+  const completion = await client.chat.completions.create({
+    model: "deepernova-gold-1.5",
+    messages: [
+      { role: "system", content: "Kamu adalah asisten cerdas." },
+      { role: "user", content: "Halo DeeperNova Gold 1.5!" }
+    ],
+    temperature: 0.7
+  });
+
+  console.log(completion.choices[0].message.content);
+}
+
+main();`}</code></pre>
+                        )}
+                        {codeLanguage === 'python' && (
+                          <pre><code>{`from openai import OpenAI
+import os
 
 client = OpenAI(
-    api_key="YOUR_API_KEY",
-    base_url="${window.location.origin}/v1"
+    api_key=os.environ.get("DEEPERNOVA_API_KEY"),
+    base_url="${apiBaseUrl}/v1"
 )
 
 response = client.chat.completions.create(
     model="deepernova-gold-1.5",
     messages=[
+        {"role": "system", "content": "Kamu adalah asisten cerdas."},
         {"role": "user", "content": "Halo DeeperNova Gold 1.5!"}
     ]
 )
 
-print(response.choices[0].message.content)`}</pre>
-                    </div>
-                  )}
-
-                  {codeLanguage === 'curl' && (
-                    <div className="code-block-wrapper">
-                      <pre className="code-block-content">{`curl ${window.location.origin}/v1/chat/completions \\
+print(response.choices[0].message.content)`}</code></pre>
+                        )}
+                        {codeLanguage === 'curl' && (
+                          <pre><code>{`curl -X POST "${apiBaseUrl}/v1/chat/completions" \\
+  -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
     "model": "deepernova-gold-1.5",
     "messages": [
       {"role": "user", "content": "Halo DeeperNova Gold 1.5!"}
     ]
-  }'`}</pre>
-                    </div>
+  }'`}</code></pre>
+                        )}
+                      </div>
+                    </section>
                   )}
-                </section>
-              )}
-            </div>
+
+                  {activeTab === 'chat' && (
+                    <section className="docs-section">
+                      <h3>2. Endpoint Chat Completions (<code>POST /v1/chat/completions</code>)</h3>
+                      <p>Mendukung percakapan teks, streaming real-time, serta parameter standar OpenAI.</p>
+                      
+                      <div className="param-table-card">
+                        <h4>Parameter Request:</h4>
+                        <div className="table-responsive">
+                          <table className="param-table">
+                            <thead>
+                              <tr>
+                                <th>Parameter</th>
+                                <th>Tipe</th>
+                                <th>Deskripsi</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td><code>model</code></td>
+                                <td>string</td>
+                                <td><code>deepernova-gold-1.5</code> atau <code>deepernova-gold-1.5-pro</code></td>
+                              </tr>
+                              <tr>
+                                <td><code>messages</code></td>
+                                <td>array</td>
+                                <td>Daftar pesan role ('system', 'user', 'assistant')</td>
+                              </tr>
+                              <tr>
+                                <td><code>stream</code></td>
+                                <td>boolean</td>
+                                <td><code>true</code> untuk Server-Sent Events (SSE) streaming</td>
+                              </tr>
+                              <tr>
+                                <td><code>temperature</code></td>
+                                <td>number</td>
+                                <td>Tingkat kreativitas (0.0 - 1.0, default 0.7)</td>
+                              </tr>
+                              <tr>
+                                <td><code>max_tokens</code></td>
+                                <td>integer</td>
+                                <td>Maksimal token balasan (default 2048)</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  {activeTab === 'models' && (
+                    <section className="docs-section">
+                      <h3>3. Model DeeperNova Cloud AI yang Tersedia</h3>
+                      <div className="models-catalog-grid">
+                        <div className="model-catalog-card">
+                          <span className="catalog-badge">FLAGSHIP</span>
+                          <h4>deepernova-gold-1.5</h4>
+                          <p>Model multimodal vision & ultra-fast reasoning berkecepatan tinggi dengan konteks 128K. Ideal untuk percakapan, analisis dokumen, dan tugas umum.</p>
+                          <div className="catalog-specs">
+                            <span>Konteks: 128.000 Token</span>
+                            <span>Vision: Aktif</span>
+                            <span>Biaya: Kuota Gratis 1M</span>
+                          </div>
+                        </div>
+
+                        <div className="model-catalog-card">
+                          <span className="catalog-badge pro">REASONING & CODE</span>
+                          <h4>deepernova-gold-1.5-pro</h4>
+                          <p>Model 70B parameter dengan penalaran matematis mendalam, arsitektur coding kompleks, dan analisis logika tingkat tinggi.</p>
+                          <div className="catalog-specs">
+                            <span>Konteks: 128.000 Token</span>
+                            <span>Coding: Ahli</span>
+                            <span>Biaya: Kuota Gratis 1M</span>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  {activeTab === 'balance' && (
+                    <section className="docs-section">
+                      <h3>4. Endpoint Cek Saldo Token (<code>GET /v1/balance</code>)</h3>
+                      <p>Gunakan endpoint ini untuk memantau sisa token akun Anda dari dalam aplikasi Anda secara terprogram.</p>
+                      <pre><code>{`curl -X GET "${apiBaseUrl}/v1/balance" \\
+  -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"`}</code></pre>
+                      <h4>Contoh Respons:</h4>
+                      <pre><code>{`{
+  "success": true,
+  "token_quota": 1000000,
+  "tokens_used": 1420,
+  "remaining_tokens": 998580
+}`}</code></pre>
+                    </section>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* --- SEARCH ENGINE API DOCUMENTATION --- */}
+            {docsSection === 'search' && (
+              <div className="docs-content-wrapper">
+                <div className="docs-body" style={{ width: '100%' }}>
+                  <section className="docs-section">
+                    <div className="search-docs-badge">SUB-20MS ULTRA-FAST WEB SEARCH</div>
+                    <h3>DeeperNova Search Engine API</h3>
+                    <p>
+                      Akses indeks web mandiri DeeperNova dengan pencarian berbasis BM25 dan latensi di bawah 20 milidetik. Sangat cocok untuk sistem <strong>RAG (Retrieval-Augmented Generation)</strong>, agen AI otonom, dan aplikasi pencarian.
+                    </p>
+
+                    <div className="base-url-card">
+                      <span className="base-url-label">Endpoint Pencarian Web:</span>
+                      <code className="base-url-val">{apiBaseUrl}/api/v1/search?q=query_anda</code>
+                    </div>
+
+                    <h4>Daftar Endpoint Search Engine:</h4>
+                    <div className="table-responsive">
+                      <table className="param-table">
+                        <thead>
+                          <tr>
+                            <th>Metode & Path</th>
+                            <th>Fungsi</th>
+                            <th>Parameter Utama</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td><code>GET /api/v1/search</code></td>
+                            <td>Pencarian web organik umum</td>
+                            <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
+                          </tr>
+                          <tr>
+                            <td><code>GET /api/v1/images</code></td>
+                            <td>Pencarian gambar web</td>
+                            <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
+                          </tr>
+                          <tr>
+                            <td><code>GET /api/v1/news</code></td>
+                            <td>Pencarian berita terkini</td>
+                            <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <h4 style={{ marginTop: '20px' }}>Contoh Implementasi Kode:</h4>
+                    <div className="lang-selector-row">
+                      <button className={`lang-btn ${searchCodeLanguage === 'javascript' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('javascript')}>JavaScript (Fetch)</button>
+                      <button className={`lang-btn ${searchCodeLanguage === 'python' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('python')}>Python (Requests)</button>
+                      <button className={`lang-btn ${searchCodeLanguage === 'curl' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('curl')}>cURL</button>
+                    </div>
+
+                    <div className="code-display-box">
+                      {searchCodeLanguage === 'javascript' && (
+                        <pre><code>{`// Pencarian Web Real-Time via DeeperNova Search API
+async function searchWeb(query) {
+  const url = "${apiBaseUrl}/api/v1/search?q=" + encodeURIComponent(query) + "&limit=5";
+  const response = await fetch(url, {
+    headers: {
+      "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
+    }
+  });
+
+  const data = await response.json();
+  console.log("Status:", data.status, "Durasi:", data.duration_ms + "ms");
+  data.results.forEach((res, i) => {
+    console.log(\`\${i + 1}. \${res.title} - \${res.link}\`);
+  });
+}
+
+searchWeb("perkembangan AI Indonesia");`}</code></pre>
+                      )}
+                      {searchCodeLanguage === 'python' && (
+                        <pre><code>{`import requests
+
+url = "${apiBaseUrl}/api/v1/search"
+params = {"q": "perkembangan AI Indonesia", "limit": 5}
+headers = {"Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"}
+
+response = requests.get(url, params=params, headers=headers)
+data = response.json()
+
+print(f"Durasi pencarian: {data.get('duration_ms', 0)} ms")
+for idx, item in enumerate(data.get('results', []), 1):
+    print(f"{idx}. {item['title']} -> {item['link']}")`}</code></pre>
+                      )}
+                      {searchCodeLanguage === 'curl' && (
+                        <pre><code>{`curl -X GET "${apiBaseUrl}/api/v1/search?q=indonesia&limit=5" \\
+  -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"`}</code></pre>
+                      )}
+                    </div>
+
+                    <h4>Contoh Respons JSON:</h4>
+                    <pre><code>{`{
+  "status": "success",
+  "query": "indonesia",
+  "duration_ms": 14,
+  "total": 10,
+  "results": [
+    {
+      "title": "Republik Indonesia - Portal Resmi Informasi Nasional",
+      "link": "https://indonesia.go.id",
+      "snippet": "Informasi resmi pemerintah Republik Indonesia, kebijakan, pariwisata, dan layanan publik.",
+      "score": 0.94
+    }
+  ]
+}`}</code></pre>
+                  </section>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {currentPage === 'pricing' && (
-          <div className="pricing-page">
-            <h2>Transparan & Hemat: DeeperNova Gold 1.5</h2>
-            <p>Mulai gratis sekarang dengan 1.000.000 token input & output tanpa kartu kredit.</p>
-
-            <div className="pricing-grid">
-              <div className="pricing-card featured" style={{ border: '2px solid #f59e0b' }}>
-                <span className="badge" style={{ background: '#f59e0b', color: '#000' }}>GRATIS 1 JUTA TOKEN</span>
-                <h3>Free Tier</h3>
-                <p className="price">Rp 0 <span>/ akun</span></p>
-                <ul>
-                  <li><strong>1.000.000 Token Gratis</strong> (Input + Output)</li>
-                  <li>Akses DeeperNova Gold 1.5</li>
-                  <li>Akses DeeperNova Gold 1.5 Pro</li>
-                  <li>Mendukung Multimodal Vision</li>
-                  <li>Latency Sub-detik & High Concurrency</li>
-                </ul>
-                <button className="btn-pricing primary" onClick={() => setCurrentPage('dashboard')}>Gunakan Sekarang</button>
-              </div>
-
-              <div className="pricing-card">
-                <span className="badge">Developer Pro</span>
-                <h3>Top-Up Saldo</h3>
-                <p className="price">Rp 2.000 <span>/ 1 Juta Token</span></p>
-                <ul>
-                  <li>Top up setelah 1 juta token habis</li>
-                  <li>Rate limit 5.000 RPM</li>
-                  <li>Dedicated Support</li>
-                  <li>SLA 99.9% Uptime</li>
-                </ul>
-                <button className="btn-pricing" onClick={() => alert('Saldo Anda saat ini masih aktif dengan kuota 1 Juta Token Free!')}>Top Up Token</button>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* ============================================================ */}
+        {/* PAGE 4: DASHBOARD & API KEYS MANAGEMENT + LIVE HIT TESTER */}
+        {/* ============================================================ */}
         {currentPage === 'dashboard' && (
           <div className="dashboard-page">
-            {/* Top Metrics Banner */}
             <div className="dashboard-hero">
               <div className="dashboard-hero-copy">
-                <span className="eyebrow">DeeperNova Cloud Console</span>
+                <span className="eyebrow">DeeperNova Developer Console</span>
                 <h2>Dashboard & Live API Management</h2>
-                <p>Kelola API Key, pantau saldo gratis 1.000.000 token Anda, dan lakukan pengujian langsung (*live hit*) secara instan.</p>
+                <p>Kelola API Key, pantau saldo 1.000.000 token gratis, dan uji coba langsung respons API secara live.</p>
               </div>
               <div className="dashboard-hero-actions">
-                <button className="btn-primary" onClick={() => setShowCreateKeyModal(true)} disabled={loading}>+ Buat API Key Baru</button>
-                <button className="btn-secondary" onClick={fetchApiKeys} disabled={loading}>🔄 Refresh Saldo</button>
+                <button className="btn-primary" onClick={() => setShowCreateKeyModal(true)} disabled={loading}>
+                  + Buat API Key Baru
+                </button>
+                <button className="btn-secondary" onClick={fetchApiKeys} disabled={loading}>
+                  🔄 Refresh Saldo
+                </button>
               </div>
             </div>
 
-            {/* Token Balance Stats Card */}
-            <div className="dashboard-metrics-grid">
-              <div className="metric-card" style={{ borderTop: '3px solid #10b981' }}>
-                <h4>🎁 Saldo Token Gratis</h4>
-                <p className="metric-value" style={{ color: '#10b981' }}>{remainingTokens.toLocaleString()}</p>
-                <span className="metric-label">Sisa dari kuota 1.000.000 token free</span>
-              </div>
-              <div className="metric-card" style={{ borderTop: '3px solid #f59e0b' }}>
-                <h4>📊 Total Token Digunakan</h4>
-                <p className="metric-value" style={{ color: '#f59e0b' }}>{tokensUsed.toLocaleString()}</p>
-                <span className="metric-label">Input + Output token yang telah diproses</span>
-              </div>
-              <div className="metric-card" style={{ borderTop: '3px solid #3b82f6' }}>
-                <h4>🔑 Active API Keys</h4>
-                <p className="metric-value">{activeKeys} <span style={{ fontSize: '14px', color: '#94a3b8' }}>/ {totalKeys}</span></p>
-                <span className="metric-label">Kredensial aktif siap digunakan</span>
-              </div>
-              <div className="metric-card" style={{ borderTop: '3px solid #8b5cf6' }}>
-                <h4>⚡ Model Default</h4>
-                <p className="metric-value" style={{ fontSize: '18px' }}>Gold 1.5</p>
-                <span className="metric-label">Multimodal Vision & Fast Streaming</span>
-              </div>
-            </div>
-
-            {/* 🧪 INTERACTIVE LIVE API HIT TESTER */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)',
-              border: '1px solid rgba(129, 140, 248, 0.3)',
-              borderRadius: '16px',
-              padding: '24px',
-              marginBottom: '32px',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-              color: '#ffffff'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>🧪</span> Live API Tester & Real Hit Verification
-                  </h3>
-                  <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '13px' }}>
-                    Kirim request nyata ke endpoint <code>/v1/chat/completions</code> menggunakan API Key Anda. Buktikan pemotongan token dan respons AI secara langsung!
-                  </p>
+            {/* Live Interactive API Hit Tester */}
+            <div className="live-tester-card">
+              <div className="live-tester-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="pulse-dot"></span>
+                  <h3>Live Interactive API Hit Tester</h3>
                 </div>
-                <span style={{
-                  background: 'rgba(16, 185, 129, 0.2)',
-                  color: '#34d399',
-                  padding: '4px 12px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  border: '1px solid rgba(16, 185, 129, 0.3)'
-                }}>
-                  ● LIVE ENDPOINT READY
-                </span>
+                <span className="live-tester-badge">Hit API Nyata</span>
               </div>
+              <p className="live-tester-subtitle">
+                Uji coba panggilan API secara langsung ke endpoint backend DeeperNova tanpa perlu membuka Postman atau terminal.
+              </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px', fontWeight: '600' }}>
-                    Pilih API Key Pengujian:
-                  </label>
+              <div className="tester-form-row">
+                <div className="form-group flex-1">
+                  <label htmlFor="test-key-select">Pilih Kunci API:</label>
                   <select
+                    id="test-key-select"
                     value={testKeyId}
                     onChange={(e) => setTestKeyId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      color: '#ffffff',
-                      fontSize: '14px'
-                    }}
+                    className="form-select"
                   >
-                    {apiKeys.map(k => (
-                      <option key={k.id} value={k.id}>
-                        {k.name} ({k.key}) {k.isActive ? '✓ Aktif' : '(Nonaktif)'}
-                      </option>
-                    ))}
+                    {apiKeys.length === 0 ? (
+                      <option value="">Belum ada kunci API</option>
+                    ) : (
+                      apiKeys.map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.name} ({k.key}) {k.isActive ? '• Aktif' : '• Nonaktif'}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px', fontWeight: '600' }}>
-                    Pilih Model DeeperNova:
-                  </label>
+                <div className="form-group flex-1">
+                  <label htmlFor="test-model-select">Pilih Model:</label>
                   <select
+                    id="test-model-select"
                     value={testModel}
                     onChange={(e) => setTestModel(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      color: '#ffffff',
-                      fontSize: '14px'
-                    }}
+                    className="form-select"
                   >
                     <option value="deepernova-gold-1.5">🌟 DeeperNova Gold 1.5 (Flagship Fast & Vision)</option>
                     <option value="deepernova-gold-1.5-pro">🧠 DeeperNova Gold 1.5 Pro (Deep Reasoning 70B & Code)</option>
@@ -764,116 +1112,64 @@ print(response.choices[0].message.content)`}</pre>
                 </div>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px', fontWeight: '600' }}>
-                  Prompt Uji Coba:
-                </label>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="test-prompt-input">Prompt Uji Coba:</label>
                 <textarea
+                  id="test-prompt-input"
                   value={testPrompt}
                   onChange={(e) => setTestPrompt(e.target.value)}
                   rows={2}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    borderRadius: '8px',
-                    color: '#ffffff',
-                    fontSize: '14px',
-                    resize: 'vertical',
-                    boxSizing: 'border-box'
-                  }}
+                  className="form-textarea"
                   placeholder="Ketik pertanyaan untuk menguji respons API..."
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="tester-action-row">
                 <button
                   onClick={handleLiveHitTest}
                   disabled={testingApi || !testKeyId}
-                  style={{
-                    background: testingApi ? '#64748b' : 'linear-gradient(90deg, #ea580c, #f97316)',
-                    color: '#ffffff',
-                    border: 'none',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    cursor: testingApi ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 14px rgba(234, 88, 12, 0.4)'
-                  }}
+                  className="btn-hit-test"
                 >
                   {testingApi ? '⏳ Sedang Menghubungi API...' : '🚀 Hit API Sekarang (Kirim Request Nyata)'}
                 </button>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                  Setiap hit akan langsung memotong token dari kuota 1.000.000 Anda.
+                <span className="tester-note">
+                  Setiap hit memotong token dari kuota 1.000.000 gratis Anda dan langsung dicatat ke server database.
                 </span>
               </div>
 
-              {/* Live Test Result Output Box */}
+              {/* Test Result Display */}
               {testResult && (
-                <div style={{
-                  marginTop: '20px',
-                  background: 'rgba(15, 23, 42, 0.9)',
-                  border: `1px solid ${testResult.success ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-                  borderRadius: '12px',
-                  padding: '16px',
-                  animation: 'fadeIn 0.3s ease'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{
-                        background: testResult.success ? '#059669' : '#dc2626',
-                        color: '#fff',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '700'
-                      }}>
+                <div className={`test-result-box ${testResult.success ? 'success' : 'error'}`}>
+                  <div className="test-result-meta-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className={`status-pill ${testResult.success ? 'ok' : 'err'}`}>
                         HTTP {testResult.status}
                       </span>
-                      <span style={{ fontSize: '13px', color: '#cbd5e1' }}>
-                        Latency: <strong>{testResult.latencyMs} ms</strong>
-                      </span>
-                      {testResult.success && (
-                        <span style={{ fontSize: '13px', color: '#38bdf8' }}>
-                          Model: <strong>{testResult.model}</strong>
-                        </span>
-                      )}
+                      <span>Latensi: <strong>{testResult.latencyMs} ms</strong></span>
+                      {testResult.success && <span>Model: <strong>{testResult.model}</strong></span>}
                     </div>
                     {testResult.success && (
-                      <div style={{ fontSize: '13px', color: '#34d399', fontWeight: '700' }}>
-                        🔥 Token Dipotong: {testResult.tokensConsumed} Token (Sisa: {testResult.remainingTokens.toLocaleString()})
+                      <div className="tokens-consumed-label">
+                        🔥 Terpakai: {testResult.tokensConsumed} Token (Sisa: {testResult.remainingTokens.toLocaleString()})
                       </div>
                     )}
                   </div>
 
                   {testResult.success ? (
                     <div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>RESPONS DARI DEEPERNOVA:</div>
-                      <div style={{
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        color: '#f8fafc',
-                        fontSize: '14px',
-                        lineHeight: '1.6',
-                        whiteSpace: 'pre-wrap'
-                      }}>
+                      <div className="result-label">RESPONS DARI DEEPERNOVA GOLD 1.5:</div>
+                      <div className="result-content-body">
                         {testResult.reply}
                       </div>
-                      <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '12px', color: '#94a3b8' }}>
-                        <span>Input Tokens: <strong>{testResult.promptTokens}</strong></span>
-                        <span>Output Tokens: <strong>{testResult.completionTokens}</strong></span>
-                        <span>Total: <strong>{testResult.tokensConsumed}</strong></span>
+                      <div className="result-tokens-breakdown">
+                        <span>Input: <strong>{testResult.promptTokens}</strong> token</span>
+                        <span>Output: <strong>{testResult.completionTokens}</strong> token</span>
+                        <span>Total: <strong>{testResult.tokensConsumed}</strong> token</span>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ color: '#f87171', fontSize: '14px' }}>
-                      <strong>Error:</strong> {testResult.error}
+                    <div className="result-error-msg">
+                      <strong>Gagal:</strong> {testResult.error}
                     </div>
                   )}
                 </div>
@@ -881,83 +1177,87 @@ print(response.choices[0].message.content)`}</pre>
             </div>
 
             {/* API Keys Table */}
-            <div className="dashboard-main-grid">
-              <section className="dashboard-section dashboard-panel" style={{ width: '100%' }}>
-                <div className="section-header">
-                  <div>
-                    <h3>Daftar API Keys Anda</h3>
-                    <p className="section-subtitle">Gunakan kunci ini pada header <code>Authorization: Bearer &lt;KEY&gt;</code> di aplikasi Anda.</p>
-                  </div>
-                  <button className="btn-primary" onClick={() => setShowCreateKeyModal(true)} disabled={loading}>+ Buat API Key</button>
+            <div className="keys-section-card">
+              <div className="section-header">
+                <div>
+                  <h3>Daftar API Keys Anda</h3>
+                  <p className="section-subtitle">
+                    Gunakan kunci ini pada header <code>Authorization: Bearer &lt;KEY&gt;</code> di aplikasi Anda.
+                  </p>
                 </div>
+                <button className="btn-primary" onClick={() => setShowCreateKeyModal(true)} disabled={loading}>
+                  + Buat Kunci Baru
+                </button>
+              </div>
 
-                {loading ? (
-                  <p>Memuat data API Keys...</p>
-                ) : apiKeys.length === 0 ? (
-                  <div className="empty-state-card">
-                    <h4>Belum ada API Key</h4>
-                    <p>Klik tombol di bawah untuk membuat kunci pertama Anda dan mulai menggunakan DeeperNova Gold 1.5.</p>
-                    <button className="btn-primary" onClick={() => setShowCreateKeyModal(true)}>Buat API Key</button>
-                  </div>
-                ) : (
-                  <div className="api-keys-table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Nama Kunci</th>
-                          <th>Secret Key</th>
-                          <th>Token Terpakai</th>
-                          <th>Status</th>
-                          <th>Aksi</th>
+              {loading ? (
+                <p>Memuat data API Keys...</p>
+              ) : apiKeys.length === 0 ? (
+                <div className="empty-state-card">
+                  <h4>Belum ada API Key</h4>
+                  <p>Klik tombol di bawah untuk membuat kunci pertama Anda dan mulai menggunakan DeeperNova Gold 1.5.</p>
+                  <button className="btn-primary" onClick={() => setShowCreateKeyModal(true)}>
+                    Buat Kunci Sekarang
+                  </button>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="api-keys-table">
+                    <thead>
+                      <tr>
+                        <th>Nama Kunci</th>
+                        <th>Secret Key</th>
+                        <th>Token Terpakai</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {apiKeys.map((key) => (
+                        <tr key={key.id}>
+                          <td><strong>{key.name}</strong></td>
+                          <td>
+                            <code className="masked-key">{key.key}</code>
+                          </td>
+                          <td>{(key.tokensUsed || 0).toLocaleString()} token</td>
+                          <td>
+                            <span className={`status-badge ${key.isActive ? 'active' : 'inactive'}`}>
+                              {key.isActive ? 'Aktif' : 'Nonaktif'}
+                            </span>
+                          </td>
+                          <td className="key-actions-cell">
+                            <button
+                              className="btn-action-copy"
+                              onClick={() => copyKeyDirectly(key.id)}
+                              title="Salin Secret Key Lengkap"
+                            >
+                              {copiedText === `key-${key.id}` ? '✓ Tersalin!' : 'Copy'}
+                            </button>
+                            <button
+                              className="btn-action-view"
+                              onClick={() => viewFullKey(key.id)}
+                            >
+                              Lihat
+                            </button>
+                            <button
+                              className="btn-action-toggle"
+                              onClick={() => updateApiKey(key.id, { isActive: !key.isActive })}
+                            >
+                              {key.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                            </button>
+                            <button
+                              className="btn-action-delete"
+                              onClick={() => deleteApiKey(key.id)}
+                            >
+                              Hapus
+                            </button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {apiKeys.map((key) => (
-                          <tr key={key.id}>
-                            <td className="key-name"><strong>{key.name}</strong></td>
-                            <td className="key-value">
-                              <code style={{ background: 'rgba(0,0,0,0.1)', padding: '4px 8px', borderRadius: '4px' }}>{key.key}</code>
-                            </td>
-                            <td>{(key.tokensUsed || 0).toLocaleString()} token</td>
-                            <td>
-                              <span className={`status-badge ${key.isActive ? 'active' : 'inactive'}`}>
-                                {key.isActive ? 'Aktif' : 'Nonaktif'}
-                              </span>
-                            </td>
-                            <td className="key-actions">
-                              <button
-                                className="btn-small btn-view"
-                                onClick={() => copyKeyDirectly(key.id)}
-                                title="Salin Secret Key Lengkap"
-                              >
-                                {copiedText === `key-${key.id}` ? '✓ Tersalin!' : 'Copy'}
-                              </button>
-                              <button
-                                className="btn-small btn-view"
-                                onClick={() => viewFullKey(key.id)}
-                              >
-                                Lihat
-                              </button>
-                              <button
-                                className="btn-small btn-toggle"
-                                onClick={() => updateApiKey(key.id, { isActive: !key.isActive })}
-                              >
-                                {key.isActive ? 'Disable' : 'Enable'}
-                              </button>
-                              <button
-                                className="btn-small btn-delete"
-                                onClick={() => deleteApiKey(key.id)}
-                              >
-                                Hapus
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -968,24 +1268,26 @@ print(response.choices[0].message.content)`}</pre>
         <div className="modal-overlay" onClick={() => setShowCreateKeyModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Buat API Key Baru</h3>
-            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
-              Beri nama yang mudah diingat untuk proyek atau aplikasi Anda.
+            <p className="modal-sub">
+              Beri nama label yang mudah diingat untuk proyek atau aplikasi Anda.
             </p>
             <div className="form-group">
-              <label htmlFor="key-name">Nama Kunci (Label)</label>
+              <label htmlFor="key-name-modal">Nama Kunci (Label)</label>
               <input
-                id="key-name"
+                id="key-name-modal"
                 type="text"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="misal: Aplikasi Mobile, Production Web, Script Python"
+                placeholder="misal: Aplikasi Mobile, Production Web"
                 className="form-input"
                 autoFocus
               />
             </div>
             {errorMsg && <div className="error-message">⚠️ {errorMsg}</div>}
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => { setShowCreateKeyModal(false); setNewKeyName(''); setErrorMsg(''); }}>Batal</button>
+              <button className="btn-secondary" onClick={() => { setShowCreateKeyModal(false); setNewKeyName(''); setErrorMsg(''); }}>
+                Batal
+              </button>
               <button className="btn-primary" onClick={createNewApiKey} disabled={loading || !newKeyName.trim()}>
                 {loading ? 'Membuat...' : 'Buat API Key'}
               </button>
@@ -999,7 +1301,9 @@ print(response.choices[0].message.content)`}</pre>
         <div className="modal-overlay" onClick={() => setShowApiKeyModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>🎉 API Key Berhasil Dibuat!</h3>
-            <p style={{ fontSize: '13px', color: '#64748b' }}>Simpan kunci ini di tempat yang aman. Kunci ini terhubung dengan kuota 1 Juta Token gratis Anda.</p>
+            <p className="modal-sub">
+              Simpan kunci ini di tempat yang aman. Kunci ini terhubung dengan kuota 1.000.000 Token gratis Anda.
+            </p>
             <div className="modal-key-display">
               <code>{createdKey.key}</code>
               <button onClick={() => copyToClipboard(createdKey.key, 'modal-key')}>
@@ -1025,9 +1329,11 @@ print(response.choices[0].message.content)`}</pre>
               </button>
             </div>
             <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '10px' }}>
-              ⚠️ Jangan bagikan kunci ini ke publik atau simpan di repository publik.
+              ⚠️ Jangan bagikan kunci rahasia ini ke publik atau simpan di repository terbuka.
             </p>
-            <button className="btn-primary modal-btn" onClick={() => setShowFullKeyModal(false)}>Tutup</button>
+            <button className="btn-primary modal-btn" onClick={() => setShowFullKeyModal(false)}>
+              Tutup
+            </button>
           </div>
         </div>
       )}

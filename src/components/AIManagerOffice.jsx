@@ -785,8 +785,11 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
 
   const formatDeepmail = (str) => {
     if (!str) return '';
-    const val = str.trim().toLowerCase();
-    return val.endsWith('@deepmail.com') ? val : (val.includes('@') ? val : `${val}@deepmail.com`);
+    let val = str.trim().toLowerCase();
+    if (val.endsWith('@deepmail.com')) {
+      val = val.replace(/@deepmail\.com$/, '@deepernova.com');
+    }
+    return val.endsWith('@deepernova.com') ? val : (val.includes('@') ? val : `${val}@deepernova.com`);
   };
 
   const openNewFolderModal = () => {
@@ -837,7 +840,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
     })).filter(r => r.role.trim() || r.name.trim() || r.email.trim());
 
     const defaultLeadName = userName || (userEmail ? userEmail.split('@')[0] : 'Administrator');
-    const defaultLeadEmail = userEmail ? formatDeepmail(userEmail) : 'admin@deepmail.com';
+    const defaultLeadEmail = userEmail ? formatDeepmail(userEmail) : 'admin@deepernova.com';
 
     const fEmail = founderEmail ? formatDeepmail(founderEmail) : defaultLeadEmail;
     const cEmail = ceoEmail ? formatDeepmail(ceoEmail) : '';
@@ -2346,7 +2349,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                   <div className="gcloud-iam-banner">
                     <div className="gcloud-iam-banner-icon">ℹ️</div>
                     <div className="gcloud-iam-banner-text">
-                      <strong>Kebijakan Akses IAM (Identity & Access Management):</strong> Prinsipal yang didaftarkan dengan akun <strong>@deepmail.com</strong> atau email perusahaan akan memiliki hak akses otomatis sesuai peran saat login.
+                      <strong>Kebijakan Akses IAM (Identity & Access Management):</strong> Prinsipal yang didaftarkan dengan akun <strong>@deepernova.com</strong> atau email perusahaan akan memiliki hak akses otomatis sesuai peran saat login.
                     </div>
                   </div>
 
@@ -2372,7 +2375,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                         <input
                           type="email"
                           className="gcloud-input"
-                          placeholder="lead@deepmail.com"
+                          placeholder="lead@deepernova.com"
                           value={founderEmail}
                           onChange={(e) => setFounderEmail(e.target.value)}
                         />
@@ -2402,7 +2405,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                         <input
                           type="email"
                           className="gcloud-input"
-                          placeholder="manager@deepmail.com (Opsional)"
+                          placeholder="manager@deepernova.com (Opsional)"
                           value={ceoEmail}
                           onChange={(e) => setCeoEmail(e.target.value)}
                         />
@@ -2461,11 +2464,11 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
                             </div>
 
                             <div className="gcloud-principal-col email-col">
-                              <label className="gcloud-row-label">Email Prinsipal (@deepmail.com)</label>
+                              <label className="gcloud-row-label">Email Prinsipal (@deepernova.com)</label>
                               <input
                                 type="email"
                                 className="gcloud-input"
-                                placeholder="member@deepmail.com"
+                                placeholder="member@deepernova.com"
                                 value={item.email || ''}
                                 onChange={(e) => handleUpdateCustomRole(idx, 'email', e.target.value)}
                               />

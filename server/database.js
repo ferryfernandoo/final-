@@ -135,6 +135,27 @@ export function initializeDatabase() {
     )
   `);
 
+  // API usage logs table (for reports, charts, and admin dashboard)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS api_usage_logs (
+      id TEXT PRIMARY KEY,
+      apiKeyId TEXT,
+      userId TEXT,
+      endpoint TEXT NOT NULL,
+      model TEXT,
+      promptTokens INTEGER DEFAULT 0,
+      completionTokens INTEGER DEFAULT 0,
+      totalTokens INTEGER DEFAULT 0,
+      statusCode INTEGER DEFAULT 200,
+      latencyMs INTEGER DEFAULT 0,
+      ip TEXT,
+      userAgent TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_api_logs_user ON api_usage_logs(userId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_api_logs_created ON api_usage_logs(createdAt)`);
+
   // Document artifacts table (session-persistent)
   db.exec(`
     CREATE TABLE IF NOT EXISTS doc_artifacts (
@@ -539,6 +560,108 @@ export const apiKeyDb = {
   deleteByUserId: (userId) => {
     const stmt = db.prepare('DELETE FROM api_keys WHERE userId = ?');
     stmt.run(userId);
+  }
+};
+
+// API usage logs operations
+export const apiLogDb = {
+  create: (id, apiKeyId, userId, endpoint, model, promptTokens, completionTokens, totalTokens, statusCode, latencyMs, ip, userAgent) => {
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO api_usage_logs (id, apiKeyId, userId, endpoint, model, promptTokens, completionTokens, totalTokens, statusCode, latencyMs, ip, userAgent)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        id,
+        apiKeyId || null,
+        userId || null,
+        endpoint || '/v1/chat/completions',
+        model || 'deepernova-gold-1.5',
+        promptTokens || 0,
+        completionTokens || 0,
+        totalTokens || 0,
+        statusCode || 200,
+        latencyMs || 0,
+        ip || null,
+        userAgent || null
+      );
+    } catch (e) {
+      console.warn('[apiLogDb] Insert log error:', e.message);
+    }
+  },
+
+  getUserHistory: (userId, days = 7) => {
+    try {
+      const stmt = db.prepare(`
+        SELECT 
+          DATE(createdAt) as date,
+          COUNT(*) as requestCount,
+          COALESCE(SUM(totalTokens), 0) as totalTokens,
+          COALESCE(SUM(promptTokens), 0) as promptTokens,
+          COALESCE(SUM(completionTokens), 0) as completionTokens,
+          ROUND(AVG(latencyMs)) as avgLatency
+        FROM api_usage_logs
+        WHERE userId = ?
+        GROUP BY DATE(createdAt)
+        ORDER BY date ASC
+        LIMIT ?
+      `);
+      return stmt.all(userId, days);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getRecentLogs: (userId, limit = 20) => {
+    try {
+      const stmt = db.prepare(`
+        SELECT id, endpoint, model, promptTokens, completionTokens, totalTokens, statusCode, latencyMs, createdAt
+        FROM api_usage_logs
+        WHERE userId = ?
+        ORDER BY createdAt DESC
+        LIMIT ?
+      `);
+      return stmt.all(userId, limit);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getAdminSummary: () => {
+    try {
+      const totals = db.prepare(`
+        SELECT 
+          COUNT(*) as totalRequests,
+          COALESCE(SUM(totalTokens), 0) as totalTokensConsumed,
+          COUNT(DISTINCT userId) as activeUsers,
+          ROUND(AVG(latencyMs)) as overallAvgLatency
+        FROM api_usage_logs
+      `).get();
+
+      const topModels = db.prepare(`
+        SELECT model, COUNT(*) as count, COALESCE(SUM(totalTokens), 0) as tokens
+        FROM api_usage_logs
+        GROUP BY model
+        ORDER BY count DESC
+        LIMIT 5
+      `).all();
+
+      const recentActivity = db.prepare(`
+        SELECT l.*, u.email as userEmail
+        FROM api_usage_logs l
+        LEFT JOIN users u ON l.userId = u.id
+        ORDER BY l.createdAt DESC
+        LIMIT 50
+      `).all();
+
+      return {
+        totals,
+        topModels,
+        recentActivity
+      };
+    } catch (e) {
+      return { error: e.message };
+    }
   }
 };
 

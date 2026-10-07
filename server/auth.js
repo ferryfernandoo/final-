@@ -12,11 +12,28 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        const user = userDb.findByEmail(email.toLowerCase().trim());
+        let cleanEmail = (email || '').toLowerCase().trim();
+
+        // Reject @gmail.com / @googlemail.com
+        if (cleanEmail.endsWith('@gmail.com') || cleanEmail.endsWith('@googlemail.com')) {
+          return done(null, false, { 
+            message: 'Tidak dapat menggunakan Google Mail (@gmail.com). Silakan gunakan akun @deepernova.com.', 
+            code: 'GMAIL_NOT_ALLOWED' 
+          });
+        }
+
+        // Auto-append @deepernova.com if username provided without domain
+        if (!cleanEmail.includes('@')) {
+          cleanEmail = `${cleanEmail}@deepernova.com`;
+        } else if (cleanEmail.endsWith('@deepmail.com')) {
+          cleanEmail = cleanEmail.replace(/@deepmail\.com$/, '@deepernova.com');
+        }
+
+        const user = userDb.findByEmail(cleanEmail);
 
         if (!user) {
           // Distinguish between "user not found" and "wrong password"
-          return done(null, false, { message: 'Username tidak ditemukan', code: 'USER_NOT_FOUND' });
+          return done(null, false, { message: `Username/Email "${cleanEmail}" belum terdaftar.`, code: 'USER_NOT_FOUND' });
         }
 
         if (!user.password) {
