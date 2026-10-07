@@ -1,19 +1,27 @@
 // Cloudflare Tunnel backend URL (live proxy target)
-const CLOUDFLARE_BACKEND_URL = 'https://investors-assigned-narrative-screw.trycloudflare.com';
+const CLOUDFLARE_BACKEND_URL = 'https://humor-recently-please-spray.trycloudflare.com';
 
 const getApiBaseUrl = () => {
   // 1. In browser, prioritize same-origin relative URL for known proxy hosts
   // This leverages vercel.json rewrites so all requests are same-origin on Vercel deployments.
   if (typeof window !== 'undefined' && window.location) {
-    const hostname = window.location.hostname;
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname.endsWith('.vercel.app') ||
-      hostname === 'deepernova.com' ||
-      hostname === 'www.deepernova.com'
-    ) {
-      return '';
+    const isCapacitorNative = Boolean(
+      window.Capacitor?.isNativePlatform?.() ||
+      window.location.protocol === 'capacitor:' ||
+      (window.location.hostname === 'localhost' && window.location.port === '' && /Android/i.test(navigator.userAgent))
+    );
+
+    if (!isCapacitorNative) {
+      const hostname = window.location.hostname;
+      if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.endsWith('.vercel.app') ||
+        hostname === 'deepernova.com' ||
+        hostname === 'www.deepernova.com'
+      ) {
+        return '';
+      }
     }
   }
 
@@ -42,4 +50,4 @@ export const ORDER_DTE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ORDER_DTE_URL) ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5173'
-    : 'https://holders-detect-merchant-bingo.trycloudflare.com');
+    : 'https://rising-arrangement-encouraging-immune.trycloudflare.com');

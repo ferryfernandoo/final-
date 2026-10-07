@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import ChatBot from './components/ChatBot'
+import ModelLoaderScreen from './components/ModelLoaderScreen'
 import Login from './components/Login'
 import LandingPage from './components/LandingPage'
 import DocumentEditor from './components/DocumentEditor'
@@ -120,6 +121,7 @@ function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [modelReady, setModelReady] = useState(true);
   const getInitialView = () => {
     if (typeof window !== 'undefined') {
       const path = (window.location.pathname || '').toLowerCase();
@@ -464,6 +466,8 @@ function App() {
       }
     }
   };
+
+  // Cloud TokenMix Meta AI is ready immediately (no heavy local model downloading)
 
   if (loading) {
     return (

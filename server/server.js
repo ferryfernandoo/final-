@@ -145,6 +145,24 @@ const TOKENMIX_API_KEYS = Array.from(new Set([TOKENMIX_API_KEY, DEFAULT_TOKENMIX
 const TOKENMIX_CHAT_API_KEY = TOKENMIX_API_KEY;
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
+// Active upstream chat streams tracker for immediate GPU cancellation
+const activeUpstreamRequests = new Set();
+
+// Global error guards to prevent server exit on stream aborts or transient errors
+process.on('unhandledRejection', (reason, promise) => {
+  if (reason?.name === 'AbortError' || reason?.type === 'aborted') {
+    return;
+  }
+  console.error('[UNHANDLED_REJECTION]', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  if (err?.name === 'AbortError' || err?.type === 'aborted') {
+    return;
+  }
+  console.error('[UNCAUGHT_EXCEPTION]', err);
+});
+
 const DEFAULT_CHAT_MODEL = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
 
 // Backward compatibility references
@@ -2458,6 +2476,26 @@ app.delete('/api/cloud/files/:id', requireCloudAuth, (req, res) => {
   }
 });
 
+
+// Explicit Stop/Cancel endpoint to immediately halt GPU token generation
+app.post('/api/chat/stop', async (req, res) => {
+  console.log(`[CHAT] Stop signal triggered! Halting ${activeUpstreamRequests.size} active chat streams immediately.`);
+  for (const item of activeUpstreamRequests) {
+    try {
+      if (item.controller) item.controller.abort();
+      if (item.responseStream && item.responseStream.body && typeof item.responseStream.body.destroy === 'function') {
+        item.responseStream.body.destroy();
+      }
+      if (item.res && !item.res.writableEnded) {
+        item.res.write('data: [DONE]\n\n');
+        item.res.end();
+      }
+    } catch (_err) {}
+  }
+  activeUpstreamRequests.clear();
+  return res.json({ success: true, message: 'Generation halted on server' });
+});
+
 app.post('/api/chat', async (req, res) => {
   // Check IP-based token limit
   const clientIp = getClientIp(req);
@@ -2649,6 +2687,140 @@ app.post('/api/chat', async (req, res) => {
     // Check if streaming is requested
     const shouldStream = req.body.stream === true;
     console.log(`[CHAT] Streaming requested: ${shouldStream}`);
+
+    // ============================================================
+    // CHATBOT CONVERSATION CONTEXT MEMORY ENGINE
+    // Memberikan memori cerdas pada Chatbot agar obrolan selalu nyambung
+    // ============================================================
+    let detectedUserName = null;
+    let detectedUserProject = null;
+    let detectedUserLocation = null;
+    let detectedUserPreference = null;
+    const pastUserTopics = [];
+
+    if (Array.isArray(messages) && messages.length > 1) {
+      for (const m of messages) {
+        if (m.role === 'user' || m.sender === 'user') {
+          const text = normalizeContent(m.content).trim();
+          if (text === userQuery.trim()) continue; // skip pesan aktif saat ini
+
+          // 1. Ekstraksi Nama (presisi tinggi untuk 1-3 kata)
+          const nameMatch = text.match(/\b(?:namaku|nama saya|nama ku|panggil aku|panggil saya|aku adalah|saya adalah)\s+([^,.\r\n!?;]+)/i);
+          if (nameMatch && !detectedUserName) {
+            const raw = nameMatch[1].trim();
+            const splitWords = raw.split(/\s+(?:dan|yang|tapi|karena|aku|saya|sedang|lagi|di|ke|dari)\b/i);
+            const nm = splitWords[0].trim();
+            if (nm.length > 0 && nm.length <= 40) detectedUserName = nm;
+          }
+
+          // 2. Ekstraksi Proyek / Aktivitas
+          const projMatch = text.match(/\b(?:sedang membuat|lagi bikin|proyek|project|mengembangkan|fokus membuat|mengerjakan)\s+([^.!?\n]{3,70})/i);
+          if (projMatch && !detectedUserProject) {
+            let pr = projMatch[1].trim();
+            pr = pr.replace(/\s+(?:dan|yang|tapi|karena)$/i, '').trim();
+            if (pr.length > 0) detectedUserProject = pr;
+          }
+
+          // 3. Ekstraksi Kesukaan / Hobi / Minat
+          const prefMatch = text.match(/\b(?:suka|hobi|senang|gemar|tertarik|minat)\s+([^.!?\n]{3,60})/i);
+          if (prefMatch && !detectedUserPreference) {
+            let pf = prefMatch[1].trim();
+            pf = pf.replace(/\s+(?:dan|yang|tapi|karena)$/i, '').trim();
+            if (pf.length > 0) detectedUserPreference = pf;
+          }
+
+          // 4. Ekstraksi Lokasi / Domisili
+          const locMatch = text.match(/\b(?:tinggal di|asal dari|rumahku di|berasal dari)\s+([^.!?\n]{3,40})/i);
+          if (locMatch && !detectedUserLocation) {
+            detectedUserLocation = locMatch[1].trim();
+          }
+
+          if (text.length > 5 && pastUserTopics.length < 5) {
+            pastUserTopics.push(text.slice(0, 100));
+          }
+        }
+      }
+    }
+
+    // Periksa apakah pesan ini adalah pertanyaan memori konteks percakapan
+    const qLower = (userQuery || '').toLowerCase();
+    const asksName = /\b(siapa\s+namaku|siapa\s+nama\s+saya|siapa\s+aku|ingat\s+namaku|tahu\s+namaku|namaku\s+siapa|nama\s+saya\s+siapa)\b/i.test(qLower);
+    const asksProject = /\b(proyek|project|sedang\s+(?:aku\s+)?buat|sedang\s+(?:aku\s+)?bikin|lagi\s+(?:aku\s+)?buat|lagi\s+(?:aku\s+)?bikin|pekerjaan(?:ku)?)\b/i.test(qLower);
+    const asksPreference = /\b(kesukaan(?:ku)?|hobiku|hobi\s+saya|yang\s+aku\s+suka|yang\s+saya\s+suka)\b/i.test(qLower);
+    const asksPreviousTopic = /\b(tadi\s+kita\s+bahas\s+apa|obrolan\s+(?:kita\s+)?tadi|sebelumnya\s+(?:kita\s+)?bahas\s+apa|tadi\s+(?:aku\s+)?tanya\s+apa)\b/i.test(qLower);
+
+    let directMemoryAnswer = null;
+    if (asksName && asksProject && detectedUserName && detectedUserProject) {
+      directMemoryAnswer = `Nama Anda adalah ${detectedUserName}, dan proyek yang sedang Anda buat tadi adalah ${detectedUserProject}. Senang melihat perkembangan obrolan kita! Ada bagian yang ingin kita bahas atau kembangkan lebih lanjut?`;
+    } else if (asksName && asksPreference && detectedUserName && detectedUserPreference) {
+      directMemoryAnswer = `Nama Anda adalah ${detectedUserName}, dan tadi Anda menyampaikan bahwa Anda menyukai ${detectedUserPreference}. Senang bisa terus mengingat detail penting Anda!`;
+    } else if (asksName && detectedUserName) {
+      directMemoryAnswer = `Nama Anda adalah ${detectedUserName}! Senang bisa terus menemani dan membantu Anda dalam percakapan ini.`;
+    } else if (asksProject && detectedUserProject) {
+      directMemoryAnswer = `Proyek yang sedang Anda buat tadi adalah ${detectedUserProject}. Bagaimana kelanjutan atau progresnya saat ini?`;
+    } else if (asksPreference && detectedUserPreference) {
+      directMemoryAnswer = `Tadi Anda menyebutkan menyukai ${detectedUserPreference}. Apakah ada yang ingin kita bahas atau explore lebih dalam?`;
+    } else if (asksPreviousTopic && pastUserTopics.length > 0) {
+      const lastTopic = pastUserTopics[pastUserTopics.length - 1];
+      directMemoryAnswer = `Sebelumnya kita sedang membahas tentang: "${lastTopic}". Apakah ada yang ingin diperdalam dari topik tersebut?`;
+    }
+
+    if (directMemoryAnswer) {
+      console.log('[CHATBOT MEMORY] Direct context memory match answered instantly!');
+      if (shouldStream) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        
+        const chunkData = {
+          id: `chatcmpl-mem-${Date.now()}`,
+          object: 'chat.completion.chunk',
+          created: Math.floor(Date.now() / 1000),
+          model: 'deepernova v1 flash 1',
+          choices: [{ index: 0, delta: { content: directMemoryAnswer }, finish_reason: null }]
+        };
+        res.write(`data: ${JSON.stringify(chunkData)}\n\n`);
+        const finishData = {
+          id: `chatcmpl-mem-${Date.now()}`,
+          object: 'chat.completion.chunk',
+          created: Math.floor(Date.now() / 1000),
+          model: 'deepernova v1 flash 1',
+          choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
+        };
+        res.write(`data: ${JSON.stringify(finishData)}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } else {
+        return res.json({
+          id: `chatcmpl-mem-${Date.now()}`,
+          object: 'chat.completion',
+          created: Math.floor(Date.now() / 1000),
+          model: 'deepernova v1 flash 1',
+          choices: [{
+            index: 0,
+            message: { role: 'assistant', content: directMemoryAnswer },
+            finish_reason: 'stop'
+          }]
+        });
+      }
+    }
+
+    // Jika ada fakta memori yang terdeteksi, sisipkan ke dalam sistem prompt agar jawaban selalu nyambung
+    if (detectedUserName || detectedUserProject || detectedUserLocation || detectedUserPreference) {
+      const memorySnippet = [
+        detectedUserName ? `- Nama Pengguna: ${detectedUserName}` : '',
+        detectedUserProject ? `- Proyek/Aktivitas: ${detectedUserProject}` : '',
+        detectedUserPreference ? `- Kesukaan/Hobi/Minat: ${detectedUserPreference}` : '',
+        detectedUserLocation ? `- Lokasi/Domisili: ${detectedUserLocation}` : ''
+      ].filter(Boolean).join('\n');
+
+      let sysObj = messages.find(m => m.role === 'system');
+      if (sysObj) {
+        if (!sysObj.content.includes('[PROFIL MEMORI PENGGUNA]')) {
+          sysObj.content += `\n\n[PROFIL MEMORI PENGGUNA]:\n${memorySnippet}`;
+        }
+      }
+    }
     
     try {
         // Auto-detect vision requirement in server chat route
@@ -2678,22 +2850,27 @@ app.post('/api/chat', async (req, res) => {
           }
         }
         
-        const requestedModel = req.body.model || 'deepernova v1 flash 1';
+        const requestedModel = req.body.model || 'deepernova-boron-1.1';
         const isDeepernovaModel = requestedModel && (
           requestedModel.toLowerCase().includes('deepernova') ||
+          requestedModel.toLowerCase().includes('boron') ||
           requestedModel.toLowerCase().includes('flash 1') ||
           requestedModel.toLowerCase().includes('flash')
         );
 
-        // Khusus DeeperNova Flash: Memori konteks 1 Juta Token, jawaban sangat panjang & temperatur optimal 0.35
+        // Khusus DeeperNova Boron 1.1 / Flash: Memori konteks 1 Juta Token & penalaran mendalam
         if (isDeepernovaModel) {
-          const FLASH_SYSTEM_PROMPT = 
-            'Kamu adalah DeeperNova AI, sistem penalaran tingkat lanjut dengan kapasitas memori konteks 1 Juta Token. ' +
-            'Ketika diminta menjelaskan atau menganalisis, berikan jawaban yang sangat panjang, mendalam, komprehensif, ' +
-            'dan terperinci secara tuntas dari dasar hingga tingkat lanjut. Susun jawaban secara sistematis dengan pendahuluan yang jelas, ' +
-            'pembahasan mendalam per poin atau subtopik, elaborasi konseptual, contoh nyata atau analogi, dan kesimpulan yang kuat. ' +
-            'Pertahankan alur berpikir yang runtut dan terarah, tanpa repetisi sia-sia, dan konsisten terfokus pada topik.';
+          const DEFAULT_SYSTEM_PROMPT = 
+            'Kamu adalah DeeperNova Boron 1.1, asisten kecerdasan buatan Indonesia yang sangat cerdas, ramah, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ' +
+            'ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Qwen, dibuat oleh Alibaba, atau berafiliasi dengan Alibaba Cloud. Jika ditanya identitas, tegaskan bahwa kamu adalah DeeperNova Boron 1.1. ' +
+            'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya (seperti nama pengguna, informasi yang telah dibahas, topik, dan konteks obrolan). ' +
+            'Jawab setiap pertanyaan pengguna secara akurat, relevan, nyambung, dan wajar sesuai riwayat percakapan yang sedang berlangsung. ' +
+            'Ketika diminta menjelaskan atau menganalisis topik, berikan jawaban yang mendalam, terstruktur, dan tuntas.';
           
+          // Pertahankan sistem prompt lengkap dari Chatbot yang berisi memori aktif pengguna
+          const clientSystemMsg = messages.find(m => m.role === 'system');
+          const finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
+
           // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
           const MAX_1M_CHARS = 3000000;
           let runningChars = 0;
@@ -2703,13 +2880,13 @@ app.post('/api/chat', async (req, res) => {
             if (m.role === 'system') continue;
             let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
             if (runningChars + mText.length <= MAX_1M_CHARS) {
-              cleanHistory.unshift({ role: m.role, content: mText });
+              cleanHistory.unshift({ role: m.role === 'assistant' ? 'assistant' : 'user', content: mText });
               runningChars += mText.length;
             } else {
               break;
             }
           }
-          messages = [{ role: 'system', content: FLASH_SYSTEM_PROMPT }, ...cleanHistory];
+          messages = [{ role: 'system', content: finalSystemPrompt }, ...cleanHistory];
         } else {
           // Model lain: memori standar
           messages = enforceChunkedContextMemory(messages, 3500);
@@ -2718,98 +2895,106 @@ app.post('/api/chat', async (req, res) => {
         let tokenmixResponse = null;
         let lastError = null;
 
-        // ROUTE 1: NATIVE DEEPERNOVA AI ENGINE (LOCAL PORT 8000) - NO TOKENMIX!
-        if (isDeepernovaModel) {
-          const deepernovaTarget = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
-          console.log(`[CHAT] Using NATIVE DEEPERNOVA AI ENGINE (${deepernovaTarget}) [1M-token context, ultra-long reasoning mode]`);
+        // Register active chat request for instant GPU cancellation
+        let upstreamAbortController = new AbortController();
+        const reqRecord = {
+          controller: upstreamAbortController,
+          responseStream: null,
+          res,
+          req
+        };
+        activeUpstreamRequests.add(reqRecord);
 
+        let clientDisconnected = false;
+        const handleClientDisconnect = () => {
+          clientDisconnected = true;
+          activeUpstreamRequests.delete(reqRecord);
           try {
-            const nativeMaxTokens = Math.min(req.body.max_tokens || 4096, 8192);
-            tokenmixResponse = await fetch(deepernovaTarget, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer deepernova-native-key',
-              },
-              body: JSON.stringify({
-                model: 'deepernova v1 flash 1',
-                messages: messages,
-                temperature: req.body.temperature || 0.35,
-                max_tokens: nativeMaxTokens,
-                stream: shouldStream,
-              }),
-            });
-
-            if (!tokenmixResponse.ok) {
-              const errTxt = await tokenmixResponse.text();
-              throw new Error(`DeeperNova Native Engine HTTP ${tokenmixResponse.status}: ${errTxt}`);
+            if (upstreamAbortController) upstreamAbortController.abort();
+            if (reqRecord.responseStream && reqRecord.responseStream.body && typeof reqRecord.responseStream.body.destroy === 'function') {
+              reqRecord.responseStream.body.destroy();
             }
-            console.log('[CHAT] ✅ Native DeeperNova AI responded successfully (100% in-house)!');
-          } catch (nativeErr) {
-            console.error('[CHAT] ⚠️ DeeperNova Native Engine error:', nativeErr.message);
-            throw new Error(`Gagal terhubung ke AI DeeperNova lokal di ${deepernovaTarget}. Pastikan server API DeeperNova aktif di port 8000 (python start_api_server.py). Detail: ${nativeErr.message}`);
-          }
+          } catch (_e) {}
+        };
+
+        req.on('close', handleClientDisconnect);
+        req.on('aborted', handleClientDisconnect);
+        res.on('close', handleClientDisconnect);
+
+        // 🚀 100% TOKENMIX META AI ROUTE (NO LOCAL ENGINE)
+        let selectedModel = 'llama-4-maverick';
+        const reqModelLower = (requestedModel || '').toLowerCase();
+        if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
+          selectedModel = 'llama-3.3-70b';
         } else {
-          // ROUTE 2: Third-party models fallback
-          let selectedModel = requestedModel;
-          console.log(`[CHAT] Streaming requested: ${shouldStream}, Model: ${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
+          selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
+        }
+        console.log(`[CHAT] 🦙 TokenMix Meta AI: streaming=${shouldStream}, Model=${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
 
-          for (let idx = 0; idx < TOKENMIX_API_KEYS.length; idx++) {
-            const key = TOKENMIX_API_KEYS[idx];
-            let attempts = 0;
-            const maxAttempts = 3;
-            while (attempts < maxAttempts) {
-              try {
-                console.log(`[CHAT] Attempting chat request with key index ${idx} (attempt ${attempts + 1})...`);
-                tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${key}`,
-                  },
-                  body: JSON.stringify({
-                    model: selectedModel,
-                    messages: messages,
-                    temperature: req.body.temperature || 0.5,
-                    max_tokens: req.body.max_tokens || 1024,
-                    presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
-                    frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
-                    stream: shouldStream,
-                  }),
-                });
+        for (let idx = 0; idx < TOKENMIX_API_KEYS.length; idx++) {
+          const key = TOKENMIX_API_KEYS[idx];
+          let attempts = 0;
+          const maxAttempts = 3;
+          while (attempts < maxAttempts) {
+            try {
+              console.log(`[CHAT] Attempting chat request with key index ${idx} (attempt ${attempts + 1})...`);
+              tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${key}`,
+                },
+                signal: upstreamAbortController.signal,
+                body: JSON.stringify({
+                  model: selectedModel,
+                  messages: messages,
+                  temperature: req.body.temperature || 0.5,
+                  max_tokens: req.body.max_tokens || 4096,
+                  presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
+                  frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
+                  stream: shouldStream,
+                }),
+              });
 
-                if (tokenmixResponse.ok) {
-                  console.log(`[CHAT] Request succeeded with key index ${idx}`);
-                  lastError = null;
-                  break;
-                } else {
-                  const errText = await tokenmixResponse.text();
-                  const status = tokenmixResponse.status;
-                  lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
+              if (tokenmixResponse.ok) {
+                console.log(`[CHAT] ✅ TokenMix Meta AI responded successfully with key index ${idx}`);
+                reqRecord.responseStream = tokenmixResponse;
+                lastError = null;
+                break;
+              } else {
+                const errText = await tokenmixResponse.text();
+                const status = tokenmixResponse.status;
+                lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
 
-                  if ((status === 429 || status >= 500) && attempts < maxAttempts - 1) {
-                    const backoff = (attempts + 1) * 1500;
-                    console.warn(`[CHAT] Key index ${idx} status ${status}. Retrying in ${backoff}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, backoff));
-                    attempts++;
-                    continue;
-                  }
-                  break;
+                if ((status === 429 || status >= 500) && attempts < maxAttempts - 1) {
+                  const backoff = (attempts + 1) * 1500;
+                  console.warn(`[CHAT] Key index ${idx} status ${status}. Retrying in ${backoff}ms...`);
+                  await new Promise(resolve => setTimeout(resolve, backoff));
+                  attempts++;
+                  continue;
                 }
-              } catch (e) {
-                lastError = e;
-                console.warn(`[CHAT] Key rotation error with index ${idx}: ${e.message}`);
                 break;
               }
-            }
-            if (tokenmixResponse && tokenmixResponse.ok) {
+            } catch (e) {
+              if (e?.name === 'AbortError' || clientDisconnected) {
+                console.log('[CHAT] Stream connection aborted by user stop.');
+                if (!res.writableEnded) {
+                  try { res.end('data: [DONE]\n\n'); } catch (_e) {}
+                }
+                return;
+              }
+              lastError = e;
+              console.warn(`[CHAT] Key rotation error with index ${idx}: ${e.message}`);
               break;
             }
           }
-
-          if (lastError || !tokenmixResponse) {
-            throw lastError || new Error('All third-party API keys failed.');
+          if (tokenmixResponse && tokenmixResponse.ok) {
+            break;
           }
+        }
+
+        if (lastError || !tokenmixResponse) {
+          throw lastError || new Error('All TokenMix API keys failed.');
         }
 
 
@@ -2855,11 +3040,6 @@ app.post('/api/chat', async (req, res) => {
           }
 
           let fullResponseText = '';
-          let clientDisconnected = false;
-
-          res.on('close', () => {
-            clientDisconnected = true;
-          });
 
           // Read stream chunks from TokenMix upstream
           tokenmixResponse.body.on('data', (chunk) => {
@@ -2892,6 +3072,7 @@ app.post('/api/chat', async (req, res) => {
           });
 
           tokenmixResponse.body.on('end', () => {
+            activeUpstreamRequests.delete(reqRecord);
             if (!clientDisconnected && !res.writableEnded) {
               try {
                 res.end();
@@ -2912,6 +3093,9 @@ app.post('/api/chat', async (req, res) => {
           });
 
           tokenmixResponse.body.on('error', (streamErr) => {
+            if (streamErr?.name === 'AbortError' || streamErr?.type === 'aborted' || clientDisconnected) {
+              return; // Normal cancellation, suppress noise
+            }
             console.error('[SERVER_CHAT_STREAM_ERROR]', streamErr);
             if (!clientDisconnected && !res.writableEnded) {
               try { res.end(); } catch (_e) {}
@@ -2924,6 +3108,12 @@ app.post('/api/chat', async (req, res) => {
           res.json(data);
         }
       } catch (error) {
+        if (error?.name === 'AbortError' || error?.type === 'aborted' || clientDisconnected) {
+          if (!res.writableEnded) {
+            try { res.end('data: [DONE]\n\n'); } catch (_e) {}
+          }
+          return;
+        }
         console.error('[CHAT] Regular chat error:', error);
         // Sanitize error message to hide API details
         const sanitizedError = humanizeError(error.message);

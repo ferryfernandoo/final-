@@ -9,10 +9,10 @@
 import fetch from 'node-fetch';
 import { apiKeyManager } from './apiKeyManager.js';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || process.env.VITE_DEEPSEEK_API_KEY || '';
+const DEEPSEEK_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || 'sk-tm-0oMaTRPBJiEibFQ6SpC7MUNdYrTnLf2QIMhNXEzvvKZZ8cSi';
 // Use mock server only when explicitly requested
 const USE_MOCK = process.env.USE_MOCK === 'true';
-const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
+const DEEPERNOVA_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 const DEEPSEEK_API_URL = DEEPERNOVA_API_URL;
 
 /**

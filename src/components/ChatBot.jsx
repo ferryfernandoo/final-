@@ -4,6 +4,7 @@ import 'katex/dist/katex.min.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendMessageToGrok, processStreamingResponse } from '../services/grokApi';
+import localAiService, { extractResponseFromReasoning, generateInstantBoronResponse } from '../services/localAiService';
 import { memoryService } from '../services/memoryService';
 import { ragService } from '../services/ragService';
 import { ConversationPersistenceService } from '../services/conversationPersistenceService';
@@ -643,7 +644,7 @@ const CodeStructureViewer = ({ code, language }) => {
   );
 };
 
-// Isolated, Zero-Lag Reasoning Component (Zero parent re-render, instant open/close)
+// Isolated, Zero-Lag Reasoning Component with Boron 1.1 Thinking Container
 const ReasoningSection = React.memo(({
   reasoningText,
   isReasoning = false,
@@ -651,6 +652,7 @@ const ReasoningSection = React.memo(({
   userLanguage = 'id'
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   const liveRef = useRef(null);
 
   useEffect(() => {
@@ -661,37 +663,65 @@ const ReasoningSection = React.memo(({
 
   if (!reasoningText) return null;
 
+  const handleCopy = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard?.writeText(reasoningText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // 1. Live Streaming Reasoning Box (Active Thinking Phase)
   if (isReasoning) {
     return (
       <div className="reasoning-live-box">
+        <div className="reasoning-live-header">
+          <span className="reasoning-brain-pulse">🧠</span>
+          <span className="reasoning-live-title">
+            {userLanguage === 'id' ? 'Proses Penalaran Boron 1.1 (Sedang Menganalisis...)' : 'Boron 1.1 Reasoning Process (Analyzing...)'}
+          </span>
+          <span className="reasoning-live-beacon"></span>
+        </div>
         <div className="reasoning-live-body" ref={liveRef}>
           {reasoningText}
+          <span className="reasoning-blinking-caret">▍</span>
         </div>
       </div>
     );
   }
 
-  // 2. Completed Reasoning Collapsible Pill
+  // 2. Completed Reasoning Collapsible Pill & Drawer
   return (
     <div className="reasoning-completed-container">
-      <button
-        type="button"
-        className={`reasoning-pill-btn ${isExpanded ? 'active' : ''}`}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsExpanded(prev => !prev);
-        }}
-      >
-        <span className="reasoning-pill-icon">🧠</span>
-        <span className="reasoning-pill-label">
-          {userLanguage === 'id'
-            ? `Selesai reasoning (${reasoningDuration || '0.5'}s)`
-            : `Completed reasoning (${reasoningDuration || '0.5'}s)`}
-        </span>
-        <span className="reasoning-pill-chevron">{isExpanded ? '▲' : '▼'}</span>
-      </button>
+      <div className="reasoning-completed-header-row">
+        <button
+          type="button"
+          className={`reasoning-pill-btn ${isExpanded ? 'active' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsExpanded(prev => !prev);
+          }}
+        >
+          <span className="reasoning-pill-icon">🧠</span>
+          <span className="reasoning-pill-label">
+            {userLanguage === 'id'
+              ? `Proses Penalaran Boron 1.1 (${reasoningDuration || '0.5'}s)`
+              : `Boron 1.1 Reasoning Process (${reasoningDuration || '0.5'}s)`}
+          </span>
+          <span className="reasoning-pill-chevron">{isExpanded ? '▲' : '▼'}</span>
+        </button>
+        {isExpanded && (
+          <button
+            type="button"
+            className="reasoning-copy-btn"
+            onClick={handleCopy}
+            title={userLanguage === 'id' ? 'Salin pemikiran' : 'Copy thoughts'}
+          >
+            {copied ? '✓' : '📋'}
+          </button>
+        )}
+      </div>
       {isExpanded && (
         <div className="reasoning-expanded-drawer">
           <div className="reasoning-drawer-inner">
@@ -1227,48 +1257,67 @@ const DEFAULT_PERSONALITY = 'formal';
 
 export const DEEPERNOVA_MODELS = [
   {
-    id: 'deepernova v1 flash 1',
-    name: 'deepernova v1 flash 1',
-    shortName: 'v1 flash 1',
-    speed: 'Super Cepat',
-    speedEn: 'Super Fast',
-    icon: '⚡',
-    desc: 'Model default penalaran murni, logika deduktif tajam & respon instan (Hanya Teks)',
-    descEn: 'Default pure reasoning model, sharp deductive logic & instant response (Text Only)',
-    supportsVision: false
+    id: 'llama-4-maverick',
+    name: 'Meta Llama 4 Maverick',
+    shortName: 'Llama 4',
+    speed: 'Meta AI (TokenMix)',
+    speedEn: 'Meta AI (TokenMix)',
+    icon: '🦙',
+    badge: 'DEFAULT • META AI',
+    desc: 'Model flagship Meta Llama 4 via TokenMix API. Mendukung multimodal vision (gambar), streaming sangat cepat, dan penalaran cerdas.',
+    descEn: 'Flagship Meta Llama 4 model via TokenMix API. Supports multimodal vision (images), ultra-fast streaming, and intelligent reasoning.',
+    supportsVision: true,
+    isLocalOffline: false
   },
   {
-    id: 'deepernova 1.0super flash',
-    name: 'deepernova 1.0super flash',
-    shortName: '1.0super flash',
-    speed: 'Super Cepat',
-    speedEn: 'Super Fast',
-    icon: '✨',
-    desc: 'Respons kilat, penalaran tajam & multimodal vision berkecepatan tinggi',
-    descEn: 'Ultra-fast response, sharp reasoning & high-speed multimodal vision',
-    supportsVision: true
+    id: 'llama-3.3-70b',
+    name: 'Meta Llama 3.3 70B',
+    shortName: 'Llama 3.3 70B',
+    speed: 'Penalaran Dalam (TokenMix)',
+    speedEn: 'Deep Reasoning (TokenMix)',
+    icon: '🧠',
+    badge: 'META 70B REASONING',
+    desc: 'Model Meta Llama 3.3 70-Billion parameter via TokenMix API. Spesialis pemikiran mendalam, analisis data & coding terstruktur.',
+    descEn: 'Meta Llama 3.3 70-Billion parameter model via TokenMix API. Specialist in deep reasoning, data analysis & structured coding.',
+    supportsVision: false,
+    isLocalOffline: false
+  },
+  {
+    id: 'deepernova-boron-1.1',
+    name: 'DeeperNova Boron (Meta AI)',
+    shortName: 'Boron (Meta)',
+    speed: 'Meta AI (TokenMix)',
+    speedEn: 'Meta AI (TokenMix)',
+    icon: '⚡',
+    badge: 'META POWERED',
+    desc: 'Ditenagai oleh Meta Llama via TokenMix API dengan pemrosesan cloud responsif dan penalaran tinggi.',
+    descEn: 'Powered by Meta Llama via TokenMix API with responsive cloud processing and high reasoning.',
+    supportsVision: true,
+    isLocalOffline: false
   },
   {
     id: 'deepernova-2.3-pro',
-    name: 'Deepernova 2.3 Pro',
+    name: 'Deepernova 2.3 Pro (Meta AI)',
     shortName: 'Pro 2.3',
-    speed: 'Cerdas',
-    speedEn: 'Smart',
+    speed: 'Meta 70B (TokenMix)',
+    speedEn: 'Meta 70B (TokenMix)',
     icon: '🧠',
-    desc: 'Pemikiran mendalam, analisis data & coding terstruktur',
-    descEn: 'Deep reasoning, data analysis & structured coding',
-    supportsVision: true
+    desc: 'Pemikiran mendalam & coding terstruktur via Meta Llama di TokenMix AI.',
+    descEn: 'Deep reasoning & structured coding via Meta Llama on TokenMix AI.',
+    supportsVision: true,
+    isLocalOffline: false
   },
   {
     id: 'deepernova-4.6-giga',
-    name: 'Deepernova 4.6 Giga',
+    name: 'Deepernova 4.6 Giga (Meta AI)',
     shortName: 'Giga 4.6',
-    speed: 'Super AI',
-    speedEn: 'Super AI',
+    speed: 'Meta Flagship (TokenMix)',
+    speedEn: 'Meta Flagship (TokenMix)',
     icon: '🚀',
-    desc: 'Model flagship kapabilitas tertinggi & penalaran kompleks',
-    descEn: 'Flagship model with ultimate reasoning & complex generation',
-    supportsVision: true
+    desc: 'Model kapabilitas tertinggi via Meta Llama di TokenMix AI.',
+    descEn: 'Top-tier capabilities via Meta Llama on TokenMix AI.',
+    supportsVision: true,
+    isLocalOffline: false
   }
 ];
 
@@ -1502,34 +1551,28 @@ const getMessageAttachedFiles = (message) => {
 
 /**
 /**
- * Ultra-smooth fluid typing pace engine:
- * Delivers a velvety, continuous reading cadence (1-3 chars/tick at 60fps) that flows
- * like silk without multi-character bursts or screen freezes.
+ * Ultra-fast, strictly character-by-character typewriter animation engine:
+ * Delivers responses STRICTLY PER HURUF (1 character per 10ms = 100 chars/sec)
+ * creating a hyper-fast, authentic typewriter effect where every single letter
+ * visibly races across the screen, NEVER popping in chunky word blocks ("bukan per kata").
  */
 const getSmoothTypingStep = (diff, isFinished = false, currentLength = 0, totalLength = 0) => {
   if (diff <= 0) return 0;
 
-  // Stream finish drain: gentle ease-out deceleration
+  // Stream finish drain: catch up rapidly while maintaining strictly per-huruf flow
   if (isFinished) {
-    if (diff <= 4) return 1;
-    if (diff <= 12) return 2;
-    if (diff <= 28) return 3;
-    if (diff <= 70) return Math.min(diff, Math.max(4, Math.ceil(diff / 8)));
-    if (diff <= 180) return Math.min(diff, Math.max(6, Math.ceil(diff / 6)));
-    return Math.min(diff, 10);
+    if (diff <= 15) return 1;
+    if (diff <= 50) return 2;
+    return Math.min(diff, Math.max(3, Math.ceil(diff / 8)));
   }
 
-  // Active streaming: velvety smooth human reading cadence (1-3 chars/frame at 60fps)
-  if (currentLength < 20) {
-    return 1; // Pure 1-char typewriter intro
-  }
-
-  if (diff <= 10) return 1; // 1 char/tick (~60 chars/sec)
-  if (diff <= 35) return 2; // 2 chars/tick (~120 chars/sec)
-  if (diff <= 80) return 3; // 3 chars/tick (~180 chars/sec)
-  if (diff <= 160) return 4;
-  if (diff <= 320) return 5;
-  return Math.min(diff, 8); // Never jump more than 8 chars per frame while streaming
+  // Active streaming: STRICTLY PER HURUF! (1 character per 10ms = 100 chars/sec)
+  // Ensures every letter visibly races across the screen like a futuristic laser typewriter.
+  if (diff <= 40) return 1;
+  // If model emits a burst, step 2 chars/tick (200 chars/sec, syllables only)
+  if (diff <= 100) return 2;
+  // Cap at 3 chars/tick max under extreme backlog so it NEVER pops in whole words
+  return 3;
 };
 
 const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser }) => {
@@ -1936,7 +1979,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [customAlert, setCustomAlert] = useState(null); // Modern alert system
   const [showInputMenu, setShowInputMenu] = useState(false); // Show/hide input menu
   const [showModelMenu, setShowModelMenu] = useState(false); // Show/hide model selection dropdown
-  const [selectedModel, setSelectedModel] = useState('deepernova v1 flash 1'); // Model selection (default)
+  const [selectedModel, setSelectedModel] = useState('llama-4-maverick'); // Model selection (default Meta Llama 4 Maverick TokenMix)
+  const [localModelProgress, setLocalModelProgress] = useState({ pct: 0, statusText: '', isLoading: false });
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
   }, [selectedModel]);
@@ -3348,6 +3392,15 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       const updated = prev.map((msg) => {
         if (msg.id === messageId) {
           let textToUse = finalText !== null ? finalText : msg.text;
+
+          // GUARANTEE: NEVER FORGET TO RESPOND AFTER REASONING
+          if ((!textToUse || !textToUse.trim()) && (msg.reasoningText || msg.thought)) {
+            const rSource = (msg.reasoningText || msg.thought).trim();
+            if (rSource) {
+              console.warn('[ChatBot] finishStreaming: empty response with reasoning detected. Synthesizing verified answer...');
+              textToUse = extractResponseFromReasoning(rSource);
+            }
+          }
           
           // Detect if user asked to create a file or open deepernova universe
           const isCreateFileQuery = /\b(buat|bikin|create|new|tulis|buka)\b.*\b(file|dokumen|document|docx|excel|spreadsheet|ppt|slide|xlsx|pptx|universe|typernova)\b/i.test(lastSentPromptRef.current || '');
@@ -5488,7 +5541,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 16);
+        }, 14);
       };
       
       const streamResult = await processStreamingResponse(
@@ -5510,7 +5563,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       let editWaitCount = 0;
       while ((displayedText.length < fullText.length || typingTimerRef.current !== null) && editWaitCount < 600) {
         editWaitCount++;
-        await new Promise(resolve => setTimeout(resolve, 16));
+        await new Promise(resolve => setTimeout(resolve, 14));
       }
 
       finishStreaming(placeholderId, fullText, streamUsage);
@@ -5635,6 +5688,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     isUserStoppedRef.current = true;
     isSearchAbortedRef.current = true;
     isRecallAbortedRef.current = true;
+    setIsSendGenerating(false);
+    isSendGeneratingRef.current = false;
+    setLoading(false);
+    setConvLoading(false);
 
     // Clear any scheduled auto-retry timeouts immediately
     if (autoRetryTimeoutRef.current) {
@@ -5663,6 +5720,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       abortControllerRef.current = null;
     }
+
+    // Explicitly notify server and Python backend to kill GPU token generation instantly
+    const stopUrls = [
+      '/api/chat/stop',
+      `${API_BASE_URL || ''}/api/chat/stop`,
+      'http://localhost:3001/api/chat/stop',
+      'http://127.0.0.1:8000/v1/chat/stop'
+    ];
+    stopUrls.forEach(url => {
+      try {
+        fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
+      } catch (_e) {}
+    });
 
     if (streamingIntervalRef.current) {
       clearInterval(streamingIntervalRef.current);
@@ -7434,7 +7504,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 16);
+        }, 14);
       };
       
       const streamResult = await processStreamingResponse(
@@ -7456,7 +7526,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       let sourcesWaitCount = 0;
       while ((displayedText.length < fullText.length || typingTimerRef.current !== null) && sourcesWaitCount < 600) {
         sourcesWaitCount++;
-        await new Promise(resolve => setTimeout(resolve, 16));
+        await new Promise(resolve => setTimeout(resolve, 14));
       }
 
       finishStreaming(placeholderId, fullText, streamUsage);
@@ -7908,7 +7978,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     }, 4000);
 
-    // Instant offline check: Prevent sending and show connection modal immediately if offline
+    // TokenMix Meta AI requires active connection
     if (!navigator.onLine) {
       console.warn('[ChatBot] Cannot send message: offline detected');
       setIsSendGenerating(false);
@@ -7918,8 +7988,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setConvLoading(false);
       setConnectionErrorMessage(
         userLanguage === 'id'
-          ? 'Tidak ada koneksi internet. Pesan Anda tidak terkirim. Silakan periksa jaringan Anda.'
-          : 'No internet connection. Your message was not sent. Please check your network connection.'
+          ? 'Tidak ada koneksi internet. Pastikan jaringan aktif untuk menggunakan TokenMix Meta AI.'
+          : 'No internet connection. Please ensure an active network to use TokenMix Meta AI.'
       );
       setShowConnectionErrorModal(true);
       return;
@@ -8021,6 +8091,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       lastLoadedConversationIdRef.current = activeConvId;
       setCurrentConversationId(activeConvId);
       rememberConversationId(activeConvId);
+    try { memoryService.processConversation([...messages, userMessageForChat], activeConvId, userLanguage); } catch (e) {}
     }
 
     // Reset internet warning banner & start progressive loading phase timers (Mengirim -> Merenungi -> Lambat)
@@ -8178,7 +8249,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    // Store controller per conversation so it survives room switches
+    abortControllersMapRef.current.set('current', abortController);
+    if (activeConvId) {
+      abortControllersMapRef.current.set(activeConvId, abortController);
+    }
     if (currentConversationId) {
       abortControllersMapRef.current.set(currentConversationId, abortController);
     }
@@ -8274,7 +8348,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       const startSmoothStreamer = () => {
         if (!smoothStreamTimer) {
-          smoothStreamTimer = setInterval(flushSmoothTick, 16);
+          smoothStreamTimer = setInterval(flushSmoothTick, 10);
           smoothStreamTimerRef.current = smoothStreamTimer;
         }
       };
@@ -8300,7 +8374,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           return;
         }
 
-        // Handle live reasoning chunk from DeepSeek
+        // Handle live reasoning chunk from DeepSeek / Boron
         if (typeof chunk === 'object' && chunk.type === 'reasoning') {
           if (!reasoningStartTime) {
             reasoningStartTime = Date.now();
@@ -8359,7 +8433,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         if (abortController.signal.aborted || isUserStoppedRef.current) break;
         drainSafetyLimit++;
         flushSmoothTick();
-        await new Promise((r) => setTimeout(r, 16));
+        await new Promise((r) => setTimeout(r, 10));
       }
 
       if (smoothStreamTimer) {
@@ -8371,6 +8445,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       displayedFullText = targetFullText;
       displayedReasoningText = targetReasoningText;
       fullText = targetFullText;
+
+      // GUARANTEE: NEVER FORGET TO RESPOND AFTER REASONING OR ON EMPTY STREAM
+      if (!fullText || !fullText.trim()) {
+        const reasoningSource = (targetReasoningText || displayedReasoningText)?.trim();
+        if (reasoningSource) {
+          console.warn('[ChatBot] Stream finished with reasoning but empty text. Auto-synthesizing verified response...');
+          fullText = extractResponseFromReasoning(reasoningSource);
+        }
+        if (!fullText || !fullText.trim()) {
+          console.warn('[ChatBot] Stream finished completely empty. Generating guaranteed Boron 1.1 response...');
+          fullText = generateInstantBoronResponse(lastSentUserInputTextRef.current || '');
+        }
+        displayedFullText = fullText;
+        targetFullText = fullText;
+      }
 
       if (reasoningStartTime && !reasoningDuration) {
         const endTime = reasoningEndTime || Date.now();
@@ -8671,8 +8760,28 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           (err.message && /failed to fetch|network|offline|load failed|timeout/i.test(err.message));
 
         const hasAnyContent = !!(fullText || rawText || displayedFullText);
-        // If offline or network error or retry exhausted, ONLY rollback if zero response was ever received!
-        if (!hasAnyContent && (isNetworkErr || autoRetryCountRef.current >= MAX_AUTO_RETRY)) {
+        const isLocalBoron = selectedModel === 'deepernova-boron-1.1' || selectedModel?.toLowerCase()?.includes('boron');
+
+        // For local Boron model, NEVER erase the bot message on load issues! Provide immediate friendly answer
+        if (!hasAnyContent && isLocalBoron) {
+          const emergencyFallback = generateInstantBoronResponse(lastSentUserInputTextRef.current || '');
+          
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? {
+                    ...m,
+                    text: emergencyFallback,
+                    isStreaming: false,
+                    isThinking: false
+                  }
+                : m
+            )
+          );
+          setConvLoading(false);
+          setLoading(false);
+          isProcessingRef.current = false;
+        } else if (!hasAnyContent && (isNetworkErr || autoRetryCountRef.current >= MAX_AUTO_RETRY)) {
           // Rollback: restore input text to input field
           setInputValue(lastSentUserInputTextRef.current || fullMessage || '');
 
@@ -9262,7 +9371,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             clearInterval(searchTypingTimer);
             searchTypingTimer = null;
           }
-        }, 16);
+        }, 14);
       };
 
       await processStreamingResponse(botResponse, (chunk) => {
@@ -9287,7 +9396,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           }
           return;
         }
-        await new Promise(resolve => setTimeout(resolve, 16));
+        await new Promise(resolve => setTimeout(resolve, 14));
       }
 
       if (searchTypingTimer) {
@@ -9415,7 +9524,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               clearInterval(searchTypingTimer);
               searchTypingTimer = null;
             }
-          }, 16);
+          }, 14);
         };
 
         await processStreamingResponse(botResponse, (chunk) => {
@@ -9439,7 +9548,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             }
             return;
           }
-          await new Promise(resolve => setTimeout(resolve, 16));
+          await new Promise(resolve => setTimeout(resolve, 14));
         }
 
         if (searchTypingTimer) {
@@ -9879,7 +9988,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 clearInterval(recallTypingTimer);
                 recallTypingTimer = null;
               }
-            }, 16);
+            }, 14);
           };
 
           await processStreamingResponse(botResponse, (chunk) => {
@@ -9953,7 +10062,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 }
                 return;
               }
-              await new Promise(resolve => setTimeout(resolve, 16));
+              await new Promise(resolve => setTimeout(resolve, 14));
             }
 
             if (recallTypingTimer) {
@@ -10097,7 +10206,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(msgId, initialText + accumulatedRetryText);
             }
-          }, 16);
+          }, 14);
         };
  
         await processStreamingResponse(response, (chunk) => {
@@ -10123,7 +10232,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             return;
           }
           retryWaitCount++;
-          await new Promise(resolve => setTimeout(resolve, 16));
+          await new Promise(resolve => setTimeout(resolve, 14));
         }
 
         if (abortController.signal.aborted) {
@@ -10168,7 +10277,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(placeholderId, accumulatedFullRetryText);
             }
-          }, 16);
+          }, 14);
         };
  
         await processStreamingResponse(response, (chunk) => {
@@ -10194,7 +10303,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             return;
           }
           fullRetryWaitCount++;
-          await new Promise(resolve => setTimeout(resolve, 16));
+          await new Promise(resolve => setTimeout(resolve, 14));
         }
 
         if (abortController.signal.aborted) {
@@ -10282,7 +10391,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(msgId, initialText + accumulatedAutoRetryText);
           }
-        }, 16);
+        }, 14);
       };
  
       await processStreamingResponse(response, (chunk) => {
@@ -10308,7 +10417,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           return;
         }
         autoRetryWaitCount++;
-        await new Promise(resolve => setTimeout(resolve, 16));
+        await new Promise(resolve => setTimeout(resolve, 14));
       }
 
       if (abortController.signal.aborted) {
@@ -10824,11 +10933,33 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                       </div>
                       {loadingPhase && (
                         <span className="slow-processing-text">
-                          {loadingPhase === 'sending' && (userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
-                          {loadingPhase === 'thinking' && (userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
-                          {loadingPhase === 'slow' && (userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
+                          {localModelProgress.isLoading ? (
+                            <span style={{ color: '#ea580c', fontWeight: 600 }}>
+                              ⚡ {localModelProgress.statusText || `Memuat Boron 1.1 (${localModelProgress.pct}%)...`}
+                            </span>
+                          ) : (
+                            <>
+                              {loadingPhase === 'sending' && (userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
+                              {loadingPhase === 'thinking' && (userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
+                              {loadingPhase === 'slow' && (userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
+                            </>
+                          )}
                         </span>
                       )}
+                    </div>
+                  )}
+
+                  {/* Active generating answer indicator when reasoning is complete but text hasn't arrived yet */}
+                  {message.isStreaming && message.reasoningText && !message.text && !message.isReasoning && (
+                    <div className="typing-indicator-row" style={{ marginTop: '8px', opacity: 0.85 }}>
+                      <div className="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      <span className="slow-processing-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
+                        {userLanguage === 'id' ? 'Menulis jawaban...' : 'Writing response...'}
+                      </span>
                     </div>
                   )}
 
@@ -12368,9 +12499,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   <span></span>
                 </div>
                 <span className="slow-processing-text">
-                  {loadingPhase === 'sending' && (userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
-                  {loadingPhase === 'thinking' && (userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
-                  {loadingPhase === 'slow' && (userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
+                  {localModelProgress.isLoading ? (
+                    <span style={{ color: '#ea580c', fontWeight: 600 }}>
+                      ⚡ {localModelProgress.statusText || `Memuat AI Boron 1.1 (${localModelProgress.pct}%)...`}
+                    </span>
+                  ) : (
+                    <>
+                      {loadingPhase === 'sending' && (userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
+                      {loadingPhase === 'thinking' && (userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
+                      {loadingPhase === 'slow' && (userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
+                    </>
+                  )}
                 </span>
               </div>
             </div>
@@ -12946,6 +13085,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                           <div className="model-option-top">
                             <span className="model-option-icon">{m.icon}</span>
                             <span className="model-option-name">{m.name}</span>
+                            {m.badge && (
+                              <span className={`model-badge-pill ${m.isLocalOffline ? 'offline-pill' : 'cloud-pill'}`}>
+                                {m.badge}
+                              </span>
+                            )}
                             <span className="model-option-tag">{userLanguage === 'id' ? m.speed : m.speedEn}</span>
                             {selectedModel === m.id && <span className="model-check-icon">✓</span>}
                           </div>

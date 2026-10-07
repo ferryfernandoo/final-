@@ -155,51 +155,64 @@ class MemoryService {
    */
   extractMemories(messages, conversationId, _language = 'en') {
     const extracted = [];
+    if (!Array.isArray(messages)) return extracted;
     
     messages.forEach((msg) => {
-      if (msg.sender === 'user' && msg.text.length > 20) {
-        const keywords = this.extractKeywords(msg.text);
+      const isUser = (msg.sender === 'user' || msg.role === 'user');
+      const text = (msg.text || msg.content || '').trim();
+      
+      if (isUser && text.length >= 3) {
+        const keywords = this.extractKeywords(text);
         
-        // Rules for what to remember
-        // 1. User preferences (I like, I prefer, I want)
-        if (/\b(like|prefer|want|need|love|hate|dislike)\b/i.test(msg.text)) {
-          extracted.push({
-            type: 'preference',
-            content: msg.text,
-            weight: 0.9,
-            keywords
-          });
-        }
-        
-        // 2. User facts (I'm, I have, I work, I'm from)
-        if (/\b(im|im|i'm|i have|i work|i'm from|i live)\b/i.test(msg.text) ||
-            /\b(saya|punya|bekerja|dari|tinggal)\b/i.test(msg.text)) {
+        // 1. Identitas & Nama Pengguna (Sangat Prioritas)
+        const nameMatch = text.match(/\b(?:namaku|nama saya|nama ku|panggil aku|panggil saya|aku adalah|saya adalah)\s+([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)?)(?:\s+(?:dan|yang|saat|di|\.|\,)|$)/i) || text.match(/\b(?:namaku|nama saya|nama ku|panggil aku|panggil saya)\s+([A-Za-z0-9_]+)/i);
+        if (nameMatch) {
           extracted.push({
             type: 'fact',
-            content: msg.text,
+            content: 'Nama pengguna: ' + nameMatch[1].trim(),
+            weight: 1.0,
+            keywords: ['nama', 'pengguna', ...keywords]
+          });
+        }
+
+        // 2. Proyek / Aktivitas / Fokus Obrolan
+        const projectMatch = text.match(/\b(?:sedang|lagi|membuat|bikin|proyek|project|bekerja|kerja|fokus|mengembangkan|belajar)\s+([^.!?\n]{3,80})/i);
+        if (projectMatch) {
+          extracted.push({
+            type: 'context',
+            content: 'Aktivitas/Proyek: ' + text.slice(0, 150),
+            weight: 0.9,
+            keywords: ['proyek', 'aktivitas', ...keywords]
+          });
+        }
+
+        // 3. Preferensi & Minat Pengguna
+        if (/\b(like|prefer|want|need|love|hate|dislike|suka|gemar|senang|favorit|hobi|ingin|mau)\b/i.test(text)) {
+          extracted.push({
+            type: 'preference',
+            content: text.slice(0, 150),
             weight: 0.85,
             keywords
           });
         }
         
-        // 3. Context patterns (when, how often, usually)
-        if (/\b(when|how often|usually|always|never|daily|weekly|context)\b/i.test(msg.text) ||
-            /\b(kapan|berapa sering|biasanya|selalu|tidak pernah|setiap)\b/i.test(msg.text)) {
+        // 4. Fakta Profil Pribadi
+        if (/\b(saya|aku|punya|bekerja|dari|tinggal|asal|rumah|tinggal di|asal dari)\b/i.test(text) && text.length > 8) {
           extracted.push({
-            type: 'pattern',
-            content: msg.text,
-            weight: 0.75,
+            type: 'fact',
+            content: text.slice(0, 150),
+            weight: 0.85,
             keywords
           });
         }
         
-        // 4. Important context (long and specific messages)
-        if (msg.text.length > 100 && keywords.length > 5) {
+        // 5. Pola & Konteks Kebiasaan
+        if (/\b(when|how often|usually|always|never|daily|weekly|kapan|berapa sering|biasanya|selalu|tidak pernah|setiap)\b/i.test(text)) {
           extracted.push({
-            type: 'context',
-            content: msg.text.substring(0, 200), // Limit length
-            weight: 0.6,
-            keywords: keywords.slice(0, 10)
+            type: 'pattern',
+            content: text.slice(0, 150),
+            weight: 0.75,
+            keywords
           });
         }
       }

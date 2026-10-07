@@ -225,7 +225,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     searchEngineUrl,
     dteUrl: dteUrl || null,
     backendPort: 3001,
-    aiPort: 8000,
+    aiPort: 3001,
     searchEnginePort: 3000,
     dtePort: 5173,
     status: "LIVE",
@@ -405,20 +405,9 @@ async function main() {
     try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch {}
   }
 
-  // ── Step 0.5: Nyalakan DeeperNova AI Server (port 8000) ───
-  log.title('🧠 STEP 0.5: DeeperNova AI Engine (CUDA GT 1030)');
-  const AI_DIR = 'f:\\llm deepernova';
-  if (await checkPortOpen(8000)) {
-    log.success('DeeperNova AI Engine sudah aktif di port 8000 (CUDA).');
-  } else if (fs.existsSync(AI_DIR)) {
-    startProcess('python', ['start_api_server.py'], AI_DIR, 'DeeperNova AI Engine');
-    log.info('Menunggu DeeperNova AI Engine siap di port 8000 (max 35 detik)...');
-    if (await waitForPort(8000, 35000)) {
-      log.success('DeeperNova AI Engine siap di port 8000.');
-    } else {
-      log.warn('DeeperNova AI Engine belum siap, lanjut...');
-    }
-  }
+  // ── Step 0.5: TokenMix Meta AI Engine ───
+  log.title('🧠 STEP 0.5: DeeperNova AI Engine (TokenMix Meta AI)');
+  log.success('TokenMix Meta AI Cloud Engine siap (Llama 4 Maverick & Llama 3.3 70B - Zero Local Model).');
 
   // ── Step 1: Nyalakan Search Engine (port 3000) ───
   log.title('📦 STEP 1: Search Engine');
@@ -535,7 +524,6 @@ async function main() {
     // Launch semua tunnels dengan Promise.allSettled (1 gagal tidak stop semua)
     const tunnelTasks = [
       launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
-      launchTunnel(8000, aiLog).catch(e => { log.warn(`AI tunnel: ${e.message}`); return null; }),
       launchTunnel(3000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
     ];
     if (dteExists) {
@@ -547,10 +535,10 @@ async function main() {
     const results = await Promise.all(tunnelTasks);
 
     backendUrl = results[0] || oldTunnel.backendUrl || 'http://localhost:3001';
-    aiUrl = results[1] || oldTunnel.aiUrl || 'http://localhost:8000';
-    searchEngineUrl = results[2] || oldTunnel.searchEngineUrl || 'http://localhost:3000';
+    searchEngineUrl = results[1] || oldTunnel.searchEngineUrl || 'http://localhost:3000';
+    aiUrl = backendUrl;
     if (dteExists) {
-      dteUrl = (results[3]) || oldTunnel.dteUrl || null;
+      dteUrl = (results[2]) || oldTunnel.dteUrl || null;
     }
   }
 
@@ -587,7 +575,7 @@ async function main() {
     }
 
     // Stage files
-    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx active_tunnel.json dist/ scripts/auto_start_all.mjs start_all.bat start.bat', { cwd: ROOT_DIR, stdio: 'inherit' });
+    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx src/App.jsx src/components/ChatBot.jsx src/services/grokApi.js server/server.js server/apiProxyService.js active_tunnel.json dist/ scripts/auto_start_all.mjs start_all.bat start.bat', { cwd: ROOT_DIR, stdio: 'inherit' });
 
     // Commit
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);

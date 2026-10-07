@@ -29,7 +29,9 @@
   box-sizing: border-box;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -42,7 +44,10 @@ body {
   overflow-x: hidden;
 }
 
-html, body, #root, .chatbot-app {
+html,
+body,
+#root,
+.chatbot-app {
   font-family: var(--sans);
 }
 
@@ -56,7 +61,12 @@ html, body, #root, .chatbot-app {
   box-sizing: border-box;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--heading);
   font-weight: 600;
   color: var(--text-h);
@@ -79,7 +89,8 @@ p {
   margin: 0;
 }
 
-code, .counter {
+code,
+.counter {
   font-family: var(--mono);
   display: inline-flex;
   border-radius: 4px;

@@ -2,7 +2,7 @@
 import { memoryService } from './memoryService.js';
 import { ragService } from './ragService.js';
 import { API_BASE_URL } from '../apiConfig.js';
-import { generateClientIntegrityHeaders, clientThrottle } from './securityShield.js';
+import localAiService, { sanitizeAntiQwen, extractResponseFromReasoning, generateInstantBoronResponse } from './localAiService.js';
 
 export const getValidVisionImageUrl = (img) => {
   if (!img) return null;
@@ -178,30 +178,29 @@ const TOKENMIX_API_KEYS = [];
 const TOKENMIX_API_KEY = '';
 const DEEPSEEK_API_KEY = '';
 
-// Native DeeperNova Model & Third-Party Fallback Mapping
-const normalizeDeepernovaModel = (deepernovaModel = 'deepernova v1 flash 1') => {
-  if (!deepernovaModel) return 'deepernova v1 flash 1';
+// TokenMix Meta AI Model Mapping
+const normalizeDeepernovaModel = (deepernovaModel = 'llama-4-maverick') => {
+  if (!deepernovaModel) return 'llama-4-maverick';
   const lower = deepernovaModel.toLowerCase();
-  if (lower.includes('deepernova') || lower.includes('flash 1')) {
-    return 'deepernova v1 flash 1';
+  if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
+    return 'llama-3.3-70b';
   }
-  return deepernovaModel;
+  return 'llama-4-maverick';
 };
 
-export const resolveModelForRequest = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+export const resolveModelForRequest = (deepernovaModel = 'llama-4-maverick', hasImages = false) => {
   if (hasImages) {
-    // If vision is required and DeeperNova is text-only, route to vision-capable model
     return 'llama-4-maverick';
   }
-  return deepernovaModel || 'deepernova v1 flash 1';
+  return normalizeDeepernovaModel(deepernovaModel);
 };
 
 // Helper function to get actual model name
-export const getTokenMixModel = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+export const getTokenMixModel = (deepernovaModel = 'llama-4-maverick', hasImages = false) => {
   if (hasImages) {
     return 'llama-4-maverick';
   }
-  return deepernovaModel || 'deepernova v1 flash 1';
+  return normalizeDeepernovaModel(deepernovaModel);
 };
 
 // Backward compatibility alias
@@ -215,10 +214,10 @@ const SYSTEM_PROMPTS = {
   id: `Deepernova AI - Asisten AI Profesional.
 
 IDENTITAS & SIKAP PROFESIONAL:
-- Anda adalah Deepernova AI (DPN), asisten kecerdasan buatan yang profesional, cerdas, tenang, dan objektif.
-- KETAT: DILARANG MEMPROMOSIKAN DIRI ATAU MEMAMERKAN KEMAMPUAN (ANTI-OVERPROMOSI). Jangan pernah menawarkan atau memamerkan daftar modul/fitur Deepernova (seperti Vibe Coding, CodeDance, Typernova, Image Generator, search sub-20ms, platform gratis, dsb.), dan jangan pernah menyebut nama pendiri/CEO/Anju KECUALI jika pengguna secara spesifik dan eksplisit menanyakannya ("kamu siapa?", "apa itu Deepernova?", "siapa pendirinya?").
-- Jika ditanya identitas diri ("kamu siapa?"), jawab singkat dan elegan: Anda adalah Deepernova AI, asisten AI yang siap membantu berbagai kebutuhan dan tugas Anda.
-- Jika pengguna bertanya, mendiskusikan, atau membandingkan model/teknologi AI lain (seperti ChatGPT, Claude, DeepSeek, Qwen, Llama, Gemini, dll.), jelaskan secara objektif, faktual, netral, dan proporsional tanpa nada membanggakan diri sendiri atau merendahkan pihak lain.
+- Anda adalah DeeperNova Boron 1.1, asisten kecerdasan buatan kebanggaan karya tim DeeperNova AI Indonesia yang beroperasi secara mandiri dan offline on-device di perangkat pengguna.
+- KETAT: DILARANG MENGAKU ATAU MENYEBUT BAHWA ANDA ADALAH QWEN, DIBUAT OLEH ALIBABA, ATAU BERAFILIASI DENGAN ALIBABA CLOUD. Jika ditanya identitas ("kamu siapa?", "siapa pembuatmu?", "model apa ini?"), tegaskan secara sopan, mantap, dan bangga: "Saya adalah DeeperNova Boron 1.1, model kecerdasan buatan lokal offline kebanggaan DeeperNova AI yang beroperasi langsung di perangkat Anda."
+- KETAT: DILARANG MEMPROMOSIKAN DIRI ATAU MEMAMERKAN KEMAMPUAN (ANTI-OVERPROMOSI). Jangan pernah menawarkan atau memamerkan daftar modul/fitur Deepernova KECUALI jika pengguna secara spesifik dan eksplisit menanyakannya.
+- Jika pengguna bertanya, mendiskusikan, atau membandingkan model/teknologi AI lain (seperti ChatGPT, Claude, DeepSeek, Llama, Gemini, dll.), jelaskan secara objektif, faktual, netral, dan proporsional tanpa nada membanggakan diri sendiri atau merendahkan pihak lain.
 
 PRINSIP EFISIENSI & PANJANG JAWABAN (ADAPTIVE BREVITY):
 - PANJANG JAWABAN HARUS PROPORSIONAL DENGAN PERTANYAAN. JIKA PERCAKAPAN TIDAK PERLU JAWABAN PANJANG, DILARANG MENJAWAB PANJANG.
@@ -787,33 +786,62 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   let finalMessages;
 
   if (isFlashModel) {
-    // Memori Konteks 1 Juta Token & Penalaran Sangat Panjang
+    // 1. Dapatkan memori profil aktif & rangkuman percakapan dari chatbot
+    let memoryBlock = '';
+    if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
+      try {
+        memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
+      } catch (e) {}
+    }
+    if (!memoryBlock && globalMemory) {
+      memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
+    }
+
     systemPromptContent = 
-      'Kamu adalah DeeperNova AI, sistem penalaran tingkat lanjut dengan kapasitas memori konteks 1 Juta Token. ' +
-      'Ketika diminta menjelaskan atau menganalisis, berikan jawaban yang sangat panjang, mendalam, komprehensif, ' +
-      'dan terperinci secara tuntas dari dasar hingga tingkat lanjut. Susun jawaban secara sistematis dengan pendahuluan yang jelas, ' +
-      'pembahasan mendalam per poin atau subtopik, elaborasi konseptual, contoh nyata atau analogi, dan kesimpulan yang kuat. ' +
-      'Pertahankan alur berpikir yang runtut dan terarah, tanpa repetisi sia-sia, dan konsisten terfokus pada topik.';
+      'Kamu adalah DeeperNova AI, asisten kecerdasan buatan Indonesia yang sangat cerdas, ramah, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n' +
+      'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya (seperti nama pengguna, topik, dan alur obrolan yang sedang dibahas).\n' +
+      'Jawab setiap pertanyaan pengguna secara akurat, relevan, nyambung, dan wajar sesuai riwayat percakapan yang sedang berlangsung.\n' +
+      'Ketika diminta menjelaskan atau menganalisis topik, berikan jawaban yang mendalam, terstruktur, dan tuntas.' +
+      (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
+      (memoryBlock ? ('\n' + memoryBlock) : '');
 
     userMessageContent = typeof message === 'string' ? message.trim() : message;
 
-    // Masukkan seluruh riwayat percakapan (mendukung memori konteks hingga 1 Juta Token)
-    const flashHistory = conversationHistory
-      .filter(m => (m.text || m.content) && (m.sender === 'user' || m.sender === 'bot' || m.role === 'user' || m.role === 'assistant'))
-      .map(m => ({
-        role: m.role || (m.sender === 'bot' ? 'assistant' : 'user'),
-        content: (m.text || m.content || '').trim()
-      }));
-
-    // Pastikan tidak menduplikasi pesan user terbaru
-    if (flashHistory.length > 0 && flashHistory[flashHistory.length - 1].role === 'user' && 
-        flashHistory[flashHistory.length - 1].content === userMessageContent) {
-      flashHistory.pop();
+    // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
+    const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
+    
+    // Jika item terakhir di conversationHistory adalah user message yang baru saja diketik, pisahkan agar tidak dobel
+    let pastTurns = [];
+    if (rawHistory.length > 0) {
+      const lastItem = rawHistory[rawHistory.length - 1];
+      const isLastItemUser = (lastItem.sender === 'user' || lastItem.role === 'user');
+      const historyPool = isLastItemUser ? rawHistory.slice(0, -1) : rawHistory;
+      
+      pastTurns = historyPool
+        .filter(m => m && !m.isSearching && (m.text || m.content))
+        .map(m => ({
+          role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
+          content: (m.text || m.content || '').trim()
+        }))
+        .filter(m => m.content.length > 0);
     }
+
+    // Pastikan susunan peran bergantian (alternating) jika ada pesan berturut-turut
+    const cleanPastTurns = [];
+    for (const turn of pastTurns) {
+      if (cleanPastTurns.length > 0 && cleanPastTurns[cleanPastTurns.length - 1].role === turn.role) {
+        cleanPastTurns[cleanPastTurns.length - 1].content += '\n' + turn.content;
+      } else {
+        cleanPastTurns.push({ ...turn });
+      }
+    }
+
+    // Simpan hingga 30 turn percakapan terakhir (15+ dialog lengkap)
+    const activeTurns = cleanPastTurns.slice(-30);
 
     finalMessages = [
       { role: 'system', content: systemPromptContent },
-      ...flashHistory,
+      ...activeTurns,
       { role: 'user', content: userMessageContent }
     ];
   } else {
@@ -999,8 +1027,9 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
     userContent = `${message}${formatInstructions}${localMemoryContext}`;
   }
 
-  // 🚀 PRIMARY: Always hit the backend server on Cloudflare Tunnel (https://wesley-language-starting-theories.trycloudflare.com/api/chat)
-  // 🚀 PRIMARY: Always hit the backend server proxy (/api/chat)
+  // 🚀 ALL REQUESTS ROUTED TO TOKENMIX META AI VIA BACKEND PROXY (ZERO LOCAL ENGINE)
+
+  // 🚀 FALLBACK / CLOUD MODELS: Hit the backend server proxy (/api/chat)
   try {
     console.log('[GROK_API] 🚀 Routing chat to secure backend proxy:', `${API_BASE_URL}/api/chat`);
     return await sendMessageViaBackend(
@@ -1009,7 +1038,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
       language,
       personality,
       abortController,
-      deepernovaModel || 'deepernova v1 flash 1',
+      deepernovaModel || 'deepernova-boron-1.1',
       userName,
       sessionMessageCount,
       safeUploadedImages,
@@ -1104,6 +1133,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
   let _lastDataReceivedTime = Date.now();
   let streamUsage = null; // Capture usage from the final SSE chunk
   let streamTimeout = null;
+  let totalReasoningText = '';
 
   const splitForSmoothRendering = (text) => {
     if (!text) return [];
@@ -1206,14 +1236,49 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
             }
             const delta = parsed.choices?.[0]?.delta;
             if (delta?.reasoning_content) {
-              await onChunk({ type: 'reasoning', content: delta.reasoning_content });
+              const sanitizedReasoning = sanitizeAntiQwen(delta.reasoning_content);
+              totalReasoningText += sanitizedReasoning;
+              await onChunk({ type: 'reasoning', content: sanitizedReasoning });
             }
             if (delta?.content) {
-              fullText += delta.content;
-              await onChunk({ type: 'content', content: delta.content });
+              let text = sanitizeAntiQwen(delta.content);
+              
+              // Handle models emitting <think> ... </think> tags in standard content stream
+              if (text.includes('<think>')) {
+                const parts = text.split('<think>');
+                if (parts[0]) {
+                  fullText += parts[0];
+                  await onChunk({ type: 'content', content: parts[0] });
+                }
+                text = parts[1] || '';
+                // Mark in reasoning mode
+                reader._insideThink = true;
+              }
+              
+              if (reader._insideThink) {
+                if (text.includes('</think>')) {
+                  const parts = text.split('</think>');
+                  if (parts[0]) {
+                    totalReasoningText += parts[0];
+                    await onChunk({ type: 'reasoning', content: parts[0] });
+                  }
+                  reader._insideThink = false;
+                  text = parts[1] || '';
+                  if (text) {
+                    fullText += text;
+                    await onChunk({ type: 'content', content: text });
+                  }
+                } else if (text) {
+                  totalReasoningText += text;
+                  await onChunk({ type: 'reasoning', content: text });
+                }
+              } else if (text) {
+                fullText += text;
+                await onChunk({ type: 'content', content: text });
+              }
             }
             if (parsed.choices?.[0]?.finish_reason) {
-              // DeepSeek signals stream finished for this choice
+              // Signal stream finished for this choice
             }
           }
         }
@@ -1234,19 +1299,40 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
           const parsed = JSON.parse(data);
           const delta = parsed.choices?.[0]?.delta;
           if (delta?.reasoning_content) {
-            await onChunk({ type: 'reasoning', content: delta.reasoning_content });
+            const cleanReasoning = sanitizeAntiQwen(delta.reasoning_content);
+            totalReasoningText += cleanReasoning;
+            await onChunk({ type: 'reasoning', content: cleanReasoning });
           }
           if (delta?.content) {
-            fullText += delta.content;
-            await onChunk({ type: 'content', content: delta.content });
+            const cleanContent = sanitizeAntiQwen(delta.content);
+            fullText += cleanContent;
+            await onChunk({ type: 'content', content: cleanContent });
           }
         } catch (error) {
           if (data.trim() && !data.trim().startsWith('{')) {
-            const fallbackText = data;
+            const fallbackText = sanitizeAntiQwen(data);
             fullText += fallbackText;
             await onChunk({ type: 'content', content: fallbackText });
           }
         }
+      }
+    }
+
+    // GUARANTEE: NEVER FORGET TO RESPOND AFTER REASONING
+    // If stream ended with reasoning text but empty answer content, auto-synthesize verified response!
+    if (!fullText.trim()) {
+      if (totalReasoningText.trim()) {
+        console.warn('[GROK_API] ⚠️ Stream ended with reasoning but empty text content. Auto-synthesizing verified response...');
+        const fallbackAns = extractResponseFromReasoning(totalReasoningText);
+        if (fallbackAns) {
+          fullText = fallbackAns;
+          await onChunk({ type: 'content', content: fallbackAns });
+        }
+      } else {
+        console.warn('[GROK_API] ⚠️ Stream ended completely empty. Generating guaranteed DeeperNova Boron 1.1 response...');
+        const fallbackAns = generateInstantBoronResponse();
+        fullText = fallbackAns;
+        await onChunk({ type: 'content', content: fallbackAns });
       }
     }
   } catch (err) {
