@@ -90,6 +90,9 @@ class ApiProxyService {
    */
   resolveTargetModel(modelName = '') {
     const lower = (modelName || '').toLowerCase();
+    if (lower.includes('silicon') || lower.includes('doubao')) {
+      return 'doubao-seed-1.6-flash';
+    }
     if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
       return 'llama-3.3-70b';
     }
@@ -848,6 +851,16 @@ ATURAN KOMUNIKASI MUTLAK:
     return {
       object: 'list',
       data: [
+        {
+          id: 'deepernova-silicon-1.4',
+          object: 'model',
+          created: 1735689600,
+          owned_by: 'deepernova',
+          permission: [],
+          root: 'deepernova-silicon-1.4',
+          parent: null,
+          description: 'Ultra-fast multimodal vision & instant response engine (DeeperNova Silicon 1.4)'
+        },
         {
           id: 'deepernova-gold-1.5',
           object: 'model',

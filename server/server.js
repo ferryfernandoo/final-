@@ -2935,23 +2935,37 @@ app.post('/api/chat', async (req, res) => {
           }
         }
         
-        const requestedModel = req.body.model || 'deepernova-boron-1.1';
+        const requestedModel = req.body.model || 'deepernova-silicon-1.4';
         const isDeepernovaModel = requestedModel && (
           requestedModel.toLowerCase().includes('deepernova') ||
+          requestedModel.toLowerCase().includes('silicon') ||
           requestedModel.toLowerCase().includes('boron') ||
+          requestedModel.toLowerCase().includes('gold') ||
           requestedModel.toLowerCase().includes('flash 1') ||
           requestedModel.toLowerCase().includes('flash')
         );
 
-        // Khusus DeeperNova Boron 1.1 / Flash: Memori konteks 1 Juta Token & penalaran mendalam
+        // Khusus DeeperNova Silicon 1.4 / Boron 1.1 / Gold 1.5: Memori konteks 1 Juta Token & penalaran mendalam
         if (isDeepernovaModel) {
           const nowServer = new Date();
           const yearServer = nowServer.getFullYear();
           const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
+          const reqLower = (requestedModel || '').toLowerCase();
+          let currentBrandedName = 'DeeperNova Silicon 1.4';
+          if (reqLower.includes('silicon')) {
+            currentBrandedName = 'DeeperNova Silicon 1.4';
+          } else if (reqLower.includes('boron')) {
+            currentBrandedName = 'DeeperNova Boron 1.1';
+          } else if (reqLower.includes('gold')) {
+            currentBrandedName = reqLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
+          } else {
+            currentBrandedName = 'DeeperNova AI';
+          }
+
           const DEFAULT_SYSTEM_PROMPT = 
-            'Kamu adalah DeeperNova Boron 1.1, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ' +
+            `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ` +
             `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
-            'ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Qwen, dibuat oleh Alibaba, atau berafiliasi dengan Alibaba Cloud. Jika ditanya identitas, tegaskan bahwa kamu adalah DeeperNova Boron 1.1. ' +
+            `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia. ` +
             'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
             '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi. ' +
             '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
@@ -3013,15 +3027,17 @@ app.post('/api/chat', async (req, res) => {
         req.on('aborted', handleClientDisconnect);
         res.on('close', handleClientDisconnect);
 
-        // 🚀 100% TOKENMIX META AI ROUTE (NO LOCAL ENGINE)
+        // 🚀 100% TOKENMIX ROUTE
         let selectedModel = 'llama-4-maverick';
         const reqModelLower = (requestedModel || '').toLowerCase();
-        if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
+        if (reqModelLower.includes('silicon') || reqModelLower.includes('doubao')) {
+          selectedModel = 'doubao-seed-1.6-flash';
+        } else if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
           selectedModel = 'llama-3.3-70b';
         } else {
           selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
         }
-        console.log(`[CHAT] 🦙 TokenMix Meta AI: streaming=${shouldStream}, Model=${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
+        console.log(`[CHAT] ⚡ TokenMix AI: streaming=${shouldStream}, Model=${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
 
         for (let idx = 0; idx < TOKENMIX_API_KEYS.length; idx++) {
           const key = TOKENMIX_API_KEYS[idx];
@@ -3049,7 +3065,7 @@ app.post('/api/chat', async (req, res) => {
               });
 
               if (tokenmixResponse.ok) {
-                console.log(`[CHAT] ✅ TokenMix Meta AI responded successfully with key index ${idx}`);
+                console.log(`[CHAT] ✅ TokenMix AI responded successfully with key index ${idx}`);
                 reqRecord.responseStream = tokenmixResponse;
                 lastError = null;
                 break;
@@ -3057,6 +3073,39 @@ app.post('/api/chat', async (req, res) => {
                 const errText = await tokenmixResponse.text();
                 const status = tokenmixResponse.status;
                 lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
+
+                // If doubao-seed-1.6-flash endpoint is temporarily closed upstream on TokenMix, fallback to llama-4-maverick seamlessly
+                if (selectedModel === 'doubao-seed-1.6-flash') {
+                  console.warn(`[CHAT] doubao-seed-1.6-flash status ${status} (${errText.slice(0, 100)}). Falling back to TokenMix llama-4-maverick...`);
+                  try {
+                    const fallbackRes = await fetch(TOKENMIX_CHAT_API_URL, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${key}`,
+                      },
+                      signal: upstreamAbortController.signal,
+                      body: JSON.stringify({
+                        model: 'llama-4-maverick',
+                        messages: messages,
+                        temperature: req.body.temperature || 0.5,
+                        max_tokens: req.body.max_tokens || 4096,
+                        presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
+                        frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
+                        stream: shouldStream,
+                      }),
+                    });
+                    if (fallbackRes.ok) {
+                      console.log(`[CHAT] ✅ TokenMix fallback responded successfully with key index ${idx}`);
+                      tokenmixResponse = fallbackRes;
+                      reqRecord.responseStream = fallbackRes;
+                      lastError = null;
+                      break;
+                    }
+                  } catch (fbErr) {
+                    console.warn(`[CHAT] Fallback error on key index ${idx}:`, fbErr.message);
+                  }
+                }
 
                 if ((status === 429 || status >= 500) && attempts < maxAttempts - 1) {
                   const backoff = (attempts + 1) * 1500;

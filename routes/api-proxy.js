@@ -277,6 +277,7 @@ router.get('/docs', (req, res) => {
       'POST /v1/test': 'Interactive API test endpoint'
     },
     models: [
+      { id: 'deepernova-silicon-1.4', description: 'Ultra-fast multimodal vision & instant response engine (DeeperNova Silicon 1.4)' },
       { id: 'deepernova-gold-1.5', description: 'Flagship multimodal vision & ultra-fast cloud AI (128K context)' },
       { id: 'deepernova-gold-1.5-pro', description: 'Deep reasoning & structured coding engine (70B)' }
     ],

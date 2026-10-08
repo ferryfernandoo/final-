@@ -9,8 +9,8 @@ import { API_BASE_URL as BACKEND_BASE_URL } from '../apiConfig.js';
 export const API_BASE_URL = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:3000/api/v1'
-    : 'https://son-dave-dicke-published.trycloudflare.com/api/v1');
+    ? 'http://127.0.0.1:4000/api/v1'
+    : 'https://paste-wine-generic-hospitality.trycloudflare.com/api/v1');
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 

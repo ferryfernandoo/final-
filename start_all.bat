@@ -11,13 +11,14 @@ echo     DEEPERNOVA AI ECOSYSTEM  -  1-CLICK AUTO DEPLOYER
 echo  ================================================================
 echo.
 echo   Direktori:
-echo     AI Project    : %~dp0
-echo     Search Engine : C:\deepernova-search-main
+echo     AI Engine     : F:\llm deepernova
+echo     Backend Server: %~dp0
+echo     Search Engine : F:\search engine\search-engine
 echo     DTE Server    : F:\order dte\server
 echo     DTE Frontend  : F:\order dte\user
 echo.
 echo   Proses otomatis:
-echo     1. Nyalakan semua server (Search, Backend, Frontend, DTE)
+echo     1. Nyalakan semua server (AI Engine, Search, Backend, Frontend, DTE)
 echo     2. Buka Cloudflare Tunnel + tangkap URL publik
 echo     3. Update konfigurasi (.env, apiConfig, vercel.json)
 echo     4. Build frontend (npm run build)

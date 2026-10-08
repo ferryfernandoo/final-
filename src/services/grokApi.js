@@ -178,17 +178,24 @@ const TOKENMIX_API_KEYS = [];
 const TOKENMIX_API_KEY = '';
 const DEEPSEEK_API_KEY = '';
 
-// DeeperNova Gold 1.5 Model Mapping
-const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-gold-1.5') => {
-  if (!deepernovaModel) return 'llama-4-maverick';
+// DeeperNova Model Mapping (Silicon 1.4, Gold 1.5, etc.)
+const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-silicon-1.4') => {
+  if (!deepernovaModel) return 'doubao-seed-1.6-flash';
   const lower = deepernovaModel.toLowerCase();
+  if (lower.includes('silicon') || lower.includes('doubao')) {
+    return 'doubao-seed-1.6-flash';
+  }
   if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
     return 'llama-3.3-70b';
   }
   return 'llama-4-maverick';
 };
 
-export const resolveModelForRequest = (deepernovaModel = 'deepernova-gold-1.5', hasImages = false) => {
+export const resolveModelForRequest = (deepernovaModel = 'deepernova-silicon-1.4', hasImages = false) => {
+  const lower = (deepernovaModel || '').toLowerCase();
+  if (lower.includes('silicon') || lower.includes('doubao')) {
+    return 'doubao-seed-1.6-flash';
+  }
   if (hasImages) {
     return 'llama-4-maverick';
   }
@@ -196,7 +203,11 @@ export const resolveModelForRequest = (deepernovaModel = 'deepernova-gold-1.5', 
 };
 
 // Helper function to get actual model name
-export const getTokenMixModel = (deepernovaModel = 'deepernova-gold-1.5', hasImages = false) => {
+export const getTokenMixModel = (deepernovaModel = 'deepernova-silicon-1.4', hasImages = false) => {
+  const lower = (deepernovaModel || '').toLowerCase();
+  if (lower.includes('silicon') || lower.includes('doubao')) {
+    return 'doubao-seed-1.6-flash';
+  }
   if (hasImages) {
     return 'llama-4-maverick';
   }

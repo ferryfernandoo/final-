@@ -858,7 +858,7 @@ print(response.choices[0].message.content)`}</code></pre>
                               <tr>
                                 <td><code>model</code></td>
                                 <td>string</td>
-                                <td><code>deepernova-gold-1.5</code> atau <code>deepernova-gold-1.5-pro</code></td>
+                                <td><code>deepernova-silicon-1.4</code>, <code>deepernova-gold-1.5</code> atau <code>deepernova-gold-1.5-pro</code></td>
                               </tr>
                               <tr>
                                 <td><code>messages</code></td>
@@ -891,6 +891,17 @@ print(response.choices[0].message.content)`}</code></pre>
                     <section className="docs-section">
                       <h3>3. Model DeeperNova Cloud AI yang Tersedia</h3>
                       <div className="models-catalog-grid">
+                        <div className="model-catalog-card">
+                          <span className="catalog-badge silicon" style={{ background: 'linear-gradient(135deg, #06b6d4, #0284c7)' }}>SILICON 1.4</span>
+                          <h4>deepernova-silicon-1.4</h4>
+                          <p>Model generasi baru super cepat dengan penalaran multimodal vision dan latensi respons ultra instan.</p>
+                          <div className="catalog-specs">
+                            <span>Konteks: 128.000 Token</span>
+                            <span>Vision: Aktif</span>
+                            <span>Biaya: Kuota Gratis 1M</span>
+                          </div>
+                        </div>
+
                         <div className="model-catalog-card">
                           <span className="catalog-badge">FLAGSHIP</span>
                           <h4>deepernova-gold-1.5</h4>
@@ -1140,6 +1151,7 @@ curl -X GET "${apiBaseUrl}/api/v1/images?q=indonesia&limit=5" \\
                     onChange={(e) => setTestModel(e.target.value)}
                     className="form-select"
                   >
+                    <option value="deepernova-silicon-1.4">⚡ DeeperNova Silicon 1.4 (Ultra Fast & Vision)</option>
                     <option value="deepernova-gold-1.5">🌟 DeeperNova Gold 1.5 (Flagship Fast & Vision)</option>
                     <option value="deepernova-gold-1.5-pro">🧠 DeeperNova Gold 1.5 Pro (Deep Reasoning 70B & Code)</option>
                   </select>

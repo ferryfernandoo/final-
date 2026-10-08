@@ -28,6 +28,7 @@ const SEARCH_DIR = fs.existsSync('F:\\search engine\\search-engine')
   : 'C:\\deepernova-search-main';
 const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
 const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
+const AI_SERVER_DIR = 'F:\\llm deepernova';
 
 const CLOUDFLARED_BIN = path.join(ROOT_DIR, 'bin', 'cloudflared.exe');
 
@@ -94,16 +95,16 @@ function sleep(ms) {
  */
 function startProcess(command, args, cwd, name) {
   log.info(`Menjalankan ${name}...`);
-  const quotedCwd = `"${cwd}"`;
-  const quotedArgs = args.map(a => a.includes(' ') ? `"${a}"` : a);
-  const fullCmd = [command, ...quotedArgs].join(' ');
-  // cd /d "path with spaces" && command
-  const shellCmd = `start "${name}" cmd /k "cd /d ${quotedCwd} && ${fullCmd}"`;
   try {
-    execSync(shellCmd, { cwd: ROOT_DIR, windowsHide: false, stdio: 'ignore' });
+    const child = spawn(command, args, {
+      cwd,
+      detached: true,
+      stdio: 'ignore',
+      shell: true
+    });
+    child.unref();
   } catch (err) {
-    // 'start' command may return non-zero even on success in some shells
-    log.warn(`startProcess shell returned error for ${name}, but process may still be starting...`);
+    log.warn(`Gagal startProcess untuk ${name}: ${err.message}`);
   }
 }
 
@@ -173,6 +174,16 @@ function launchTunnel(port, logFilePath) {
 function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
   log.info('Memperbarui konfigurasi proyek secara otomatis...');
 
+  const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
+  let oldTunnel = {};
+  try {
+    if (fs.existsSync(activeTunnelPath)) {
+      oldTunnel = JSON.parse(fs.readFileSync(activeTunnelPath, 'utf8'));
+    }
+  } catch {}
+
+  const finalAiUrl = aiUrl || oldTunnel.aiUrl || backendUrl;
+
   // 1. Update .env
   const envPath = path.join(ROOT_DIR, '.env');
   if (fs.existsSync(envPath)) {
@@ -203,16 +214,21 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
       /VPS_PUBLIC_URL=\S+/g,
       `VPS_PUBLIC_URL=${backendUrl}`
     );
-    if (aiUrl) {
+    if (finalAiUrl) {
       if (envContent.includes('DEEPERNOVA_PUBLIC_API_URL=')) {
-        envContent = envContent.replace(/DEEPERNOVA_PUBLIC_API_URL=\S+/g, `DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`);
+        envContent = envContent.replace(/DEEPERNOVA_PUBLIC_API_URL=\S+/g, `DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`);
       } else {
-        envContent += `\nDEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`;
+        envContent += `\nDEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`;
       }
       if (envContent.includes('VITE_DEEPERNOVA_PUBLIC_API_URL=')) {
-        envContent = envContent.replace(/VITE_DEEPERNOVA_PUBLIC_API_URL=\S+/g, `VITE_DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`);
+        envContent = envContent.replace(/VITE_DEEPERNOVA_PUBLIC_API_URL=\S+/g, `VITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`);
       } else {
-        envContent += `\nVITE_DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions`;
+        envContent += `\nVITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`;
+      }
+      if (envContent.includes('DEEPERNOVA_API_URL=')) {
+        envContent = envContent.replace(/DEEPERNOVA_API_URL=\S+/g, `DEEPERNOVA_API_URL=http://127.0.0.1:8000/v1/chat/completions`);
+      } else {
+        envContent += `\nDEEPERNOVA_API_URL=http://127.0.0.1:8000/v1/chat/completions`;
       }
     }
     fs.writeFileSync(envPath, envContent, 'utf8');
@@ -220,15 +236,14 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
   }
 
   // 2. Update active_tunnel.json
-  const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
   const tunnelConfig = {
     backendUrl,
-    aiUrl: aiUrl || oldTunnel.aiUrl || null,
+    aiUrl: finalAiUrl,
     searchEngineUrl,
-    dteUrl: dteUrl || null,
+    dteUrl: dteUrl || oldTunnel.dteUrl || null,
     backendPort: 3001,
-    aiPort: 3001,
-    searchEnginePort: 3000,
+    aiPort: 8000,
+    searchEnginePort: 4000,
     dtePort: 5173,
     status: "LIVE",
     updatedAt: new Date().toISOString()
@@ -244,8 +259,13 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
       /const CLOUDFLARE_BACKEND_URL = '[^']+';/,
       `const CLOUDFLARE_BACKEND_URL = '${backendUrl}';`
     );
+    if (finalAiUrl) {
+      apiConfigContent = apiConfigContent.replace(
+        /export const DEEPERNOVA_AI_PUBLIC_URL =\s*[\s\S]*?'https:\/\/[a-z0-9\-]+\.trycloudflare\.com';/,
+        `export const DEEPERNOVA_AI_PUBLIC_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DEEPERNOVA_PUBLIC_API_URL) ||\n  '${finalAiUrl}';`
+      );
+    }
     if (dteUrl) {
-      // Update the DTE fallback URL
       apiConfigContent = apiConfigContent.replace(
         /: 'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
         `: '${dteUrl}');`
@@ -261,7 +281,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     let searchContent = fs.readFileSync(searchServicePath, 'utf8');
     searchContent = searchContent.replace(
       /export const API_BASE_URL =[\s\S]*?;/,
-      `export const API_BASE_URL = \n  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://127.0.0.1:3000/api/v1'\n    : '${searchEngineUrl}/api/v1');`
+      `export const API_BASE_URL = \n  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://127.0.0.1:4000/api/v1'\n    : '${searchEngineUrl}/api/v1');`
     );
     fs.writeFileSync(searchServicePath, searchContent, 'utf8');
     log.success('src/services/clientSearchService.js berhasil diperbarui.');
@@ -273,7 +293,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     let lpContent = fs.readFileSync(landingPagePath, 'utf8');
     lpContent = lpContent.replace(
       /const SEARCH_ENGINE_URL =[\s\S]*?;/,
-      `const SEARCH_ENGINE_URL = \n  import.meta.env?.VITE_SEARCH_ENGINE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:3000'\n    : '${searchEngineUrl}');`
+      `const SEARCH_ENGINE_URL = \n  import.meta.env?.VITE_SEARCH_ENGINE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:4000'\n    : '${searchEngineUrl}');`
     );
     if (dteUrl) {
       lpContent = lpContent.replace(
@@ -307,6 +327,13 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
       /VITE_API_URL=\S+/g,
       `VITE_API_URL=${backendUrl}`
     );
+    if (finalAiUrl) {
+      if (envProdContent.includes('VITE_DEEPERNOVA_PUBLIC_API_URL=')) {
+        envProdContent = envProdContent.replace(/VITE_DEEPERNOVA_PUBLIC_API_URL=\S+/g, `VITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`);
+      } else {
+        envProdContent += `\nVITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`;
+      }
+    }
     fs.writeFileSync(envProdPath, envProdContent, 'utf8');
     log.success('.env.production berhasil diperbarui.');
   }
@@ -372,6 +399,10 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         destination: `${backendUrl}/auth/:path*`
       },
       {
+        source: "/v1/:path*",
+        destination: `${backendUrl}/v1/:path*`
+      },
+      {
         source: "/download/:path*",
         destination: `${backendUrl}/download/:path*`
       },
@@ -399,7 +430,6 @@ async function main() {
   // ── Step 0: Kill proses cloudflared lama ───
   log.info('Membersihkan cloudflared lama...');
   try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
-  killPort(3001);
   await sleep(1000);
 
   // Pastikan C:\deepernova-data siap
@@ -407,9 +437,21 @@ async function main() {
     try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch {}
   }
 
-  // ── Step 0.5: TokenMix Meta AI Engine ───
-  log.title('🧠 STEP 0.5: DeeperNova AI Engine (TokenMix Meta AI)');
-  log.success('TokenMix Meta AI Cloud Engine siap (Llama 4 Maverick & Llama 3.3 70B - Zero Local Model).');
+  // ── Step 0.5: DeeperNova AI Server (Port 8000) ───
+  log.title('🧠 STEP 0.5: DeeperNova AI Server (Port 8000)');
+  if (await checkPortOpen(8000)) {
+    log.success('AI Server sudah aktif di port 8000.');
+  } else if (fs.existsSync(AI_SERVER_DIR)) {
+    startProcess('python', ['start_api_server.py'], AI_SERVER_DIR, 'Deepernova AI Server');
+    log.info('Menunggu AI Server siap di port 8000 (max 40 detik)...');
+    if (await waitForPort(8000, 40000)) {
+      log.success('AI Server siap di port 8000.');
+    } else {
+      log.warn('AI Server belum merespons port 8000, proses lanjut di background...');
+    }
+  } else {
+    log.warn(`Folder AI Server tidak ditemukan: ${AI_SERVER_DIR}`);
+  }
 
   // ── Step 1: Nyalakan Search Engine (port 4000) ───
   log.title('📦 STEP 1: Search Engine (Port 4000)');
@@ -524,11 +566,16 @@ async function main() {
     searchEngineUrl = oldTunnel.searchEngineUrl || 'http://localhost:3000';
     dteUrl = oldTunnel.dteUrl || null;
   } else {
-    // Launch semua tunnels dengan Promise.allSettled (1 gagal tidak stop semua)
+    const aiListening = await checkPortOpen(8000);
     const tunnelTasks = [
       launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
       launchTunnel(4000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
     ];
+    if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
+      tunnelTasks.push(
+        launchTunnel(8000, aiLog).catch(e => { log.warn(`AI tunnel: ${e.message}`); return null; })
+      );
+    }
     if (dteExists) {
       tunnelTasks.push(
         launchTunnel(5173, dteLog).catch(e => { log.warn(`DTE tunnel: ${e.message}`); return null; })
@@ -538,10 +585,16 @@ async function main() {
     const results = await Promise.all(tunnelTasks);
 
     backendUrl = results[0] || oldTunnel.backendUrl || 'http://localhost:3001';
-    searchEngineUrl = results[1] || oldTunnel.searchEngineUrl || 'http://localhost:3000';
-    aiUrl = backendUrl;
+    searchEngineUrl = results[1] || oldTunnel.searchEngineUrl || 'http://localhost:4000';
+    let idx = 2;
+    if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
+      aiUrl = results[idx] || oldTunnel.aiUrl || backendUrl;
+      idx++;
+    } else {
+      aiUrl = oldTunnel.aiUrl || backendUrl;
+    }
     if (dteExists) {
-      dteUrl = (results[2]) || oldTunnel.dteUrl || null;
+      dteUrl = results[idx] || oldTunnel.dteUrl || null;
     }
   }
 
@@ -577,8 +630,8 @@ async function main() {
       execSync('git config user.name "Deepernova Auto Deploy"', { cwd: ROOT_DIR, stdio: 'inherit' });
     }
 
-    // Stage files
-    execSync('git add vercel.json src/apiConfig.js src/services/clientSearchService.js src/components/LandingPage.jsx src/App.jsx src/components/ChatBot.jsx src/services/grokApi.js server/server.js server/apiProxyService.js active_tunnel.json dist/ scripts/auto_start_all.mjs start_all.bat start.bat', { cwd: ROOT_DIR, stdio: 'inherit' });
+    // Stage all files
+    execSync('git add -A', { cwd: ROOT_DIR, stdio: 'inherit' });
 
     // Commit
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
@@ -602,12 +655,18 @@ async function main() {
   log.title('✨ SEMUA LAYANAN AKTIF & TERKONFIGURASI OTOMATIS!');
   console.log(`  🌐 Frontend Lokal  : http://localhost:5174`);
   console.log(`  🔍 Search Engine   : ${searchEngineUrl}/api/v1/search`);
-  console.log(`  🧠 AI Backend      : ${backendUrl}`);
+  console.log(`  ⚡ Backend API     : ${backendUrl}`);
+  console.log(`  🧠 AI GPU Engine   : ${aiUrl}/v1/chat/completions`);
   if (dteUrl) {
     console.log(`  🏭 Order DTE       : ${dteUrl}`);
   }
   console.log(`  🚀 Vercel Live     : Auto-deployed via GitHub\n`);
   console.log('📌 Tekan Ctrl+C untuk mematikan semua service.\n');
+
+  if (process.argv.includes('--exit-on-complete') || process.argv.includes('--once')) {
+    log.success('Proses deployment selesai. Semua service dan tunnel aktif di background.');
+    return;
+  }
 
   // Cleanup on exit
   const cleanup = () => {

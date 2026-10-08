@@ -1257,15 +1257,40 @@ const DEFAULT_PERSONALITY = 'formal';
 
 export const DEEPERNOVA_MODELS = [
   {
+    id: 'deepernova-silicon-1.4',
+    name: 'DeeperNova Silicon 1.4',
+    shortName: 'Silicon 1.4',
+    tag: 'Flash • Vision',
+    tagEn: 'Flash • Vision',
+    speed: 'Flash • Vision',
+    speedEn: 'Flash • Vision',
+    icon: 'fa-solid fa-microchip',
+    color: '#06b6d4',
+    bgColor: 'rgba(6, 182, 212, 0.12)',
+    badge: 'SILICON 1.4',
+    sub: 'Multimodal vision cerdas & respons ultra cepat',
+    subEn: 'Smart multimodal vision & ultra-fast response',
+    desc: 'Multimodal vision cerdas & respons ultra cepat',
+    descEn: 'Smart multimodal vision & ultra-fast response',
+    supportsVision: true,
+    isLocalOffline: false
+  },
+  {
     id: 'deepernova-gold-1.5',
     name: 'DeeperNova Gold 1.5',
     shortName: 'Gold 1.5',
-    speed: 'Super Cepat • Cloud AI',
-    speedEn: 'Ultra Fast • Cloud AI',
-    icon: '🌟',
-    badge: 'FLAGSHIP • GOLD 1.5',
-    desc: 'Model flagship DeeperNova Gold 1.5. Mendukung multimodal vision (gambar & dokumen), streaming sangat cepat, dan penalaran cerdas.',
-    descEn: 'Flagship DeeperNova Gold 1.5 model. Supports multimodal vision (images & docs), ultra-fast streaming, and intelligent reasoning.',
+    tag: 'Flagship',
+    tagEn: 'Flagship',
+    speed: 'Flagship Fast',
+    speedEn: 'Flagship Fast',
+    icon: 'fa-solid fa-star',
+    color: '#f59e0b',
+    bgColor: 'rgba(245, 158, 11, 0.12)',
+    badge: 'GOLD 1.5',
+    sub: 'Multimodal vision & penalaran cerdas',
+    subEn: 'Multimodal vision & smart reasoning',
+    desc: 'Multimodal vision & penalaran cerdas',
+    descEn: 'Multimodal vision & smart reasoning',
     supportsVision: true,
     isLocalOffline: false
   },
@@ -1273,12 +1298,18 @@ export const DEEPERNOVA_MODELS = [
     id: 'deepernova-gold-1.5-pro',
     name: 'DeeperNova Gold 1.5 Pro',
     shortName: 'Gold 1.5 Pro',
-    speed: 'Penalaran Dalam & Coding (70B)',
-    speedEn: 'Deep Reasoning & Coding (70B)',
-    icon: '🧠',
-    badge: 'DEEP THINKING 70B',
-    desc: 'Model DeeperNova Gold 1.5 Pro arsitektur 70B. Spesialis pemikiran mendalam, analisis data kompleks, logika matematika & coding terstruktur.',
-    descEn: 'DeeperNova Gold 1.5 Pro 70B model. Specialist in deep reasoning, complex data analysis, mathematical logic & structured coding.',
+    tag: '70B Pro',
+    tagEn: '70B Pro',
+    speed: 'Reasoning 70B',
+    speedEn: 'Reasoning 70B',
+    icon: 'fa-solid fa-brain',
+    color: '#8b5cf6',
+    bgColor: 'rgba(139, 92, 246, 0.12)',
+    badge: '70B PRO',
+    sub: 'Penalaran mendalam, analisis & coding',
+    subEn: 'Deep reasoning, complex logic & code',
+    desc: 'Penalaran mendalam, analisis & coding',
+    descEn: 'Deep reasoning, complex logic & code',
     supportsVision: false,
     isLocalOffline: false
   },
@@ -1286,12 +1317,18 @@ export const DEEPERNOVA_MODELS = [
     id: 'deepernova-boron-1.1',
     name: 'DeeperNova Boron 1.1',
     shortName: 'Boron 1.1',
-    speed: 'Respons Cepat • Cloud AI',
-    speedEn: 'Fast Response • Cloud AI',
-    icon: '⚡',
-    badge: 'CLOUD TURBO',
-    desc: 'Model cloud responsif dengan latensi ultra rendah untuk percakapan lincah dan cerdas.',
-    descEn: 'Responsive cloud model with ultra-low latency for agile and smart conversation.',
+    tag: 'Turbo',
+    tagEn: 'Turbo',
+    speed: 'Fast Turbo',
+    speedEn: 'Fast Turbo',
+    icon: 'fa-solid fa-bolt',
+    color: '#ea580c',
+    bgColor: 'rgba(234, 88, 12, 0.12)',
+    badge: 'TURBO',
+    sub: 'Latensi ultra rendah & dialog lincah',
+    subEn: 'Ultra-low latency & agile conversation',
+    desc: 'Latensi ultra rendah & dialog lincah',
+    descEn: 'Ultra-low latency & agile conversation',
     supportsVision: true,
     isLocalOffline: false
   },
@@ -1299,12 +1336,18 @@ export const DEEPERNOVA_MODELS = [
     id: 'deepernova-2.3-pro',
     name: 'Deepernova 2.3 Pro',
     shortName: 'Pro 2.3',
-    speed: 'Analisis & Logika Tinggi',
-    speedEn: 'High Logic & Analysis',
-    icon: '🔬',
-    badge: 'PRO ENGINE',
-    desc: 'Penalaran logika bisnis dan analisis mendalam berbasis cloud.',
-    descEn: 'Cloud-based business logic reasoning and deep analysis.',
+    tag: 'Analisis',
+    tagEn: 'Analysis',
+    speed: 'Logika Tinggi',
+    speedEn: 'High Logic',
+    icon: 'fa-solid fa-microscope',
+    color: '#10b981',
+    bgColor: 'rgba(16, 185, 129, 0.12)',
+    badge: 'PRO',
+    sub: 'Penalaran logika bisnis & analisis data',
+    subEn: 'Business logic reasoning and deep analysis',
+    desc: 'Penalaran logika bisnis & analisis data',
+    descEn: 'Business logic reasoning and deep analysis',
     supportsVision: true,
     isLocalOffline: false
   },
@@ -1312,12 +1355,18 @@ export const DEEPERNOVA_MODELS = [
     id: 'deepernova-4.6-giga',
     name: 'Deepernova 4.6 Giga',
     shortName: 'Giga 4.6',
-    speed: 'Kapabilitas Maksimal',
-    speedEn: 'Max Capability',
-    icon: '🚀',
-    badge: 'GIGA CLOUD',
-    desc: 'Model kapabilitas tertinggi untuk pemrosesan skala besar.',
-    descEn: 'Highest capability model for enterprise large-scale processing.',
+    tag: 'Giga',
+    tagEn: 'Giga',
+    speed: 'Skala Besar',
+    speedEn: 'Large Scale',
+    icon: 'fa-solid fa-rocket',
+    color: '#3b82f6',
+    bgColor: 'rgba(59, 130, 246, 0.12)',
+    badge: 'GIGA',
+    sub: 'Pemrosesan komputasi kapasitas maksimal',
+    subEn: 'Max capability model for large scale',
+    desc: 'Pemrosesan komputasi kapasitas maksimal',
+    descEn: 'Max capability model for large scale',
     supportsVision: true,
     isLocalOffline: false
   }
@@ -1981,7 +2030,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [customAlert, setCustomAlert] = useState(null); // Modern alert system
   const [showInputMenu, setShowInputMenu] = useState(false); // Show/hide input menu
   const [showModelMenu, setShowModelMenu] = useState(false); // Show/hide model selection dropdown
-  const [selectedModel, setSelectedModel] = useState('deepernova-gold-1.5'); // Default DeeperNova Gold 1.5 Flagship Cloud AI
+  const [selectedModel, setSelectedModel] = useState('deepernova-silicon-1.4'); // Default DeeperNova Silicon 1.4 Ultra-Fast Vision AI
   const [localModelProgress, setLocalModelProgress] = useState({ pct: 0, statusText: '', isLoading: false });
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
@@ -13011,8 +13060,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   }}
                   title={userLanguage === 'id' ? 'Pilih Model Deepernova AI' : 'Select Deepernova AI Model'}
                 >
-                  <span className="model-btn-name">{currentModelObj.name}</span>
-                  <span className="model-btn-badge">{userLanguage === 'id' ? currentModelObj.speed : currentModelObj.speedEn}</span>
+                  <span className="model-btn-icon-wrap" style={{ color: currentModelObj.color || '#06b6d4' }}>
+                    <i className={`${currentModelObj.icon || 'fa-solid fa-microchip'} model-btn-cdn-icon`}></i>
+                  </span>
+                  <span className="model-btn-name">{currentModelObj.shortName || currentModelObj.name}</span>
+                  <span className="model-btn-badge">{userLanguage === 'id' ? (currentModelObj.tag || 'Cloud') : (currentModelObj.tagEn || 'Cloud')}</span>
                   <svg className={`model-chevron ${showModelMenu ? 'open' : ''}`} viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -13022,7 +13074,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   <div className="claude-model-dropdown">
                     <div className="model-dropdown-header">
                       <div className="model-dropdown-header-title">
-                        <span>{userLanguage === 'id' ? 'Model Deepernova AI' : 'Deepernova AI Models'}</span>
+                        <span>{userLanguage === 'id' ? 'Pilih Model AI' : 'Select AI Model'}</span>
                       </div>
                     </div>
                     <div className="model-dropdown-list">
@@ -13036,20 +13088,30 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                             setShowModelMenu(false);
                           }}
                         >
-                          <div className="model-option-top">
-                            <span className="model-option-icon">{m.icon}</span>
-                            <span className="model-option-name">{m.name}</span>
-                            {m.badge && (
-                              <span className={`model-badge-pill ${m.isLocalOffline ? 'offline-pill' : 'cloud-pill'}`}>
-                                {m.badge}
-                              </span>
-                            )}
-                            <span className="model-option-tag">{userLanguage === 'id' ? m.speed : m.speedEn}</span>
-                            {selectedModel === m.id && <span className="model-check-icon">✓</span>}
+                          <div
+                            className="model-option-icon-box"
+                            style={{
+                              background: m.bgColor || 'rgba(6, 182, 212, 0.12)',
+                              color: m.color || '#06b6d4',
+                              borderColor: m.color ? `${m.color}33` : 'transparent'
+                            }}
+                          >
+                            <i className={`${m.icon} model-option-icon-cdn`}></i>
                           </div>
-                          <p className="model-option-desc">
-                            {userLanguage === 'id' ? m.desc : m.descEn}
-                          </p>
+                          <div className="model-option-info">
+                            <div className="model-option-name-row">
+                              <span className="model-option-name">{m.name}</span>
+                              <span className="model-option-pill">{userLanguage === 'id' ? m.tag : m.tagEn}</span>
+                            </div>
+                            <span className="model-option-sub">
+                              {userLanguage === 'id' ? (m.sub || m.desc) : (m.subEn || m.descEn)}
+                            </span>
+                          </div>
+                          {selectedModel === m.id && (
+                            <span className="model-check-icon" style={{ color: m.color || '#06b6d4' }}>
+                              <i className="fa-solid fa-check"></i>
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
