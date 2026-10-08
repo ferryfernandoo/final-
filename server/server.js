@@ -3029,13 +3029,13 @@ app.post('/api/chat', async (req, res) => {
 
         // 🚀 100% TOKENMIX ROUTE
         // Model Routing:
-        // - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-1.6-flash)
+        // - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-2.1-turbo)
         // - Gold 1.5: WAJIB Llama Maverick (llama-4-maverick)
         // - Gold 1.5 Pro: Llama 3.3 70B (llama-3.3-70b)
         let selectedModel = 'llama-4-maverick';
         const reqModelLower = (requestedModel || '').toLowerCase();
         if (reqModelLower.includes('boron') || reqModelLower.includes('silicon') || reqModelLower.includes('doubao') || reqModelLower.includes('bytedance')) {
-          selectedModel = 'doubao-seed-1.6-flash';
+          selectedModel = 'doubao-seed-2.1-turbo';
         } else if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
           selectedModel = 'llama-3.3-70b';
         } else if (reqModelLower.includes('gold') || reqModelLower.includes('maverick') || reqModelLower.includes('llama')) {
@@ -3080,9 +3080,9 @@ app.post('/api/chat', async (req, res) => {
                 const status = tokenmixResponse.status;
                 lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
 
-                // If doubao-seed-1.6-flash endpoint is temporarily closed upstream on TokenMix, fallback to llama-4-maverick seamlessly
-                if (selectedModel === 'doubao-seed-1.6-flash') {
-                  console.warn(`[CHAT] doubao-seed-1.6-flash status ${status} (${errText.slice(0, 100)}). Falling back to TokenMix llama-4-maverick...`);
+                // If doubao-seed-2.1-turbo has upstream issue, fallback to doubao-seed-2.0-lite or llama-4-maverick seamlessly
+                if (selectedModel === 'doubao-seed-2.1-turbo') {
+                  console.warn(`[CHAT] doubao-seed-2.1-turbo status ${status} (${errText.slice(0, 100)}). Falling back to TokenMix doubao-seed-2.0-lite...`);
                   try {
                     const fallbackRes = await fetch(TOKENMIX_CHAT_API_URL, {
                       method: 'POST',
@@ -3092,7 +3092,7 @@ app.post('/api/chat', async (req, res) => {
                       },
                       signal: upstreamAbortController.signal,
                       body: JSON.stringify({
-                        model: 'llama-4-maverick',
+                        model: 'doubao-seed-2.0-lite',
                         messages: messages,
                         temperature: req.body.temperature || 0.5,
                         max_tokens: req.body.max_tokens || 4096,

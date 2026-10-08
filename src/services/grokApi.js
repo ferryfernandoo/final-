@@ -179,14 +179,14 @@ const TOKENMIX_API_KEY = '';
 const DEEPSEEK_API_KEY = '';
 
 // DeeperNova Model Mapping:
-// - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-1.6-flash)
+// - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-2.1-turbo)
 // - Gold 1.5: WAJIB Llama Maverick (llama-4-maverick)
 // - Gold 1.5 Pro: Llama 3.3 70B (llama-3.3-70b)
 const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-boron-1.1') => {
-  if (!deepernovaModel) return 'doubao-seed-1.6-flash';
+  if (!deepernovaModel) return 'doubao-seed-2.1-turbo';
   const lower = deepernovaModel.toLowerCase();
   if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-    return 'doubao-seed-1.6-flash';
+    return 'doubao-seed-2.1-turbo';
   }
   if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
     return 'llama-3.3-70b';
@@ -200,7 +200,7 @@ const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-boron-1.1') => {
 export const resolveModelForRequest = (deepernovaModel = 'deepernova-boron-1.1', hasImages = false) => {
   const lower = (deepernovaModel || '').toLowerCase();
   if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-    return 'doubao-seed-1.6-flash';
+    return 'doubao-seed-2.1-turbo';
   }
   if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
     return 'llama-3.3-70b';
@@ -212,7 +212,7 @@ export const resolveModelForRequest = (deepernovaModel = 'deepernova-boron-1.1',
 export const getTokenMixModel = (deepernovaModel = 'deepernova-boron-1.1', hasImages = false) => {
   const lower = (deepernovaModel || '').toLowerCase();
   if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-    return 'doubao-seed-1.6-flash';
+    return 'doubao-seed-2.1-turbo';
   }
   if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
     return 'llama-3.3-70b';

@@ -91,7 +91,7 @@ class ApiProxyService {
   resolveTargetModel(modelName = '') {
     const lower = (modelName || '').toLowerCase();
     if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-      return 'doubao-seed-1.6-flash';
+      return 'doubao-seed-2.1-turbo';
     }
     if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
       return 'llama-3.3-70b';
