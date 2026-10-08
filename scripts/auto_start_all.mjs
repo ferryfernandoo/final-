@@ -273,6 +273,12 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         `: '${dteUrl}');`
       );
     }
+    if (searchEngineUrl) {
+      apiConfigContent = apiConfigContent.replace(
+        /export const SEARCH_ENGINE_URL =\s*[\s\S]*?'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
+        `export const SEARCH_ENGINE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||\n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:4000'\n    : '${searchEngineUrl}');`
+      );
+    }
     fs.writeFileSync(apiConfigPath, apiConfigContent, 'utf8');
     log.success('src/apiConfig.js berhasil diperbarui.');
   }
