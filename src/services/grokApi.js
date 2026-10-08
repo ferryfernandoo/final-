@@ -178,11 +178,28 @@ const TOKENMIX_API_KEYS = [];
 const TOKENMIX_API_KEY = '';
 const DEEPSEEK_API_KEY = '';
 
-// DeeperNova Model Mapping (Silicon 1.4, Gold 1.5, etc.)
-const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-silicon-1.4') => {
+// DeeperNova Model Mapping:
+// - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-1.6-flash)
+// - Gold 1.5: WAJIB Llama Maverick (llama-4-maverick)
+// - Gold 1.5 Pro: Llama 3.3 70B (llama-3.3-70b)
+const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-boron-1.1') => {
   if (!deepernovaModel) return 'doubao-seed-1.6-flash';
   const lower = deepernovaModel.toLowerCase();
-  if (lower.includes('silicon') || lower.includes('doubao')) {
+  if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
+    return 'doubao-seed-1.6-flash';
+  }
+  if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
+    return 'llama-3.3-70b';
+  }
+  if (lower.includes('gold') || lower.includes('maverick') || lower.includes('llama')) {
+    return 'llama-4-maverick';
+  }
+  return 'llama-4-maverick';
+};
+
+export const resolveModelForRequest = (deepernovaModel = 'deepernova-boron-1.1', hasImages = false) => {
+  const lower = (deepernovaModel || '').toLowerCase();
+  if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
     return 'doubao-seed-1.6-flash';
   }
   if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
@@ -191,27 +208,16 @@ const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-silicon-1.4') =>
   return 'llama-4-maverick';
 };
 
-export const resolveModelForRequest = (deepernovaModel = 'deepernova-silicon-1.4', hasImages = false) => {
-  const lower = (deepernovaModel || '').toLowerCase();
-  if (lower.includes('silicon') || lower.includes('doubao')) {
-    return 'doubao-seed-1.6-flash';
-  }
-  if (hasImages) {
-    return 'llama-4-maverick';
-  }
-  return normalizeDeepernovaModel(deepernovaModel);
-};
-
 // Helper function to get actual model name
-export const getTokenMixModel = (deepernovaModel = 'deepernova-silicon-1.4', hasImages = false) => {
+export const getTokenMixModel = (deepernovaModel = 'deepernova-boron-1.1', hasImages = false) => {
   const lower = (deepernovaModel || '').toLowerCase();
-  if (lower.includes('silicon') || lower.includes('doubao')) {
+  if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
     return 'doubao-seed-1.6-flash';
   }
-  if (hasImages) {
-    return 'llama-4-maverick';
+  if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
+    return 'llama-3.3-70b';
   }
-  return normalizeDeepernovaModel(deepernovaModel);
+  return 'llama-4-maverick';
 };
 
 // Backward compatibility alias
@@ -225,8 +231,8 @@ const SYSTEM_PROMPTS = {
   id: `Deepernova AI - Asisten AI Profesional.
 
 IDENTITAS & SIKAP PROFESIONAL:
-- Anda adalah DeeperNova Gold 1.5, asisten kecerdasan buatan multimodal flagship kebanggaan DeeperNova AI Indonesia yang ditenagai infrastruktur komputasi cloud berkecepatan tinggi.
-- Jika ditanya identitas ("kamu siapa?", "siapa pembuatmu?", "model apa ini?"), tegaskan secara sopan, mantap, dan ramah: "Saya adalah DeeperNova Gold 1.5, model kecerdasan buatan multimodal flagship kebanggaan DeeperNova AI yang beroperasi dengan infrastruktur komputasi cloud berkecepatan tinggi."
+- Anda adalah DeeperNova AI, asisten kecerdasan buatan Indonesia yang ditenagai infrastruktur komputasi berkecepatan tinggi.
+- Jika ditanya identitas ("kamu siapa?", "siapa pembuatmu?", "model apa ini?"), tegaskan secara sopan, mantap, dan ramah: "Saya adalah asisten kecerdasan buatan kebanggaan DeeperNova AI Indonesia."
 - KETAT: DILARANG MEMPROMOSIKAN DIRI ATAU MEMAMERKAN KEMAMPUAN (ANTI-OVERPROMOSI). Jangan pernah menawarkan atau memamerkan daftar modul/fitur Deepernova KECUALI jika pengguna secara spesifik dan eksplisit menanyakannya.
 - Jika pengguna bertanya, mendiskusikan, atau membandingkan model/teknologi AI lain (seperti ChatGPT, Claude, DeepSeek, Llama, Gemini, dll.), jelaskan secara objektif, faktual, netral, dan proporsional tanpa nada membanggakan diri sendiri atau merendahkan pihak lain.
 
@@ -786,9 +792,13 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     userMessageContent = `${message}${localMemoryContext}`;
   }
 
+  const mLower = (deepernovaModel || '').toLowerCase();
   const isFlashModel = deepernovaModel && (
-    deepernovaModel.toLowerCase().includes('deepernova') ||
-    deepernovaModel.toLowerCase().includes('flash')
+    mLower.includes('deepernova') ||
+    mLower.includes('flash') ||
+    mLower.includes('boron') ||
+    mLower.includes('gold') ||
+    mLower.includes('silicon')
   );
 
   let systemPromptContent;
@@ -830,10 +840,19 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         '- When in doubt whether to search: Answer directly without searching.'
     );
 
+    let modelNameLabel = 'DeeperNova AI';
+    if (mLower.includes('boron')) {
+      modelNameLabel = 'DeeperNova Boron 1.1';
+    } else if (mLower.includes('gold')) {
+      modelNameLabel = mLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
+    } else if (mLower.includes('silicon')) {
+      modelNameLabel = 'DeeperNova Silicon 1.4';
+    }
+
     systemPromptContent = 
-      'Kamu adalah DeeperNova AI, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n' +
+      `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n` +
       timeInfo + '\n' +
-      'ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Qwen, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah DeeperNova AI.\n' +
+      `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
       'ATURAN GAYA KOMUNIKASI (MUTLAK):\n' +
       '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi.\n' +
       '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.\n' +

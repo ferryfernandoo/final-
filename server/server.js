@@ -3028,12 +3028,18 @@ app.post('/api/chat', async (req, res) => {
         res.on('close', handleClientDisconnect);
 
         // 🚀 100% TOKENMIX ROUTE
+        // Model Routing:
+        // - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-1.6-flash)
+        // - Gold 1.5: WAJIB Llama Maverick (llama-4-maverick)
+        // - Gold 1.5 Pro: Llama 3.3 70B (llama-3.3-70b)
         let selectedModel = 'llama-4-maverick';
         const reqModelLower = (requestedModel || '').toLowerCase();
-        if (reqModelLower.includes('silicon') || reqModelLower.includes('doubao')) {
+        if (reqModelLower.includes('boron') || reqModelLower.includes('silicon') || reqModelLower.includes('doubao') || reqModelLower.includes('bytedance')) {
           selectedModel = 'doubao-seed-1.6-flash';
         } else if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
           selectedModel = 'llama-3.3-70b';
+        } else if (reqModelLower.includes('gold') || reqModelLower.includes('maverick') || reqModelLower.includes('llama')) {
+          selectedModel = 'llama-4-maverick';
         } else {
           selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
         }
