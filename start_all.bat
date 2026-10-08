@@ -13,7 +13,7 @@ echo.
 echo   Direktori:
 echo     AI Engine     : F:\llm deepernova
 echo     Backend Server: %~dp0
-echo     Search Engine : F:\search engine\search-engine
+echo     Search Engine : C:\deepernova-search-main
 echo     DTE Server    : F:\order dte\server
 echo     DTE Frontend  : F:\order dte\user
 echo.

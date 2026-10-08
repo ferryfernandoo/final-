@@ -23,9 +23,11 @@ import net from 'node:net';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const SEARCH_DIR = fs.existsSync('F:\\search engine\\search-engine')
-  ? 'F:\\search engine\\search-engine'
-  : 'C:\\deepernova-search-main';
+const SEARCH_DIR = fs.existsSync('C:\\deepernova-search-main')
+  ? 'C:\\deepernova-search-main'
+  : (fs.existsSync('F:\\deepernova-search-main')
+      ? 'F:\\deepernova-search-main'
+      : 'F:\\search engine\\search-engine');
 const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
 const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
 const AI_SERVER_DIR = 'F:\\llm deepernova';
@@ -459,7 +461,7 @@ async function main() {
     log.success('Search Engine sudah aktif di port 4000.');
   } else if (fs.existsSync(SEARCH_DIR)) {
     const serverFile = fs.existsSync(path.join(SEARCH_DIR, 'server.js')) ? 'server.js' : 'src/server.js';
-    startProcess('node', [serverFile], SEARCH_DIR, 'Deepernova Search Engine');
+    startProcess('node', ['--max-old-space-size=1536', serverFile], SEARCH_DIR, 'Deepernova Search Engine');
     log.info('Menunggu Search Engine siap di port 4000 (max 40 detik)...');
     if (await waitForPort(4000, 40000)) {
       log.success('Search Engine siap di port 4000.');
