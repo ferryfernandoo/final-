@@ -51,3 +51,10 @@ export const ORDER_DTE_URL =
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5173'
     : 'https://arrive-urge-though-sandwich.trycloudflare.com');
+
+// Deepernova Search Engine URL (Local Port 4000 or Public Cloudflare Tunnel)
+export const SEARCH_ENGINE_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:4000'
+    : 'https://reason-tape-hang-daughter.trycloudflare.com');

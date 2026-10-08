@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { SEARCH_ENGINE_URL } from '../apiConfig';
 import './LandingPage.css';
-
-const SEARCH_ENGINE_URL = 
-  import.meta.env?.VITE_SEARCH_ENGINE_URL || 
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:4000'
-    : 'https://reason-tape-hang-daughter.trycloudflare.com');
 
 
 const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user }) => {
@@ -137,6 +132,21 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           </nav>
 
           <div className="lp-nav-actions">
+            <a 
+              href={SEARCH_ENGINE_URL} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="lp-nav-search-btn"
+              title="Buka DeeperNova Search Engine Mandiri"
+              onClick={(e) => {
+                window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+                e.preventDefault();
+              }}
+            >
+              <i className="fa-solid fa-magnifying-glass"></i>
+              <span>Search Engine</span>
+              <span className="lp-nav-live-dot" title="Live Server"></span>
+            </a>
             <button 
               onClick={() => onNavigate?.('api')} 
               className="lp-nav-api-btn"
@@ -201,11 +211,80 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
 
         <div className="lp-hero-btns">
           <button onClick={onStartChat} className="lp-btn-hero">
+            <i className="fa-solid fa-comments" style={{ marginRight: '8px' }}></i>
             Mulai Chat Sekarang ➔
           </button>
+          <a 
+            href={SEARCH_ENGINE_URL} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="lp-btn-hero-search"
+            title="Buka DeeperNova Search Engine Mandiri Berkecepatan Tinggi"
+            onClick={(e) => {
+              window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+              e.preventDefault();
+            }}
+          >
+            <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '8px' }}></i>
+            <span>Search Engine</span>
+            <span className="lp-hero-badge-live">Live</span>
+          </a>
           <button onClick={onOpenOffice} className="lp-btn-hero-outline">
+            <i className="fa-solid fa-file-lines" style={{ marginRight: '8px' }}></i>
             Document Studio
           </button>
+        </div>
+
+        {/* Instant Search Bar Card on Hero */}
+        <div className="lp-hero-search-card">
+          <form 
+            className="lp-hero-search-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const input = e.currentTarget.elements.namedItem('q');
+              const query = input?.value?.trim();
+              if (query) {
+                window.open(`${SEARCH_ENGINE_URL}?q=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
+              } else {
+                window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+              }
+            }}
+          >
+            <div className="lp-hero-search-input-box">
+              <i className="fa-solid fa-magnifying-glass lp-hero-search-icon"></i>
+              <input 
+                type="text" 
+                name="q"
+                placeholder="Cari web, berita, atau riset di DeeperNova Search Engine..." 
+                className="lp-hero-search-input"
+                autoComplete="off"
+              />
+            </div>
+            <button type="submit" className="lp-hero-search-submit-btn">
+              <span>Cari Web</span>
+              <i className="fa-solid fa-arrow-right" style={{ marginLeft: '6px' }}></i>
+            </button>
+          </form>
+
+          <div className="lp-hero-search-quicklinks">
+            <span className="lp-quicklinks-label"><i className="fa-solid fa-bolt" style={{ color: '#10b981', marginRight: '4px' }}></i> Cepat:</span>
+            <button type="button" onClick={() => window.open(`${SEARCH_ENGINE_URL}?q=AI%20Indonesia`, '_blank', 'noopener,noreferrer')}>AI Indonesia</button>
+            <button type="button" onClick={() => window.open(`${SEARCH_ENGINE_URL}?q=Berita%20Terkini`, '_blank', 'noopener,noreferrer')}>Berita Terkini</button>
+            <button type="button" onClick={() => window.open(`${SEARCH_ENGINE_URL}?q=DeeperNova%20Silicon%201.4`, '_blank', 'noopener,noreferrer')}>Silicon 1.4</button>
+            <a 
+              href={SEARCH_ENGINE_URL} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="lp-quicklinks-portal"
+              onClick={(e) => {
+                window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+                e.preventDefault();
+              }}
+            >
+              <span>Buka Mesin Pencari Mandiri</span>
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ marginLeft: '4px' }}></i>
+            </a>
+          </div>
         </div>
 
         {/* Minimalist Modern API & Search Engine Ecosystem Strip */}
@@ -288,10 +367,25 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
         <p className="lp-section-sub">Semua kemampuan AI yang Anda butuhkan dalam satu platform.</p>
         <div className="lp-features-grid">
           {features.map((f, i) => (
-            <div key={i} className="lp-feat-card">
+            <div key={i} className={`lp-feat-card ${f.title === 'Web Search' ? 'lp-feat-card-highlight' : ''}`}>
               <span className="lp-feat-icon">{f.icon}</span>
               <h3>{f.title}</h3>
               <p>{f.desc}</p>
+              {f.title === 'Web Search' && (
+                <a 
+                  href={SEARCH_ENGINE_URL} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="lp-feat-search-btn"
+                  onClick={(e) => {
+                    window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+                    e.preventDefault();
+                  }}
+                >
+                  <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '6px' }}></i>
+                  <span>Buka Mesin Pencari ➔</span>
+                </a>
+              )}
             </div>
           ))}
         </div>

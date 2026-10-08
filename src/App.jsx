@@ -15,7 +15,7 @@ import ApiMarketplace from './components/ApiMarketplace'
 import CloudSyncModal from './components/CloudSyncModal'
 import { CookieConsent } from './components/CookieConsent'
 import { ConversationPersistenceService } from './services/conversationPersistenceService'
-import { API_BASE_URL } from './apiConfig';
+import { API_BASE_URL, SEARCH_ENGINE_URL } from './apiConfig';
 import { safeSetItem, safeGetItem, safeRemoveItem } from './utils/safeStorage.js';
 import './App.css'
 
@@ -172,6 +172,11 @@ function App() {
       } catch (_) {}
     }
 
+    if (view === 'search') {
+      window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     setCurrentView(view);
     if (typeof window !== 'undefined' && window.history && window.history.pushState) {
       const routeMap = {
@@ -215,6 +220,7 @@ function App() {
       else if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') setCurrentView('office');
       else if (path === '/dte' || hash === '#dte') setCurrentView('dte');
       else if (path === '/api' || hash === '#api') setCurrentView('api');
+      else if (path === '/search' || hash === '#search') window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
       else if (path === '/' || path === '/landing' || hash === '#landing' || hash === '#home') setCurrentView(isNativePlatform() ? 'chat' : 'landing');
     };
     window.addEventListener('popstate', handleUrlChange);
