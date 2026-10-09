@@ -652,14 +652,25 @@ const ReasoningSection = React.memo(({
   userLanguage = 'id'
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isManuallyCollapsed, setIsManuallyCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const liveRef = useRef(null);
+  const boxRef = useRef(null);
 
+  // During active reasoning, default to open unless user manually collapsed it.
+  // After reasoning finishes, controlled by isExpanded.
+  const isOpen = isReasoning ? !isManuallyCollapsed : isExpanded;
+
+  // Auto-scroll to bottom to keep focus on the latest text
   useEffect(() => {
-    if (isReasoning && liveRef.current) {
-      liveRef.current.scrollTop = liveRef.current.scrollHeight;
+    if (isOpen && boxRef.current) {
+      const el = boxRef.current;
+      requestAnimationFrame(() => {
+        if (el) {
+          el.scrollTop = el.scrollHeight;
+        }
+      });
     }
-  }, [isReasoning, reasoningText]);
+  }, [reasoningText, isReasoning, isOpen]);
 
   if (!reasoningText) return null;
 
@@ -671,47 +682,37 @@ const ReasoningSection = React.memo(({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 1. Live Streaming Reasoning Box (Active Thinking Phase)
-  if (isReasoning) {
-    return (
-      <div className="reasoning-live-box">
-        <div className="reasoning-live-header">
-          <span className="reasoning-brain-pulse">🧠</span>
-          <span className="reasoning-live-title">
-            {userLanguage === 'id' ? 'Proses Penalaran Boron 1.1 (Sedang Menganalisis...)' : 'Boron 1.1 Reasoning Process (Analyzing...)'}
-          </span>
-          <span className="reasoning-live-beacon"></span>
-        </div>
-        <div className="reasoning-live-body" ref={liveRef}>
-          {reasoningText}
-          <span className="reasoning-blinking-caret">▍</span>
-        </div>
-      </div>
-    );
-  }
+  const handleToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isReasoning) {
+      setIsManuallyCollapsed(prev => !prev);
+    } else {
+      setIsExpanded(prev => !prev);
+    }
+  };
 
-  // 2. Completed Reasoning Collapsible Pill & Drawer
+  const buttonLabel = isReasoning
+    ? (userLanguage === 'id' ? 'Proses Penalaran Boron 1.1 (Menalar...)' : 'Boron 1.1 Reasoning (Thinking...)')
+    : (userLanguage === 'id'
+        ? `Proses Penalaran Boron 1.1 (${reasoningDuration || '0.5'}s)`
+        : `Boron 1.1 Reasoning Process (${reasoningDuration || '0.5'}s)`);
+
   return (
     <div className="reasoning-completed-container">
       <div className="reasoning-completed-header-row">
         <button
           type="button"
-          className={`reasoning-pill-btn ${isExpanded ? 'active' : ''}`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsExpanded(prev => !prev);
-          }}
+          className={`reasoning-pill-btn ${isOpen ? 'active' : ''}`}
+          onClick={handleToggle}
         >
-          <span className="reasoning-pill-icon">🧠</span>
+          <span className={`reasoning-pill-icon ${isReasoning ? 'reasoning-brain-pulse' : ''}`}>🧠</span>
           <span className="reasoning-pill-label">
-            {userLanguage === 'id'
-              ? `Proses Penalaran Boron 1.1 (${reasoningDuration || '0.5'}s)`
-              : `Boron 1.1 Reasoning Process (${reasoningDuration || '0.5'}s)`}
+            {buttonLabel}
           </span>
-          <span className="reasoning-pill-chevron">{isExpanded ? '▲' : '▼'}</span>
+          <span className="reasoning-pill-chevron">{isOpen ? '▲' : '▼'}</span>
         </button>
-        {isExpanded && (
+        {isOpen && (
           <button
             type="button"
             className="reasoning-copy-btn"
@@ -722,10 +723,12 @@ const ReasoningSection = React.memo(({
           </button>
         )}
       </div>
-      {isExpanded && (
-        <div className="reasoning-expanded-drawer">
-          <div className="reasoning-drawer-inner">
+
+      {isOpen && (
+        <div className="reasoning-box-holder" ref={boxRef}>
+          <div className="reasoning-box-content">
             {reasoningText}
+            {isReasoning && <span className="reasoning-blinking-caret">▍</span>}
           </div>
         </div>
       )}
