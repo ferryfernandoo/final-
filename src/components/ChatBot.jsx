@@ -1278,7 +1278,7 @@ export const DEEPERNOVA_MODELS = [
     desc: 'Multimodal vision & penalaran cerdas',
     descEn: 'Multimodal vision & smart reasoning',
     supportsVision: true,
-    supportsReasoning: true,
+    supportsReasoning: false,
     isLocalOffline: false
   },
   {
@@ -1338,7 +1338,7 @@ export const DEEPERNOVA_MODELS = [
     desc: 'Penalaran mendalam, analisis & coding',
     descEn: 'Deep reasoning, complex logic & code',
     supportsVision: false,
-    supportsReasoning: true,
+    supportsReasoning: false,
     isLocalOffline: false
   },
   {
@@ -2066,7 +2066,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
   }, [selectedModel]);
-  const isReasoningCapable = currentModelObj?.supportsReasoning !== false;
+  const isReasoningCapable = currentModelObj?.supportsReasoning === true && !currentModelObj?.id?.toLowerCase().includes('gold');
   const [showSourcesModal, setShowSourcesModal] = useState(false); // Show sources modal
   const [currentSources, setCurrentSources] = useState([]); // Current conversation sources
   const [selectedSource, setSelectedSource] = useState(null); // Selected source for detail view
@@ -8305,7 +8305,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Capture conversationId NOW so it's used in streaming callback, not currentConversationId (which can change)
       const streamingConversationId = currentConversationId;
       
-      const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningEnabled);
+      const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningCapable ? isReasoningEnabled : false);
 
       // Declare accumulatedText and reasoning tracking variables
       let rawText = '';
@@ -8410,10 +8410,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           return;
         }
 
-        // Handle live reasoning chunk from DeepSeek / Boron / Gold
+        // Handle live reasoning chunk from DeepSeek / Boron
         if (typeof chunk === 'object' && chunk.type === 'reasoning') {
-          if (!isReasoningEnabled) {
-            // When reasoning mode is OFF, do not show reasoning box or stream reasoning text
+          if (!isReasoningCapable || !isReasoningEnabled) {
+            // When reasoning mode is OFF or model does not support reasoning (like Gold), do not show reasoning box or stream reasoning text
             return;
           }
           if (!reasoningStartTime) {

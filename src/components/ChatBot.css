@@ -4,6 +4,8 @@
   display: flex;
   height: 100vh;
   height: 100dvh; /* Dynamic viewport height - accounts for mobile keyboard */
+  max-width: 100vw;
+  overflow-x: hidden;
   background: #ffffff;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   position: relative;
@@ -12263,20 +12265,25 @@ pre.code-block code {
 @media (max-width: 640px) {
   .input-container.claude-style {
     border-radius: 20px !important;
-    padding: 12px 14px 8px 14px !important;
-  }
-
-  .model-btn-name {
-    display: none !important;
-  }
-
-  .model-btn-badge {
-    font-size: 11px !important;
+    padding: 10px 12px 8px 12px !important;
   }
 
   .claude-model-dropdown {
-    right: -40px !important;
-    width: 270px !important;
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(var(--keyboard-offset, 0px) + 74px) !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: min(65vh, 420px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 20px !important;
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    z-index: 999999 !important;
+    margin: 0 !important;
+    transform: none !important;
   }
 }
 
@@ -16568,13 +16575,19 @@ pre.code-block code {
     align-items: center !important;
     justify-content: space-between !important;
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    gap: 4px !important;
     margin-top: 6px !important;
   }
 
   /* Left (+) button on mobile */
   .claude-attach-btn {
-    width: 34px !important;
-    height: 34px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
     border-radius: 50% !important;
     border: 1px solid rgba(226, 232, 240, 0.9) !important;
     background: rgba(248, 250, 252, 0.9) !important;
@@ -16583,6 +16596,7 @@ pre.code-block code {
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
+    flex-shrink: 0 !important;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
@@ -16591,38 +16605,98 @@ pre.code-block code {
   .input-toolbar-right {
     display: flex !important;
     align-items: center !important;
-    gap: 7px !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+    max-width: calc(100% - 36px) !important;
+    justify-content: flex-end !important;
   }
 
-  /* Model pill badge - clean capsule */
+  /* Model selector capsule on mobile */
+  .claude-model-selector-wrapper {
+    position: relative !important;
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+  }
+
   .claude-model-selector-btn {
-    padding: 5px 12px !important;
+    padding: 3px 7px !important;
+    height: 32px !important;
     border-radius: 9999px !important;
     border: 1px solid rgba(226, 232, 240, 0.85) !important;
     background: rgba(248, 250, 252, 0.9) !important;
     color: #334155 !important;
-    font-size: 12px !important;
+    font-size: 11px !important;
     font-weight: 500 !important;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    max-width: 95px !important;
+    flex-shrink: 1 !important;
+  }
+
+  .model-btn-icon-wrap {
+    font-size: 11px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
   }
 
   .model-btn-name {
-    display: none !important;
+    display: inline-block !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    max-width: 50px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
 
   .model-chevron {
-    display: none !important;
+    display: inline-block !important;
+    width: 10px !important;
+    height: 10px !important;
+    flex-shrink: 0 !important;
+    color: #94a3b8 !important;
   }
 
   .model-btn-badge {
-    font-size: 12px !important;
-    color: #334155 !important;
+    display: none !important;
+  }
+
+  /* Reasoning Mode Toggle Button on mobile (for Boron / capable models) */
+  .claude-reasoning-toggle-btn {
+    padding: 3px 6px !important;
+    height: 32px !important;
+    border-radius: 9999px !important;
+    gap: 3px !important;
+    font-size: 10px !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .reasoning-toggle-icon {
+    font-size: 11.5px !important;
+    line-height: 1 !important;
+  }
+
+  .reasoning-toggle-text {
+    display: none !important;
+  }
+
+  .reasoning-toggle-status-pill {
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    padding: 1px 4px !important;
   }
 
   /* Mic button on mobile */
   .claude-tool-btn.mic-btn {
-    width: 34px !important;
-    height: 34px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
     border-radius: 50% !important;
     border: 1px solid rgba(226, 232, 240, 0.9) !important;
     background: rgba(248, 250, 252, 0.9) !important;
@@ -16631,33 +16705,92 @@ pre.code-block code {
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
+    flex-shrink: 0 !important;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
   }
 
-  /* Voice chat wave button - hide on mobile to match screenshot */
+  /* Voice chat wave button - hide on mobile to keep toolbar compact */
   .claude-tool-btn.voice-btn {
     display: none !important;
   }
 
-  /* Send button on mobile */
-  .claude-action-btn.send-mode {
-    width: 34px !important;
-    height: 34px !important;
+  /* Send & Stop buttons on mobile - GUARANTEED NEVER TO OVERFLOW OR SHRINK */
+  .claude-action-btn.send-mode,
+  .claude-action-btn.stop-mode {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
     border-radius: 50% !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    background: rgba(255, 255, 255, 0.12) !important;
-    color: #f1f5f9 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
+    flex-shrink: 0 !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .claude-action-btn.send-mode {
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #f1f5f9 !important;
   }
 
   .claude-action-btn.send-mode.has-text {
     background: linear-gradient(135deg, #ea580c 0%, #f97316 55%, #fb923c 100%) !important;
     color: #ffffff !important;
     box-shadow: 0 4px 14px rgba(234, 88, 12, 0.42), 0 1px 3px rgba(234, 88, 12, 0.25) !important;
+  }
+
+  .claude-action-btn.stop-mode {
+    background: #ef4444 !important;
+    border: 1px solid #dc2626 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4) !important;
+  }
+
+  /* Dropdown Menus on Mobile - Strictly Viewport Bounded (NEVER OVERFLOW) */
+  .claude-model-dropdown {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(var(--keyboard-offset, 0px) + 74px) !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: min(65vh, 420px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 20px !important;
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    z-index: 999999 !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  .file-menu-dropdown.claude-dropdown {
+    position: fixed !important;
+    left: 12px !important;
+    right: auto !important;
+    bottom: calc(var(--keyboard-offset, 0px) + 74px) !important;
+    width: 280px !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: min(60vh, 380px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 18px !important;
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    z-index: 999999 !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  [data-theme="dark"] .claude-attach-btn,
+  [data-theme="dark"] .claude-model-selector-btn,
+  [data-theme="dark"] .claude-tool-btn.mic-btn {
+    background: rgba(39, 39, 42, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
   }
 
   /* 5. Clean Action Buttons Under Bot Message */
