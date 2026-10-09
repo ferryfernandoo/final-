@@ -2914,12 +2914,17 @@ app.post('/api/chat', async (req, res) => {
     }
     
     try {
-        // Auto-detect vision requirement in server chat route
-        const hasImagesInPayload = (req.body.uploadedImages && req.body.uploadedImages.length > 0) ||
-          messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url)));
+        const isSearchConclusion = (req.body.messages || messages || []).some(m => {
+          const c = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(x => x.text || '').join(' ') : '');
+          return c.includes('DATA HASIL PENCARIAN') || c.includes('HASIL PENCARIAN WEB') || c.includes('[INSTRUKSI SISTEM:');
+        });
 
-        // Ensure vision formatting matches TokenMix llama-4-maverick schema if uploadedImages provided
-        if (req.body.uploadedImages && req.body.uploadedImages.length > 0) {
+        // Auto-detect vision requirement in server chat route (NEVER active during search conclusions)
+        const hasImagesInPayload = !isSearchConclusion && ((req.body.uploadedImages && req.body.uploadedImages.length > 0) ||
+          messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url))));
+
+        // Ensure vision formatting matches TokenMix llama-4-maverick schema if uploadedImages provided and NOT a search conclusion
+        if (!isSearchConclusion && req.body.uploadedImages && req.body.uploadedImages.length > 0) {
           for (let i = messages.length - 1; i >= 0; i--) {
             if (messages[i].role === 'user') {
               const currentContent = messages[i].content;
@@ -2969,16 +2974,31 @@ app.post('/api/chat', async (req, res) => {
           const yearServer = nowServer.getFullYear();
           const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
 
-          const DEFAULT_SYSTEM_PROMPT = 
-            `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ` +
-            `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
-            `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia. ` +
-            'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
-            '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi. ' +
-            '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-            '3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan mendalam, analisis, perancangan sistem, tutorial, atau tugas coding, kamu bisa dan diwajibkan men-generate jawaban yang panjang, lengkap, komprehensif, dan tuntas sesuai kebutuhan, namun tetap langsung masuk ke pembahasan tanpa basa-basi pengantar. ' +
-            'HAK PENCARIAN WEB OTONOM (WEB SEARCH FLAG): Kamu memiliki hak dan akses otonom penuh untuk mencari di web secara real-time. HANYA KAMU (AI) yang berhak memutuskan kapan harus mencari atau tidak. JIKA kamu memerlukan informasi real-time, berita hari ini, harga terkini (emas/saham/kripto), atau jika pengguna meminta kamu mencari di internet, pancarkan flag berikut TEPAT DI AWAL respon dan HANYA tag ini saja: [SEARCH_REQUEST: kata kunci pencarian]. DILARANG KERAS memancarkan tag pencarian jika pengguna sekadar memakai kata "cari" dalam obrolan santai atau mencari ide/nama/rekomendasi (seperti "aku lagi cari nama kucing", "lagi cari ide usaha"). Untuk obrolan santai, ide, sapaan, atau pengetahuan umum, JAWAB LANGSUNG tanpa tag pencarian! ' +
-            'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
+          let DEFAULT_SYSTEM_PROMPT = '';
+          if (isSearchConclusion) {
+            DEFAULT_SYSTEM_PROMPT = 
+              `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI.\n` +
+              `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}.\n` +
+              `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
+              `1. BACA & RANGKUM DATA BERITA: Pengguna melampirkan DATA HASIL PENCARIAN & BERITA TERVERIFIKASI. Bacalah secara cermat seluruh kutipan, fakta, artikel, angka, nama tokoh, dan peristiwa di dalamnya. Sajikan intisari dan penjelasan berita tersebut secara lengkap dan akurat.\n` +
+              `2. DILARANG MENGABAIKAN BERITA: Dilarang keras menjawab di luar konteks berita yang ditemukan atau mengabaikan isi kutipan berita!\n` +
+              `3. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan berita terbaru ini. DILARANG KERAS membahas atau mengaitkan topik obrolan lama yang sudah tidak relevan!\n` +
+              `4. DILARANG BERTERIMA KASIH: Jangan pernah mengucapkan "Terima kasih atas hasil pencariannya". Langsung mulai jawaban di paragraf pertama.\n` +
+              `5. SITASI LINK: Cantumkan sitasi link [Nama Sumber](URL) pada setiap fakta atau berita terkait.\n` +
+              `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
+              `7. LANGSUNG KE JAWABAN: Berikan jawaban berita final yang lengkap dan jelas tanpa basa-basi.`;
+          } else {
+            DEFAULT_SYSTEM_PROMPT = 
+              `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ` +
+              `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
+              `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia. ` +
+              'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
+              '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi. ' +
+              '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
+              '3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan mendalam, analisis, perancangan sistem, tutorial, atau tugas coding, kamu bisa dan diwajibkan men-generate jawaban yang panjang, lengkap, komprehensif, dan tuntas sesuai kebutuhan, namun tetap langsung masuk ke pembahasan tanpa basa-basi pengantar. ' +
+              'HAK PENCARIAN WEB OTONOM (WEB SEARCH FLAG): Kamu memiliki hak dan akses otonom penuh untuk mencari di web secara real-time. HANYA KAMU (AI) yang berhak memutuskan kapan harus mencari atau tidak. JIKA kamu memerlukan informasi real-time, berita hari ini, harga terkini (emas/saham/kripto), atau jika pengguna meminta kamu mencari di internet, pancarkan flag berikut TEPAT DI AWAL respon dan HANYA tag ini saja: [SEARCH_REQUEST: kata kunci pencarian]. DILARANG KERAS memancarkan tag pencarian jika pengguna sekadar memakai kata "cari" dalam obrolan santai atau mencari ide/nama/rekomendasi (seperti "aku lagi cari nama kucing", "lagi cari ide usaha"). Untuk obrolan santai, ide, sapaan, atau pengetahuan umum, JAWAB LANGSUNG tanpa tag pencarian! ' +
+              'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
+          }
           
           // Pertahankan sistem prompt lengkap dari Chatbot yang berisi memori aktif pengguna
           const clientSystemMsg = messages.find(m => m.role === 'system');
@@ -2991,19 +3011,30 @@ app.post('/api/chat', async (req, res) => {
           // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
           const MAX_1M_CHARS = 3000000;
           let runningChars = 0;
-          const cleanHistory = [];
-          for (let i = messages.length - 1; i >= 0; i--) {
-            const m = messages[i];
-            if (m.role === 'system') continue;
-            let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
-            if (runningChars + mText.length <= MAX_1M_CHARS) {
-              cleanHistory.unshift({ 
-                role: m.role === 'assistant' ? 'assistant' : 'user', 
-                content: Array.isArray(m.content) ? m.content : mText 
-              });
-              runningChars += mText.length;
-            } else {
+          let cleanHistory = [];
+          if (isSearchConclusion) {
+            // Isolate search conclusion: only keep the last message containing the search prompt
+            for (let i = messages.length - 1; i >= 0; i--) {
+              const m = messages[i];
+              if (m.role === 'system') continue;
+              let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
+              cleanHistory = [{ role: 'user', content: mText }];
               break;
+            }
+          } else {
+            for (let i = messages.length - 1; i >= 0; i--) {
+              const m = messages[i];
+              if (m.role === 'system') continue;
+              let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
+              if (runningChars + mText.length <= MAX_1M_CHARS) {
+                cleanHistory.unshift({ 
+                  role: m.role === 'assistant' ? 'assistant' : 'user', 
+                  content: Array.isArray(m.content) ? m.content : mText 
+                });
+                runningChars += mText.length;
+              } else {
+                break;
+              }
             }
           }
           messages = [{ role: 'system', content: finalSystemPrompt }, ...cleanHistory];

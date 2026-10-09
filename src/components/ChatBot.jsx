@@ -2034,6 +2034,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [reasoningStep, setReasoningStep] = useState(1);
   const [reasoningDecision, setReasoningDecision] = useState(null);
   const capturedRefImagesRef = useRef([]);
+  const currentConversationHistoryRef = useRef([]);
 
   const [collapsedCodeBlocks, setCollapsedCodeBlocks] = useState({}); // Track collapsed code blocks
   const [customAlert, setCustomAlert] = useState(null); // Modern alert system
@@ -8162,6 +8163,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     };
 
     const updatedConversationHistory = [...messages, userMessageForChat];
+    currentConversationHistoryRef.current = updatedConversationHistory;
     setMessages(prev => [...prev, userMessageForChat, botMessage]);
     lastSentPromptRef.current = fullMessage;
     lastSentUserMessageIdRef.current = userMessageForChat.id;
@@ -8203,15 +8205,25 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     // Reference images for current turn:
     // If user uploaded new image(s) in this message, use ONLY the new image(s) (do NOT merge previous images).
-    // If user didn't upload new image, retain the active image context from the immediate previous turn.
+    // If user didn't upload new image, only retain previous images IF the user explicitly references the image/visual.
+    const isExplicitImageFollowUp = activeImageFollowUps.length > 0 &&
+      /(gambar|foto|lukisan|image|photo|picture|di atas|ini apa|siapa ini|jelaskan gambar|lihat|visual|yg tadi)/i.test(inputValue);
+
     let imagesToPass = [];
     if (imagesToActivate.length > 0) {
       setActiveImageFollowUps(imagesToActivate);
       imagesToPass = imagesToActivate;
       capturedRefImagesRef.current = imagesToActivate;
-    } else {
+    } else if (isExplicitImageFollowUp) {
       imagesToPass = activeImageFollowUps;
       capturedRefImagesRef.current = activeImageFollowUps;
+    } else {
+      // General question or search query: do NOT pass old images to prevent biasing LLM
+      imagesToPass = [];
+      capturedRefImagesRef.current = [];
+      if (activeImageFollowUps.length > 0) {
+        setActiveImageFollowUps([]);
+      }
     }
 
     // 2. IMMEDIATELY CLEAR INPUT TRAY UI STATE (input text, uploaded images preview, uploaded files)
@@ -9305,7 +9317,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         });
       };
       
-      const userQuery = userPrompt || lastSentPromptRef.current || 'the query';
+      const currentTurnInput = (lastSentUserInputTextRef.current || '').trim();
+      const userQuery = userPrompt || currentTurnInput || lastSentPromptRef.current || searchQuery || 'the query';
       const accumulatedHistoryContext = searchContextHistoryRef.current[messageId].join('\n\n');
       
       const nowTime = new Date();
@@ -9342,7 +9355,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    - Jawab HANYA berdasarkan "Pertanyaan Pengguna" di atas dan data hasil pencarian web terkait.
    - Jika pertanyaan pengguna di atas adalah topik baru yang berbeda dari percakapan sebelumnya, DILARANG KERAS memaksakan mengaitkan, menghubungkan, atau mengungkit topik lama yang tidak relevan!
 
-7. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.`;
+7. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.\n\n[PERINGATAN SANGAT PENTING: Jawab HANYA tentang "${userQuery}" dan data web di atas! DILARANG KERAS menjawab atau menyinggung topik obrolan sebelumnya!]`;
       
       console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
       
@@ -9352,13 +9365,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       // Build history with clean conversational turns (omit pending message and search request flags)
-      const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
+      const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 
+        ? baseHistory 
+        : ((currentConversationHistoryRef.current && currentConversationHistoryRef.current.length > 0) ? currentConversationHistoryRef.current : messages);
       const cleanHistoryForSearch = sourceHistory
         .filter(msg => msg && msg.id !== messageId)
         .filter(msg => {
           const txt = (msg.text || msg.content || '').trim();
-          return !txt.startsWith('[SEARCH_REQUEST:');
-        });
+          return !txt.startsWith('[SEARCH_REQUEST:') && !msg.isSearching;
+        })
+        .slice(-2); // Limit to max 2 recent turns to prevent cross-topic pollution
 
       const newAbortController = new AbortController();
       abortControllerRef.current = newAbortController;
@@ -9835,11 +9851,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       triggeredSearchRequestsRef.current.add(messageId);
       
-      const lastUserMsg = Array.isArray(messages) ? [...messages].reverse().find(m => m.sender === 'user') : null;
-      const userPrompt = lastUserMsg?.text || '';
+      const currentTurnText = (lastSentUserInputTextRef.current || '').trim();
+      const historyPool = (currentConversationHistoryRef.current && currentConversationHistoryRef.current.length > 0)
+        ? currentConversationHistoryRef.current
+        : (Array.isArray(messages) ? messages : []);
+      const lastUserMsg = [...historyPool].reverse().find(m => m && (m.sender === 'user' || m.role === 'user'));
+      const userPrompt = currentTurnText || (lastUserMsg ? (lastUserMsg.text || lastUserMsg.content || '') : '') || searchQuery;
       const finalSearchQuery = enrichQueryWithDateIfRecent(searchQuery, userPrompt, userLanguage);
 
-      console.log(`[ChatBot] 🔍 Fallback SEARCH_REQUEST detected from model: "${searchQuery}" -> enriched: "${finalSearchQuery}" for message ${messageId}`);
+      console.log(`[ChatBot] 🔍 Fallback SEARCH_REQUEST detected from model: "${searchQuery}" -> enriched: "${finalSearchQuery}" (userPrompt: "${userPrompt}") for message ${messageId}`);
       
       // 1) IMMEDIATELY WIPE any preamble or streaming text! NEVER show hallucinated text before search!
       currentStreamingTextRef.current = '';
@@ -9894,12 +9914,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         })
       );
 
-      // 6) Execute search and synthesis directly
+      // 6) Execute search and synthesis directly with fresh history and prompt
       executeSearchAndSynthesize({
         messageId,
         searchQuery: finalSearchQuery,
         userPrompt,
-        baseHistory: messages
+        baseHistory: historyPool
       });
     }
   };

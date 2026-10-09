@@ -753,13 +753,16 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     message.includes('HASIL PENCARIAN & BERITA') ||
     message.includes('RINGKASAN HASIL PENCARIAN') || 
     message.includes('RINGKASAN AI GOOGLE') || 
-    message.includes('WEB SEARCH RESULTS')
+    message.includes('WEB SEARCH RESULTS') ||
+    message.includes('[INSTRUKSI SISTEM:')
   );
 
-  // Keep the conversation history so search conclusions remain connected to the conversational context
-  const effectiveHistory = Array.isArray(conversationHistory)
-    ? conversationHistory.filter(msg => msg && !msg.isSearching && (msg.text || msg.content || msg.fullPrompt))
-    : [];
+  // Isolate conversation history for search conclusion so previous chat turns NEVER distract the search synthesis
+  const effectiveHistory = isSearchConclusion
+    ? []
+    : (Array.isArray(conversationHistory)
+      ? conversationHistory.filter(msg => msg && !msg.isSearching && (msg.text || msg.content || msg.fullPrompt))
+      : []);
 
   // Clean and sanitize history so there are no empty messages or duplicate consecutive user turns
   const contextMessages = sanitizeAndFormatHistory(effectiveHistory, message);
@@ -773,7 +776,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
   let userMessageContent;
-  const safeUploadedImages = Array.isArray(uploadedImages) ? uploadedImages : [];
+  const safeUploadedImages = isSearchConclusion ? [] : (Array.isArray(uploadedImages) ? uploadedImages : []);
   const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
 
   const localMemoryContext = isSearchConclusion ? '' : getLocalMemoryContext(message, language, conversationId, sessionMessageCount);
@@ -927,7 +930,8 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     }
 
     // Simpan hingga 30 turn percakapan terakhir (15+ dialog lengkap)
-    const activeTurns = cleanPastTurns.slice(-30);
+    // Untuk sintesis pencarian web (isSearchConclusion), ISOLIR penuh agar model 100% fokus pada hasil pencarian terbaru
+    const activeTurns = isSearchConclusion ? [] : cleanPastTurns.slice(-30);
 
     finalMessages = [
       { role: 'system', content: systemPromptContent },
