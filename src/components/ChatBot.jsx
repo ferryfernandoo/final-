@@ -9321,7 +9321,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
       const historyWithSearchRequest = sourceHistory.map(msg => 
         msg.id === messageId
-          ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot' }
+          ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot', isSearching: false }
           : msg
       );
 
@@ -9350,6 +9350,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       let displayedSearchText = '';
       let searchStreamFinished = false;
       let searchTypingTimer = null;
+      let searchReasoningText = '';
+      let isSearchReasoning = false;
+      let searchReasoningStartTime = null;
+      let searchReasoningDuration = null;
 
       const startSearchTypingAnimation = () => {
         if (searchTypingTimer) return;
@@ -9369,7 +9373,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === messageId
-                  ? { ...msg, text: sanitizeStreamingText(displayedSearchText), isThinking: false, isStreaming: true }
+                  ? { 
+                      ...msg, 
+                      text: sanitizeStreamingText(displayedSearchText), 
+                      isThinking: false, 
+                      isStreaming: true,
+                      reasoningText: searchReasoningText || msg.reasoningText,
+                      reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
+                      isReasoning: isSearchReasoning,
+                      isReasoningComplete: !isSearchReasoning && !!(searchReasoningText || msg.reasoningText)
+                    }
                   : msg
               )
             );
@@ -9381,14 +9394,79 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       };
 
       await processStreamingResponse(botResponse, (chunk) => {
+        // 1. Handle live reasoning chunk from reasoning models (Boron 1.1 / Doubao / DeepSeek)
+        if (typeof chunk === 'object' && chunk.type === 'reasoning') {
+          if (!searchReasoningStartTime) {
+            searchReasoningStartTime = Date.now();
+          }
+          isSearchReasoning = true;
+          searchReasoningText += chunk.content;
+          
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === messageId
+                ? {
+                    ...msg,
+                    reasoningText: searchReasoningText,
+                    isReasoning: true,
+                    isThinking: true,
+                    isStreaming: true
+                  }
+                : msg
+            )
+          );
+          return;
+        }
+
+        // 2. Handle regular text content chunk
         const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
         if (textChunk) {
+          if (isSearchReasoning && !searchReasoningDuration) {
+            searchReasoningDuration = Math.max(0.1, ((Date.now() - searchReasoningStartTime) / 1000)).toFixed(1);
+            isSearchReasoning = false;
+          }
           finalResponseText += textChunk;
           startSearchTypingAnimation();
         }
       }, newAbortController.signal);
 
       searchStreamFinished = true;
+      if (isSearchReasoning) {
+        isSearchReasoning = false;
+        if (searchReasoningStartTime && !searchReasoningDuration) {
+          searchReasoningDuration = Math.max(0.1, ((Date.now() - searchReasoningStartTime) / 1000)).toFixed(1);
+        }
+      }
+
+      // GUARANTEE: NEVER RETURN EMPTY AFTER SEARCH!
+      if (!finalResponseText || !finalResponseText.trim()) {
+        const candidateReasoning = (searchReasoningText || '').trim();
+        if (candidateReasoning) {
+          console.warn('[ChatBot] Search conclusion stream ended with reasoning but empty text. Extracting answer...');
+          const extracted = extractResponseFromReasoning(candidateReasoning);
+          if (extracted && extracted.trim()) {
+            finalResponseText = extracted;
+          }
+        }
+        
+        if (!finalResponseText || !finalResponseText.trim()) {
+          console.warn('[ChatBot] Synthesizing verified answer directly from search results...');
+          if (aiOverviewText && aiOverviewText.trim()) {
+            finalResponseText = aiOverviewText.trim();
+          } else if (sources && sources.length > 0) {
+            const topSources = sources.slice(0, 4);
+            const bulletPoints = topSources
+              .filter(s => s.snippet && s.snippet.trim())
+              .map((s) => `- **${s.title}**: ${s.snippet} [${s.domain || 'Sumber'}](${s.link})`)
+              .join('\n\n');
+            finalResponseText = `Berdasarkan penelusuran web terkini mengenai **${userQuery}**:\n\n${bulletPoints}`;
+          } else {
+            finalResponseText = generateInstantBoronResponse(userQuery);
+          }
+        }
+        displayedSearchText = finalResponseText;
+      }
+
       startSearchTypingAnimation();
 
       // Wait for typing animation to catch up completely with smooth, fluid pace
@@ -9418,12 +9496,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             ? { 
                 ...msg, 
                 text: cleanedFinalText, 
+                reasoningText: searchReasoningText || msg.reasoningText,
+                reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
                 isStreaming: false, 
                 isThinking: false,
                 isSearching: false,
                 isRecallingMemory: false,
                 isImageGenerating: false,
-                isReasoning: false
+                isReasoning: false,
+                isReasoningComplete: !!(searchReasoningText || msg.reasoningText)
               }
             : msg
         );
@@ -9483,7 +9564,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
         const historyWithSearchRequest = sourceHistory.map(msg => 
           msg.id === messageId
-            ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot' }
+            ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot', isSearching: false }
             : msg
         );
 
@@ -9501,14 +9582,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           isAuthenticated, 
           isGuest, 
           userName || user?.name, 
-          false, 
-          sessionMessageCount + 2
+          sessionMessageCount + 2, 
+          []
         );
 
         let finalResponseText = '';
         let displayedSearchText = '';
         let searchStreamFinished = false;
         let searchTypingTimer = null;
+        let searchReasoningText = '';
+        let isSearchReasoning = false;
+        let searchReasoningStartTime = null;
+        let searchReasoningDuration = null;
 
         const startSearchTypingAnimation = () => {
           if (searchTypingTimer) return;
@@ -9522,7 +9607,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === messageId
-                    ? { ...msg, text: sanitizeStreamingText(displayedSearchText), isThinking: false, isStreaming: true }
+                    ? { 
+                        ...msg, 
+                        text: sanitizeStreamingText(displayedSearchText), 
+                        isThinking: false, 
+                        isStreaming: true,
+                        reasoningText: searchReasoningText || msg.reasoningText,
+                        reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
+                        isReasoning: isSearchReasoning,
+                        isReasoningComplete: !isSearchReasoning && !!(searchReasoningText || msg.reasoningText)
+                      }
                     : msg
                 )
               );
@@ -9534,14 +9628,60 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         };
 
         await processStreamingResponse(botResponse, (chunk) => {
+          if (typeof chunk === 'object' && chunk.type === 'reasoning') {
+            if (!searchReasoningStartTime) searchReasoningStartTime = Date.now();
+            isSearchReasoning = true;
+            searchReasoningText += chunk.content;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === messageId
+                  ? {
+                      ...msg,
+                      reasoningText: searchReasoningText,
+                      isReasoning: true,
+                      isThinking: true,
+                      isStreaming: true
+                    }
+                  : msg
+              )
+            );
+            return;
+          }
+
           const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
           if (textChunk) {
+            if (isSearchReasoning && !searchReasoningDuration) {
+              searchReasoningDuration = Math.max(0.1, ((Date.now() - searchReasoningStartTime) / 1000)).toFixed(1);
+              isSearchReasoning = false;
+            }
             finalResponseText += textChunk;
             startSearchTypingAnimation();
           }
         }, newAbortController.signal);
 
         searchStreamFinished = true;
+        if (isSearchReasoning) {
+          isSearchReasoning = false;
+          if (searchReasoningStartTime && !searchReasoningDuration) {
+            searchReasoningDuration = Math.max(0.1, ((Date.now() - searchReasoningStartTime) / 1000)).toFixed(1);
+          }
+        }
+
+        // Guaranteed fallback response if model finished empty
+        if (!finalResponseText || !finalResponseText.trim()) {
+          const candidateReasoning = (searchReasoningText || '').trim();
+          if (candidateReasoning) {
+            const extracted = extractResponseFromReasoning(candidateReasoning);
+            if (extracted && extracted.trim()) {
+              finalResponseText = extracted;
+            }
+          }
+          if (!finalResponseText || !finalResponseText.trim()) {
+            finalResponseText = generateInstantBoronResponse(userQuery);
+          }
+          displayedSearchText = finalResponseText;
+        }
+
         startSearchTypingAnimation();
 
         let searchCatchUpWaitCount = 0;
@@ -9568,12 +9708,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               ? { 
                   ...msg, 
                   text: replaceCitationsWithLinks(cleanResponseText(finalResponseText)), 
+                  reasoningText: searchReasoningText || msg.reasoningText,
+                  reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
                   isStreaming: false, 
                   isThinking: false,
                   isSearching: false,
                   isRecallingMemory: false,
                   isImageGenerating: false,
-                  isReasoning: false
+                  isReasoning: false,
+                  isReasoningComplete: !!(searchReasoningText || msg.reasoningText)
                 }
               : msg
           );
@@ -10965,6 +11108,20 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                       </div>
                       <span className="slow-processing-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
                         {userLanguage === 'id' ? 'Menulis jawaban...' : 'Writing response...'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Active synthesizing indicator after search completed while text is being prepared */}
+                  {((message.isStreaming || message.isThinking) && !message.text && !message.isSearching && (message.searchSteps && message.searchSteps.length > 0) && !message.isReasoning) && (
+                    <div className="typing-indicator-row" style={{ marginTop: '8px', opacity: 0.85 }}>
+                      <div className="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      <span className="slow-processing-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
+                        {userLanguage === 'id' ? 'Merangkum jawaban terverifikasi...' : 'Synthesizing verified answer...'}
                       </span>
                     </div>
                   )}
