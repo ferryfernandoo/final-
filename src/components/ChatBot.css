@@ -15731,6 +15731,24 @@ pre.code-block code {
   transform: translateY(-2.5px) !important;
 }
 
+.meta-hero-claude-input {
+  width: 100% !important;
+  max-width: 100% !important;
+  position: relative !important;
+  z-index: 30 !important;
+  cursor: text !important;
+}
+
+.meta-hero-claude-input:focus-within {
+  z-index: 35 !important;
+}
+
+/* Ensure model and attachment dropdowns in greeting state stay on top of prompt chips and cards */
+.meta-hero-claude-input .claude-model-dropdown,
+.meta-hero-claude-input .file-menu-dropdown {
+  z-index: 9999 !important;
+}
+
 .meta-hero-textarea {
   width: 100% !important;
   border: none !important;
@@ -15983,13 +16001,20 @@ pre.code-block code {
   transform: translateY(-1px) !important;
 }
 
-/* 4 Suggestion Cards Grid */
+/* 4 Suggestion Cards Grid (Dynamic 6-Second Rotation) */
 .meta-suggestion-cards-grid {
   display: grid !important;
   grid-template-columns: repeat(4, 1fr) !important;
   gap: 14px !important;
   margin-top: 24px !important;
   width: 100% !important;
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: opacity, transform !important;
+}
+
+.meta-suggestion-cards-grid.fading {
+  opacity: 0.1 !important;
+  transform: translateY(6px) scale(0.985) !important;
 }
 
 .meta-suggestion-card {
@@ -16004,17 +16029,18 @@ pre.code-block code {
   gap: 12px !important;
   text-align: center !important;
   cursor: pointer !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  border: 1px solid transparent !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
   box-sizing: border-box !important;
   user-select: none !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
 }
 
 .meta-suggestion-card:hover {
   background: #ffffff !important;
   border-color: #fed7aa !important;
-  box-shadow: 0 8px 24px rgba(234, 88, 12, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
-  transform: translateY(-3px) !important;
+  box-shadow: 0 10px 28px rgba(234, 88, 12, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  transform: translateY(-4px) !important;
 }
 
 .meta-suggestion-card:hover .meta-card-label {
@@ -16022,25 +16048,35 @@ pre.code-block code {
 }
 
 .meta-card-icon-circle {
-  width: 44px !important;
-  height: 44px !important;
+  width: 46px !important;
+  height: 46px !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 22px !important;
-  color: #1f2937 !important;
-  transition: all 0.2s ease !important;
+  font-size: 21px !important;
+  border: 1px solid transparent !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.meta-card-icon-cdn {
+  display: inline-block !important;
+  line-height: 1 !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .meta-suggestion-card:hover .meta-card-icon-circle {
-  color: #ea580c !important;
   transform: scale(1.1) !important;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.18) !important;
+}
+
+.meta-suggestion-card:hover .meta-card-icon-cdn {
+  transform: scale(1.08) !important;
 }
 
 .meta-card-label {
   font-size: 13.5px !important;
-  font-weight: 500 !important;
+  font-weight: 550 !important;
   color: #1f2937 !important;
   line-height: 1.35 !important;
   transition: color 0.18s ease !important;

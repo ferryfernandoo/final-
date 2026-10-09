@@ -1381,6 +1381,298 @@ export const DEEPERNOVA_MODELS = [
   }
 ];
 
+// Vast pool of rich, diverse suggestion cards with official FontAwesome CDN icons and accent colors
+export const SUGGESTION_PROMPTS_POOL = [
+  {
+    id: 'explain-chatbot',
+    label: 'Jelaskan cara kerja chatbot AI',
+    labelEn: 'Explain how AI chatbots work',
+    prompt: 'Jelaskan cara kerja chatbot AI dan arsitektur model bahasa (LLM) secara sederhana dan mudah dipahami.',
+    promptEn: 'Explain how AI chatbots and Large Language Models (LLM) work in simple, understandable terms.',
+    icon: 'fa-solid fa-robot',
+    color: '#3b82f6'
+  },
+  {
+    id: 'roleplay-mentor',
+    label: 'Mari bermain peran seperti...',
+    labelEn: 'Let’s roleplay as a tech mentor...',
+    prompt: 'Mari bermain peran seperti seorang ahli strategi AI dan mentor teknologi kelas dunia untuk memandu proyek dan karier saya.',
+    promptEn: 'Let’s roleplay as a world-class AI strategist and technology mentor to guide my project and career.',
+    icon: 'fa-regular fa-face-smile',
+    color: '#f59e0b'
+  },
+  {
+    id: 'create-web-app',
+    label: 'Buatkan aplikasi web interaktif',
+    labelEn: 'Build an interactive web app',
+    prompt: 'Buatkan aplikasi web interaktif satu halaman (HTML, CSS, JS) lengkap dengan desain modern, UI glassmorphism, dan fitur interaktif.',
+    promptEn: 'Create a modern single-page interactive web app (HTML, CSS, JS) with a clean design and full interactivity.',
+    icon: 'fa-solid fa-code',
+    color: '#10b981'
+  },
+  {
+    id: 'running-plan',
+    label: 'Buat rencana lari untuk pemula',
+    labelEn: 'Create beginner running plan',
+    prompt: 'Buat rencana latihan lari untuk pemula bertahap selama 4 minggu lengkap dengan jadwal istirahat dan tips nutrisi.',
+    promptEn: 'Create a 4-week structured beginner running plan with rest days, pacing guidance, and nutrition tips.',
+    icon: 'fa-solid fa-person-running',
+    color: '#ea580c'
+  },
+  {
+    id: 'neon-game',
+    label: 'Bikin game neon clicker seru',
+    labelEn: 'Create a neon clicker game',
+    prompt: 'Buatkan game neon clicker interaktif lengkap dengan HTML, CSS, JavaScript modern, efek suara partikel, dan toko upgrade.',
+    promptEn: 'Build a neon arcade clicker game with interactive animations, particle effects, and an upgrade store in HTML and JS.',
+    icon: 'fa-solid fa-gamepad',
+    color: '#ec4899'
+  },
+  {
+    id: 'swot-analysis',
+    label: 'Analisis strategi bisnis SWOT',
+    labelEn: 'SWOT strategic business analysis',
+    prompt: 'Bantu lakukan analisis SWOT komprehensif dan strategi eksekusi untuk startup teknologi di pasar Indonesia.',
+    promptEn: 'Conduct a comprehensive SWOT analysis and actionable execution strategy for an emerging tech startup.',
+    icon: 'fa-solid fa-chart-line',
+    color: '#06b6d4'
+  },
+  {
+    id: 'academic-paper',
+    label: 'Tulis draf artikel ilmiah',
+    labelEn: 'Draft an academic paper outline',
+    prompt: 'Bantu susun outline dan draf artikel ilmiah terstruktur dengan pendahuluan, metodologi, dan telaah pustaka.',
+    promptEn: 'Help formulate a structured academic research paper outline with introduction, methodology, and literature review.',
+    icon: 'fa-solid fa-book-open',
+    color: '#8b5cf6'
+  },
+  {
+    id: 'interview-sim',
+    label: 'Simulasi wawancara kerja teknis',
+    labelEn: 'Technical job interview simulation',
+    prompt: 'Simulasikan wawancara kerja teknis untuk posisi Software Engineer: ajukan pertanyaan satu per satu dan evaluasi jawaban saya.',
+    promptEn: 'Simulate a technical coding interview for a Software Engineer position: ask questions one by one and critique my answers.',
+    icon: 'fa-solid fa-user-tie',
+    color: '#6366f1'
+  },
+  {
+    id: 'quantum-computing',
+    label: 'Jelaskan konsep komputasi kuantum',
+    labelEn: 'Explain quantum computing simply',
+    prompt: 'Jelaskan cara kerja komputer kuantum, qubit, dan superposisi dengan analogi kehidupan sehari-hari.',
+    promptEn: 'Explain quantum computing, qubits, and superposition using intuitive real-world analogies.',
+    icon: 'fa-solid fa-atom',
+    color: '#14b8a6'
+  },
+  {
+    id: 'social-content',
+    label: 'Rancang kalender konten 30 hari',
+    labelEn: 'Design a 30-day content calendar',
+    prompt: 'Buatkan kalender konten media sosial 30 hari yang edukatif dan viral untuk membangun personal branding profesional.',
+    promptEn: 'Create an engaging 30-day educational content calendar designed for high organic reach and personal branding.',
+    icon: 'fa-solid fa-hashtag',
+    color: '#f43f5e'
+  },
+  {
+    id: 'debug-code',
+    label: 'Optimasi kode & bedah bug',
+    labelEn: 'Debug and optimize code',
+    prompt: 'Tinjau kode saya, temukan potensi bug atau memory leak, dan berikan versi optimasi yang bersih serta efisien.',
+    promptEn: 'Review my code snippet, identify performance bottlenecks or bugs, and provide an optimized, clean solution.',
+    icon: 'fa-solid fa-bug',
+    color: '#ef4444'
+  },
+  {
+    id: 'database-design',
+    label: 'Rancang skema database SQL',
+    labelEn: 'Design relational database schema',
+    prompt: 'Rancang skema database SQL normalisasi (3NF) lengkap dengan relasi tabel, indexing, dan foreign keys untuk sistem e-commerce.',
+    promptEn: 'Design a normalized 3NF relational database schema with indices and foreign key relations for an e-commerce platform.',
+    icon: 'fa-solid fa-database',
+    color: '#0ea5e9'
+  },
+  {
+    id: 'business-email',
+    label: 'Tulis email negosiasi profesional',
+    labelEn: 'Draft professional negotiation email',
+    prompt: 'Tulis draf email negosiasi bisnis profesional yang persuasif, sopan, dan to-the-point untuk kemitraan strategis.',
+    promptEn: 'Draft a polite, persuasive, and concise executive negotiation email for a strategic partnership proposition.',
+    icon: 'fa-solid fa-envelope-open-text',
+    color: '#84cc16'
+  },
+  {
+    id: 'finance-budget',
+    label: 'Formula anggaran keuangan 50/30/20',
+    labelEn: '50/30/20 personal finance budget',
+    prompt: 'Buat panduan dan kalkulasi alokasi keuangan bulanan dengan metode 50/30/20 serta pos dana darurat terukur.',
+    promptEn: 'Provide an actionable 50/30/20 monthly budgeting guide complete with emergency fund calculations and investment splits.',
+    icon: 'fa-solid fa-calculator',
+    color: '#10b981'
+  },
+  {
+    id: 'einstein-relativity',
+    label: 'Bedah teori relativitas Einstein',
+    labelEn: 'Demystify Einstein’s relativity',
+    prompt: 'Jelaskan teori relativitas khusus dan umum Einstein beserta pembuktiannya dengan visualisasi mental yang mudah diingat.',
+    promptEn: 'Explain Einstein’s special and general relativity theories with memorable thought experiments.',
+    icon: 'fa-solid fa-brain',
+    color: '#a855f7'
+  },
+  {
+    id: 'python-automation',
+    label: 'Buatkan script automasi Python',
+    labelEn: 'Build Python automation script',
+    prompt: 'Buatkan script Python modular untuk otomatisasi pemrosesan berkas Excel, pembersihan data, dan ekspor ke laporan PDF.',
+    promptEn: 'Create a clean, modular Python automation script to parse spreadsheets, clean records, and export a summarized report.',
+    icon: 'fa-solid fa-terminal',
+    color: '#3b82f6'
+  },
+  {
+    id: 'startup-ideas',
+    label: 'Ide bisnis AI modal terjangkau',
+    labelEn: 'Lean AI business startup ideas',
+    prompt: 'Berikan 5 ide bisnis berbasis kecerdasan buatan dengan modal terjangkau namun memiliki potensi pasar riil tinggi.',
+    promptEn: 'Brainstorm 5 high-leverage lean AI startup business ideas with low initial capital requirements.',
+    icon: 'fa-solid fa-lightbulb',
+    color: '#f59e0b'
+  },
+  {
+    id: 'trivia-quiz',
+    label: 'Buat kuis trivia sains interaktif',
+    labelEn: 'Create interactive science trivia',
+    prompt: 'Buat kuis trivia sains dan teknologi 5 pertanyaan pilihan ganda yang cerdas, lengkap dengan penjelasan fakta ilmiahnya.',
+    promptEn: 'Create a 5-question science and technology multiple choice trivia quiz with mind-expanding explanations.',
+    icon: 'fa-solid fa-circle-question',
+    color: '#06b6d4'
+  },
+  {
+    id: 'language-roadmap',
+    label: 'Roadmap belajar bahasa asing 90 hari',
+    labelEn: '90-day language learning roadmap',
+    prompt: 'Susun roadmap belajar bahasa baru selama 90 hari dengan metode immersion, active recall, dan spaced repetition.',
+    promptEn: 'Design an intensive 90-day language acquisition roadmap using comprehensible input and spaced repetition.',
+    icon: 'fa-solid fa-language',
+    color: '#10b981'
+  },
+  {
+    id: 'prompt-engineering',
+    label: 'Trik Prompt Engineering tingkat lanjut',
+    labelEn: 'Advanced prompt engineering guide',
+    prompt: 'Jelaskan teknik prompt engineering tingkat lanjut (Few-Shot, Chain-of-Thought, ReAct) beserta contoh praktisnya.',
+    promptEn: 'Teach me advanced prompt engineering techniques (Chain-of-Thought, Few-Shot, Meta-Prompting) with practical examples.',
+    icon: 'fa-solid fa-wand-magic-sparkles',
+    color: '#ec4899'
+  },
+  {
+    id: 'microservices-arch',
+    label: 'Rancang arsitektur microservices',
+    labelEn: 'Design microservices architecture',
+    prompt: 'Jelaskan arsitektur microservices modern dengan API Gateway, event-driven message queue, dan strategi database per-service.',
+    promptEn: 'Explain modern microservices architecture patterns including API gateways, message queues, and distributed tracing.',
+    icon: 'fa-solid fa-cubes',
+    color: '#6366f1'
+  },
+  {
+    id: 'scifi-story',
+    label: 'Tulis cerita fiksi ilmiah seru',
+    labelEn: 'Write gripping sci-fi narrative',
+    prompt: 'Tulis bab pembuka cerita fiksi ilmiah tentang kota terapung masa depan yang ditenagai kecerdasan buatan otonom.',
+    promptEn: 'Write an atmospheric opening chapter for a sci-fi novel about a rogue AI navigating a cyber-organic metropolis.',
+    icon: 'fa-solid fa-feather-pointed',
+    color: '#f97316'
+  },
+  {
+    id: 'exam-prep',
+    label: 'Bantu persiapan ujian & rangkuman',
+    labelEn: 'Exam prep & flashcards summary',
+    prompt: 'Bantu saya merangkum konsep-konsep inti materi kuliah/sekolah dan buatkan flashcards tanya-jawab cerdas.',
+    promptEn: 'Synthesize core study material into high-yield summaries and active-recall test questions.',
+    icon: 'fa-solid fa-graduation-cap',
+    color: '#8b5cf6'
+  },
+  {
+    id: 'cybersecurity-mitigation',
+    label: 'Analisis keamanan siber & OWASP',
+    labelEn: 'Cybersecurity OWASP mitigations',
+    prompt: 'Jelaskan 10 kerentanan keamanan web paling umum (OWASP Top 10) dan langkah mitigasi terbaik dalam implementasi kode.',
+    promptEn: 'Break down the OWASP Top 10 web vulnerabilities and provide concrete defense-in-depth code patterns.',
+    icon: 'fa-solid fa-shield-halved',
+    color: '#ef4444'
+  },
+  {
+    id: 'uiux-principles',
+    label: 'Prinsip desain UI/UX modern',
+    labelEn: 'Modern UI/UX design heuristics',
+    prompt: 'Berikan panduan prinsip desain UI/UX modern: hierarki visual, whitespace, tipografi, dan kontras warna aksesibilitas WCAG.',
+    promptEn: 'Outline essential modern UI/UX design heuristics covering visual hierarchy, whitespace, typography, and WCAG accessibility.',
+    icon: 'fa-solid fa-palette',
+    color: '#f43f5e'
+  },
+  {
+    id: 'meal-plan',
+    label: 'Menu makanan sehat bergizi 7 hari',
+    labelEn: '7-day balanced meal nutrition plan',
+    prompt: 'Susun rencana menu makanan sehat bergizi seimbang selama 7 hari dengan bahan lokal yang mudah didapat dan bergizi tinggi.',
+    promptEn: 'Create a 7-day balanced wholesome meal plan emphasizing accessible ingredients, macro balance, and quick prep.',
+    icon: 'fa-solid fa-apple-whole',
+    color: '#22c55e'
+  },
+  {
+    id: 'stoic-philosophy',
+    label: 'Filsafat Stoisisme & ketenangan diri',
+    labelEn: 'Stoic philosophy for daily life',
+    prompt: 'Jelaskan prinsip-prinsip filsafat Stoisisme (Stoicism) dan bagaimana menerapkannya untuk mengatasi stres dan kecemasan.',
+    promptEn: 'Explain key Stoic philosophical doctrines and how to apply them for psychological resilience in daily life.',
+    icon: 'fa-solid fa-compass',
+    color: '#38bdf8'
+  },
+  {
+    id: 'song-lyrics',
+    label: 'Tulis lirik lagu puitis bermakna',
+    labelEn: 'Compose poignant song lyrics',
+    prompt: 'Tulis lirik lagu bertema perjalanan menemukan tujuan hidup dengan rima puitis dan metafora yang menyentuh.',
+    promptEn: 'Compose emotive, poetic lyrics exploring purpose and resilience, complete with verse-chorus-bridge structure.',
+    icon: 'fa-solid fa-music',
+    color: '#ec4899'
+  },
+  {
+    id: 'book-summary',
+    label: 'Bedah buku non-fiksi best seller',
+    labelEn: 'Deconstruct best-selling books',
+    prompt: 'Bedah poin-poin kunci dan actionable insight dari buku pengembangan diri atau kepemimpinan terbaik untuk karier.',
+    promptEn: 'Distill core mental models and actionable takeaways from seminal non-fiction leadership and thinking books.',
+    icon: 'fa-solid fa-book',
+    color: '#eab308'
+  },
+  {
+    id: 'travel-itinerary',
+    label: 'Rencana perjalanan wisata 3 hari',
+    labelEn: 'Curated 3-day travel itinerary',
+    prompt: 'Buat itinerary perjalanan wisata 3 hari 2 malam yang efisien, hemat biaya, dan mencakup destinasi budaya serta kuliner terbaik.',
+    promptEn: 'Build an optimized 3-day / 2-night cultural and culinary travel itinerary balancing rest with exploration.',
+    icon: 'fa-solid fa-plane-departure',
+    color: '#06b6d4'
+  },
+  {
+    id: 'statistical-analysis',
+    label: 'Analisis statistik data & riset',
+    labelEn: 'Statistical data analysis guide',
+    prompt: 'Jelaskan cara melakukan analisis statistik deskriptif, uji hipotesis, dan korelasi antar variabel untuk riset ilmiah.',
+    promptEn: 'Walk through descriptive statistics, hypothesis testing (p-values, t-tests), and regression analysis for empirical research.',
+    icon: 'fa-solid fa-chart-pie',
+    color: '#3b82f6'
+  },
+  {
+    id: 'career-negotiation',
+    label: 'Strategi negosiasi karier & gaji',
+    labelEn: 'Salary negotiation playbooks',
+    prompt: 'Bagikan teknik negosiasi tawaran kerja dan kenaikan gaji dengan percaya diri berdasarkan data pasar dan value proposition.',
+    promptEn: 'Share proven negotiation strategies for tech job offers and salary reviews with market benchmark framing.',
+    icon: 'fa-solid fa-handshake',
+    color: '#10b981'
+  }
+];
+
 // Helper function to get time-based greeting
 const RANDOM_GREETINGS = {
   subuh: [
@@ -2068,6 +2360,35 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
   }, [selectedModel]);
   const isReasoningCapable = currentModelObj?.supportsReasoning === true && !currentModelObj?.id?.toLowerCase().includes('gold');
+
+  // Dynamic Suggestion Cards Rotation (Random 4 Cards Every 6 Seconds)
+  const [rotatingCardIndices, setRotatingCardIndices] = useState([0, 1, 2, 3]);
+  const [isRotatingFading, setIsRotatingFading] = useState(false);
+  const [isCardsHovered, setIsCardsHovered] = useState(false);
+
+  useEffect(() => {
+    if (messages.length > 0) return;
+    if (isCardsHovered) return;
+
+    const interval = setInterval(() => {
+      setIsRotatingFading(true);
+      setTimeout(() => {
+        const total = SUGGESTION_PROMPTS_POOL.length;
+        const newIndices = [];
+        while (newIndices.length < 4) {
+          const rand = Math.floor(Math.random() * total);
+          if (!newIndices.includes(rand)) {
+            newIndices.push(rand);
+          }
+        }
+        setRotatingCardIndices(newIndices);
+        setIsRotatingFading(false);
+      }, 280);
+    }, 6000); // Tepat setiap 6 detik
+
+    return () => clearInterval(interval);
+  }, [messages.length, isCardsHovered]);
+
   const [showSourcesModal, setShowSourcesModal] = useState(false); // Show sources modal
   const [currentSources, setCurrentSources] = useState([]); // Current conversation sources
   const [selectedSource, setSelectedSource] = useState(null); // Selected source for detail view
@@ -10693,106 +11014,382 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           {userLanguage === 'id' ? 'Apa yang bisa saya lakukan untuk Anda?' : 'What can I help you with today?'}
         </h1>
 
-        {/* Central Floating Input Box (Exact Meta AI Style from screenshot) */}
+        {/* Uploaded Attachments & Text Queue if present in Greeting State */}
+        {(uploadedFiles.length > 0 || uploadedImages.length > 0) && (
+          <div className={`uploaded-attachments-container${attachmentQueueMinimized ? ' minimized' : ''}`}>
+            <div className="uploaded-attachments-header">
+              <span>📦 {uploadedFiles.length + uploadedImages.length} {userLanguage === 'id' ? 'lampiran' : 'attachment'}{uploadedFiles.length + uploadedImages.length !== 1 ? 's' : ''}</span>
+              <div className="uploaded-attachments-header-actions">
+                <button
+                  className="minimize-files-btn"
+                  type="button"
+                  onClick={() => setAttachmentQueueMinimized(!attachmentQueueMinimized)}
+                  title={attachmentQueueMinimized ? (userLanguage === 'id' ? 'Perluas' : 'Expand') : (userLanguage === 'id' ? 'Perkecil' : 'Minimize')}
+                >
+                  {attachmentQueueMinimized ? '▶' : '▼'}
+                </button>
+                <button
+                  className="clear-files-btn"
+                  onClick={clearAllAttachments}
+                  title={userLanguage === 'id' ? 'Hapus semua lampiran' : 'Clear all attachments'}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            {!attachmentQueueMinimized && (
+              <div className="uploaded-attachments-list">
+                {uploadedFiles.map(file => (
+                  <div key={file.id} className="uploaded-file-chip">
+                    <span className="file-icon">📄</span>
+                    <div className="file-info">
+                      <span className="file-name">{file.name}</span>
+                      <span className="file-meta">{file.size}KB · {file.tokens} tokens</span>
+                    </div>
+                    <button
+                      className="remove-file-btn"
+                      onClick={() => removeUploadedFile(file.id)}
+                      title={userLanguage === 'id' ? 'Hapus file' : 'Remove file'}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {uploadedImages.map(image => (
+                  <div key={image.id} className={`uploaded-image-chip status-${image.status}`}>
+                    <div className="image-preview-thumb">
+                      <img src={image.dataUrl} alt={image.fileName} />
+                    </div>
+                    <div className="image-chip-info">
+                      <span className="image-file-name">{image.fileName}</span>
+                      <span className="image-status">
+                        {image.status === 'uploading' && '⬆️ Mengunggah...'}
+                        {image.status === 'queued' && '⏳ Antrian'}
+                        {image.status === 'analyzing' && '🔍 Analisis...'}
+                        {image.status === 'analyzed' && '✅ Siap'}
+                        {image.status === 'error' && `❌ ${image.error || 'Error'}`}
+                      </span>
+                    </div>
+                    <div className="image-chip-actions">
+                      <button
+                        type="button"
+                        className="remove-image-btn"
+                        onClick={() => removeUploadedImage(image.id)}
+                        title={userLanguage === 'id' ? 'Hapus gambar' : 'Remove image'}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Central Floating Input Box: 100% IDENTICAL TO ACTIVE CHAT BAR */}
         <div 
-          className="meta-hero-input-container"
+          className={`input-container claude-style meta-hero-claude-input ${getConvLoading() ? 'generating' : ''}`}
           onClick={() => {
             if (textareaElementRef.current) {
               textareaElementRef.current.focus();
             }
           }}
         >
-          <textarea
-            ref={(el) => {
-              textareaElementRef.current = el;
-              globalThis.heroTextareaRef = el;
-            }}
-            className="meta-hero-textarea"
-            placeholder={userLanguage === 'id' ? "Tanya Deepernova AI..." : "Ask Deepernova AI..."}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              scheduleTextareaResize(e.target);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                if (e.nativeEvent && e.nativeEvent.isComposing) return;
-                e.preventDefault();
-                if (inputValue.trim()) {
-                  handleSendMessage(e);
+          {/* Top Multi-line Textarea Area */}
+          <div className="textarea-wrapper">
+            <textarea
+              ref={(el) => {
+                textareaElementRef.current = el;
+                globalThis.heroTextareaRef = el;
+                globalThis.textareaRef = el;
+              }}
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                scheduleTextareaResize(e.target);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.nativeEvent && e.nativeEvent.isComposing) return;
+                  e.preventDefault();
+                  if (inputValue.trim() || textQueue.length > 0) {
+                    handleSendMessage(e);
+                  }
                 }
+              }}
+              onPaste={handlePaste}
+              placeholder={
+                isTokenUsageLimited()
+                  ? (userLanguage === 'id' ? "🔒 Token penggunaan telah habis (tunggu reset)..." : "🔒 Token limit reached (waiting for reset)...")
+                  : (userLanguage === 'id' ? "Tanya Deepernova AI..." : "Ask Deepernova AI...")
               }
-            }}
-            disabled={false}
-            readOnly={false}
-            rows={1}
-            onFocus={() => {
-              window.scrollTo(0, 0);
-              document.body.scrollTop = 0;
-              const container = document.querySelector('.messages-container');
-              if (container) {
-                container.scrollTop = 0;
-                requestAnimationFrame(() => {
-                  window.scrollTo(0, 0);
-                  if (container) container.scrollTop = 0;
-                });
-                setTimeout(() => {
-                  window.scrollTo(0, 0);
-                  if (container) container.scrollTop = 0;
-                }, 60);
-              }
-            }}
-            style={{ pointerEvents: 'auto', cursor: 'text' }}
-          />
+              disabled={false}
+              className="message-input"
+              rows={1}
+              onFocus={() => {
+                window.scrollTo(0, 0);
+                document.body.scrollTop = 0;
+              }}
+            />
+          </div>
 
-          <div className="meta-hero-toolbar">
-            <div className="meta-toolbar-left">
+          {/* Bottom Card Toolbar: Options (+), Deepernova Model Dropdown, Mic, Voice Mode, Send */}
+          <div className="input-card-toolbar">
+            {/* Left: Attachment & Options (+) Button */}
+            <div className="file-menu-container">
               <button
                 type="button"
-                className="meta-hero-action-btn plus"
+                className={`claude-attach-btn ${showInputMenu ? 'active' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  const fileInput = document.querySelector('.claude-file-input');
-                  if (fileInput) fileInput.click();
+                  setShowInputMenu(!showInputMenu);
+                  setShowModelMenu(false);
                 }}
-                title="Lampirkan file"
+                title={userLanguage === 'id' ? 'Opsi & Lampiran' : 'Options & Attachments'}
+                disabled={loading}
               >
-                <i className="fa-solid fa-plus"></i>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
               </button>
+              {showInputMenu && (
+                <div className="file-menu-dropdown claude-dropdown" onClick={(e) => e.stopPropagation()}>
+                  {currentModelObj?.supportsVision !== false ? (
+                    <>
+                      <button
+                        type="button"
+                        className="menu-item"
+                        onClick={() => {
+                          handleOpenCamera();
+                          setShowInputMenu(false);
+                        }}
+                        disabled={loading}
+                      >
+                        <span className="menu-icon"><i className="fas fa-camera" style={{ color: '#ef4444' }}></i></span>
+                        <div className="menu-item-text">
+                          <span className="menu-item-title">{userLanguage === 'id' ? 'Ambil Foto (Kamera Live)' : 'Take Photo (Live Camera)'}</span>
+                          <span className="menu-item-desc">{userLanguage === 'id' ? 'Foto langsung objek / dokumen' : 'Live camera capture'}</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="menu-item"
+                        onClick={() => {
+                          window.imageUploadInput?.click();
+                          setShowInputMenu(false);
+                        }}
+                        disabled={loading}
+                      >
+                        <span className="menu-icon"><i className="fas fa-image" style={{ color: '#3b82f6' }}></i></span>
+                        <div className="menu-item-text">
+                          <span className="menu-item-title">{userLanguage === 'id' ? 'Upload Gambar / Galeri' : 'Upload Image / Gallery'}</span>
+                          <span className="menu-item-desc">{userLanguage === 'id' ? 'Analisis visual & reasoning' : 'Visual analysis'}</span>
+                        </div>
+                      </button>
+                    </>
+                  ) : (
+                    <div className="menu-item-disabled-notice" style={{ padding: '8px 14px', fontSize: '11.5px', color: '#94a3b8', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', margin: '4px 8px' }}>
+                      <i className="fas fa-info-circle" style={{ marginRight: '6px', color: '#38bdf8' }}></i>
+                      {userLanguage === 'id' ? `Model ${currentModelObj.name} hanya teks (fitur gambar nonaktif)` : `${currentModelObj.name} is text-only (image upload disabled)`}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="menu-item"
+                    onClick={() => {
+                      window.fileUploadInput?.click();
+                      setShowInputMenu(false);
+                    }}
+                    disabled={loading}
+                  >
+                    <span className="menu-icon"><i className="fas fa-file-alt" style={{ color: '#ff6b00' }}></i></span>
+                    <div className="menu-item-text">
+                      <span className="menu-item-title">{userLanguage === 'id' ? 'Upload Dokumen / Berkas' : 'Upload Document / File'}</span>
+                      <span className="menu-item-desc">PDF, Word (.docx), Excel (.xlsx)</span>
+                    </div>
+                  </button>
+
+                  <div className="menu-divider"></div>
+
+                  <button
+                    type="button"
+                    className="menu-item"
+                    onClick={() => {
+                      setShowGlobalMemorySettings(true);
+                      setShowInputMenu(false);
+                    }}
+                  >
+                    <span className="menu-icon"><i className="fas fa-dna" style={{ color: '#8b5cf6' }}></i></span>
+                    <div className="menu-item-text">
+                      <span className="menu-item-title">{userLanguage === 'id' ? 'Fine-Tune AI & Memori' : 'Fine-Tune AI & Memory'}</span>
+                      <span className="menu-item-desc">{userLanguage === 'id' ? 'Atur instruksi kustom Deepernova' : 'Custom AI instructions'}</span>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="meta-toolbar-right">
-              <span className="meta-pill-instan">Instan</span>
+            {/* Right: Deepernova Model Selector, Mic, Voice Mode, Send */}
+            <div className="input-toolbar-right">
+              {/* Deepernova Model Selector Dropdown Badge */}
+              <div className="claude-model-selector-wrapper">
+                <button
+                  type="button"
+                  className={`claude-model-selector-btn ${showModelMenu ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowModelMenu(!showModelMenu);
+                    setShowInputMenu(false);
+                  }}
+                  title={userLanguage === 'id' ? 'Pilih Model Deepernova AI' : 'Select Deepernova AI Model'}
+                >
+                  <span className="model-btn-icon-wrap" style={{ color: currentModelObj.color || '#06b6d4' }}>
+                    <i className={`${currentModelObj.icon || 'fa-solid fa-microchip'} model-btn-cdn-icon`}></i>
+                  </span>
+                  <span className="model-btn-name">{currentModelObj.shortName || currentModelObj.name}</span>
+                  <span className="model-btn-badge">{userLanguage === 'id' ? (currentModelObj.tag || 'Cloud') : (currentModelObj.tagEn || 'Cloud')}</span>
+                  <svg className={`model-chevron ${showModelMenu ? 'open' : ''}`} viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
 
+                {showModelMenu && (
+                  <div className="claude-model-dropdown" onClick={(e) => e.stopPropagation()}>
+                    <div className="model-dropdown-header">
+                      <div className="model-dropdown-header-title">
+                        <span>{userLanguage === 'id' ? 'Pilih Model AI' : 'Select AI Model'}</span>
+                      </div>
+                    </div>
+                    <div className="model-dropdown-list">
+                      {DEEPERNOVA_MODELS.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`model-option-item ${selectedModel === m.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setSelectedModel(m.id);
+                            try {
+                              localStorage.setItem('deepernova_selected_model', m.id);
+                            } catch (e) {}
+                            setShowModelMenu(false);
+                          }}
+                        >
+                          <div
+                            className="model-option-icon-box"
+                            style={{
+                              background: m.bgColor || 'rgba(6, 182, 212, 0.12)',
+                              color: m.color || '#06b6d4',
+                              borderColor: m.color ? `${m.color}33` : 'transparent'
+                            }}
+                          >
+                            <i className={`${m.icon} model-option-icon-cdn`}></i>
+                          </div>
+                          <div className="model-option-info">
+                            <div className="model-option-name-row">
+                              <span className="model-option-name">{m.name}</span>
+                              <span className="model-option-pill">{userLanguage === 'id' ? m.tag : m.tagEn}</span>
+                            </div>
+                            <span className="model-option-sub">
+                              {userLanguage === 'id' ? (m.sub || m.desc) : (m.subEn || m.descEn)}
+                            </span>
+                          </div>
+                          {selectedModel === m.id && (
+                            <span className="model-check-icon" style={{ color: m.color || '#06b6d4' }}>
+                              <i className="fa-solid fa-check"></i>
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Reasoning Mode Toggle Button */}
+              {isReasoningCapable && (
+                <button
+                  type="button"
+                  className={`claude-reasoning-toggle-btn ${isReasoningEnabled ? 'active' : ''}`}
+                  onClick={toggleReasoning}
+                  title={
+                    isReasoningEnabled
+                      ? (userLanguage === 'id' ? 'Mode Penalaran: AKTIF (Klik untuk nonaktifkan)' : 'Reasoning Mode: ACTIVE (Click to disable)')
+                      : (userLanguage === 'id' ? 'Mode Penalaran: NONAKTIF (Klik untuk aktifkan)' : 'Reasoning Mode: DISABLED (Click to enable)')
+                  }
+                >
+                  <span className="reasoning-toggle-icon">🧠</span>
+                  <span className="reasoning-toggle-text">
+                    {userLanguage === 'id' ? 'Penalaran' : 'Reasoning'}
+                  </span>
+                  <span className={`reasoning-toggle-status-pill ${isReasoningEnabled ? 'on' : 'off'}`}>
+                    {isReasoningEnabled ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Mati' : 'Off')}
+                  </span>
+                </button>
+              )}
+
+              {/* Speech-to-Text Microphone Button */}
               <button
                 type="button"
-                className={`meta-hero-action-btn mic ${isSttListening ? 'listening' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleSpeechToText();
-                }}
-                title="Bicara untuk ketik pesan"
+                className={`claude-tool-btn mic-btn ${isSttListening ? 'listening' : ''}`}
+                onClick={toggleSpeechToText}
+                disabled={isTokenUsageLimited()}
+                title={
+                  isSttListening
+                    ? (userLanguage === 'id' ? 'Sedang mendengarkan... (Klik untuk berhenti)' : 'Listening... (Click to stop)')
+                    : (userLanguage === 'id' ? 'Bicara untuk ketik pesan' : 'Speak to type message')
+                }
               >
-                <i className="fa-solid fa-microphone"></i>
+                <svg className="tool-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <line x1="12" y1="19" x2="12" y2="22"></line>
+                </svg>
               </button>
 
+              {/* Real-time Voice Chat Mode Button */}
               <button
                 type="button"
-                className={`meta-hero-send-btn ${inputValue.trim() ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (inputValue.trim()) handleSendMessage(e);
-                }}
-                disabled={!inputValue.trim()}
-                title="Kirim pesan"
+                className="claude-tool-btn voice-btn"
+                onClick={() => setShowVoiceDevModal(true)}
+                title={userLanguage === 'id' ? 'Mode Obrolan Suara' : 'Voice Chat Mode'}
               >
-                <i className="fa-solid fa-arrow-up"></i>
+                <span className="claude-wave-bars">
+                  <span className="bar"></span>
+                  <span className="bar"></span>
+                  <span className="bar"></span>
+                  <span className="bar"></span>
+                  <span className="bar"></span>
+                </span>
+              </button>
+
+              {/* Unified Send or Stop Action Button */}
+              <button 
+                type="button"
+                className={`claude-action-btn send-mode ${(inputValue.trim() || textQueue.length > 0) ? 'has-text' : 'empty'}`}
+                disabled={isTokenUsageLimited()}
+                onClick={(e) => {
+                  if (inputValue.trim() || textQueue.length > 0) {
+                    handleSendMessage(e);
+                  } else {
+                    textareaElementRef.current?.focus();
+                  }
+                }}
+                title={userLanguage === 'id' ? "Kirim pesan" : "Send message"}
+              >
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"></line>
+                  <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Quick Prompt Chips (Exact 4 Chips from screenshot) */}
+        {/* Quick Prompt Chips */}
         <div className="meta-prompt-chips-row">
           <button
             type="button"
@@ -10807,7 +11404,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }, 20);
             }}
           >
-            Coba Deepernova AI
+            ⚡ Coba Deepernova AI
           </button>
           <button
             type="button"
@@ -10816,7 +11413,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               textareaElementRef.current?.focus();
             }}
           >
-            Tanyakan apa pun
+            💡 Tanyakan apa pun
           </button>
           <button
             type="button"
@@ -10831,7 +11428,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }, 20);
             }}
           >
-            Ambil tindakan
+            🎯 Ambil tindakan
           </button>
           <button
             type="button"
@@ -10846,83 +11443,50 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }, 20);
             }}
           >
-            Buat...
+            🎨 Buat sesuatu...
           </button>
         </div>
 
-        {/* 4 Suggestion Cards (Exact from user screenshot) */}
-        <div className="meta-suggestion-cards-grid">
-          <div
-            className="meta-suggestion-card"
-            onClick={() => {
-              setInputValue('Mari bermain peran seperti seorang ahli strategi AI dan mentor teknologi handal...');
-              setTimeout(() => {
-                if (textareaElementRef.current) {
-                  textareaElementRef.current.focus();
-                  scheduleTextareaResize(textareaElementRef.current);
-                }
-              }, 20);
-            }}
-          >
-            <div className="meta-card-icon-circle">
-              <i className="fa-regular fa-face-smile"></i>
-            </div>
-            <div className="meta-card-label">Mari bermain peran seperti...</div>
-          </div>
-
-          <div
-            className="meta-suggestion-card"
-            onClick={() => {
-              setInputValue('Jelaskan cara kerja chatbot AI dan arsitektur model bahasa secara sederhana');
-              setTimeout(() => {
-                if (textareaElementRef.current) {
-                  textareaElementRef.current.focus();
-                  scheduleTextareaResize(textareaElementRef.current);
-                }
-              }, 20);
-            }}
-          >
-            <div className="meta-card-icon-circle">
-              <i className="fa-solid fa-list-check"></i>
-            </div>
-            <div className="meta-card-label">Jelaskan cara kerja chatbot AI</div>
-          </div>
-
-          <div
-            className="meta-suggestion-card"
-            onClick={() => {
-              setInputValue('Buat rencana lari untuk pemula bertahap selama 4 minggu');
-              setTimeout(() => {
-                if (textareaElementRef.current) {
-                  textareaElementRef.current.focus();
-                  scheduleTextareaResize(textareaElementRef.current);
-                }
-              }, 20);
-            }}
-          >
-            <div className="meta-card-icon-circle">
-              <i className="fa-solid fa-person-running"></i>
-            </div>
-            <div className="meta-card-label">Buat rencana lari untuk pemula</div>
-          </div>
-
-          <div
-            className="meta-suggestion-card"
-            onClick={() => {
-              setInputValue('Buatkan game neon clicker interaktif lengkap dengan HTML, CSS, JavaScript, dan toko upgrade');
-              setTimeout(() => {
-                if (textareaElementRef.current) {
-                  textareaElementRef.current.focus();
-                  scheduleTextareaResize(textareaElementRef.current);
-                }
-              }, 20);
-            }}
-          >
-            <div className="meta-card-icon-circle">
-              <i className="fa-solid fa-code"></i>
-            </div>
-            <div className="meta-card-label">Buatkan aplikasi web interaktif</div>
-          </div>
+        {/* Dynamic 4 Suggestion Cards Rotating Every 6 Seconds (CDN Icons) */}
+        <div 
+          className={`meta-suggestion-cards-grid ${isRotatingFading ? 'fading' : ''}`}
+          onMouseEnter={() => setIsCardsHovered(true)}
+          onMouseLeave={() => setIsCardsHovered(false)}
+        >
+          {rotatingCardIndices.map((idx) => {
+            const item = SUGGESTION_PROMPTS_POOL[idx] || SUGGESTION_PROMPTS_POOL[0];
+            return (
+              <div
+                key={`${item.id}-${idx}`}
+                className="meta-suggestion-card"
+                onClick={() => {
+                  const targetPrompt = userLanguage === 'id' ? item.prompt : (item.promptEn || item.prompt);
+                  setInputValue(targetPrompt);
+                  setTimeout(() => {
+                    if (textareaElementRef.current) {
+                      textareaElementRef.current.focus();
+                      scheduleTextareaResize(textareaElementRef.current);
+                    }
+                  }, 20);
+                }}
+                title={userLanguage === 'id' ? item.prompt : (item.promptEn || item.prompt)}
+              >
+                <div 
+                  className="meta-card-icon-circle"
+                  style={{
+                    background: `${item.color}15`,
+                    color: item.color,
+                    borderColor: `${item.color}35`
+                  }}
+                >
+                  <i className={`${item.icon} meta-card-icon-cdn`}></i>
+                </div>
+                <div className="meta-card-label">
+                  {userLanguage === 'id' ? item.label : (item.labelEn || item.label)}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
