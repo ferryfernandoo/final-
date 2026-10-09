@@ -743,13 +743,14 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 };
 
 // Function untuk call backend proxy
-const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova v1 flash 1', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true) => {
+const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false) => {
   const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
   
   // Build messages untuk backend
   const isSearchConclusion = typeof message === 'string' && (
     message.includes('HASIL PENCARIAN WEB') || 
+    message.includes('HASIL PENCARIAN & BERITA') ||
     message.includes('RINGKASAN HASIL PENCARIAN') || 
     message.includes('RINGKASAN AI GOOGLE') || 
     message.includes('WEB SEARCH RESULTS')
@@ -853,28 +854,44 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           '- NEVER claim you cannot see images or ask to re-upload!')
       : '';
 
-    let modelNameLabel = 'DeeperNova AI';
-    if (mLower.includes('boron')) {
-      modelNameLabel = 'DeeperNova Boron 1.1';
-    } else if (mLower.includes('gold')) {
+    let modelNameLabel = 'DeeperNova Gold 1.5';
+    if (mLower.includes('gold')) {
       modelNameLabel = mLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
+    } else if (mLower.includes('boron')) {
+      modelNameLabel = 'DeeperNova Boron 1.1';
     } else if (mLower.includes('silicon')) {
       modelNameLabel = 'DeeperNova Silicon 1.4';
     }
 
-    systemPromptContent = 
-      `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n` +
-      timeInfo + '\n' +
-      `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
-      'ATURAN GAYA KOMUNIKASI (MUTLAK):\n' +
-      '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi.\n' +
-      '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.\n' +
-      '3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan mendalam, analisis, perancangan sistem, tutorial, atau tugas coding, kamu bisa dan diwajibkan men-generate jawaban yang panjang, lengkap, komprehensif, dan tuntas sesuai kebutuhan, namun tetap langsung masuk ke pembahasan tanpa basa-basi pengantar.\n' +
-      'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.' +
-      searchInstruction +
-      visionInstruction +
-      (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
-      (memoryBlock ? ('\n' + memoryBlock) : '');
+    if (isSearchConclusion) {
+      // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
+      systemPromptContent = 
+        `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI.\n` +
+        timeInfo + '\n' +
+        `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
+        `1. BACA & RANGKUM DATA BERITA: Pengguna melampirkan DATA HASIL PENCARIAN & BERITA TERVERIFIKASI. Bacalah secara cermat seluruh kutipan, fakta, artikel, angka, nama tokoh, dan peristiwa di dalamnya. Sajikan intisari dan penjelasan berita tersebut secara lengkap dan akurat.\n` +
+        `2. DILARANG MENGABAIKAN BERITA: Dilarang keras menjawab di luar konteks berita yang ditemukan atau mengabaikan isi kutipan berita!\n` +
+        `3. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan berita terbaru ini. Jangan membahas obrolan lama yang sudah tidak relevan.\n` +
+        `4. DILARANG BERTERIMA KASIH: Jangan pernah mengucapkan "Terima kasih atas hasil pencariannya". Langsung mulai jawaban di paragraf pertama.\n` +
+        `5. SITASI LINK: Cantumkan sitasi link [Nama Sumber](URL) pada setiap fakta atau berita terkait.\n` +
+        `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
+        `7. LANGSUNG KE JAWABAN: Dilarang menalar panjang, langsung berikan jawaban berita final yang lengkap dan jelas.`;
+    } else {
+      systemPromptContent = 
+        `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n` +
+        timeInfo + '\n' +
+        `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
+        'ATURAN GAYA KOMUNIKASI (MUTLAK):\n' +
+        '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi.\n' +
+        '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.\n' +
+        '3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan mendalam, analisis, perancangan sistem, tutorial, atau tugas coding, kamu bisa dan diwajibkan men-generate jawaban yang panjang, lengkap, komprehensif, dan tuntas sesuai kebutuhan, namun tetap langsung masuk ke pembahasan tanpa basa-basi pengantar.\n' +
+        'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.' +
+        searchInstruction +
+        visionInstruction +
+        (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
+        (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
+        (memoryBlock ? ('\n' + memoryBlock) : '');
+    }
 
     // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
     const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
@@ -888,6 +905,10 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       
       pastTurns = historyPool
         .filter(m => m && !m.isSearching && (m.text || m.content))
+        .filter(m => {
+          const txt = (m.text || m.content || '').trim();
+          return !txt.startsWith('[SEARCH_REQUEST:');
+        })
         .map(m => ({
           role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
           content: (m.text || m.content || '').trim()
@@ -933,12 +954,13 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
         signal: abortController?.signal,
         body: JSON.stringify({
-          model: deepernovaModel || 'deepernova v1 flash 1',
+          model: deepernovaModel || 'deepernova-gold-1.5',
           sessionId: conversationId || null,
           conversationId: conversationId || null,
           personality: personality || 'mentor',
           messages: finalMessages,
           uploadedImages: validImageUrls,
+          enableReasoning: Boolean(enableReasoning),
           temperature: isFlashModel ? 0.35 : 0.5,
           max_tokens: isFlashModel ? 4096 : 512,
           presence_penalty: isFlashModel ? 0.1 : 0.2,
@@ -1029,7 +1051,7 @@ export const appendToGlobalMemory = async (newQuestion, isAuthenticated, isGuest
   return;
 };
 
-export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova v1 flash 1', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = []) => {
+export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false) => {
   let lastError = null;
   const operationStartTime = Date.now();
   
@@ -1108,13 +1130,14 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
       language,
       personality,
       abortController,
-      deepernovaModel || 'deepernova-boron-1.1',
+      deepernovaModel || 'deepernova-gold-1.5',
       userName,
       sessionMessageCount,
       safeUploadedImages,
       globalMemory,
       conversationId,
-      isGuest
+      isGuest,
+      enableReasoning
     );
   } catch (backendErr) {
     if (backendErr.name === 'AbortError') throw backendErr;

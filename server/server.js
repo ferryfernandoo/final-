@@ -2597,10 +2597,13 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  const reqModelEarly = req.body?.model || 'deepernova v1 flash 1';
+  const reqModelEarly = req.body?.model || 'deepernova-gold-1.5';
   const isDeepernovaEarly = reqModelEarly && (
     reqModelEarly.toLowerCase().includes('deepernova') ||
-    reqModelEarly.toLowerCase().includes('flash 1')
+    reqModelEarly.toLowerCase().includes('flash') ||
+    reqModelEarly.toLowerCase().includes('gold') ||
+    reqModelEarly.toLowerCase().includes('boron') ||
+    reqModelEarly.toLowerCase().includes('silicon')
   );
 
   if (!isDeepernovaEarly && !TOKENMIX_CHAT_API_KEY) {
@@ -2760,10 +2763,13 @@ app.post('/api/chat', async (req, res) => {
     };
     const enforceContextWindow1000 = enforceChunkedContextMemory;
 
-    const requestedModelEarly = req.body.model || 'deepernova v1 flash 1';
+    const requestedModelEarly = req.body.model || 'deepernova-gold-1.5';
     const isDeepernovaEarly = requestedModelEarly && (
       requestedModelEarly.toLowerCase().includes('deepernova') ||
-      requestedModelEarly.toLowerCase().includes('flash')
+      requestedModelEarly.toLowerCase().includes('flash') ||
+      requestedModelEarly.toLowerCase().includes('gold') ||
+      requestedModelEarly.toLowerCase().includes('boron') ||
+      requestedModelEarly.toLowerCase().includes('silicon')
     );
     if (!isDeepernovaEarly) {
       messages = enforceChunkedContextMemory(messages, 3500);
@@ -2946,7 +2952,7 @@ app.post('/api/chat', async (req, res) => {
         );
 
         const reqLower = (requestedModel || '').toLowerCase();
-        let currentBrandedName = 'DeeperNova Silicon 1.4';
+        let currentBrandedName = 'DeeperNova Gold 1.5';
         if (reqLower.includes('silicon')) {
           currentBrandedName = 'DeeperNova Silicon 1.4';
         } else if (reqLower.includes('boron')) {

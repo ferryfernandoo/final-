@@ -11749,6 +11749,97 @@ pre.code-block code {
   transform: rotate(180deg) !important;
 }
 
+/* Reasoning Toggle Button in Input Toolbar */
+.claude-reasoning-toggle-btn {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: rgba(248, 250, 252, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 9999px !important;
+  padding: 5px 11px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  cursor: pointer !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  user-select: none !important;
+}
+
+[data-theme="dark"] .claude-reasoning-toggle-btn {
+  background: rgba(39, 39, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.claude-reasoning-toggle-btn:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="dark"] .claude-reasoning-toggle-btn:hover {
+  background: #3f3f46 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.claude-reasoning-toggle-btn.active {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  color: #d97706 !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2) !important;
+}
+
+[data-theme="dark"] .claude-reasoning-toggle-btn.active {
+  background: rgba(245, 158, 11, 0.2) !important;
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  color: #fbbf24 !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.25) !important;
+}
+
+.reasoning-toggle-icon {
+  font-size: 13px !important;
+  line-height: 1 !important;
+}
+
+.reasoning-toggle-text {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.reasoning-toggle-status-pill {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 1px 6px !important;
+  border-radius: 9999px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.3px !important;
+  transition: all 0.2s ease !important;
+}
+
+.reasoning-toggle-status-pill.off {
+  background: rgba(148, 163, 184, 0.2) !important;
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .reasoning-toggle-status-pill.off {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+}
+
+.reasoning-toggle-status-pill.on {
+  background: #f59e0b !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4) !important;
+}
+
 /* Model Dropdown Popup */
 .claude-model-dropdown {
   position: absolute !important;

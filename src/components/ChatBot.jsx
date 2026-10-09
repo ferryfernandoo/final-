@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import ReactMarkdown from 'react-markdown';
@@ -644,12 +644,13 @@ const CodeStructureViewer = ({ code, language }) => {
   );
 };
 
-// Isolated, Zero-Lag Reasoning Component with Boron 1.1 Thinking Container
+// Isolated, Zero-Lag Reasoning Component with Dynamic Model Name Thinking Container
 const ReasoningSection = React.memo(({
   reasoningText,
   isReasoning = false,
   reasoningDuration = '0.5',
-  userLanguage = 'id'
+  userLanguage = 'id',
+  modelName = 'AI'
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isManuallyCollapsed, setIsManuallyCollapsed] = useState(false);
@@ -692,11 +693,12 @@ const ReasoningSection = React.memo(({
     }
   };
 
+  const displayModel = (modelName || 'AI').replace(/^DeeperNova\s*/i, '');
   const buttonLabel = isReasoning
-    ? (userLanguage === 'id' ? 'Proses Penalaran Boron 1.1 (Menalar...)' : 'Boron 1.1 Reasoning (Thinking...)')
+    ? (userLanguage === 'id' ? `Proses Penalaran ${displayModel} (Menalar...)` : `${displayModel} Reasoning (Thinking...)`)
     : (userLanguage === 'id'
-        ? `Proses Penalaran Boron 1.1 (${reasoningDuration || '0.5'}s)`
-        : `Boron 1.1 Reasoning Process (${reasoningDuration || '0.5'}s)`);
+        ? `Proses Penalaran ${displayModel} (${reasoningDuration || '0.5'}s)`
+        : `${displayModel} Reasoning Process (${reasoningDuration || '0.5'}s)`);
 
   return (
     <div className="reasoning-completed-container">
@@ -1260,25 +1262,6 @@ const DEFAULT_PERSONALITY = 'formal';
 
 export const DEEPERNOVA_MODELS = [
   {
-    id: 'deepernova-silicon-1.4',
-    name: 'DeeperNova Silicon 1.4',
-    shortName: 'Silicon 1.4',
-    tag: 'Flash • Vision',
-    tagEn: 'Flash • Vision',
-    speed: 'Flash • Vision',
-    speedEn: 'Flash • Vision',
-    icon: 'fa-solid fa-microchip',
-    color: '#06b6d4',
-    bgColor: 'rgba(6, 182, 212, 0.12)',
-    badge: 'SILICON 1.4',
-    sub: 'Multimodal vision cerdas & respons ultra cepat',
-    subEn: 'Smart multimodal vision & ultra-fast response',
-    desc: 'Multimodal vision cerdas & respons ultra cepat',
-    descEn: 'Smart multimodal vision & ultra-fast response',
-    supportsVision: true,
-    isLocalOffline: false
-  },
-  {
     id: 'deepernova-gold-1.5',
     name: 'DeeperNova Gold 1.5',
     shortName: 'Gold 1.5',
@@ -1295,25 +1278,27 @@ export const DEEPERNOVA_MODELS = [
     desc: 'Multimodal vision & penalaran cerdas',
     descEn: 'Multimodal vision & smart reasoning',
     supportsVision: true,
+    supportsReasoning: true,
     isLocalOffline: false
   },
   {
-    id: 'deepernova-gold-1.5-pro',
-    name: 'DeeperNova Gold 1.5 Pro',
-    shortName: 'Gold 1.5 Pro',
-    tag: '70B Pro',
-    tagEn: '70B Pro',
-    speed: 'Reasoning 70B',
-    speedEn: 'Reasoning 70B',
-    icon: 'fa-solid fa-brain',
-    color: '#8b5cf6',
-    bgColor: 'rgba(139, 92, 246, 0.12)',
-    badge: '70B PRO',
-    sub: 'Penalaran mendalam, analisis & coding',
-    subEn: 'Deep reasoning, complex logic & code',
-    desc: 'Penalaran mendalam, analisis & coding',
-    descEn: 'Deep reasoning, complex logic & code',
-    supportsVision: false,
+    id: 'deepernova-silicon-1.4',
+    name: 'DeeperNova Silicon 1.4',
+    shortName: 'Silicon 1.4',
+    tag: 'Flash • Vision',
+    tagEn: 'Flash • Vision',
+    speed: 'Flash • Vision',
+    speedEn: 'Flash • Vision',
+    icon: 'fa-solid fa-microchip',
+    color: '#06b6d4',
+    bgColor: 'rgba(6, 182, 212, 0.12)',
+    badge: 'SILICON 1.4',
+    sub: 'Multimodal vision cerdas & respons ultra cepat',
+    subEn: 'Smart multimodal vision & ultra-fast response',
+    desc: 'Multimodal vision cerdas & respons ultra cepat',
+    descEn: 'Smart multimodal vision & ultra-fast response',
+    supportsVision: true,
+    supportsReasoning: false,
     isLocalOffline: false
   },
   {
@@ -1333,6 +1318,27 @@ export const DEEPERNOVA_MODELS = [
     desc: 'Latensi ultra rendah & dialog lincah',
     descEn: 'Ultra-low latency & agile conversation',
     supportsVision: true,
+    supportsReasoning: true,
+    isLocalOffline: false
+  },
+  {
+    id: 'deepernova-gold-1.5-pro',
+    name: 'DeeperNova Gold 1.5 Pro',
+    shortName: 'Gold 1.5 Pro',
+    tag: '70B Pro',
+    tagEn: '70B Pro',
+    speed: 'Reasoning 70B',
+    speedEn: 'Reasoning 70B',
+    icon: 'fa-solid fa-brain',
+    color: '#8b5cf6',
+    bgColor: 'rgba(139, 92, 246, 0.12)',
+    badge: '70B PRO',
+    sub: 'Penalaran mendalam, analisis & coding',
+    subEn: 'Deep reasoning, complex logic & code',
+    desc: 'Penalaran mendalam, analisis & coding',
+    descEn: 'Deep reasoning, complex logic & code',
+    supportsVision: false,
+    supportsReasoning: true,
     isLocalOffline: false
   },
   {
@@ -2033,11 +2039,34 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [customAlert, setCustomAlert] = useState(null); // Modern alert system
   const [showInputMenu, setShowInputMenu] = useState(false); // Show/hide input menu
   const [showModelMenu, setShowModelMenu] = useState(false); // Show/hide model selection dropdown
-  const [selectedModel, setSelectedModel] = useState('deepernova-silicon-1.4'); // Default DeeperNova Silicon 1.4 Ultra-Fast Vision AI
+  const [selectedModel, setSelectedModel] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_selected_model') || 'deepernova-gold-1.5';
+    } catch (e) {
+      return 'deepernova-gold-1.5';
+    }
+  });
+  const [isReasoningEnabled, setIsReasoningEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_reasoning_enabled') === 'true'; // Default is FALSE as requested
+    } catch (e) {
+      return false;
+    }
+  });
+  const toggleReasoning = useCallback(() => {
+    setIsReasoningEnabled(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('deepernova_reasoning_enabled', String(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
   const [localModelProgress, setLocalModelProgress] = useState({ pct: 0, statusText: '', isLoading: false });
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
   }, [selectedModel]);
+  const isReasoningCapable = currentModelObj?.supportsReasoning !== false;
   const [showSourcesModal, setShowSourcesModal] = useState(false); // Show sources modal
   const [currentSources, setCurrentSources] = useState([]); // Current conversation sources
   const [selectedSource, setSelectedSource] = useState(null); // Selected source for detail view
@@ -8129,6 +8158,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       sender: 'bot',
       timestamp: new Date(),
       isStreaming: true,
+      modelName: currentModelObj?.name || 'DeeperNova Gold 1.5',
     };
 
     const updatedConversationHistory = [...messages, userMessageForChat];
@@ -8275,7 +8305,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Capture conversationId NOW so it's used in streaming callback, not currentConversationId (which can change)
       const streamingConversationId = currentConversationId;
       
-      const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass);
+      const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningEnabled);
 
       // Declare accumulatedText and reasoning tracking variables
       let rawText = '';
@@ -8380,8 +8410,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           return;
         }
 
-        // Handle live reasoning chunk from DeepSeek / Boron
+        // Handle live reasoning chunk from DeepSeek / Boron / Gold
         if (typeof chunk === 'object' && chunk.type === 'reasoning') {
+          if (!isReasoningEnabled) {
+            // When reasoning mode is OFF, do not show reasoning box or stream reasoning text
+            return;
+          }
           if (!reasoningStartTime) {
             reasoningStartTime = Date.now();
             isReasoning = true;
@@ -9317,13 +9351,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return;
       }
 
-      // Build history with clean conversational turns
+      // Build history with clean conversational turns (omit pending message and search request flags)
       const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
-      const historyWithSearchRequest = sourceHistory.map(msg => 
-        msg.id === messageId
-          ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot', isSearching: false }
-          : msg
-      );
+      const cleanHistoryForSearch = sourceHistory
+        .filter(msg => msg && msg.id !== messageId)
+        .filter(msg => {
+          const txt = (msg.text || msg.content || '').trim();
+          return !txt.startsWith('[SEARCH_REQUEST:');
+        });
 
       const newAbortController = new AbortController();
       abortControllerRef.current = newAbortController;
@@ -9333,7 +9368,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
       const botResponse = await sendMessageToGrok(
         conclusionPrompt, 
-        historyWithSearchRequest, 
+        cleanHistoryForSearch, 
         userLanguage, 
         currentConversationId, 
         selectedPersonality, 
@@ -9343,7 +9378,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         isGuest, 
         userName || user?.name, 
         sessionMessageCount + 2, 
-        []
+        [],
+        false // enableReasoning = false (ALWAYS disabled for search conclusion so it reads & summarizes news immediately!)
       );
 
       let finalResponseText = '';
@@ -9562,18 +9598,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda secara akurat dan percaya diri. Jika pertanyaan ini membahas topik baru yang berbeda, fokus penuh 100% pada topik baru ini tanpa mengaitkan ke percakapan lama sebelumnya.]\n\nPertanyaan pengguna: "${userQuery}"`;
         
         const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
-        const historyWithSearchRequest = sourceHistory.map(msg => 
-          msg.id === messageId
-            ? { ...msg, text: `[SEARCH_REQUEST: ${searchQuery}]`, sender: 'bot', isSearching: false }
-            : msg
-        );
+        const cleanHistoryForSearch = sourceHistory
+          .filter(msg => msg && msg.id !== messageId)
+          .filter(msg => {
+            const txt = (msg.text || msg.content || '').trim();
+            return !txt.startsWith('[SEARCH_REQUEST:');
+          });
 
         const newAbortController = new AbortController();
         abortControllerRef.current = newAbortController;
         
         const botResponse = await sendMessageToGrok(
           fallbackPrompt, 
-          historyWithSearchRequest, 
+          cleanHistoryForSearch, 
           userLanguage, 
           currentConversationId, 
           selectedPersonality, 
@@ -9583,7 +9620,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           isGuest, 
           userName || user?.name, 
           sessionMessageCount + 2, 
-          []
+          [],
+          false // enableReasoning = false
         );
 
         let finalResponseText = '';
@@ -11069,6 +11107,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                       isReasoning={message.isReasoning}
                       reasoningDuration={message.reasoningDuration}
                       userLanguage={userLanguage}
+                      modelName={message.modelName || currentModelObj?.name || 'AI'}
                     />
                   )}
 
@@ -13245,6 +13284,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                           className={`model-option-item ${selectedModel === m.id ? 'active' : ''}`}
                           onClick={() => {
                             setSelectedModel(m.id);
+                            try {
+                              localStorage.setItem('deepernova_selected_model', m.id);
+                            } catch (e) {}
                             setShowModelMenu(false);
                           }}
                         >
@@ -13278,6 +13320,28 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   </div>
                 )}
               </div>
+
+              {/* Reasoning Mode Toggle Button */}
+              {isReasoningCapable && (
+                <button
+                  type="button"
+                  className={`claude-reasoning-toggle-btn ${isReasoningEnabled ? 'active' : ''}`}
+                  onClick={toggleReasoning}
+                  title={
+                    isReasoningEnabled
+                      ? (userLanguage === 'id' ? 'Mode Penalaran: AKTIF (Klik untuk nonaktifkan)' : 'Reasoning Mode: ACTIVE (Click to disable)')
+                      : (userLanguage === 'id' ? 'Mode Penalaran: NONAKTIF (Klik untuk aktifkan)' : 'Reasoning Mode: DISABLED (Click to enable)')
+                  }
+                >
+                  <span className="reasoning-toggle-icon">🧠</span>
+                  <span className="reasoning-toggle-text">
+                    {userLanguage === 'id' ? 'Penalaran' : 'Reasoning'}
+                  </span>
+                  <span className={`reasoning-toggle-status-pill ${isReasoningEnabled ? 'on' : 'off'}`}>
+                    {isReasoningEnabled ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Mati' : 'Off')}
+                  </span>
+                </button>
+              )}
 
               {/* Speech-to-Text Microphone Button */}
               <button
