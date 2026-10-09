@@ -2924,7 +2924,7 @@ app.post('/api/chat', async (req, res) => {
                 contentArray.push(...currentContent);
               }
               for (const img of req.body.uploadedImages) {
-                const imgUrl = typeof img === 'string' ? img : (img.url || img.dataUrl);
+                const imgUrl = typeof img === 'string' ? img : (img.url || img.dataUrl || img.imageUrl || img.publicUrl);
                 if (imgUrl && !contentArray.some(c => c?.image_url?.url === imgUrl)) {
                   contentArray.push({ type: 'image_url', image_url: { url: imgUrl } });
                 }
@@ -2945,22 +2945,23 @@ app.post('/api/chat', async (req, res) => {
           requestedModel.toLowerCase().includes('flash')
         );
 
+        const reqLower = (requestedModel || '').toLowerCase();
+        let currentBrandedName = 'DeeperNova Silicon 1.4';
+        if (reqLower.includes('silicon')) {
+          currentBrandedName = 'DeeperNova Silicon 1.4';
+        } else if (reqLower.includes('boron')) {
+          currentBrandedName = 'DeeperNova Boron 1.1';
+        } else if (reqLower.includes('gold')) {
+          currentBrandedName = reqLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
+        } else {
+          currentBrandedName = 'DeeperNova AI';
+        }
+
         // Khusus DeeperNova Silicon 1.4 / Boron 1.1 / Gold 1.5: Memori konteks 1 Juta Token & penalaran mendalam
         if (isDeepernovaModel) {
           const nowServer = new Date();
           const yearServer = nowServer.getFullYear();
           const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
-          const reqLower = (requestedModel || '').toLowerCase();
-          let currentBrandedName = 'DeeperNova Silicon 1.4';
-          if (reqLower.includes('silicon')) {
-            currentBrandedName = 'DeeperNova Silicon 1.4';
-          } else if (reqLower.includes('boron')) {
-            currentBrandedName = 'DeeperNova Boron 1.1';
-          } else if (reqLower.includes('gold')) {
-            currentBrandedName = reqLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
-          } else {
-            currentBrandedName = 'DeeperNova AI';
-          }
 
           const DEFAULT_SYSTEM_PROMPT = 
             `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ` +
@@ -2975,7 +2976,11 @@ app.post('/api/chat', async (req, res) => {
           
           // Pertahankan sistem prompt lengkap dari Chatbot yang berisi memori aktif pengguna
           const clientSystemMsg = messages.find(m => m.role === 'system');
-          const finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
+          let finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
+
+          if (hasImagesInPayload && !finalSystemPrompt.includes('KEMAMPUAN VISION')) {
+            finalSystemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK): Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh. Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna. Dilarang mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!';
+          }
 
           // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
           const MAX_1M_CHARS = 3000000;
@@ -2986,7 +2991,10 @@ app.post('/api/chat', async (req, res) => {
             if (m.role === 'system') continue;
             let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
             if (runningChars + mText.length <= MAX_1M_CHARS) {
-              cleanHistory.unshift({ role: m.role === 'assistant' ? 'assistant' : 'user', content: mText });
+              cleanHistory.unshift({ 
+                role: m.role === 'assistant' ? 'assistant' : 'user', 
+                content: Array.isArray(m.content) ? m.content : mText 
+              });
               runningChars += mText.length;
             } else {
               break;
@@ -3029,12 +3037,17 @@ app.post('/api/chat', async (req, res) => {
 
         // 🚀 100% TOKENMIX ROUTE
         // Model Routing:
-        // - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-2.1-turbo)
+        // - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-2.1-turbo) untuk teks biasa
         // - Gold 1.5: WAJIB Llama Maverick (llama-4-maverick)
         // - Gold 1.5 Pro: Llama 3.3 70B (llama-3.3-70b)
+        // - Jika ada GAMBAR (Vision Mode): WAJIB menggunakan llama-4-maverick karena satu-satunya model multi-modal vision di TokenMix,
+        //   sementara persona sistem prompt tetap 100% identitas model yang dipilih (misal DeeperNova Boron 1.1).
         let selectedModel = 'llama-4-maverick';
         const reqModelLower = (requestedModel || '').toLowerCase();
-        if (reqModelLower.includes('boron') || reqModelLower.includes('silicon') || reqModelLower.includes('doubao') || reqModelLower.includes('bytedance')) {
+        if (hasImagesInPayload) {
+          selectedModel = 'llama-4-maverick';
+          console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
+        } else if (reqModelLower.includes('boron') || reqModelLower.includes('silicon') || reqModelLower.includes('doubao') || reqModelLower.includes('bytedance')) {
           selectedModel = 'doubao-seed-2.1-turbo';
         } else if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
           selectedModel = 'llama-3.3-70b';

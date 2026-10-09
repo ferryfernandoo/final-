@@ -16,7 +16,7 @@ export const getValidVisionImageUrl = (img) => {
     return img;
   }
   if (typeof img === 'object') {
-    const url = img.dataUrl || img.url || (img.base64 ? (img.base64.startsWith('data:') ? img.base64 : `data:image/jpeg;base64,${img.base64}`) : null);
+    const url = img.dataUrl || img.publicUrl || img.imageUrl || img.url || (img.base64 ? (img.base64.startsWith('data:') ? img.base64 : `data:image/jpeg;base64,${img.base64}`) : null);
     if (url) return url;
   }
   return null;
@@ -776,11 +776,12 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
 
   const localMemoryContext = isSearchConclusion ? '' : getLocalMemoryContext(message, language, conversationId, sessionMessageCount);
+  const cleanTextMessage = typeof message === 'string' ? message.trim() : (message || '');
 
   if (validImageUrls.length > 0) {
     console.log(`📸 Backend proxy vision mode: sending ${validImageUrls.length} image(s)`);
     userMessageContent = [
-      { type: 'text', text: `${message}${localMemoryContext}` },
+      { type: 'text', text: `${cleanTextMessage}${localMemoryContext}` },
       ...validImageUrls.map(imgUrl => ({
         type: 'image_url',
         image_url: {
@@ -789,7 +790,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       }))
     ];
   } else {
-    userMessageContent = `${message}${localMemoryContext}`;
+    userMessageContent = `${cleanTextMessage}${localMemoryContext}`;
   }
 
   const mLower = (deepernovaModel || '').toLowerCase();
@@ -840,6 +841,18 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         '- When in doubt whether to search: Answer directly without searching.'
     );
 
+    const visionInstruction = validImageUrls.length > 0
+      ? (language === 'id'
+        ? '\n\nKEMAMPUAN VISION (MUTLAK):\n' +
+          '- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n' +
+          '- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n' +
+          '- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!'
+        : '\n\nVISION CAPABILITY (MANDATORY):\n' +
+          '- The user has attached image(s). You have full visual perception.\n' +
+          '- Thoroughly and accurately analyze and describe the image according to user inquiry.\n' +
+          '- NEVER claim you cannot see images or ask to re-upload!')
+      : '';
+
     let modelNameLabel = 'DeeperNova AI';
     if (mLower.includes('boron')) {
       modelNameLabel = 'DeeperNova Boron 1.1';
@@ -859,10 +872,9 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       '3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan mendalam, analisis, perancangan sistem, tutorial, atau tugas coding, kamu bisa dan diwajibkan men-generate jawaban yang panjang, lengkap, komprehensif, dan tuntas sesuai kebutuhan, namun tetap langsung masuk ke pembahasan tanpa basa-basi pengantar.\n' +
       'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.' +
       searchInstruction +
+      visionInstruction +
       (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
       (memoryBlock ? ('\n' + memoryBlock) : '');
-
-    userMessageContent = typeof message === 'string' ? message.trim() : message;
 
     // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
     const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
@@ -926,6 +938,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           conversationId: conversationId || null,
           personality: personality || 'mentor',
           messages: finalMessages,
+          uploadedImages: validImageUrls,
           temperature: isFlashModel ? 0.35 : 0.5,
           max_tokens: isFlashModel ? 4096 : 512,
           presence_penalty: isFlashModel ? 0.1 : 0.2,
