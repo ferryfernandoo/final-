@@ -154,6 +154,7 @@ const TOKENMIX_API_KEYS = Array.from(new Set([
   'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
 ].filter(Boolean)));
 let activeChatKeyIndex = 0;
+const TOKENMIX_API_KEY = TOKENMIX_API_KEYS[0];
 const TOKENMIX_CHAT_API_KEY = TOKENMIX_API_KEY;
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
