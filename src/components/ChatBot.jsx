@@ -2390,6 +2390,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   }, [messages.length, isCardsHovered]);
 
   const [showSourcesModal, setShowSourcesModal] = useState(false); // Show sources modal
+  const [showSidebarMoreMenu, setShowSidebarMoreMenu] = useState(false); // Meta AI sidebar More menu
+  const [showSidebarProfileMenu, setShowSidebarProfileMenu] = useState(false); // Meta AI sidebar Profile menu
+  const [showSidebarSearchInput, setShowSidebarSearchInput] = useState(false); // Meta AI sidebar inline search toggle
   const [currentSources, setCurrentSources] = useState([]); // Current conversation sources
   const [selectedSource, setSelectedSource] = useState(null); // Selected source for detail view
   const [foundSources, setFoundSources] = useState([]); // Sources found during search
@@ -7723,7 +7726,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Close input menu (+ attachment menu), model menu, and floating menu when clicking or tapping outside
   useEffect(() => {
-    if (!showInputMenu && !showModelMenu && !showFloatingMenu) return;
+    if (!showInputMenu && !showModelMenu && !showFloatingMenu && !showSidebarMoreMenu && !showSidebarProfileMenu) return;
 
     const handleClickOutside = (e) => {
       if (showInputMenu) {
@@ -7751,6 +7754,20 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           setShowFloatingMenu(false);
         }
       }
+
+      if (showSidebarMoreMenu) {
+        const moreWrapper = document.querySelector('.meta-more-wrapper');
+        if (moreWrapper && !moreWrapper.contains(e.target)) {
+          setShowSidebarMoreMenu(false);
+        }
+      }
+
+      if (showSidebarProfileMenu) {
+        const profileFooter = document.querySelector('.meta-sidebar-footer');
+        if (profileFooter && !profileFooter.contains(e.target)) {
+          setShowSidebarProfileMenu(false);
+        }
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -7760,7 +7777,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [showInputMenu, showModelMenu, showFloatingMenu]);
+  }, [showInputMenu, showModelMenu, showFloatingMenu, showSidebarMoreMenu, showSidebarProfileMenu]);
 
   // ==================== SOURCE MANAGEMENT ====================
   /**
@@ -12817,266 +12834,437 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         </div>
       )}
 
-      {/* Sidebar */}
-      {/* Ultra-Minimalist Modern Sidebar */}
-      <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
-        <div className="sidebar-header">
+      {/* Ultra-Modern Meta AI / ChatGPT Style Sidebar */}
+      <div className={`sidebar meta-ai-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        {/* Top Header: Rotating Gradient Logo Orb & Collapse Sidebar Button */}
+        <div className="meta-sidebar-top-bar">
           <div 
-            className="sidebar-brand-wrapper" 
+            className="meta-sidebar-logo-group" 
             onClick={() => onNavigate?.('landing')}
-            title="Kembali ke Beranda"
+            title={userLanguage === 'id' ? 'Kembali ke Beranda' : 'Return to Home'}
           >
-            <img src="/logo.png" alt="Deepernova AI" className="sidebar-brand-logo" />
-            <span className="sidebar-brand-name">Deepernova</span>
+            {/* Meta AI-style vibrant multi-petal gradient orb */}
+            <div className="meta-sidebar-orb-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="url(#metaOrbGrad)" strokeWidth="3" strokeDasharray="3.5 2" />
+                <circle cx="12" cy="12" r="3.5" fill="url(#metaOrbGrad2)" />
+                <defs>
+                  <linearGradient id="metaOrbGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#a855f7" />
+                    <stop offset="0.5" stopColor="#3b82f6" />
+                    <stop offset="1" stopColor="#ea580c" />
+                  </linearGradient>
+                  <linearGradient id="metaOrbGrad2" x1="8.5" y1="8.5" x2="15.5" y2="15.5" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#c084fc" />
+                    <stop offset="1" stopColor="#ea580c" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <span className="meta-sidebar-brand-title">DeeperNova</span>
           </div>
-          
+
           <button
             type="button"
-            className="sidebar-close-btn"
+            className="meta-sidebar-collapse-btn"
             onClick={() => setSidebarOpen(false)}
-            title="Tutup sidebar"
+            title={userLanguage === 'id' ? 'Tutup sidebar' : 'Collapse sidebar'}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="9" y1="3" x2="9" y2="21"></line>
             </svg>
           </button>
         </div>
 
-        {/* Primary New Chat Button (Linear/Claude style) */}
-        <div className="sidebar-action-wrap">
-          <button 
-            type="button" 
-            className="sidebar-new-chat-btn"
+        {/* Primary Meta AI Nav Items */}
+        <div className="meta-sidebar-nav-list">
+          {/* 1. New chat (Ctrl+Shift+O) */}
+          <button
+            type="button"
+            className="meta-sidebar-nav-btn"
             onClick={createNewConversation}
             title="Mulai percakapan baru (Ctrl+Shift+O)"
           >
-            <div className="new-chat-left">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+            <div className="meta-nav-left-content">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
-              <span>{userLanguage === 'id' ? 'Obrolan baru' : 'New chat'}</span>
+              <span>{userLanguage === 'id' ? 'New chat' : 'New chat'}</span>
             </div>
-            <kbd className="new-chat-kbd">Ctrl+Shift+O</kbd>
-          </button>
-        </div>
-
-        {/* Minimal Quick Links */}
-        <div className="sidebar-quick-links">
-          <button 
-            type="button"
-            className="quick-link-btn"
-            onClick={() => onNavigate?.('landing')}
-            title={userLanguage === 'id' ? 'Beranda & Landing Page' : 'Home / Landing Page'}
-          >
-            <i className="fa-solid fa-house"></i>
-            <span>{userLanguage === 'id' ? 'Beranda' : 'Home'}</span>
+            <span className="meta-nav-shortcut">Ctrl+Shift+O</span>
           </button>
 
-          <button 
+          {/* 2. Search (Ctrl+K) */}
+          <button
             type="button"
-            className="quick-link-btn"
-            onClick={() => setShowSavedImagesGallery(true)}
-            title="Media & Galeri AI"
-          >
-            <i className="fa-regular fa-image"></i>
-            <span>Media</span>
-          </button>
-
-          <button 
-            type="button"
-            className="quick-link-btn"
+            className={`meta-sidebar-nav-btn ${showSidebarSearchInput ? 'active' : ''}`}
             onClick={() => {
-              if (latestAiMessage && (latestAiMessage.text.includes('```') || latestAiMessage.text.includes('<!DOCTYPE html>'))) {
-                setShowAgenticPanel(true);
-                setAgenticActiveTab('langkah');
-              } else {
-                showAlert(userLanguage === 'id' ? 'Artefak interaktif & kode akan muncul di sini saat AI membuatnya.' : 'Interactive artifacts will appear here.', 'info', 3000);
-              }
+              setShowSidebarSearchInput(prev => !prev);
+              setTimeout(() => {
+                const el = document.querySelector('.meta-sidebar-search-box input');
+                if (el) el.focus();
+              }, 60);
             }}
-            title="Artefak & Kode"
+            title="Cari riwayat (Ctrl+K)"
           >
-            <i className="fa-solid fa-layer-group"></i>
-            <span>Artefak</span>
+            <div className="meta-nav-left-content">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <span>{userLanguage === 'id' ? 'Search' : 'Search'}</span>
+            </div>
+            <span className="meta-nav-shortcut">Ctrl+K</span>
           </button>
 
-          <button 
+          {/* Inline search bar popup */}
+          {showSidebarSearchInput && (
+            <div className="meta-sidebar-search-box">
+              <input
+                type="text"
+                placeholder={userLanguage === 'id' ? "Cari obrolan..." : "Search chats..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery('')}>✕</button>
+              )}
+            </div>
+          )}
+
+          {/* 3. Media */}
+          <button
             type="button"
-            className="quick-link-btn"
-            onClick={() => onNavigate?.('universe')}
-            title="Deepernova Universe & Vibes"
+            className="meta-sidebar-nav-btn"
+            onClick={() => setShowSavedImagesGallery(true)}
+            title="Galeri Media & Foto AI"
           >
-            <i className="fa-solid fa-wand-magic-sparkles"></i>
-            <span>Vibes</span>
+            <div className="meta-nav-left-content">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              <span>{userLanguage === 'id' ? 'Media' : 'Media'}</span>
+            </div>
           </button>
+
+          {/* 4. Artifacts */}
+          <button
+            type="button"
+            className="meta-sidebar-nav-btn"
+            onClick={() => {
+              setShowAgenticPanel(true);
+              setAgenticActiveTab('langkah');
+            }}
+            title="Artefak & Kode AI"
+          >
+            <div className="meta-nav-left-content">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              <span>{userLanguage === 'id' ? 'Artifacts' : 'Artifacts'}</span>
+            </div>
+          </button>
+
+          {/* 5. Scheduled */}
+          <button
+            type="button"
+            className="meta-sidebar-nav-btn"
+            onClick={() => {
+              showAlert(
+                userLanguage === 'id' 
+                  ? '📅 Fitur Jadwal & Alarm AI aktif: Anda dapat meminta AI untuk menyetel alarm atau jadwal di dalam obrolan.' 
+                  : '📅 Scheduled tasks active: ask DeeperNova AI to set reminders in chat.',
+                'info',
+                3500
+              );
+            }}
+            title="Jadwal & Pengingat AI"
+          >
+            <div className="meta-nav-left-content">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span>{userLanguage === 'id' ? 'Scheduled' : 'Scheduled'}</span>
+            </div>
+          </button>
+
+          {/* 6. More */}
+          <div className="meta-more-wrapper">
+            <button
+              type="button"
+              className={`meta-sidebar-nav-btn ${showSidebarMoreMenu ? 'active' : ''}`}
+              onClick={() => setShowSidebarMoreMenu(!showSidebarMoreMenu)}
+              title="Menu Lainnya"
+            >
+              <div className="meta-nav-left-content">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="1.5"></circle>
+                  <circle cx="19" cy="12" r="1.5"></circle>
+                  <circle cx="5" cy="12" r="1.5"></circle>
+                </svg>
+                <span>{userLanguage === 'id' ? 'More' : 'More'}</span>
+              </div>
+            </button>
+
+            {showSidebarMoreMenu && (
+              <div className="meta-more-dropdown-card" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="meta-more-dropdown-item"
+                  onClick={() => {
+                    setShowApiDashboard(true);
+                    setShowSidebarMoreMenu(false);
+                  }}
+                >
+                  <i className="fa-solid fa-cloud-bolt"></i>
+                  <span>AI & API Platforms</span>
+                </button>
+                <button
+                  type="button"
+                  className="meta-more-dropdown-item"
+                  onClick={() => {
+                    setShowPersonalityModal(true);
+                    setShowSidebarMoreMenu(false);
+                  }}
+                >
+                  <i className="fa-solid fa-masks-theater"></i>
+                  <span>{userLanguage === 'id' ? 'Kepribadian AI' : 'AI Personality'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="meta-more-dropdown-item"
+                  onClick={() => {
+                    setShowPrivateModal(true);
+                    setShowSidebarMoreMenu(false);
+                  }}
+                >
+                  <i className="fa-solid fa-user-shield"></i>
+                  <span>{userLanguage === 'id' ? 'Obrolan Privat' : 'Private Chat'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="meta-more-dropdown-item"
+                  onClick={() => {
+                    setShowGlobalMemorySettings(true);
+                    setShowSidebarMoreMenu(false);
+                  }}
+                >
+                  <i className="fa-solid fa-dna"></i>
+                  <span>{userLanguage === 'id' ? 'Fine-Tune & Memori' : 'Fine-Tune & Memory'}</span>
+                </button>
+                <div className="meta-more-dropdown-divider"></div>
+                <button
+                  type="button"
+                  className="meta-more-dropdown-item"
+                  onClick={() => {
+                    setShowSettingsModal(true);
+                    setShowSidebarMoreMenu(false);
+                  }}
+                >
+                  <i className="fa-solid fa-gear"></i>
+                  <span>{userLanguage === 'id' ? 'Pengaturan' : 'Settings'}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Inline Minimal Search */}
-        <div className="sidebar-inline-search">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input
-            type="text"
-            className="sidebar-search-input"
-            placeholder={userLanguage === 'id' ? "Cari obrolan..." : "Search chats..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button className="clear-search-btn" onClick={() => setSearchQuery('')}>✕</button>
+        {/* Section: History Header */}
+        <div className="meta-sidebar-section-header">
+          <span>{userLanguage === 'id' ? 'History' : 'History'}</span>
+        </div>
+
+        {/* History Scroll Area */}
+        <div className="meta-sidebar-history-container">
+          {searchQuery.trim() ? (
+            <div className="search-results-list">
+              <div className="search-results-header">
+                {userLanguage === 'id' ? `Hasil pencarian (${searchResults.length})` : `Search results (${searchResults.length})`}
+              </div>
+              {searchResults.length === 0 ? (
+                <div className="search-results-empty">
+                  {userLanguage === 'id' ? 'Tidak ditemukan pesan' : 'No messages found'}
+                </div>
+              ) : (
+                searchResults.map((result, idx) => {
+                  const matchIndex = result.text.toLowerCase().indexOf(searchQuery.toLowerCase());
+                  const start = Math.max(0, matchIndex - 30);
+                  const end = Math.min(result.text.length, matchIndex + searchQuery.length + 40);
+                  const snippet = (start > 0 ? '...' : '') + result.text.substring(start, end) + (end < result.text.length ? '...' : '');
+
+                  return (
+                    <div
+                      key={`${result.messageId}-${idx}`}
+                      className="search-result-item"
+                      onClick={() => handleSearchResultClick(result.conversationId, result.messageId)}
+                    >
+                      <div className="result-conv-title">{result.conversationTitle}</div>
+                      <div className="result-sender">{result.sender === 'user' ? '👤 Anda' : '🤖 AI'}</div>
+                      <div className="result-snippet">
+                        {snippet.split(new RegExp(`(${searchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi')).map((part, i) => 
+                          part.toLowerCase() === searchQuery.toLowerCase() ? (
+                            <mark key={i} className="search-highlight">{part}</mark>
+                          ) : part
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : conversations.filter(c => !c.isPrivate).length === 0 ? (
+            /* EXACT META AI SCREENSHOT: NO CONVERSATIONS YET EMPTY STATE */
+            <div className="meta-empty-history-wrapper">
+              <div className="meta-empty-chat-icon-bubble">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </div>
+              <div className="meta-empty-chat-main-text">
+                {userLanguage === 'id' ? 'Belum ada obrolan' : 'No conversations yet'}
+              </div>
+              <div className="meta-empty-chat-sub-text">
+                {userLanguage === 'id' ? 'Mulai obrolan dengan DeeperNova AI' : 'Start a conversation with Meta AI'}
+              </div>
+              <button
+                type="button"
+                className="meta-empty-chat-btn"
+                onClick={createNewConversation}
+              >
+                {userLanguage === 'id' ? 'Obrolan baru' : 'New chat'}
+              </button>
+            </div>
+          ) : (
+            /* ACTIVE CONVERSATION LIST (Clean & Modern Meta AI style) */
+            <div className="meta-chat-items-list">
+              {[...conversations]
+                .filter(conv => !conv.isPrivate)
+                .sort((a, b) => {
+                  const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+                  const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+                  return timeB - timeA;
+                })
+                .map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`meta-chat-item ${currentConversationId === conv.id ? 'active' : ''}`}
+                    onClick={() => switchConversation(conv.id)}
+                  >
+                    <span className="meta-chat-item-text" title={conv.title}>{conv.title}</span>
+                    <button
+                      type="button"
+                      className="meta-chat-delete-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteConversation(conv.id);
+                      }}
+                      title="Hapus"
+                    >
+                      <i className="fa-regular fa-trash-can"></i>
+                    </button>
+                  </div>
+                ))}
+            </div>
           )}
         </div>
 
-        {/* Section Header: Riwayat */}
-        <div className="sidebar-section-title">
-          <span>{userLanguage === 'id' ? 'Riwayat' : 'History'}</span>
-          <span className="section-count">{conversations.filter(c => !c.isPrivate).length}</span>
-        </div>
-
-        {searchQuery.trim() ? (
-          <div className="search-results-list">
-            <div className="search-results-header">
-              {userLanguage === 'id' ? `Hasil pencarian (${searchResults.length})` : `Search results (${searchResults.length})`}
-            </div>
-            {searchResults.length === 0 ? (
-              <div className="search-results-empty">
-                {userLanguage === 'id' ? 'Tidak ditemukan pesan' : 'No messages found'}
-              </div>
-            ) : (
-              searchResults.map((result, idx) => {
-                const matchIndex = result.text.toLowerCase().indexOf(searchQuery.toLowerCase());
-                const start = Math.max(0, matchIndex - 30);
-                const end = Math.min(result.text.length, matchIndex + searchQuery.length + 40);
-                const snippet = (start > 0 ? '...' : '') + result.text.substring(start, end) + (end < result.text.length ? '...' : '');
-
-                return (
-                  <div
-                    key={`${result.messageId}-${idx}`}
-                    className="search-result-item"
-                    onClick={() => handleSearchResultClick(result.conversationId, result.messageId)}
-                  >
-                    <div className="result-conv-title">{result.conversationTitle}</div>
-                    <div className="result-sender">{result.sender === 'user' ? '👤 Anda' : '🤖 AI'}</div>
-                    <div className="result-snippet">
-                      {snippet.split(new RegExp(`(${searchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi')).map((part, i) => 
-                        part.toLowerCase() === searchQuery.toLowerCase() ? (
-                          <mark key={i} className="search-highlight">{part}</mark>
-                        ) : part
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        ) : (
-          <div className="conversations-list">
-            {[...conversations]
-              .filter(conv => !conv.isPrivate)
-              .sort((a, b) => {
-                const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-                const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-                return timeB - timeA;
-              })
-              .map((conv) => (
-              <div
-                key={conv.id}
-                className={`conversation-item ${currentConversationId === conv.id ? 'active' : ''} ${conv.isDeleting ? 'deleting' : ''}`}
-                onClick={() => switchConversation(conv.id)}
-              >
-                {currentConversationId === conv.id && <span className="conv-active-dot"></span>}
-                <div className="conv-title" title={conv.title}>{conv.title}</div>
-                <div className="conv-time">
-                  {new Date(conv.updatedAt).toLocaleDateString()}
+        {/* Bottom Profile Footer: Avatar, Username, Bell Icon (Exact Meta AI Screenshot) */}
+        <div className="meta-sidebar-footer">
+          <div 
+            className="meta-sidebar-user-section"
+            onClick={() => setShowSidebarProfileMenu(!showSidebarProfileMenu)}
+          >
+            <div className="meta-sidebar-avatar-circle">
+              {user?.picture ? (
+                <img src={user.picture} alt={user.name || 'User'} className="meta-sidebar-avatar-img" />
+              ) : (
+                <div className="meta-sidebar-avatar-initial">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'F'}
                 </div>
-                <button
-                  className={`conv-delete ${conv.isLoading ? 'loading-active' : ''}`}
-                  disabled={conv.isLoading}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!conv.isLoading) {
-                      deleteConversation(conv.id);
-                    }
-                  }}
-                  title={conv.isLoading ? 'Generating...' : 'Delete session'}
-                >
-                  {conv.isLoading ? (
-                    <div className="sidebar-loading-spinner">
-                      <div className="spinner-circle"></div>
-                      <div className="spinner-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                    </div>
-                  ) : (
-                    <i className="fas fa-trash-alt" style={{ fontSize: '12px' }}></i>
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-
-
-        {/* Sidebar Footer (Settings & Profile) */}
-        <div className="sidebar-footer">
-          <div className="sidebar-profile-info">
-            {user?.picture ? (
-              <img src={user.picture} alt={user.name} className="sidebar-profile-avatar" />
-            ) : (
-              <div className="sidebar-profile-avatar-fallback">
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'G'}
-              </div>
-            )}
-            <div className="sidebar-profile-details">
-              <div className="sidebar-profile-name" title={user?.name || (userLanguage === 'id' ? 'Pengguna Guest' : 'Guest User')}>
-                <span className="sidebar-profile-status-dot" title="Online"></span>
-                <span>{user?.name || (userLanguage === 'id' ? 'Pengguna Guest' : 'Guest User')}</span>
-              </div>
-              <div className="sidebar-profile-email" title={user?.email || 'local-ai@deepernova'}>
-                {user?.email || 'local-ai@deepernova'}
-              </div>
+              )}
             </div>
+            <span className="meta-sidebar-handle-text" title={user?.name || 'ferryfernandoo_'}>
+              {user?.name || 'ferryfernandoo_'}
+            </span>
           </div>
-          <div className="sidebar-footer-actions">
-            <button 
-              className="sidebar-footer-btn"
-              onClick={() => setShowSettingsModal(true)}
-              title={userLanguage === 'id' ? 'Pengaturan' : 'Settings'}
-            >
-              <i className="fas fa-cog"></i>
-            </button>
-            <button 
-              className="sidebar-footer-btn"
-              onClick={() => setShowGlobalMemorySettings(true)}
-              title={userLanguage === 'id' ? 'Fine-Tune AI' : 'Fine-Tune AI'}
-            >
-              <i className="fas fa-dna"></i>
-            </button>
-            <button 
-              className="sidebar-footer-btn"
-              onClick={() => setShowPersonalityModal(true)}
-              title={userLanguage === 'id' ? 'Kepribadian' : 'Personality'}
-            >
-              <i className="fas fa-theater-masks"></i>
-            </button>
-            {isAuthenticated && !isGuest && (
-              <button 
-                className="sidebar-footer-btn logout-btn"
-                onClick={() => openLogoutConfirm()}
-                title="Logout"
-              >
-                <i className="fas fa-sign-out-alt"></i>
-              </button>
-            )}
-          </div>
-        </div>
 
+          <button
+            type="button"
+            className="meta-sidebar-bell-btn"
+            onClick={() => {
+              showAlert(
+                userLanguage === 'id' 
+                  ? '🔔 Semua fitur DeeperNova AI berjalan normal tanpa kendala.' 
+                  : '🔔 All DeeperNova AI systems operational.',
+                'info',
+                3000
+              );
+            }}
+            title="Notifikasi"
+          >
+            <i className="fa-regular fa-bell"></i>
+          </button>
+
+          {/* Profile Popover Menu */}
+          {showSidebarProfileMenu && (
+            <div className="meta-profile-popover" onClick={(e) => e.stopPropagation()}>
+              <div className="meta-popover-header">
+                <strong>{user?.name || 'ferryfernandoo_'}</strong>
+                <span>{user?.email || 'user@deepernova.com'}</span>
+              </div>
+              <div className="meta-popover-divider"></div>
+              <button
+                type="button"
+                className="meta-popover-item"
+                onClick={() => {
+                  setShowSettingsModal(true);
+                  setShowSidebarProfileMenu(false);
+                }}
+              >
+                <i className="fa-solid fa-gear"></i>
+                <span>{userLanguage === 'id' ? 'Pengaturan Akun' : 'Account Settings'}</span>
+              </button>
+              <button
+                type="button"
+                className="meta-popover-item"
+                onClick={() => {
+                  onNavigate?.('landing');
+                  setShowSidebarProfileMenu(false);
+                }}
+              >
+                <i className="fa-solid fa-house"></i>
+                <span>{userLanguage === 'id' ? 'Kembali ke Beranda' : 'Back to Home'}</span>
+              </button>
+              {isAuthenticated && !isGuest && (
+                <>
+                  <div className="meta-popover-divider"></div>
+                  <button
+                    type="button"
+                    className="meta-popover-item delete"
+                    onClick={() => {
+                      setShowSidebarProfileMenu(false);
+                      openLogoutConfirm();
+                    }}
+                  >
+                    <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Logout</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sidebar backdrop for mobile only when open */}
@@ -13089,7 +13277,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       {/* Main chat area */}
       <div className="chatbot-container">
-        {/* Modern Agentic Header (Screenshots 2 & 4 style, White & Orange) */}
+        {/* Modern Agentic Header (Clean: Dock Button on Left, Conversation Title in Center, Agent Steps on Right) */}
         <div className={`chatbot-header modern-agentic-header ${messages.length === 0 ? 'empty-hero-header' : ''}`}>
           <div className="header-left-actions">
             <button
@@ -13103,16 +13291,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 <line x1="9" y1="3" x2="9" y2="21"></line>
               </svg>
             </button>
-            <div 
-              className="header-brand-logo-icon" 
-              onClick={() => onNavigate?.('landing')}
-              title={userLanguage === 'id' ? 'Kembali ke Beranda' : 'Return to Landing Page'}
-              style={{ cursor: 'pointer' }}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#ea580c" />
-              </svg>
-            </div>
           </div>
 
           {messages.length > 0 && (
@@ -13128,14 +13306,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
               {showConvMenu && (
                 <div className="header-conv-dropdown" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    type="button" 
-                    className="dropdown-menu-item"
-                    onClick={handleShareConv}
-                  >
-                    <i className="fa-solid fa-arrow-up-from-bracket"></i>
-                    <span>{userLanguage === 'id' ? 'Bagikan Obrolan' : 'Share Chat'}</span>
-                  </button>
                   <button 
                     type="button" 
                     className="dropdown-menu-item"
@@ -13160,24 +13330,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           {messages.length > 0 && (
             <div className="header-right-actions">
-              <button 
-                type="button" 
-                className="header-icon-btn"
-                onClick={handleShareConv}
-                title={userLanguage === 'id' ? 'Bagikan' : 'Share'}
-              >
-                <i className="fa-solid fa-arrow-up-from-bracket"></i>
-              </button>
-
-              <button 
-                type="button" 
-                className="header-icon-btn"
-                onClick={() => setShowConvMenu(!showConvMenu)}
-                title={userLanguage === 'id' ? 'Opsi lainnya' : 'More options'}
-              >
-                <i className="fa-solid fa-ellipsis"></i>
-              </button>
-
               <button 
                 type="button" 
                 className={`header-agentic-btn ${showAgenticPanel ? 'active' : ''}`}
