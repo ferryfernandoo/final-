@@ -12839,29 +12839,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         {/* Top Header: Rotating Gradient Logo Orb & Collapse Sidebar Button */}
         <div className="meta-sidebar-top-bar">
           <div 
-            className="meta-sidebar-logo-group" 
+            className="lp-brand meta-sidebar-brand" 
             onClick={() => onNavigate?.('landing')}
             title={userLanguage === 'id' ? 'Kembali ke Beranda' : 'Return to Home'}
           >
-            {/* Meta AI-style vibrant multi-petal gradient orb */}
-            <div className="meta-sidebar-orb-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="url(#metaOrbGrad)" strokeWidth="3" strokeDasharray="3.5 2" />
-                <circle cx="12" cy="12" r="3.5" fill="url(#metaOrbGrad2)" />
-                <defs>
-                  <linearGradient id="metaOrbGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#a855f7" />
-                    <stop offset="0.5" stopColor="#3b82f6" />
-                    <stop offset="1" stopColor="#ea580c" />
-                  </linearGradient>
-                  <linearGradient id="metaOrbGrad2" x1="8.5" y1="8.5" x2="15.5" y2="15.5" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#c084fc" />
-                    <stop offset="1" stopColor="#ea580c" />
-                  </linearGradient>
-                </defs>
-              </svg>
+            <img src="/logo.png" alt="Deepernova AI" className="lp-brand-icon meta-sidebar-brand-icon" />
+            <div className="lp-brand-text meta-sidebar-brand-text">
+              <span className="lp-brand-name meta-sidebar-brand-name">Deepernova AI</span>
+              <span className="lp-brand-sub meta-sidebar-brand-sub">indonesian technology research</span>
             </div>
-            <span className="meta-sidebar-brand-title">DeeperNova</span>
           </div>
 
           <button
@@ -13151,17 +13137,31 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               {[...conversations]
                 .filter(conv => !conv.isPrivate)
                 .sort((a, b) => {
-                  const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-                  const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-                  return timeB - timeA;
+                  const getConvTime = (c) => {
+                    if (!c) return 0;
+                    const val = c.updatedAt || c.createdAt || c.timestamp;
+                    if (val) {
+                      const t = new Date(val).getTime();
+                      if (!isNaN(t) && t > 0) return t;
+                    }
+                    if (typeof c.id === 'number') return c.id;
+                    if (typeof c.id === 'string') {
+                      const match = c.id.match(/\d+/g);
+                      if (match) return parseInt(match.join(''), 10) || 0;
+                    }
+                    return 0;
+                  };
+                  return getConvTime(b) - getConvTime(a);
                 })
                 .map((conv) => (
                   <div
                     key={conv.id}
                     className={`meta-chat-item ${currentConversationId === conv.id ? 'active' : ''}`}
                     onClick={() => switchConversation(conv.id)}
+                    title={conv.title}
                   >
-                    <span className="meta-chat-item-text" title={conv.title}>{conv.title}</span>
+                    <i className="fa-regular fa-message meta-chat-item-icon"></i>
+                    <span className="meta-chat-item-text">{conv.title}</span>
                     <button
                       type="button"
                       className="meta-chat-delete-icon"
@@ -13169,7 +13169,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      title="Hapus"
+                      title="Hapus percakapan"
                     >
                       <i className="fa-regular fa-trash-can"></i>
                     </button>
