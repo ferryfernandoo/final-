@@ -139,17 +139,21 @@ initializeDatabase();
 
 // TokenMix chat API using llama-4-maverick by default (Text + Vision native)
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
-const DEFAULT_TOKENMIX_KEY = 'sk-tm-UKH9Ou7bqCXFHwnuGxMUA6tISG4W3kjwLH5NG05UJN2GfFH0';
-const SECONDARY_TOKENMIX_KEY = 'sk-tm-09SZCY0QOp4uBbOV3kmIbbi5s24TJTIqsbjXEBoyKyK1IbLM';
-const RAW_TOKENMIX_KEY = process.env.TOKENMIX_API_KEY || process.env.TOKENMIX_CHAT_API_KEY || process.env.VITE_TOKENMIX_API_KEY || DEFAULT_TOKENMIX_KEY;
-const RAW_SECONDARY_KEY = process.env.TOKENMIX_SECONDARY_API_KEY || process.env.TOKENMIX_FALLBACK_API_KEY || SECONDARY_TOKENMIX_KEY;
-const TOKENMIX_API_KEY = sanitizeTokenKey(RAW_TOKENMIX_KEY);
+const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
 const TOKENMIX_API_KEYS = Array.from(new Set([
-  sanitizeTokenKey(RAW_TOKENMIX_KEY),
-  sanitizeTokenKey(RAW_SECONDARY_KEY),
-  DEFAULT_TOKENMIX_KEY,
-  SECONDARY_TOKENMIX_KEY
+  ...RAW_ENV_KEYS,
+  'sk-tm-OF4766UuCGjWtGRJ1J9g4LEpXLWs5l22Cve7rIE8tuDYfPYl',
+  'sk-tm-v82A9S7sevlYYSN9nJYajde36mjGqbawdZDk0IlEh4bRfYnb',
+  'sk-tm-O4IPdEpJpeu2cV80ivoYscDzG0TU82XQkUoPYBW3MtWdoTkz',
+  'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
+  'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
+  'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
+  'sk-tm-XdNatQm0mzIzifTrrKCfmeQMZ3CpFxL212QAp8wQYIelbrNX',
+  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
+  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
+  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
 ].filter(Boolean)));
+let activeChatKeyIndex = 0;
 const TOKENMIX_CHAT_API_KEY = TOKENMIX_API_KEY;
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
@@ -3095,7 +3099,8 @@ app.post('/api/chat', async (req, res) => {
         }
         console.log(`[CHAT] ⚡ TokenMix AI: streaming=${shouldStream}, Model=${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
 
-        for (let idx = 0; idx < TOKENMIX_API_KEYS.length; idx++) {
+        for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
+          const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
           const key = TOKENMIX_API_KEYS[idx];
           let attempts = 0;
           const maxAttempts = 3;
