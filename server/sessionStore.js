@@ -44,7 +44,25 @@ export class SQLiteSessionStore extends Store.Store {
 
   set(sid, session, callback) {
     try {
-      const expire = Math.floor(Date.now() / 1000) + (session.cookie.originalMaxAge / 1000);
+      const defaultDuration = 30 * 24 * 60 * 60; // 30 days in seconds
+      let expire;
+
+      if (session && session.cookie) {
+        const maxAge = session.cookie.originalMaxAge || session.cookie.maxAge;
+        if (typeof maxAge === 'number' && !isNaN(maxAge) && maxAge > 0) {
+          expire = Math.floor(Date.now() / 1000) + Math.floor(maxAge / 1000);
+        } else if (session.cookie.expires) {
+          const expTime = new Date(session.cookie.expires).getTime();
+          if (!isNaN(expTime)) {
+            expire = Math.floor(expTime / 1000);
+          }
+        }
+      }
+
+      if (!expire || isNaN(expire)) {
+        expire = Math.floor(Date.now() / 1000) + defaultDuration;
+      }
+
       const sess = JSON.stringify(session);
 
       const stmt = this.db.prepare(`

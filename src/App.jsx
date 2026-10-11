@@ -118,9 +118,38 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   const isNative = isNativePlatform();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
-  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      const saved = safeGetItem('authUser');
+      if (saved) {
+        const u = JSON.parse(saved);
+        return Boolean(u && !u.guest && (u.id || u.email));
+      }
+    } catch (_) {}
+    return false;
+  });
+  const [isGuest, setIsGuest] = useState(() => {
+    try {
+      const saved = safeGetItem('guestSession');
+      if (saved) {
+        const g = JSON.parse(saved);
+        return Boolean(g && g.guest);
+      }
+    } catch (_) {}
+    return false;
+  });
+  const [user, setUser] = useState(() => {
+    try {
+      const savedAuth = safeGetItem('authUser');
+      if (savedAuth) {
+        const u = JSON.parse(savedAuth);
+        if (u && !u.guest) return u;
+      }
+      const savedGuest = safeGetItem('guestSession');
+      if (savedGuest) return JSON.parse(savedGuest);
+    } catch (_) {}
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [modelReady, setModelReady] = useState(true);
   const getInitialView = () => {
@@ -321,6 +350,19 @@ function App() {
         throw new Error(data.error || 'Auth check failed');
       } catch (error) {
         console.error('Auth check error:', error);
+        const localAuth = safeGetItem('authUser');
+        if (localAuth) {
+          try {
+            const parsed = JSON.parse(localAuth);
+            if (parsed && !parsed.guest && (parsed.id || parsed.email)) {
+              console.log('[AUTH] Preserving local session despite network error');
+              setIsAuthenticated(true);
+              setIsGuest(false);
+              setUser(parsed);
+              return;
+            }
+          } catch (_) {}
+        }
         if (isNative) {
           const defaultGuest = { name: 'Guest', email: 'guest@deepernova.com', guest: true };
           setIsAuthenticated(false);

@@ -55,6 +55,13 @@ class ConversationPersistenceService {
       if (conv && conv.id && Array.isArray(conv.messages) && conv.messages.length > 0) {
         if (!convMap.has(conv.id)) {
           convMap.set(conv.id, conv);
+        } else {
+          const existing = convMap.get(conv.id);
+          const existingCount = existing.messages?.length || 0;
+          const newCount = conv.messages?.length || 0;
+          if (newCount > existingCount) {
+            convMap.set(conv.id, conv);
+          }
         }
       }
     });
@@ -338,7 +345,7 @@ class ConversationPersistenceService {
     try {
       if (conversations.length === 0) return true;
 
-      const publicConversations = conversations.filter(c => !c.isPrivate);
+      const publicConversations = conversations.filter(c => !c.isPrivate && Array.isArray(c.messages) && c.messages.length > 0);
       if (publicConversations.length === 0) return true;
 
       console.log(`[ConversationPersistence] Saving ${publicConversations.length} conversations to backend...`);

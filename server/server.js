@@ -20,8 +20,7 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import fetch from 'node-fetch';
 import session from 'express-session';
-import passport from './auth.js';
-import { hashPassword } from './auth.js';
+import passport, { hashPassword, comparePassword } from './auth.js';
 import { initializeDatabase, userDb, sessionDb, messageDb, apiKeyDb, artifactDb, imageDb, uploadedImageDb, globalMemoryDb, checkRateLimiting, cloudDb } from './database.js';
 import db from './database.js';
 import { SQLiteSessionStore } from './sessionStore.js';
@@ -408,12 +407,20 @@ const sessionStore = new SQLiteSessionStore(db);
 // Cleanup expired sessions on startup
 sessionStore.cleanup();
 
-// Secure session secret generation
+// Stable session secret generation (persisted in DB so restarts don't invalidate cookies)
 let sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
-  sessionSecret = crypto.randomBytes(32).toString('hex');
-  if (process.env.NODE_ENV === 'production') {
-    console.warn('⚠️ [SECURITY] SESSION_SECRET not provided. Generated an ephemeral cryptographically strong secret.');
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)`);
+    const row = db.prepare(`SELECT value FROM app_settings WHERE key = 'session_secret'`).get();
+    if (row && row.value) {
+      sessionSecret = row.value;
+    } else {
+      sessionSecret = crypto.randomBytes(32).toString('hex');
+      db.prepare(`INSERT OR REPLACE INTO app_settings (key, value) VALUES ('session_secret', ?)`).run(sessionSecret);
+    }
+  } catch (_e) {
+    sessionSecret = 'deepernova-persistent-session-secret-2026';
   }
 }
 
@@ -428,7 +435,7 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: 'auto', // Automatically sets secure to true if connection or forwarded proto is HTTPS
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days persistent session
       sameSite: process.env.COOKIE_SAMESITE || 'lax', // Compatible with same-site and proxied requests
       path: '/', // Ensure cookie is available on all paths
       domain: undefined // Let browser determine domain (important for localhost and proxy)
@@ -4689,8 +4696,11 @@ app.post('/api/conversations', async (req, res) => {
     const saveConversations = db.transaction(() => {
       const upsertSession = db.prepare(`
         INSERT INTO chat_sessions (id, userId, title, createdAt, updatedAt)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(id) DO UPDATE SET title = excluded.title, userId = excluded.userId, updatedAt = CURRENT_TIMESTAMP
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET 
+          title = excluded.title, 
+          userId = excluded.userId, 
+          updatedAt = excluded.updatedAt
       `);
 
       uniqueConversations.forEach(conv => {
@@ -4698,8 +4708,40 @@ app.post('/api/conversations', async (req, res) => {
           return; // Skip invalid conversations
         }
 
+        // Accurately compute createdAt and updatedAt for this specific conversation
+        let createdAtIso;
+        if (conv.createdAt) {
+          const parsed = new Date(conv.createdAt);
+          createdAtIso = !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date().toISOString();
+        } else if (conv.messages.length > 0 && conv.messages[0].timestamp) {
+          const parsed = new Date(conv.messages[0].timestamp);
+          createdAtIso = !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date().toISOString();
+        } else {
+          createdAtIso = new Date().toISOString();
+        }
+
+        let updatedAtIso;
+        if (conv.messages.length > 0) {
+          const lastMsg = conv.messages[conv.messages.length - 1];
+          if (lastMsg && lastMsg.timestamp) {
+            const parsed = new Date(lastMsg.timestamp);
+            if (!isNaN(parsed.getTime())) {
+              updatedAtIso = parsed.toISOString();
+            }
+          }
+        }
+        if (!updatedAtIso && conv.updatedAt) {
+          const parsed = new Date(conv.updatedAt);
+          if (!isNaN(parsed.getTime())) {
+            updatedAtIso = parsed.toISOString();
+          }
+        }
+        if (!updatedAtIso) {
+          updatedAtIso = createdAtIso;
+        }
+
         // Upsert session safely without primary key violation
-        upsertSession.run(conv.id, userId, conv.title);
+        upsertSession.run(conv.id, userId, conv.title, createdAtIso, updatedAtIso);
 
         // Delete old messages for this session
         db.prepare('DELETE FROM chat_messages WHERE sessionId = ?').run(conv.id);
@@ -4827,6 +4869,93 @@ app.delete('/api/conversations/:conversationId', (req, res) => {
   } catch (err) {
     console.error('Error deleting conversation:', err);
     res.status(500).json({ error: 'Failed to delete conversation' });
+  }
+});
+
+// POST /api/account/format-database - Format / Reset total database akun agar kembali fresh
+app.post('/api/account/format-database', async (req, res) => {
+  try {
+    const userId = (req.isAuthenticated && req.isAuthenticated()) ? req.user.id : (req.user?.id || req.session?.userId || null);
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Silakan login terlebih dahulu untuk melakukan tindakan ini.' });
+    }
+
+    const { password, confirmText } = req.body;
+
+    // 1. Verifikasi teks konfirmasi keamanan ("HAPUS DATA SAYA")
+    if (!confirmText || confirmText.trim().toUpperCase() !== 'HAPUS DATA SAYA') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Teks konfirmasi salah. Harap salin atau ketik tepat: "HAPUS DATA SAYA".' 
+      });
+    }
+
+    // 2. Ambil data user dari database
+    const user = userDb.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Akun pengguna tidak ditemukan di database.' });
+    }
+
+    // 3. Verifikasi sandi akun pengguna
+    if (!password) {
+      return res.status(400).json({ success: false, error: 'Sandi akun wajib dimasukkan untuk verifikasi keamanan.' });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({ success: false, error: 'Akun ini tidak memiliki sandi lokal.' });
+    }
+
+    const isMatch = await comparePassword(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: 'Sandi akun salah! Format database dibatalkan demi keamanan Anda.' });
+    }
+
+    console.log(`[FORMAT DATABASE] ⚠️ User ${user.email} (${userId}) confirmed account database format.`);
+
+    // 4. Eksekusi pembersihan database akun secara atomik dalam transaksi SQLite
+    const executeFormat = db.transaction(() => {
+      // Hapus pesan & sesi chat
+      try { db.prepare('DELETE FROM chat_messages WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM chat_sessions WHERE userId = ?').run(userId); } catch (_e) {}
+      // Hapus artefak dokumen
+      try { db.prepare('DELETE FROM doc_artifacts WHERE userId = ?').run(userId); } catch (_e) {}
+      // Hapus gambar AI & unggahan
+      try { db.prepare('DELETE FROM generated_images WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM uploaded_images WHERE userId = ?').run(userId); } catch (_e) {}
+      // Hapus memori jangka panjang & riset
+      try { db.prepare('DELETE FROM memory_long_term WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM research_memory WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM user_global_memory WHERE userId = ?').run(userId); } catch (_e) {}
+      // Hapus file cloud explorer milik akun
+      try { db.prepare('DELETE FROM cloud_files WHERE userId = ? OR ownerEmail = ?').run(userId, user.email); } catch (_e) {}
+      // Hapus log penggunaan API & api keys
+      try { db.prepare('DELETE FROM api_usage_logs WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM api_keys WHERE userId = ?').run(userId); } catch (_e) {}
+
+      // Reset kuota & status pengguna ke kondisi 100% fresh (1.000.000 token baru)
+      db.prepare(`
+        UPDATE users 
+        SET tokenQuota = 1000000, 
+            tokensUsed = 0, 
+            messageCountInMinute = 0, 
+            lastMessageTime = NULL, 
+            tokenLimitResetTime = NULL,
+            updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(userId);
+    });
+
+    executeFormat();
+
+    console.log(`[FORMAT DATABASE] ✅ User ${user.email} database successfully wiped and restored to fresh state.`);
+
+    return res.json({ 
+      success: true, 
+      message: 'Database akun Anda berhasil diformat bersih. Semua percakapan, dokumen, dan memori telah di-reset kembali seperti baru.' 
+    });
+  } catch (error) {
+    console.error('[FORMAT DATABASE] Error during account format:', error);
+    return res.status(500).json({ success: false, error: 'Gagal memformat database akun: ' + error.message });
   }
 });
 

@@ -1960,6 +1960,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [selectedPersonality, setSelectedPersonality] = useState(DEFAULT_PERSONALITY);
   const [showPersonalityModal, setShowPersonalityModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showFormatDbModal, setShowFormatDbModal] = useState(false);
+  const [formatDbPassword, setFormatDbPassword] = useState('');
+  const [formatDbConfirmText, setFormatDbConfirmText] = useState('');
+  const [formatDbLoading, setFormatDbLoading] = useState(false);
+  const [formatDbError, setFormatDbError] = useState(null);
+  const [showFormatDbPassword, setShowFormatDbPassword] = useState(false);
+  const [formatDbCopied, setFormatDbCopied] = useState(false);
   const [userName, setUserName] = useState('');
   const [pendingUserName, setPendingUserName] = useState('');
   const [showNameSetupModal, setShowNameSetupModal] = useState(false);
@@ -3354,6 +3361,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const isLockedToUserAskRef = useRef(false);
   const lockedUserMessageIdRef = useRef(null);
   const lastProcessedUserMsgIdRef = useRef(null);
+  const switchingConvRef = useRef(false);
+  const prevMessagesLengthRef = useRef(0);
+  const prevLastMessageTextRef = useRef('');
 
   const stopGlide = () => {
     if (lazyScrollAnimRef.current) {
@@ -4205,20 +4215,71 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   };
 
 
+  const normalizeToTimestamp = (val) => {
+    if (!val) return 0;
+    if (typeof val === 'number') {
+      return val < 10000000000 ? val * 1000 : val;
+    }
+    if (typeof val === 'string') {
+      if (/^\d{10,13}$/.test(val)) {
+        const num = parseInt(val, 10);
+        return val.length === 10 ? num * 1000 : num;
+      }
+      let s = val.trim();
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+        s = s.replace(' ', 'T') + 'Z';
+      }
+      const parsed = new Date(s).getTime();
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+    return 0;
+  };
+
+  const parseConvTimestamp = (c) => {
+    if (!c) return 0;
+    // 1. Most accurate: timestamp of the last message inside the conversation
+    if (Array.isArray(c.messages) && c.messages.length > 0) {
+      for (let i = c.messages.length - 1; i >= 0; i--) {
+        const msg = c.messages[i];
+        if (msg) {
+          const rawMsgTime = msg.timestamp || msg.createdAt || msg.time;
+          if (rawMsgTime) {
+            const t = normalizeToTimestamp(rawMsgTime);
+            if (t > 0) return t;
+          }
+        }
+      }
+    }
+    // 2. Next: conversation-level timestamps
+    const rawConvTime = c.updatedAt || c.createdAt || c.timestamp;
+    if (rawConvTime) {
+      const t = normalizeToTimestamp(rawConvTime);
+      if (t > 0) return t;
+    }
+    // 3. Fallback: numeric ID if timestamp-based
+    if (typeof c.id === 'number' && c.id > 1000000000) return c.id;
+    if (typeof c.id === 'string' && /^\d{10,14}$/.test(c.id)) {
+      return parseInt(c.id, 10) || 0;
+    }
+    return 0;
+  };
+
   const getLatestConversation = (loaded) => {
     if (!Array.isArray(loaded) || loaded.length === 0) return null;
     return loaded.reduce((latest, conv) => {
       if (!conv || !conv.id) return latest;
       if (!latest) return conv;
-      const latestTime = new Date(latest.updatedAt || latest.createdAt || 0).getTime();
-      const convTime = new Date(conv.updatedAt || conv.createdAt || 0).getTime();
+      const latestTime = parseConvTimestamp(latest);
+      const convTime = parseConvTimestamp(conv);
       return convTime >= latestTime ? conv : latest;
     }, null);
   };
 
   const rememberConversationId = (convId) => {
     try {
-      localStorage.setItem('chatbot_last_conversation', convId);
+      if (convId) {
+        localStorage.setItem('chatbot_last_conversation', String(convId));
+      }
     } catch (e) {
       console.warn('Unable to save last conversation id:', e);
     }
@@ -4236,54 +4297,188 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       updatedAt: new Date().toISOString(),
       isPrivate: false,
     };
-    setConversations((prev) => [newConv, ...prev]);
+    // Clean out empty non-active sessions when user starts a fresh chat
+    setConversations((prev) => [newConv, ...prev.filter(c => c && c.messages && c.messages.length > 0)]);
+    switchingConvRef.current = true;
     setCurrentConversationId(newId);
     rememberConversationId(newId);
     setMessages([]);
+    prevMessagesLengthRef.current = 0;
+    prevLastMessageTextRef.current = '';
     setCompactView(true);
     setIsPrivateChat(false);
     isLockedToUserAskRef.current = false;
     lockedUserMessageIdRef.current = null;
-    // Reset all image state to prevent reference images from leaking across sessions
     setActiveImageFollowUps([]);
     setUploadedImages([]);
     setUploadedFiles([]);
     capturedRefImagesRef.current = [];
+    setTimeout(() => {
+      switchingConvRef.current = false;
+    }, 300);
   };
 
-  // Load conversations on mount: Always start with a fresh new chat session at the top of the queue, with past history available in sidebar
+  // Format Database Akun Handlers
+  const handleCopyFormatConfirmText = () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText('HAPUS DATA SAYA');
+      }
+      setFormatDbConfirmText('HAPUS DATA SAYA');
+      setFormatDbCopied(true);
+      setTimeout(() => setFormatDbCopied(false), 2000);
+    } catch (_e) {
+      setFormatDbConfirmText('HAPUS DATA SAYA');
+      setFormatDbCopied(true);
+      setTimeout(() => setFormatDbCopied(false), 2000);
+    }
+  };
+
+  const handleFormatDatabaseAccount = async () => {
+    if (formatDbConfirmText.trim().toUpperCase() !== 'HAPUS DATA SAYA') {
+      setFormatDbError(userLanguage === 'id' ? 'Teks konfirmasi harus tepat "HAPUS DATA SAYA"' : 'Confirmation text must be exactly "HAPUS DATA SAYA"');
+      return;
+    }
+    if (!formatDbPassword) {
+      setFormatDbError(userLanguage === 'id' ? 'Masukkan kata sandi akun Anda' : 'Please enter your account password');
+      return;
+    }
+
+    setFormatDbLoading(true);
+    setFormatDbError(null);
+
+    try {
+      const res = await fetch('/api/account/format-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          password: formatDbPassword,
+          confirmText: formatDbConfirmText.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || (userLanguage === 'id' ? 'Gagal memformat database akun' : 'Failed to format account database'));
+      }
+
+      // Format successful!
+      const freshId = Date.now().toString();
+      const freshConv = {
+        id: freshId,
+        title: userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat',
+        messages: [],
+        isLoading: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isPrivate: false,
+      };
+
+      setConversations([freshConv]);
+      switchingConvRef.current = true;
+      setCurrentConversationId(freshId);
+      rememberConversationId(freshId);
+      setMessages([]);
+      prevMessagesLengthRef.current = 0;
+      prevLastMessageTextRef.current = '';
+      setWorkspaceFiles([]);
+      setActiveFile(null);
+      setSavedCodes([]);
+      setGeneratedImages([]);
+      
+      try {
+        localStorage.removeItem('chatbot_conversations');
+        localStorage.removeItem('cached_conversations');
+        localStorage.removeItem('chatbot_artifacts');
+        localStorage.removeItem('saved_codes');
+      } catch (_e) {}
+
+      setShowFormatDbModal(false);
+      setFormatDbPassword('');
+      setFormatDbConfirmText('');
+      setFormatDbError(null);
+
+      showAlert(
+        userLanguage === 'id'
+          ? '✅ Database akun Anda berhasil diformat fresh! Kuota token dipulihkan ke 1.000.000.'
+          : '✅ Account database successfully formatted fresh! Token quota restored to 1,000,000.',
+        'success'
+      );
+    } catch (err) {
+      console.error('[Format DB] Error:', err);
+      setFormatDbError(err.message || (userLanguage === 'id' ? 'Terjadi kesalahan saat memformat database.' : 'An error occurred while formatting database.'));
+    } finally {
+      setFormatDbLoading(false);
+    }
+  };
+
+  // Load conversations on mount: restore active session or most recent conversation seamlessly
   useEffect(() => {
     const loadConversations = async () => {
       try {
         console.log(`[ChatBot] Loading conversations. Auth: isAuth=${isAuthenticated}, isGuest=${isGuest}`);
         const loaded = await ConversationPersistenceService.loadConversations(isAuthenticated, isGuest);
         
-        const newId = Date.now().toString();
-        const newConv = {
-          id: newId,
-          title: userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat',
-          messages: [],
-          isLoading: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isPrivate: false,
-        };
-
-        if (loaded && Array.isArray(loaded) && loaded.length > 0) {
-          console.log(`[ChatBot] ✅ Loaded ${loaded.length} past conversations`);
-          // Clean empty sessions from loaded list
-          const cleanedLoaded = loaded.filter(c => c.messages && c.messages.length > 0);
-          const allConvs = [newConv, ...cleanedLoaded];
-          setConversations(allConvs);
-        } else {
-          setConversations([newConv]);
+        let cleanedLoaded = [];
+        if (loaded && Array.isArray(loaded)) {
+          cleanedLoaded = loaded.filter(c => c && c.id && Array.isArray(c.messages) && c.messages.length > 0);
+          // Sort conversations with most recent activity strictly at index 0
+          cleanedLoaded.sort((a, b) => parseConvTimestamp(b) - parseConvTimestamp(a));
         }
 
-        setCurrentConversationId(newId);
-        rememberConversationId(newId);
-        setMessages([]);
-        setCompactView(true);
-        setIsPrivateChat(false);
+        if (cleanedLoaded.length > 0) {
+          console.log(`[ChatBot] ✅ Loaded ${cleanedLoaded.length} past conversations`);
+          
+          let savedConvId = null;
+          try {
+            savedConvId = localStorage.getItem('chatbot_last_conversation');
+          } catch (_e) {}
+
+          let targetConv = cleanedLoaded.find(c => String(c.id) === String(savedConvId));
+          if (!targetConv) {
+            targetConv = cleanedLoaded[0];
+          }
+
+          setConversations(cleanedLoaded);
+          switchingConvRef.current = true;
+          setCurrentConversationId(targetConv.id);
+          rememberConversationId(targetConv.id);
+          setMessages(targetConv.messages || []);
+          prevMessagesLengthRef.current = (targetConv.messages || []).length;
+          const lastMsg = targetConv.messages && targetConv.messages.length > 0 ? targetConv.messages[targetConv.messages.length - 1] : null;
+          prevLastMessageTextRef.current = lastMsg ? (lastMsg.text || lastMsg.content || '') : '';
+          setCompactView(true);
+          setIsPrivateChat(targetConv.isPrivate || false);
+          setTimeout(() => {
+            switchingConvRef.current = false;
+          }, 300);
+        } else {
+          // If 0 past conversations, create single initial conversation
+          const newId = Date.now().toString();
+          const newConv = {
+            id: newId,
+            title: userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat',
+            messages: [],
+            isLoading: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            isPrivate: false,
+          };
+          setConversations([newConv]);
+          switchingConvRef.current = true;
+          setCurrentConversationId(newId);
+          rememberConversationId(newId);
+          setMessages([]);
+          prevMessagesLengthRef.current = 0;
+          prevLastMessageTextRef.current = '';
+          setCompactView(true);
+          setIsPrivateChat(false);
+          setTimeout(() => {
+            switchingConvRef.current = false;
+          }, 300);
+        }
+
         setActiveImageFollowUps([]);
         setUploadedImages([]);
         setUploadedFiles([]);
@@ -4296,7 +4491,6 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
     loadConversations();
   }, [isAuthenticated, isGuest]);
-
 
   // Save conversations whenever they change (to localStorage or backend)
   useEffect(() => {
@@ -4312,7 +4506,6 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       }
     };
 
-    // Debounce saves to avoid too many requests (reduced to 500ms for faster save)
     const saveTimer = setTimeout(() => {
       saveConversations();
     }, 500);
@@ -4324,16 +4517,28 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   useEffect(() => {
     if (!currentConversationId) return;
     
-    // Count images in current messages
-    const imageCount = messages.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
-    console.log(`[ChatBot] Syncing messages to conversation (${messages.length} messages, ${imageCount} images)`);
-    
+    const isSwitching = switchingConvRef.current;
+    const currentLen = messages.length;
+    const lastMsg = currentLen > 0 ? messages[currentLen - 1] : null;
+    const lastText = lastMsg ? (lastMsg.text || lastMsg.content || '') : '';
+
+    // Only update updatedAt when real chat activity occurs (new message added or streaming content change)
+    const hasNewContent = 
+      !isSwitching && 
+      (currentLen > prevMessagesLengthRef.current || (lastMsg && lastText !== prevLastMessageTextRef.current));
+
+    prevMessagesLengthRef.current = currentLen;
+    prevLastMessageTextRef.current = lastText;
+
     setConversations((prev) =>
-      prev.map((conv) =>
-        conv.id === currentConversationId
-          ? { ...conv, messages, updatedAt: new Date().toISOString() }
-          : conv
-      )
+      prev.map((conv) => {
+        if (conv.id !== currentConversationId) return conv;
+        return {
+          ...conv,
+          messages,
+          ...(hasNewContent ? { updatedAt: new Date().toISOString() } : {})
+        };
+      })
     );
   }, [messages, currentConversationId]);
 
@@ -5082,22 +5287,27 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const switchConversation = (convId) => {
     const conv = conversations.find((c) => c.id === convId);
     if (conv) {
-      // Count images being loaded
-      const imageCount = conv.messages.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
-      console.log(`[ChatBot] Switching to conversation "${conv.title}" (${conv.messages.length} messages, ${imageCount} images)`);
+      switchingConvRef.current = true;
+      const convMsgs = conv.messages || [];
+      const imageCount = convMsgs.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
+      console.log(`[ChatBot] Switching to conversation "${conv.title}" (${convMsgs.length} messages, ${imageCount} images)`);
       
       setCurrentConversationId(convId);
-      setMessages(conv.messages || []);
+      setMessages(convMsgs);
+      prevMessagesLengthRef.current = convMsgs.length;
+      const lastMsg = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : null;
+      prevLastMessageTextRef.current = lastMsg ? (lastMsg.text || lastMsg.content || '') : '';
+
       setError(null);
       setCompactView(true);
       rememberConversationId(convId);
       isLockedToUserAskRef.current = false;
       lockedUserMessageIdRef.current = null;
       
-      // Auto-scroll to bottom when opening/switching to a room
       setTimeout(() => {
+        switchingConvRef.current = false;
         scrollToBottom(true);
-      }, 100);
+      }, 150);
     }
   };
 
@@ -12399,6 +12609,32 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             </div>
           </div>
 
+          {/* Danger Zone: Format Database Akun */}
+          {isAuthenticated && !isGuest && (
+            <div className="settings-group-card settings-danger-card">
+              <div className="settings-group-title danger-title">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+                <span>{userLanguage === 'id' ? 'Zona Bahaya & Format Database' : 'Danger Zone & Database Format'}</span>
+              </div>
+              <p className="settings-group-desc-danger">
+                {userLanguage === 'id'
+                  ? 'Format total database akun Anda agar kembali fresh seperti akun baru. Seluruh riwayat chat, file dokumen, gambar, dan memori AI dibersihkan, dan kuota 1.000.000 token dipulihkan.'
+                  : 'Completely format your account database to a 100% fresh state. Wipes chats, documents, images, and AI memories while restoring 1,000,000 token quota.'}
+              </p>
+              <button
+                type="button"
+                className="settings-danger-full-btn"
+                onClick={() => {
+                  setShowSettingsModal(false);
+                  setShowFormatDbModal(true);
+                }}
+              >
+                <i className="fa-solid fa-trash-can"></i>
+                <span>{userLanguage === 'id' ? 'Format Database Akun Fresh' : 'Format Account Database Fresh'}</span>
+              </button>
+            </div>
+          )}
+
           {/* Account Actions */}
           <div className="settings-group-card">
             <div className="settings-group-title">
@@ -12534,6 +12770,167 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 {logoutLoading
                   ? userLanguage === 'id' ? 'Logout...' : 'Logging out...'
                   : userLanguage === 'id' ? 'Logout' : 'Logout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Format Database Akun Modal (High Security Confirmation) */}
+      {showFormatDbModal && (
+        <div className="modal-overlay" onClick={() => !formatDbLoading && setShowFormatDbModal(false)}>
+          <div className="modal-content format-db-modal" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="modal-close" 
+              onClick={() => !formatDbLoading && setShowFormatDbModal(false)}
+              disabled={formatDbLoading}
+            >
+              ×
+            </button>
+            <div className="modal-header format-db-header">
+              <div className="format-db-icon-wrap">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <h2>{userLanguage === 'id' ? 'Format Database Akun' : 'Format Account Database'}</h2>
+                <p className="format-db-subtitle">
+                  {userLanguage === 'id' 
+                    ? 'Kembalikan akun ke kondisi 100% fresh seperti baru' 
+                    : 'Restore account back to 100% fresh state'}
+                </p>
+              </div>
+            </div>
+
+            <div className="modal-body format-db-body">
+              <div className="format-db-warning-banner">
+                <p>
+                  <strong>⚠️ PERINGATAN KRITIS:</strong> Tindakan ini akan <strong>menghapus permanen</strong> semua riwayat chat, dokumen cloud, gambar AI, dan memori personal akun Anda.
+                </p>
+                <p>
+                  Akun Anda <strong>tidak akan dihapus</strong> dan tetap dapat login, serta kuota token Anda akan <strong>dipulihkan fresh menjadi 1.000.000 token</strong>.
+                </p>
+              </div>
+
+              {formatDbError && (
+                <div className="format-db-error-banner">
+                  <i className="fa-solid fa-circle-exclamation"></i>
+                  <span>{formatDbError}</span>
+                </div>
+              )}
+
+              {/* Langkah 1: Copy Teks Konfirmasi */}
+              <div className="format-db-step-block">
+                <label className="format-db-label">
+                  {userLanguage === 'id' 
+                    ? '1. Salin teks verifikasi keamanan di bawah ini:' 
+                    : '1. Copy the security verification text below:'}
+                </label>
+                <div className="format-db-copy-box">
+                  <code className="format-db-keyword">HAPUS DATA SAYA</code>
+                  <button 
+                    type="button" 
+                    className="format-db-copy-btn"
+                    onClick={handleCopyFormatConfirmText}
+                    title="Salin dan tempel teks"
+                  >
+                    <i className={formatDbCopied ? "fa-solid fa-check" : "fa-regular fa-copy"}></i>
+                    <span>
+                      {formatDbCopied 
+                        ? (userLanguage === 'id' ? 'Tersalin & Ditempel!' : 'Copied & Pasted!') 
+                        : (userLanguage === 'id' ? 'Salin Teks' : 'Copy Text')}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Langkah 2: Paste / Ketik Teks Konfirmasi */}
+              <div className="format-db-step-block">
+                <label className="format-db-label">
+                  {userLanguage === 'id' 
+                    ? '2. Tempel atau ketik teks verifikasi di sini:' 
+                    : '2. Paste or type verification text here:'}
+                </label>
+                <input
+                  type="text"
+                  className={`format-db-input ${formatDbConfirmText.trim().toUpperCase() === 'HAPUS DATA SAYA' ? 'valid' : ''}`}
+                  placeholder="Ketik: HAPUS DATA SAYA"
+                  value={formatDbConfirmText}
+                  onChange={(e) => {
+                    setFormatDbConfirmText(e.target.value);
+                    if (formatDbError) setFormatDbError(null);
+                  }}
+                  disabled={formatDbLoading}
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* Langkah 3: Masukkan Sandi Akun */}
+              <div className="format-db-step-block">
+                <label className="format-db-label">
+                  {userLanguage === 'id' 
+                    ? '3. Masukkan kata sandi akun Anda untuk verifikasi:' 
+                    : '3. Enter your account password for verification:'}
+                </label>
+                <div className="format-db-password-wrap">
+                  <input
+                    type={showFormatDbPassword ? "text" : "password"}
+                    className="format-db-input password-input"
+                    placeholder={userLanguage === 'id' ? 'Masukkan sandi akun Anda' : 'Enter your account password'}
+                    value={formatDbPassword}
+                    onChange={(e) => {
+                      setFormatDbPassword(e.target.value);
+                      if (formatDbError) setFormatDbError(null);
+                    }}
+                    disabled={formatDbLoading}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    className="format-db-eye-btn"
+                    onClick={() => setShowFormatDbPassword(!showFormatDbPassword)}
+                    tabIndex="-1"
+                  >
+                    <i className={showFormatDbPassword ? "fa-regular fa-eye-slash" : "fa-regular fa-eye"}></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer format-db-footer">
+              <button 
+                type="button" 
+                className="modal-btn-cancel" 
+                onClick={() => {
+                  setShowFormatDbModal(false);
+                  setFormatDbPassword('');
+                  setFormatDbConfirmText('');
+                  setFormatDbError(null);
+                }}
+                disabled={formatDbLoading}
+              >
+                {userLanguage === 'id' ? 'Batal' : 'Cancel'}
+              </button>
+              <button 
+                type="button" 
+                className="modal-btn-danger-format" 
+                onClick={handleFormatDatabaseAccount}
+                disabled={
+                  formatDbLoading || 
+                  formatDbConfirmText.trim().toUpperCase() !== 'HAPUS DATA SAYA' || 
+                  !formatDbPassword
+                }
+              >
+                {formatDbLoading ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                    <span>{userLanguage === 'id' ? 'Memformat Database...' : 'Formatting Database...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-radiation"></i>
+                    <span>{userLanguage === 'id' ? 'Format Database Sekarang' : 'Format Database Now'}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -13136,23 +13533,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             <div className="meta-chat-items-list">
               {[...conversations]
                 .filter(conv => !conv.isPrivate)
-                .sort((a, b) => {
-                  const getConvTime = (c) => {
-                    if (!c) return 0;
-                    const val = c.updatedAt || c.createdAt || c.timestamp;
-                    if (val) {
-                      const t = new Date(val).getTime();
-                      if (!isNaN(t) && t > 0) return t;
-                    }
-                    if (typeof c.id === 'number') return c.id;
-                    if (typeof c.id === 'string') {
-                      const match = c.id.match(/\d+/g);
-                      if (match) return parseInt(match.join(''), 10) || 0;
-                    }
-                    return 0;
-                  };
-                  return getConvTime(b) - getConvTime(a);
-                })
+                .sort((a, b) => parseConvTimestamp(b) - parseConvTimestamp(a))
                 .map((conv) => (
                   <div
                     key={conv.id}
@@ -13248,6 +13629,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               </button>
               {isAuthenticated && !isGuest && (
                 <>
+                  <button
+                    type="button"
+                    className="meta-popover-item danger"
+                    onClick={() => {
+                      setShowSidebarProfileMenu(false);
+                      setShowFormatDbModal(true);
+                    }}
+                  >
+                    <i className="fa-solid fa-triangle-exclamation"></i>
+                    <span>{userLanguage === 'id' ? 'Format Database Akun' : 'Format Account Database'}</span>
+                  </button>
                   <div className="meta-popover-divider"></div>
                   <button
                     type="button"

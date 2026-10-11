@@ -79,4 +79,10 @@ export const hashPassword = async (password) => {
   return bcrypt.hash(password, saltRounds);
 };
 
+// Compare password helper
+export const comparePassword = async (password, hash) => {
+  if (!password || !hash) return false;
+  return bcrypt.compare(password, hash);
+};
+
 export default passport;
