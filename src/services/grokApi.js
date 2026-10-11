@@ -2,6 +2,7 @@
 import { memoryService } from './memoryService.js';
 import { ragService } from './ragService.js';
 import { API_BASE_URL } from '../apiConfig.js';
+import { getDeviceId } from './realtimeSyncService.js';
 import localAiService, { sanitizeAntiQwen, extractResponseFromReasoning, generateInstantBoronResponse } from './localAiService.js';
 
 export const getValidVisionImageUrl = (img) => {
@@ -948,12 +949,14 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   }
 
   try {
+    const deviceId = getDeviceId();
     const response = await fetchWithTimeout(
       `${apiBaseUrl}/api/chat`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-device-id': deviceId,
         },
         credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
         signal: abortController?.signal,
@@ -961,6 +964,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           model: deepernovaModel || 'deepernova-gold-1.5',
           sessionId: conversationId || null,
           conversationId: conversationId || null,
+          deviceId,
           personality: personality || 'mentor',
           messages: finalMessages,
           uploadedImages: validImageUrls,
@@ -1161,16 +1165,21 @@ export const sendAgenticMessage = async (messages, abortController = null) => {
   console.log(`[AGENTIC] Routing agentic request to backend proxy: ${API_BASE_URL}/api/chat`);
   
   try {
+    const deviceId = getDeviceId();
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/chat`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId,
+        },
         credentials: 'include',
         signal: abortController?.signal,
         body: JSON.stringify({
           message: messages[messages.length - 1]?.content || '',
           model: resolvedModel,
+          deviceId,
           messages,
           temperature: 0.3,
           max_tokens: 1024,

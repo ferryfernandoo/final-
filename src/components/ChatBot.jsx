@@ -25,6 +25,7 @@ import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch, enrichQueryWithDateIfRecent } from '../services/clientSearchService';
+import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -1987,6 +1988,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [showSavedImagesGallery, setShowSavedImagesGallery] = useState(false); // Saved images gallery modal
   const [isSttListening, setIsSttListening] = useState(false); // Speech-To-Text mic listening state
   const sttRecognitionRef = useRef(null);
+  const remoteTypewriterRef = useRef(null);
 
   // Agentic Right Side Panel & Header States
   const [showAgenticPanel, setShowAgenticPanel] = useState(() => {
@@ -4298,6 +4300,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       isPrivate: false,
     };
     // Clean out empty non-active sessions when user starts a fresh chat
+    remoteTypewriterRef.current?.finishNow();
     setConversations((prev) => [newConv, ...prev.filter(c => c && c.messages && c.messages.length > 0)]);
     switchingConvRef.current = true;
     setCurrentConversationId(newId);
@@ -4545,264 +4548,251 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   }, [messages, currentConversationId]);
 
   // ============================================================================
-  // 🔄 REAL-TIME MULTI-DEVICE / 2 HP LIVE SYNC ENGINE (SSE + LIVE STREAMING)
+  // 🔄 REAL-TIME MULTI-DEVICE / 2 HP LIVE SYNC ENGINE
+  // ============================================================================
+  // Beban server 0%: hanya sync saat 1 jawaban selesai (stream_done) & user_ask
+  // Dilengkapi animasi mengetik (typewriter) halus di layar HP kedua!
   // ============================================================================
   useEffect(() => {
     if (!isAuthenticated || isGuest) return;
 
-    let eventSource = null;
-    let reconnectTimer = null;
-    let isSubscribed = true;
-
-    const connectRealtimeSync = () => {
-      if (!isSubscribed) return;
-      try {
-        eventSource = new EventSource('/api/realtime/sync-stream', { withCredentials: true });
-
-        eventSource.onopen = () => {
-          console.log('[RealtimeSync] 🟢 Connected to cross-device live sync stream');
+    const unsubscribe = initRealtimeSync({
+      isAuthenticated,
+      isGuest,
+      // 1. User bertanya di HP lain
+      onUserAsk: (payload) => {
+        if (!payload || !payload.sessionId) return;
+        const remoteUserMsg = {
+          id: payload.userMessageId || `user_${Date.now()}`,
+          sender: 'user',
+          text: payload.userQuery,
+          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+          personality: payload.personality || 'mentor'
         };
 
-        // 1. User asked something on another device (e.g. 2nd phone)
-        eventSource.addEventListener('user_ask', (e) => {
-          try {
-            const raw = JSON.parse(e.data);
-            const payload = raw?.data;
-            if (!payload || !payload.sessionId) return;
-            console.log(`[RealtimeSync] 📥 Remote user question on session ${payload.sessionId}:`, payload.userQuery);
+        const remotePendingBotMsg = {
+          id: `bot_live_${payload.sessionId}`,
+          sender: 'bot',
+          text: '',
+          isStreaming: true,
+          timestamp: new Date()
+        };
 
-            const remoteUserMsg = {
-              id: payload.userMessageId || `user_${Date.now()}`,
-              sender: 'user',
-              text: payload.userQuery,
-              timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-              personality: payload.personality || 'mentor'
-            };
+        if (currentConversationId === payload.sessionId) {
+          setMessages((prev) => {
+            const alreadyExists = prev.some(
+              (m) =>
+                m.id === remoteUserMsg.id ||
+                (m.sender === 'user' && m.text === remoteUserMsg.text && Math.abs(new Date(m.timestamp) - new Date(remoteUserMsg.timestamp)) < 5000)
+            );
+            if (alreadyExists) return prev;
+            return [...prev, remoteUserMsg, remotePendingBotMsg];
+          });
+          setLoading(true);
+          setIsSendGenerating(true);
+          setTimeout(() => scrollToBottom(true), 80);
+        }
 
-            const remotePendingBotMsg = {
-              id: `bot_live_${payload.sessionId}`,
-              sender: 'bot',
-              text: '',
-              isStreaming: true,
-              timestamp: new Date()
-            };
-
-            // If user is currently looking at this active conversation
-            if (currentConversationId === payload.sessionId) {
-              setMessages((prev) => {
-                const alreadyExists = prev.some(
-                  (m) =>
-                    m.id === remoteUserMsg.id ||
-                    (m.sender === 'user' && m.text === remoteUserMsg.text && Math.abs(new Date(m.timestamp) - new Date(remoteUserMsg.timestamp)) < 5000)
-                );
-                if (alreadyExists) return prev;
-                return [...prev, remoteUserMsg, remotePendingBotMsg];
-              });
-              setLoading(true);
-              setIsSendGenerating(true);
-              setTimeout(() => scrollToBottom(true), 100);
+        // Update sidebar
+        setConversations((prev) => {
+          const found = prev.find((c) => c.id === payload.sessionId);
+          if (found) {
+            const msgs = [...(found.messages || [])];
+            if (!msgs.some((m) => m.id === remoteUserMsg.id)) {
+              msgs.push(remoteUserMsg);
             }
-
-            // Update conversation preview and timestamp in sidebar
-            setConversations((prev) => {
-              const found = prev.find((c) => c.id === payload.sessionId);
-              if (found) {
-                const msgs = [...(found.messages || [])];
-                const msgExists = msgs.some((m) => m.id === remoteUserMsg.id);
-                if (!msgExists) msgs.push(remoteUserMsg);
-                return prev.map((c) =>
-                  c.id === payload.sessionId
-                    ? { ...c, messages: msgs, updatedAt: payload.timestamp || new Date().toISOString() }
-                    : c
-                );
-              } else {
-                const newConv = {
-                  id: payload.sessionId,
-                  title: payload.userQuery ? payload.userQuery.slice(0, 45) : (userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat'),
-                  messages: [remoteUserMsg],
-                  isLoading: false,
-                  createdAt: payload.timestamp || new Date().toISOString(),
-                  updatedAt: payload.timestamp || new Date().toISOString(),
-                  isPrivate: false
-                };
-                return [newConv, ...prev];
-              }
-            });
-          } catch (_err) {}
+            return prev.map((c) =>
+              c.id === payload.sessionId
+                ? { ...c, messages: msgs, updatedAt: payload.timestamp || new Date().toISOString() }
+                : c
+            );
+          } else {
+            const newConv = {
+              id: payload.sessionId,
+              title: payload.userQuery ? payload.userQuery.slice(0, 45) : (userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat'),
+              messages: [remoteUserMsg],
+              isLoading: false,
+              createdAt: payload.timestamp || new Date().toISOString(),
+              updatedAt: payload.timestamp || new Date().toISOString(),
+              isPrivate: false
+            };
+            return [newConv, ...prev];
+          }
         });
+      },
 
-        // 2. AI is actively streaming tokens on the other device (streaming bareng real-time!)
-        eventSource.addEventListener('stream_chunk', (e) => {
-          try {
-            const raw = JSON.parse(e.data);
-            const payload = raw?.data;
-            if (!payload || !payload.sessionId) return;
+      // 2. Jawaban selesai di HP lain -> Tampilkan dengan animasi mengetik (typewriter)
+      onStreamDone: (payload) => {
+        if (!payload || !payload.sessionId) return;
+        const botMsgId = payload.assistantMsgId || `bot_${Date.now()}`;
 
-            if (currentConversationId === payload.sessionId) {
+        // Jika user sedang aktif melihat percakapan ini -> Mainkan animasi mengetik!
+        if (currentConversationId === payload.sessionId) {
+          remoteTypewriterRef.current?.cancel();
+
+          // Pastikan bubble pesan bot ada di state
+          setMessages((prev) => {
+            const idx = prev.findIndex(
+              (m) => m.id === botMsgId || m.id === `bot_live_${payload.sessionId}` || (m.sender === 'bot' && m.isStreaming)
+            );
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], id: botMsgId, isStreaming: true };
+              return updated;
+            }
+            return [
+              ...prev,
+              {
+                id: botMsgId,
+                sender: 'bot',
+                text: '',
+                isStreaming: true,
+                timestamp: new Date()
+              }
+            ];
+          });
+
+          // Jalankan animasi typewriter
+          remoteTypewriterRef.current = createTypewriter({
+            fullText: payload.text || '',
+            speedMs: 16,
+            onTick: (revealedText, isDone) => {
               setMessages((prev) => {
-                const idx = prev.findIndex(
-                  (m) => m.id === `bot_live_${payload.sessionId}` || (m.sender === 'bot' && m.isStreaming)
-                );
+                const idx = prev.findIndex((m) => m.id === botMsgId || m.id === `bot_live_${payload.sessionId}`);
                 if (idx !== -1) {
                   const updated = [...prev];
                   updated[idx] = {
                     ...updated[idx],
-                    text: payload.text,
-                    isStreaming: true
+                    id: botMsgId,
+                    text: revealedText,
+                    isStreaming: !isDone
                   };
                   return updated;
-                } else {
-                  return [
-                    ...prev,
-                    {
-                      id: `bot_live_${payload.sessionId}`,
-                      sender: 'bot',
-                      text: payload.text,
-                      isStreaming: true,
-                      timestamp: new Date()
-                    }
-                  ];
                 }
+                return prev;
               });
-              setLoading(false);
-              setIsSendGenerating(true);
-            }
-          } catch (_err) {}
-        });
-
-        // 3. AI finished generating on the other device
-        eventSource.addEventListener('stream_done', (e) => {
-          try {
-            const raw = JSON.parse(e.data);
-            const payload = raw?.data;
-            if (!payload || !payload.sessionId) return;
-
-            const finalizedMsg = {
-              id: payload.assistantMsgId || `bot_${Date.now()}`,
-              sender: 'bot',
-              text: payload.text,
-              isStreaming: false,
-              timestamp: new Date()
-            };
-
-            if (currentConversationId === payload.sessionId) {
-              setMessages((prev) => {
-                const idx = prev.findIndex(
-                  (m) => m.id === `bot_live_${payload.sessionId}` || (m.sender === 'bot' && m.isStreaming)
-                );
-                if (idx !== -1) {
-                  const updated = [...prev];
-                  updated[idx] = finalizedMsg;
-                  return updated;
-                }
-                const alreadyExists = prev.some((m) => m.id === finalizedMsg.id);
-                if (alreadyExists) return prev;
-                return [...prev, finalizedMsg];
-              });
+              scrollToBottom(false);
+            },
+            onComplete: () => {
               setLoading(false);
               setIsSendGenerating(false);
               isSendGeneratingRef.current = false;
-              setTimeout(() => scrollToBottom(true), 150);
-            }
+              remoteTypewriterRef.current = null;
+              setTimeout(() => scrollToBottom(true), 100);
 
-            // Sync into conversations list
-            setConversations((prev) =>
-              prev.map((c) => {
-                if (c.id === payload.sessionId) {
-                  const msgs = [...(c.messages || [])];
-                  const botIdx = msgs.findIndex(
-                    (m) => m.id === finalizedMsg.id || m.id === `bot_live_${payload.sessionId}`
-                  );
-                  if (botIdx !== -1) {
-                    msgs[botIdx] = finalizedMsg;
-                  } else {
-                    msgs.push(finalizedMsg);
+              // Update ke daftar percakapan
+              setConversations((prev) =>
+                prev.map((c) => {
+                  if (c.id === payload.sessionId) {
+                    const msgs = [...(c.messages || [])];
+                    const botIdx = msgs.findIndex((m) => m.id === botMsgId || m.id === `bot_live_${payload.sessionId}`);
+                    const finalBotMsg = {
+                      id: botMsgId,
+                      sender: 'bot',
+                      text: payload.text,
+                      isStreaming: false,
+                      timestamp: new Date()
+                    };
+                    if (botIdx !== -1) {
+                      msgs[botIdx] = finalBotMsg;
+                    } else {
+                      msgs.push(finalBotMsg);
+                    }
+                    return {
+                      ...c,
+                      messages: msgs,
+                      updatedAt: payload.updatedAt || new Date().toISOString()
+                    };
                   }
-                  return {
-                    ...c,
-                    messages: msgs,
-                    updatedAt: payload.updatedAt || new Date().toISOString()
-                  };
-                }
-                return c;
-              })
-            );
-          } catch (_err) {}
-        });
-
-        // 4. Conversation saved or title updated on another device
-        eventSource.addEventListener('conversations_updated', async () => {
-          try {
-            const loaded = await ConversationPersistenceService.loadConversations(isAuthenticated, isGuest);
-            if (loaded && Array.isArray(loaded)) {
-              setConversations(loaded.filter((c) => c && c.id && c.messages?.length > 0));
+                  return c;
+                })
+              );
             }
-          } catch (_e) {}
-        });
-
-        // 5. Another device formatted database
-        eventSource.addEventListener('database_formatted', () => {
-          const freshId = Date.now().toString();
-          const freshConv = {
-            id: freshId,
-            title: userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat',
-            messages: [],
-            isLoading: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            isPrivate: false
+          });
+        } else {
+          // Jika percakapan tidak sedang aktif dibuka, langsung simpan ke list tanpa animasi
+          const finalBotMsg = {
+            id: botMsgId,
+            sender: 'bot',
+            text: payload.text,
+            isStreaming: false,
+            timestamp: new Date()
           };
-          setConversations([freshConv]);
-          setCurrentConversationId(freshId);
-          rememberConversationId(freshId);
-          setMessages([]);
-          try {
-            localStorage.removeItem('chatbot_conversations');
-            localStorage.removeItem('cached_conversations');
-            localStorage.removeItem('chatbot_artifacts');
-            localStorage.removeItem('chatbot_last_conversation');
-          } catch (_e) {}
-          showAlert(
-            userLanguage === 'id'
-              ? 'Database akun telah diformat fresh dari perangkat lain.'
-              : 'Account database formatted fresh from another device.',
-            'info'
-          );
-        });
-
-        // 6. Another device deleted a conversation
-        eventSource.addEventListener('conversation_deleted', (e) => {
-          try {
-            const raw = JSON.parse(e.data);
-            const delSessionId = raw?.data?.sessionId;
-            if (delSessionId) {
-              setConversations((prev) => prev.filter((c) => c.id !== delSessionId));
-              if (currentConversationId === delSessionId) {
-                createNewConversation();
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id === payload.sessionId) {
+                const msgs = [...(c.messages || [])];
+                const botIdx = msgs.findIndex((m) => m.id === botMsgId || m.id === `bot_live_${payload.sessionId}`);
+                if (botIdx !== -1) {
+                  msgs[botIdx] = finalBotMsg;
+                } else {
+                  msgs.push(finalBotMsg);
+                }
+                return {
+                  ...c,
+                  messages: msgs,
+                  updatedAt: payload.updatedAt || new Date().toISOString()
+                };
               }
-            }
-          } catch (_e) {}
-        });
+              return c;
+            })
+          );
+        }
+      },
 
-        eventSource.onerror = () => {
-          if (eventSource) {
-            eventSource.close();
-            eventSource = null;
+      // 3. Update daftar percakapan dari HP lain
+      onConversationsUpdated: async () => {
+        try {
+          const loaded = await ConversationPersistenceService.loadConversations(isAuthenticated, isGuest);
+          if (loaded && Array.isArray(loaded)) {
+            setConversations(loaded.filter((c) => c && c.id && c.messages?.length > 0));
           }
-          if (isSubscribed) {
-            reconnectTimer = setTimeout(connectRealtimeSync, 3500);
-          }
+        } catch (_e) {}
+      },
+
+      // 4. Format database dari HP lain
+      onDatabaseFormatted: () => {
+        const freshId = Date.now().toString();
+        const freshConv = {
+          id: freshId,
+          title: userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat',
+          messages: [],
+          isLoading: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isPrivate: false
         };
-      } catch (err) {
-        if (isSubscribed) {
-          reconnectTimer = setTimeout(connectRealtimeSync, 5000);
+        setConversations([freshConv]);
+        setCurrentConversationId(freshId);
+        rememberConversationId(freshId);
+        setMessages([]);
+        try {
+          localStorage.removeItem('chatbot_conversations');
+          localStorage.removeItem('cached_conversations');
+          localStorage.removeItem('chatbot_artifacts');
+          localStorage.removeItem('chatbot_last_conversation');
+        } catch (_e) {}
+        showAlert(
+          userLanguage === 'id'
+            ? 'Database akun telah diformat fresh dari perangkat lain.'
+            : 'Account database formatted fresh from another device.',
+          'info'
+        );
+      },
+
+      // 5. Hapus percakapan dari HP lain
+      onConversationDeleted: (payload) => {
+        const delSessionId = payload?.sessionId;
+        if (delSessionId) {
+          setConversations((prev) => prev.filter((c) => c.id !== delSessionId));
+          if (currentConversationId === delSessionId) {
+            createNewConversation();
+          }
         }
       }
-    };
+    });
 
-    connectRealtimeSync();
-
-    // Fast catch-up polling on mobile screen unlock / tab visibility return
+    // Catch-up polling cepat saat layar HP dibuka kembali
     const catchUpSync = async () => {
       if (!isAuthenticated || isGuest || isSendGeneratingRef.current) return;
       try {
@@ -4830,18 +4820,15 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     };
 
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        catchUpSync();
-      }
+      if (document.visibilityState === 'visible') catchUpSync();
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', handleVisibility);
 
     return () => {
-      isSubscribed = false;
-      if (eventSource) eventSource.close();
-      if (reconnectTimer) clearTimeout(reconnectTimer);
+      unsubscribe();
+      remoteTypewriterRef.current?.cancel();
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleVisibility);
     };
@@ -5592,6 +5579,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const switchConversation = (convId) => {
     const conv = conversations.find((c) => c.id === convId);
     if (conv) {
+      remoteTypewriterRef.current?.finishNow();
       switchingConvRef.current = true;
       const convMsgs = conv.messages || [];
       const imageCount = convMsgs.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);

@@ -6,6 +6,7 @@
  */
 
 import { API_BASE_URL } from '../apiConfig';
+import { getDeviceId } from './realtimeSyncService';
 
 const STORAGE_KEY = 'chatbot_conversations';
 
@@ -361,14 +362,16 @@ class ConversationPersistenceService {
       const publicConversations = conversations.filter(c => !c.isPrivate && Array.isArray(c.messages) && c.messages.length > 0);
       if (publicConversations.length === 0) return true;
 
-      console.log(`[ConversationPersistence] Saving ${publicConversations.length} conversations to backend...`);
+      const deviceId = getDeviceId();
+      console.log(`[ConversationPersistence] Saving ${publicConversations.length} conversations to backend (device: ${deviceId})...`);
       const response = await fetch(`${API_BASE_URL}/api/conversations`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'x-device-id': deviceId,
         },
-        body: JSON.stringify({ conversations: publicConversations }),
+        body: JSON.stringify({ conversations: publicConversations, deviceId }),
       });
 
       if (!response.ok) {

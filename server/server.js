@@ -634,36 +634,41 @@ app.use(passport.session());
 // ============================================================================
 // 🔄 REAL-TIME MULTI-DEVICE SYNC ENGINE (SSE BROADCASTER)
 // ============================================================================
-const userSyncClients = new Map(); // userId -> Set<Response>
+const userSyncClients = new Map(); // userId -> Set<{ res, deviceId }>
 
-function registerSyncClient(userId, res) {
+function registerSyncClient(userId, res, deviceId = null) {
   if (!userSyncClients.has(userId)) {
     userSyncClients.set(userId, new Set());
   }
-  userSyncClients.get(userId).add(res);
-  console.log(`[REALTIME_SYNC] 📱 Device connected for user ${userId}. Active devices: ${userSyncClients.get(userId).size}`);
+  const clientObj = { res, deviceId };
+  userSyncClients.get(userId).add(clientObj);
+  console.log(`[REALTIME_SYNC] 📱 Device connected for user ${userId} (device: ${deviceId || 'anon'}). Active devices: ${userSyncClients.get(userId).size}`);
+  return clientObj;
 }
 
-function unregisterSyncClient(userId, res) {
+function unregisterSyncClient(userId, clientObj) {
   if (userSyncClients.has(userId)) {
     const clients = userSyncClients.get(userId);
-    clients.delete(res);
+    clients.delete(clientObj);
     if (clients.size === 0) {
       userSyncClients.delete(userId);
     }
   }
 }
 
-function broadcastUserSync(userId, eventType, payload, originRes = null) {
+function broadcastUserSync(userId, eventType, payload, originDeviceId = null) {
   if (!userId || !userSyncClients.has(userId)) return;
   const clients = userSyncClients.get(userId);
   const data = JSON.stringify({ event: eventType, data: payload, timestamp: Date.now() });
   
   for (const client of clients) {
-    if (client === originRes) continue;
+    // Skip if client is from the same originating device
+    if (originDeviceId && client.deviceId && client.deviceId === originDeviceId) {
+      continue;
+    }
     try {
-      client.write(`event: ${eventType}\ndata: ${data}\n\n`);
-      if (typeof client.flush === 'function') client.flush();
+      client.res.write(`event: ${eventType}\ndata: ${data}\n\n`);
+      if (typeof client.res.flush === 'function') client.res.flush();
     } catch (_err) {
       clients.delete(client);
     }
@@ -675,8 +680,8 @@ setInterval(() => {
   for (const [userId, clients] of userSyncClients.entries()) {
     for (const client of clients) {
       try {
-        client.write(`: ping\n\n`);
-        if (typeof client.flush === 'function') client.flush();
+        client.res.write(`: ping\n\n`);
+        if (typeof client.res.flush === 'function') client.res.flush();
       } catch (_e) {
         clients.delete(client);
       }
@@ -694,6 +699,8 @@ app.get('/api/realtime/sync-stream', (req, res) => {
     return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
 
+  const deviceId = req.query.deviceId || req.headers['x-device-id'] || null;
+
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
@@ -705,10 +712,10 @@ app.get('/api/realtime/sync-stream', (req, res) => {
   res.write(`: connected\n\n`);
   if (typeof res.flush === 'function') res.flush();
 
-  registerSyncClient(userId, res);
+  const clientObj = registerSyncClient(userId, res, deviceId);
 
   req.on('close', () => {
-    unregisterSyncClient(userId, res);
+    unregisterSyncClient(userId, clientObj);
   });
 });
 
@@ -3416,6 +3423,7 @@ app.post('/api/chat', async (req, res) => {
           const sessionId = req.body.sessionId || req.body.conversationId || null;
           const userMessageId = req.body.userMessageId || null;
           const personality = req.body.personality || 'mentor';
+          const deviceId = req.headers['x-device-id'] || req.body.deviceId || null;
 
           // If authenticated and sessionId provided, ensure session and user message are saved immediately
           if (req.isAuthenticated() && sessionId) {
@@ -3448,14 +3456,13 @@ app.post('/api/chat', async (req, res) => {
                 userQuery,
                 personality,
                 timestamp: new Date().toISOString()
-              }, res);
+              }, deviceId);
             }
           }
 
           let clientDisconnected = false;
           req.on('close', () => { clientDisconnected = true; });
           let fullResponseText = '';
-          let lastChunkBroadcastTime = 0;
 
           // Read stream chunks from active stream body
           activeStreamBody.on('data', (chunk) => {
@@ -3473,7 +3480,7 @@ app.post('/api/chat', async (req, res) => {
               }
             }
 
-            // Accumulate response text on server
+            // Accumulate response text on server for final DB persistence & sync
             const lines = chunkStr.split('\n');
             for (const line of lines) {
               const trimmed = line.trim();
@@ -3483,19 +3490,6 @@ app.post('/api/chat', async (req, res) => {
                   const delta = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.text || '';
                   if (delta) fullResponseText += delta;
                 } catch (_e) {}
-              }
-            }
-
-            // Real-time cross-device streaming sync (throttled ~120ms for buttery-smooth multi-device rendering)
-            if (req.isAuthenticated() && sessionId && fullResponseText) {
-              const now = Date.now();
-              if (now - lastChunkBroadcastTime > 120) {
-                lastChunkBroadcastTime = now;
-                broadcastUserSync(req.user.id, 'stream_chunk', {
-                  sessionId,
-                  text: fullResponseText,
-                  isGenerating: true
-                }, res);
               }
             }
           });
@@ -3508,7 +3502,7 @@ app.post('/api/chat', async (req, res) => {
               } catch (_endErr) {}
             }
 
-            // PERSIST TO DATABASE: Save complete AI response even if client disconnected / switched tab!
+            // PERSIST TO DATABASE: Save complete AI response once finished!
             if (fullResponseText && sessionId && req.isAuthenticated()) {
               try {
                 const assistantMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -3516,14 +3510,14 @@ app.post('/api/chat', async (req, res) => {
                 sessionDb.update(sessionId, { updatedAt: new Date().toISOString() });
                 console.log(`[SERVER_CHAT_PERSIST] ✅ AI response saved to DB (${fullResponseText.length} chars) for session ${sessionId}`);
 
-                // Broadcast completion to all other active devices of this user
+                // Broadcast completion to other active devices only once response is completely finished
                 broadcastUserSync(req.user.id, 'stream_done', {
                   sessionId,
                   assistantMsgId,
                   text: fullResponseText,
                   isGenerating: false,
                   updatedAt: new Date().toISOString()
-                }, res);
+                }, deviceId);
               } catch (saveDbErr) {
                 console.error('[SERVER_CHAT_PERSIST] Error saving assistant response:', saveDbErr);
               }
@@ -4836,6 +4830,7 @@ app.post('/api/conversations', async (req, res) => {
     }
 
     const { conversations } = req.body;
+    const deviceId = req.headers['x-device-id'] || req.body?.deviceId || null;
 
     if (!Array.isArray(conversations)) {
       return res.status(400).json({ error: 'Conversations must be an array' });
@@ -4977,7 +4972,7 @@ app.post('/api/conversations', async (req, res) => {
       // Broadcast to other devices so their conversation list updates immediately
       broadcastUserSync(userId, 'conversations_updated', {
         updatedAt: Date.now()
-      }, res);
+      }, deviceId);
 
       res.json({ success: true, message: 'Conversations saved', count: conversations.length });
     } catch (txErr) {
@@ -4998,6 +4993,7 @@ app.delete('/api/conversations', (req, res) => {
     }
 
     const userId = req.user.id;
+    const deviceId = req.headers['x-device-id'] || req.query?.deviceId || null;
 
     // Get all session IDs for user
     // Delete all messages for these sessions (will cascade due to FK)
@@ -5006,7 +5002,7 @@ app.delete('/api/conversations', (req, res) => {
 
     broadcastUserSync(userId, 'conversations_updated', {
       updatedAt: Date.now()
-    }, res);
+    }, deviceId);
 
     res.json({ success: true, message: 'All conversations deleted' });
   } catch (err) {
@@ -5024,6 +5020,7 @@ app.delete('/api/conversations/:conversationId', (req, res) => {
 
     const { conversationId } = req.params;
     const userId = req.user.id;
+    const deviceId = req.headers['x-device-id'] || req.query?.deviceId || null;
 
     // Verify user owns this conversation
     const session = db.prepare('SELECT id FROM chat_sessions WHERE id = ? AND userId = ?').get(conversationId, userId);
@@ -5037,7 +5034,7 @@ app.delete('/api/conversations/:conversationId', (req, res) => {
 
     broadcastUserSync(userId, 'conversation_deleted', {
       sessionId: conversationId
-    }, res);
+    }, deviceId);
 
     res.json({ success: true, message: 'Conversation deleted' });
   } catch (err) {
@@ -5055,6 +5052,7 @@ app.post('/api/account/format-database', async (req, res) => {
     }
 
     const { password, confirmText } = req.body;
+    const deviceId = req.headers['x-device-id'] || req.body?.deviceId || null;
 
     // 1. Verifikasi teks konfirmasi keamanan ("HAPUS DATA SAYA")
     if (!confirmText || confirmText.trim().toUpperCase() !== 'HAPUS DATA SAYA') {
@@ -5123,10 +5121,10 @@ app.post('/api/account/format-database', async (req, res) => {
 
     console.log(`[FORMAT DATABASE] ✅ User ${user.email} database successfully wiped and restored to fresh state.`);
 
-    // Broadcast reset to all connected devices of this user
+    // Broadcast reset to all other connected devices of this user
     broadcastUserSync(userId, 'database_formatted', {
       message: 'Database akun Anda berhasil diformat fresh.'
-    }, res);
+    }, deviceId);
 
     return res.json({ 
       success: true, 
