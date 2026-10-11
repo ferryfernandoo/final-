@@ -49,18 +49,31 @@ class ConversationPersistenceService {
 
     const localConvs = this.loadFromLocalStorage() || [];
 
-    // Merge backend & local conversations by ID without duplication
+    // For authenticated users, backend cloud database is the authoritative source of truth across all devices
     const convMap = new Map();
-    [...backendConvs, ...localConvs].forEach(conv => {
+    const isAuth = this.shouldUseBackendStorage(isAuthenticated, isGuest);
+
+    // 1. Add backend conversations
+    backendConvs.forEach(conv => {
+      if (conv && conv.id && Array.isArray(conv.messages)) {
+        convMap.set(String(conv.id), conv);
+      }
+    });
+
+    // 2. Merge local conversations: only add or update if offline/empty, or local has strictly more messages
+    localConvs.forEach(conv => {
       if (conv && conv.id && Array.isArray(conv.messages) && conv.messages.length > 0) {
-        if (!convMap.has(conv.id)) {
-          convMap.set(conv.id, conv);
+        const idStr = String(conv.id);
+        if (!convMap.has(idStr)) {
+          if (!isAuth || backendConvs.length === 0) {
+            convMap.set(idStr, conv);
+          }
         } else {
-          const existing = convMap.get(conv.id);
+          const existing = convMap.get(idStr);
           const existingCount = existing.messages?.length || 0;
           const newCount = conv.messages?.length || 0;
           if (newCount > existingCount) {
-            convMap.set(conv.id, conv);
+            convMap.set(idStr, conv);
           }
         }
       }

@@ -4384,14 +4384,16 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       prevLastMessageTextRef.current = '';
       setWorkspaceFiles([]);
       setActiveFile(null);
-      setSavedCodes([]);
-      setGeneratedImages([]);
+      setActiveImageFollowUps([]);
+      setUploadedImages([]);
+      setUploadedFiles([]);
+      capturedRefImagesRef.current = [];
       
       try {
         localStorage.removeItem('chatbot_conversations');
         localStorage.removeItem('cached_conversations');
         localStorage.removeItem('chatbot_artifacts');
-        localStorage.removeItem('saved_codes');
+        localStorage.removeItem('chatbot_last_conversation');
       } catch (_e) {}
 
       setShowFormatDbModal(false);
@@ -4541,6 +4543,309 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       })
     );
   }, [messages, currentConversationId]);
+
+  // ============================================================================
+  // 🔄 REAL-TIME MULTI-DEVICE / 2 HP LIVE SYNC ENGINE (SSE + LIVE STREAMING)
+  // ============================================================================
+  useEffect(() => {
+    if (!isAuthenticated || isGuest) return;
+
+    let eventSource = null;
+    let reconnectTimer = null;
+    let isSubscribed = true;
+
+    const connectRealtimeSync = () => {
+      if (!isSubscribed) return;
+      try {
+        eventSource = new EventSource('/api/realtime/sync-stream', { withCredentials: true });
+
+        eventSource.onopen = () => {
+          console.log('[RealtimeSync] 🟢 Connected to cross-device live sync stream');
+        };
+
+        // 1. User asked something on another device (e.g. 2nd phone)
+        eventSource.addEventListener('user_ask', (e) => {
+          try {
+            const raw = JSON.parse(e.data);
+            const payload = raw?.data;
+            if (!payload || !payload.sessionId) return;
+            console.log(`[RealtimeSync] 📥 Remote user question on session ${payload.sessionId}:`, payload.userQuery);
+
+            const remoteUserMsg = {
+              id: payload.userMessageId || `user_${Date.now()}`,
+              sender: 'user',
+              text: payload.userQuery,
+              timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+              personality: payload.personality || 'mentor'
+            };
+
+            const remotePendingBotMsg = {
+              id: `bot_live_${payload.sessionId}`,
+              sender: 'bot',
+              text: '',
+              isStreaming: true,
+              timestamp: new Date()
+            };
+
+            // If user is currently looking at this active conversation
+            if (currentConversationId === payload.sessionId) {
+              setMessages((prev) => {
+                const alreadyExists = prev.some(
+                  (m) =>
+                    m.id === remoteUserMsg.id ||
+                    (m.sender === 'user' && m.text === remoteUserMsg.text && Math.abs(new Date(m.timestamp) - new Date(remoteUserMsg.timestamp)) < 5000)
+                );
+                if (alreadyExists) return prev;
+                return [...prev, remoteUserMsg, remotePendingBotMsg];
+              });
+              setLoading(true);
+              setIsSendGenerating(true);
+              setTimeout(() => scrollToBottom(true), 100);
+            }
+
+            // Update conversation preview and timestamp in sidebar
+            setConversations((prev) => {
+              const found = prev.find((c) => c.id === payload.sessionId);
+              if (found) {
+                const msgs = [...(found.messages || [])];
+                const msgExists = msgs.some((m) => m.id === remoteUserMsg.id);
+                if (!msgExists) msgs.push(remoteUserMsg);
+                return prev.map((c) =>
+                  c.id === payload.sessionId
+                    ? { ...c, messages: msgs, updatedAt: payload.timestamp || new Date().toISOString() }
+                    : c
+                );
+              } else {
+                const newConv = {
+                  id: payload.sessionId,
+                  title: payload.userQuery ? payload.userQuery.slice(0, 45) : (userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat'),
+                  messages: [remoteUserMsg],
+                  isLoading: false,
+                  createdAt: payload.timestamp || new Date().toISOString(),
+                  updatedAt: payload.timestamp || new Date().toISOString(),
+                  isPrivate: false
+                };
+                return [newConv, ...prev];
+              }
+            });
+          } catch (_err) {}
+        });
+
+        // 2. AI is actively streaming tokens on the other device (streaming bareng real-time!)
+        eventSource.addEventListener('stream_chunk', (e) => {
+          try {
+            const raw = JSON.parse(e.data);
+            const payload = raw?.data;
+            if (!payload || !payload.sessionId) return;
+
+            if (currentConversationId === payload.sessionId) {
+              setMessages((prev) => {
+                const idx = prev.findIndex(
+                  (m) => m.id === `bot_live_${payload.sessionId}` || (m.sender === 'bot' && m.isStreaming)
+                );
+                if (idx !== -1) {
+                  const updated = [...prev];
+                  updated[idx] = {
+                    ...updated[idx],
+                    text: payload.text,
+                    isStreaming: true
+                  };
+                  return updated;
+                } else {
+                  return [
+                    ...prev,
+                    {
+                      id: `bot_live_${payload.sessionId}`,
+                      sender: 'bot',
+                      text: payload.text,
+                      isStreaming: true,
+                      timestamp: new Date()
+                    }
+                  ];
+                }
+              });
+              setLoading(false);
+              setIsSendGenerating(true);
+            }
+          } catch (_err) {}
+        });
+
+        // 3. AI finished generating on the other device
+        eventSource.addEventListener('stream_done', (e) => {
+          try {
+            const raw = JSON.parse(e.data);
+            const payload = raw?.data;
+            if (!payload || !payload.sessionId) return;
+
+            const finalizedMsg = {
+              id: payload.assistantMsgId || `bot_${Date.now()}`,
+              sender: 'bot',
+              text: payload.text,
+              isStreaming: false,
+              timestamp: new Date()
+            };
+
+            if (currentConversationId === payload.sessionId) {
+              setMessages((prev) => {
+                const idx = prev.findIndex(
+                  (m) => m.id === `bot_live_${payload.sessionId}` || (m.sender === 'bot' && m.isStreaming)
+                );
+                if (idx !== -1) {
+                  const updated = [...prev];
+                  updated[idx] = finalizedMsg;
+                  return updated;
+                }
+                const alreadyExists = prev.some((m) => m.id === finalizedMsg.id);
+                if (alreadyExists) return prev;
+                return [...prev, finalizedMsg];
+              });
+              setLoading(false);
+              setIsSendGenerating(false);
+              isSendGeneratingRef.current = false;
+              setTimeout(() => scrollToBottom(true), 150);
+            }
+
+            // Sync into conversations list
+            setConversations((prev) =>
+              prev.map((c) => {
+                if (c.id === payload.sessionId) {
+                  const msgs = [...(c.messages || [])];
+                  const botIdx = msgs.findIndex(
+                    (m) => m.id === finalizedMsg.id || m.id === `bot_live_${payload.sessionId}`
+                  );
+                  if (botIdx !== -1) {
+                    msgs[botIdx] = finalizedMsg;
+                  } else {
+                    msgs.push(finalizedMsg);
+                  }
+                  return {
+                    ...c,
+                    messages: msgs,
+                    updatedAt: payload.updatedAt || new Date().toISOString()
+                  };
+                }
+                return c;
+              })
+            );
+          } catch (_err) {}
+        });
+
+        // 4. Conversation saved or title updated on another device
+        eventSource.addEventListener('conversations_updated', async () => {
+          try {
+            const loaded = await ConversationPersistenceService.loadConversations(isAuthenticated, isGuest);
+            if (loaded && Array.isArray(loaded)) {
+              setConversations(loaded.filter((c) => c && c.id && c.messages?.length > 0));
+            }
+          } catch (_e) {}
+        });
+
+        // 5. Another device formatted database
+        eventSource.addEventListener('database_formatted', () => {
+          const freshId = Date.now().toString();
+          const freshConv = {
+            id: freshId,
+            title: userLanguage === 'id' ? 'Obrolan AI' : 'AI Chat',
+            messages: [],
+            isLoading: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            isPrivate: false
+          };
+          setConversations([freshConv]);
+          setCurrentConversationId(freshId);
+          rememberConversationId(freshId);
+          setMessages([]);
+          try {
+            localStorage.removeItem('chatbot_conversations');
+            localStorage.removeItem('cached_conversations');
+            localStorage.removeItem('chatbot_artifacts');
+            localStorage.removeItem('chatbot_last_conversation');
+          } catch (_e) {}
+          showAlert(
+            userLanguage === 'id'
+              ? 'Database akun telah diformat fresh dari perangkat lain.'
+              : 'Account database formatted fresh from another device.',
+            'info'
+          );
+        });
+
+        // 6. Another device deleted a conversation
+        eventSource.addEventListener('conversation_deleted', (e) => {
+          try {
+            const raw = JSON.parse(e.data);
+            const delSessionId = raw?.data?.sessionId;
+            if (delSessionId) {
+              setConversations((prev) => prev.filter((c) => c.id !== delSessionId));
+              if (currentConversationId === delSessionId) {
+                createNewConversation();
+              }
+            }
+          } catch (_e) {}
+        });
+
+        eventSource.onerror = () => {
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+          if (isSubscribed) {
+            reconnectTimer = setTimeout(connectRealtimeSync, 3500);
+          }
+        };
+      } catch (err) {
+        if (isSubscribed) {
+          reconnectTimer = setTimeout(connectRealtimeSync, 5000);
+        }
+      }
+    };
+
+    connectRealtimeSync();
+
+    // Fast catch-up polling on mobile screen unlock / tab visibility return
+    const catchUpSync = async () => {
+      if (!isAuthenticated || isGuest || isSendGeneratingRef.current) return;
+      try {
+        const activeId = currentConversationId;
+        const res = await fetch(`/api/realtime/sync-poll?activeSessionId=${encodeURIComponent(activeId || '')}`, {
+          credentials: 'include'
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.success) return;
+
+        if (activeId && Array.isArray(data.activeMessages) && data.activeMessages.length > 0) {
+          setMessages((prev) => {
+            if (!isSendGeneratingRef.current && data.activeMessages.length >= prev.length) {
+              const prevLast = prev[prev.length - 1];
+              const srvLast = data.activeMessages[data.activeMessages.length - 1];
+              if (!prevLast || prev.length !== data.activeMessages.length || (srvLast && prevLast.text !== srvLast.text)) {
+                return data.activeMessages;
+              }
+            }
+            return prev;
+          });
+        }
+      } catch (_e) {}
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        catchUpSync();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+
+    return () => {
+      isSubscribed = false;
+      if (eventSource) eventSource.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
+  }, [isAuthenticated, isGuest, currentConversationId]);
 
   const lastLoadedConversationIdRef = useRef(null);
 

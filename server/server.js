@@ -632,6 +632,133 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ============================================================================
+// 🔄 REAL-TIME MULTI-DEVICE SYNC ENGINE (SSE BROADCASTER)
+// ============================================================================
+const userSyncClients = new Map(); // userId -> Set<Response>
+
+function registerSyncClient(userId, res) {
+  if (!userSyncClients.has(userId)) {
+    userSyncClients.set(userId, new Set());
+  }
+  userSyncClients.get(userId).add(res);
+  console.log(`[REALTIME_SYNC] 📱 Device connected for user ${userId}. Active devices: ${userSyncClients.get(userId).size}`);
+}
+
+function unregisterSyncClient(userId, res) {
+  if (userSyncClients.has(userId)) {
+    const clients = userSyncClients.get(userId);
+    clients.delete(res);
+    if (clients.size === 0) {
+      userSyncClients.delete(userId);
+    }
+  }
+}
+
+function broadcastUserSync(userId, eventType, payload, originRes = null) {
+  if (!userId || !userSyncClients.has(userId)) return;
+  const clients = userSyncClients.get(userId);
+  const data = JSON.stringify({ event: eventType, data: payload, timestamp: Date.now() });
+  
+  for (const client of clients) {
+    if (client === originRes) continue;
+    try {
+      client.write(`event: ${eventType}\ndata: ${data}\n\n`);
+      if (typeof client.flush === 'function') client.flush();
+    } catch (_err) {
+      clients.delete(client);
+    }
+  }
+}
+
+// Periodic heartbeat to prevent mobile network dropouts
+setInterval(() => {
+  for (const [userId, clients] of userSyncClients.entries()) {
+    for (const client of clients) {
+      try {
+        client.write(`: ping\n\n`);
+        if (typeof client.flush === 'function') client.flush();
+      } catch (_e) {
+        clients.delete(client);
+      }
+    }
+    if (clients.size === 0) {
+      userSyncClients.delete(userId);
+    }
+  }
+}, 15000);
+
+// GET /api/realtime/sync-stream - Server-Sent Events stream for cross-device live sync
+app.get('/api/realtime/sync-stream', (req, res) => {
+  const userId = (req.isAuthenticated && req.isAuthenticated()) ? req.user.id : (req.user?.id || req.session?.userId || null);
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'Access-Control-Allow-Credentials': 'true'
+  });
+
+  res.write(`: connected\n\n`);
+  if (typeof res.flush === 'function') res.flush();
+
+  registerSyncClient(userId, res);
+
+  req.on('close', () => {
+    unregisterSyncClient(userId, res);
+  });
+});
+
+// GET /api/realtime/sync-poll - Fallback polling endpoint for mobile background recovery
+app.get('/api/realtime/sync-poll', (req, res) => {
+  const userId = (req.isAuthenticated && req.isAuthenticated()) ? req.user.id : (req.user?.id || req.session?.userId || null);
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+
+  const activeSessionId = req.query.activeSessionId || null;
+
+  try {
+    const sessions = db.prepare(`
+      SELECT id, title, updatedAt 
+      FROM chat_sessions 
+      WHERE userId = ? 
+      ORDER BY updatedAt DESC 
+      LIMIT 25
+    `).all(userId);
+
+    let activeMessages = [];
+    if (activeSessionId) {
+      activeMessages = db.prepare(`
+        SELECT id, role, content, createdAt, personality 
+        FROM chat_messages 
+        WHERE sessionId = ? AND userId = ?
+        ORDER BY createdAt ASC, rowid ASC
+      `).all(activeSessionId, userId);
+    }
+
+    return res.json({
+      success: true,
+      serverTime: Date.now(),
+      sessions,
+      activeMessages: activeMessages.map(m => ({
+        id: m.id,
+        sender: m.role === 'user' ? 'user' : 'bot',
+        text: m.content,
+        timestamp: m.createdAt,
+        personality: m.personality
+      }))
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// ============================================================================
 // AUTHENTICATION API ROUTES (/auth/login, /auth/register, /auth/me, /auth/logout)
 // ============================================================================
 
@@ -3313,11 +3440,22 @@ app.post('/api/chat', async (req, res) => {
             } catch (initDbErr) {
               console.warn('[CHAT_DB_INIT] Warning initializing session/message in DB:', initDbErr.message);
             }
+
+            if (req.isAuthenticated() && sessionId && userQuery) {
+              broadcastUserSync(req.user.id, 'user_ask', {
+                sessionId,
+                userMessageId: userMessageId || `user_${Date.now()}`,
+                userQuery,
+                personality,
+                timestamp: new Date().toISOString()
+              }, res);
+            }
           }
 
           let clientDisconnected = false;
           req.on('close', () => { clientDisconnected = true; });
           let fullResponseText = '';
+          let lastChunkBroadcastTime = 0;
 
           // Read stream chunks from active stream body
           activeStreamBody.on('data', (chunk) => {
@@ -3347,6 +3485,19 @@ app.post('/api/chat', async (req, res) => {
                 } catch (_e) {}
               }
             }
+
+            // Real-time cross-device streaming sync (throttled ~120ms for buttery-smooth multi-device rendering)
+            if (req.isAuthenticated() && sessionId && fullResponseText) {
+              const now = Date.now();
+              if (now - lastChunkBroadcastTime > 120) {
+                lastChunkBroadcastTime = now;
+                broadcastUserSync(req.user.id, 'stream_chunk', {
+                  sessionId,
+                  text: fullResponseText,
+                  isGenerating: true
+                }, res);
+              }
+            }
           });
 
           activeStreamBody.on('end', () => {
@@ -3364,6 +3515,15 @@ app.post('/api/chat', async (req, res) => {
                 messageDb.create(assistantMsgId, sessionId, req.user.id, 'assistant', fullResponseText, personality);
                 sessionDb.update(sessionId, { updatedAt: new Date().toISOString() });
                 console.log(`[SERVER_CHAT_PERSIST] ✅ AI response saved to DB (${fullResponseText.length} chars) for session ${sessionId}`);
+
+                // Broadcast completion to all other active devices of this user
+                broadcastUserSync(req.user.id, 'stream_done', {
+                  sessionId,
+                  assistantMsgId,
+                  text: fullResponseText,
+                  isGenerating: false,
+                  updatedAt: new Date().toISOString()
+                }, res);
               } catch (saveDbErr) {
                 console.error('[SERVER_CHAT_PERSIST] Error saving assistant response:', saveDbErr);
               }
@@ -4813,6 +4973,12 @@ app.post('/api/conversations', async (req, res) => {
       }
       
       console.log(`[API/CONVERSATIONS] Successfully saved ${conversations.length} conversations for user ${userId}`);
+
+      // Broadcast to other devices so their conversation list updates immediately
+      broadcastUserSync(userId, 'conversations_updated', {
+        updatedAt: Date.now()
+      }, res);
+
       res.json({ success: true, message: 'Conversations saved', count: conversations.length });
     } catch (txErr) {
       console.error('Transaction error:', txErr);
@@ -4837,6 +5003,10 @@ app.delete('/api/conversations', (req, res) => {
     // Delete all messages for these sessions (will cascade due to FK)
     const deleteStmt = db.prepare('DELETE FROM chat_sessions WHERE userId = ?');
     deleteStmt.run(userId);
+
+    broadcastUserSync(userId, 'conversations_updated', {
+      updatedAt: Date.now()
+    }, res);
 
     res.json({ success: true, message: 'All conversations deleted' });
   } catch (err) {
@@ -4864,6 +5034,10 @@ app.delete('/api/conversations/:conversationId', (req, res) => {
 
     // Delete conversation (messages will cascade delete)
     db.prepare('DELETE FROM chat_sessions WHERE id = ?').run(conversationId);
+
+    broadcastUserSync(userId, 'conversation_deleted', {
+      sessionId: conversationId
+    }, res);
 
     res.json({ success: true, message: 'Conversation deleted' });
   } catch (err) {
@@ -4948,6 +5122,11 @@ app.post('/api/account/format-database', async (req, res) => {
     executeFormat();
 
     console.log(`[FORMAT DATABASE] ✅ User ${user.email} database successfully wiped and restored to fresh state.`);
+
+    // Broadcast reset to all connected devices of this user
+    broadcastUserSync(userId, 'database_formatted', {
+      message: 'Database akun Anda berhasil diformat fresh.'
+    }, res);
 
     return res.json({ 
       success: true, 
