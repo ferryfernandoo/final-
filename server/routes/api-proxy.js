@@ -26,16 +26,21 @@ router.options('*', (req, res) => {
  */
 const apiKeyMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const xApiKey = req.headers['x-api-key'];
+  const xApiKey = req.headers['x-api-key'] || req.headers['api-key'] || req.headers['x-deepernova-key'];
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    req.apiKey = authHeader.substring(7).trim();
+  if (authHeader) {
+    const trimmedAuth = authHeader.trim();
+    if (/^bearer\s+/i.test(trimmedAuth)) {
+      req.apiKey = trimmedAuth.replace(/^bearer\s+/i, '').trim();
+    } else {
+      req.apiKey = trimmedAuth;
+    }
   } else if (xApiKey) {
     req.apiKey = String(xApiKey).trim();
-  } else if (req.body && req.body.api_key) {
-    req.apiKey = String(req.body.api_key).trim();
-  } else if (req.query && req.query.api_key) {
-    req.apiKey = String(req.query.api_key).trim();
+  } else if (req.body && (req.body.api_key || req.body.apiKey)) {
+    req.apiKey = String(req.body.api_key || req.body.apiKey).trim();
+  } else if (req.query && (req.query.api_key || req.query.apiKey)) {
+    req.apiKey = String(req.query.api_key || req.query.apiKey).trim();
   } else if (req.isAuthenticated && req.isAuthenticated() && req.user) {
     // Session authenticated fallback
     const keys = apiKeyDb.findByUserId(req.user.id);
@@ -47,7 +52,7 @@ const apiKeyMiddleware = (req, res, next) => {
   if (!req.apiKey) {
     return res.status(401).json({
       error: {
-        message: 'Missing or invalid Authorization header. Pass Bearer <API_KEY> in the Authorization header.',
+        message: 'Missing or invalid Authorization header. Pass Bearer <API_KEY> in the Authorization header or x-api-key.',
         type: 'invalid_request_error',
         code: 'unauthorized'
       }

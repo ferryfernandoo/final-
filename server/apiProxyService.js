@@ -19,9 +19,6 @@ const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || '').split(',').map(k => k
 
 export const TOKENMIX_API_KEYS = Array.from(new Set([
   ...RAW_ENV_KEYS,
-  'sk-tm-OF4766UuCGjWtGRJ1J9g4LEpXLWs5l22Cve7rIE8tuDYfPYl',
-  'sk-tm-v82A9S7sevlYYSN9nJYajde36mjGqbawdZDk0IlEh4bRfYnb',
-  'sk-tm-O4IPdEpJpeu2cV80ivoYscDzG0TU82XQkUoPYBW3MtWdoTkz',
   'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
   'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
   'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
@@ -86,6 +83,27 @@ class ApiProxyService {
         };
       }
     } catch (_) {}
+
+    // 3. Fallback to default developer & guest public keys
+    const validPublicKeys = [
+      process.env.DEEPERNOVA_SEARCH_API_KEY,
+      process.env.VITE_DEEPERNOVA_SEARCH_API_KEY,
+      process.env.VITE_DEEPERNOVA_PUBLIC_GUEST_KEY,
+      'dn_live_d69468b9c25451f3b7cd8482e96cbcf7'
+    ].filter(Boolean);
+
+    if (validPublicKeys.includes(cleanKey)) {
+      return {
+        isDbKey: false,
+        customer: { id: 'guest_developer', name: 'Public Developer' },
+        balance: {
+          tokenQuota: 1000000,
+          tokensUsed: 0,
+          remainingTokens: 1000000
+        },
+        userId: 'guest_developer'
+      };
+    }
 
     return null;
   }
@@ -554,61 +572,65 @@ ATURAN KOMUNIKASI MUTLAK:
     let upstreamError = null;
     const startTime = Date.now();
 
-    for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
-      const activeKey = TOKENMIX_API_KEYS[i];
-      try {
-        const response = await fetch(TOKENMIX_CHAT_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${activeKey}`
-          },
-          body: JSON.stringify(outbound),
-          timeout: 15000
-        });
+    // 1. Prioritize Native Cloudflare AI Engine (GPU Engine at port 8000 / Cloudflare Tunnel)
+    const nativeEndpoints = [
+      process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
+      process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+    ].filter(Boolean);
 
-        if (response.ok) {
-          responseData = await response.json();
+    for (const nativeUrl of nativeEndpoints) {
+      try {
+        const nativeController = new AbortController();
+        const nativeTimeout = setTimeout(() => nativeController.abort(), 8000);
+        const nativeRes = await fetch(nativeUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(outbound),
+          signal: nativeController.signal
+        });
+        clearTimeout(nativeTimeout);
+
+        if (nativeRes.ok) {
+          responseData = await nativeRes.json();
           upstreamError = null;
-          break; // Key berhasil, stop loop
-        } else {
-          const errBody = await response.text();
-          console.warn(`[ApiProxyService] TokenMix key index ${i} failed (${response.status}): ${errBody.substring(0, 150)}. Rotating to next key...`);
-          upstreamError = { status: response.status, body: errBody };
-          responseData = null;
+          console.log(`[ApiProxyService] ✅ Responded via Cloudflare Native AI Engine (${nativeUrl})!`);
+          break;
         }
-      } catch (netErr) {
-        console.warn(`[ApiProxyService] Network error with TokenMix key index ${i}: ${netErr.message}`);
-        upstreamError = { status: 500, message: netErr.message };
-        responseData = null;
+      } catch (nativeErr) {
+        // Native AI engine offline, fallback to TokenMix
       }
     }
 
-    // Fallback ke Groq (Llama 3.3 70B) jika TokenMix gagal dan GROQ_API_KEY tersedia
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    if ((!responseData || !responseData.choices || responseData.choices.length === 0) && GROQ_API_KEY) {
-      try {
-        console.log('[ApiProxyService] 🚀 TokenMix unavailable. Attempting fallback to Groq Llama 3.3 70B...');
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: outbound.messages,
-            temperature: 0.5,
-            max_tokens: 4096
-          }),
-          timeout: 15000
-        });
-        if (groqRes.ok) {
-          responseData = await groqRes.json();
-          upstreamError = null;
+    // 2. Fallback to active TokenMix keys if native AI engine did not respond
+    if (!responseData || !responseData.choices || responseData.choices.length === 0) {
+      for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
+        const activeKey = TOKENMIX_API_KEYS[i];
+        try {
+          const response = await fetch(TOKENMIX_CHAT_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeKey}`
+            },
+            body: JSON.stringify(outbound),
+            timeout: 15000
+          });
+
+          if (response.ok) {
+            responseData = await response.json();
+            upstreamError = null;
+            break; // Key berhasil, stop loop
+          } else {
+            const errBody = await response.text();
+            console.warn(`[ApiProxyService] TokenMix key index ${i} failed (${response.status}): ${errBody.substring(0, 150)}. Rotating to next key...`);
+            upstreamError = { status: response.status, body: errBody };
+            responseData = null;
+          }
+        } catch (netErr) {
+          console.warn(`[ApiProxyService] Network error with TokenMix key index ${i}: ${netErr.message}`);
+          upstreamError = { status: 500, message: netErr.message };
+          responseData = null;
         }
-      } catch (gErr) {
-        console.warn('[ApiProxyService] Groq fallback error:', gErr.message);
       }
     }
 
@@ -751,10 +773,39 @@ ATURAN KOMUNIKASI MUTLAK:
       outbound.messages.unshift(identityPrompt);
     }
 
-    let useStandbyStream = false;
-    let upstreamStream = null;
+    // 1. Prioritize Native Cloudflare AI Engine Streaming
+    const nativeEndpoints = [
+      process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
+      process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+    ].filter(Boolean);
 
-    let streamError = null;
+    for (const nativeUrl of nativeEndpoints) {
+      try {
+        const nativeController = new AbortController();
+        const nativeTimeout = setTimeout(() => nativeController.abort(), 8000);
+        const nativeRes = await fetch(nativeUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(outbound),
+          signal: nativeController.signal
+        });
+        clearTimeout(nativeTimeout);
+
+        if (nativeRes.ok && nativeRes.body) {
+          console.log(`[ApiProxyService Stream] ✅ Streaming via Cloudflare Native AI Engine (${nativeUrl})!`);
+          return {
+            stream: nativeRes.body,
+            auth,
+            requestedModel,
+            targetModel
+          };
+        }
+      } catch (nativeErr) {
+        // Native AI engine offline, fallback to TokenMix stream
+      }
+    }
+
+    // 2. Fallback to active TokenMix stream
     for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
       const activeKey = TOKENMIX_API_KEYS[i];
       try {
@@ -783,39 +834,6 @@ ATURAN KOMUNIKASI MUTLAK:
         console.warn(`[ApiProxyService Stream] Network error with TokenMix key index ${i}: ${netErr.message}`);
         streamError = { status: 500, message: netErr.message };
         useStandbyStream = true;
-      }
-    }
-
-    // Fallback ke Groq jika TokenMix gagal dan GROQ_API_KEY tersedia
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    if ((useStandbyStream || !upstreamStream) && GROQ_API_KEY) {
-      try {
-        console.log('[ApiProxyService Stream] 🚀 TokenMix unavailable. Attempting fallback to Groq Llama 3.3 70B stream...');
-        const groqStreamRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: outbound.messages,
-            temperature: 0.5,
-            max_tokens: 4096,
-            stream: true
-          }),
-          timeout: 15000
-        });
-        if (groqStreamRes.ok) {
-          return {
-            stream: groqStreamRes.body,
-            auth,
-            requestedModel,
-            targetModel
-          };
-        }
-      } catch (gErr) {
-        console.warn('[ApiProxyService Stream] Groq stream fallback error:', gErr.message);
       }
     }
 

@@ -5,8 +5,8 @@
  */
 
 import express from 'express';
-import { apiProxyService } from '../server/apiProxyService.js';
-import { userDb, apiKeyDb } from '../server/database.js';
+import { apiProxyService } from '../apiProxyService.js';
+import { userDb, apiKeyDb, apiLogDb } from '../database.js';
 
 const router = express.Router();
 
@@ -22,24 +22,37 @@ router.options('*', (req, res) => {
 });
 
 /**
- * Middleware: Extract API key from headers, body, or query
+ * Middleware: Extract API key from headers, body, query, or active session
  */
 const apiKeyMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const xApiKey = req.headers['x-api-key'];
+  const xApiKey = req.headers['x-api-key'] || req.headers['api-key'] || req.headers['x-deepernova-key'];
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    req.apiKey = authHeader.substring(7).trim();
+  if (authHeader) {
+    const trimmedAuth = authHeader.trim();
+    if (/^bearer\s+/i.test(trimmedAuth)) {
+      req.apiKey = trimmedAuth.replace(/^bearer\s+/i, '').trim();
+    } else {
+      req.apiKey = trimmedAuth;
+    }
   } else if (xApiKey) {
     req.apiKey = String(xApiKey).trim();
-  } else if (req.body && req.body.api_key) {
-    req.apiKey = String(req.body.api_key).trim();
-  } else if (req.query && req.query.api_key) {
-    req.apiKey = String(req.query.api_key).trim();
-  } else {
+  } else if (req.body && (req.body.api_key || req.body.apiKey)) {
+    req.apiKey = String(req.body.api_key || req.body.apiKey).trim();
+  } else if (req.query && (req.query.api_key || req.query.apiKey)) {
+    req.apiKey = String(req.query.api_key || req.query.apiKey).trim();
+  } else if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+    // Session authenticated fallback
+    const keys = apiKeyDb.findByUserId(req.user.id);
+    if (keys && keys.length > 0) {
+      req.apiKey = keys[0].key;
+    }
+  }
+
+  if (!req.apiKey) {
     return res.status(401).json({
       error: {
-        message: 'Missing or invalid Authorization header. Pass Bearer <API_KEY> in the Authorization header.',
+        message: 'Missing or invalid Authorization header. Pass Bearer <API_KEY> in the Authorization header or x-api-key.',
         type: 'invalid_request_error',
         code: 'unauthorized'
       }
@@ -58,6 +71,7 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
 
     if (stream) {
       try {
+        const streamStartTime = Date.now();
         const streamResult = await apiProxyService.chatCompletionsStream(req.apiKey, req.body);
         const { stream: responseStream, auth, requestedModel } = streamResult;
 
@@ -104,6 +118,7 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
         });
 
         responseStream.on('end', () => {
+          // If usage chunk was not sent by upstream, estimate tokens (4 chars/token)
           const consumedTokens = totalTokensFromStream > 0 
             ? totalTokensFromStream 
             : Math.max(10, Math.ceil((JSON.stringify(req.body.messages || []).length + generatedTextLen) / 4));
@@ -115,6 +130,25 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
               console.log(`[Stream] Deducted ${consumedTokens} tokens for user ${auth.user.id}`);
             } catch (err) {
               console.warn('[Stream Token Deduction]', err.message);
+            }
+
+            try {
+              apiLogDb.create(
+                `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                auth.keyRecord?.id || null,
+                auth.user?.id || null,
+                '/v1/chat/completions',
+                requestedModel || 'deepernova-gold-1.5',
+                Math.ceil(JSON.stringify(req.body.messages || []).length / 4),
+                Math.ceil(generatedTextLen / 4),
+                consumedTokens,
+                200,
+                Date.now() - streamStartTime,
+                req.ip,
+                req.headers['user-agent']
+              );
+            } catch (logErr) {
+              console.warn('[Stream Log Insert Error]', logErr.message);
             }
           }
           res.end();
@@ -137,6 +171,7 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
         });
       }
     } else {
+      // Non-streaming response
       const result = await apiProxyService.chatCompletions(req.apiKey, req.body);
       res.json(result);
     }
@@ -154,6 +189,7 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
 
 /**
  * GET /models
+ * OpenAI compatible models endpoint
  */
 router.get('/models', apiKeyMiddleware, async (req, res) => {
   try {
@@ -172,6 +208,7 @@ router.get('/models', apiKeyMiddleware, async (req, res) => {
 
 /**
  * GET /balance
+ * Live remaining token balance for the user
  */
 router.get('/balance', apiKeyMiddleware, async (req, res) => {
   try {
@@ -195,9 +232,10 @@ router.get('/balance', apiKeyMiddleware, async (req, res) => {
 });
 
 /**
- * GET /usage
+ * GET /usage & GET /usage/history
+ * Live usage statistics & 7-day token history
  */
-router.get('/usage', apiKeyMiddleware, async (req, res) => {
+router.get(['/usage', '/usage/history'], apiKeyMiddleware, async (req, res) => {
   try {
     const stats = await apiProxyService.getUsageStats(req.apiKey);
     res.json(stats);
@@ -213,7 +251,29 @@ router.get('/usage', apiKeyMiddleware, async (req, res) => {
 });
 
 /**
+ * GET /admin/stats
+ * Aggregated server-side metrics from api_usage_logs for future admin dashboard
+ */
+router.get('/admin/stats', async (req, res) => {
+  try {
+    const summary = apiLogDb.getAdminSummary();
+    res.json({
+      success: true,
+      service: 'DeeperNova API Management Platform',
+      timestamp: new Date().toISOString(),
+      summary
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /test
+ * Live interactive API Hit tester endpoint
  */
 router.post('/test', apiKeyMiddleware, async (req, res) => {
   try {

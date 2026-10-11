@@ -1,5 +1,6 @@
 // Cloudflare Tunnel backend URL (live proxy target)
-const CLOUDFLARE_BACKEND_URL = 'https://conversion-unified-rat-fellowship.trycloudflare.com';
+export const CLOUDFLARE_BACKEND_URL = 'https://conversion-unified-rat-fellowship.trycloudflare.com';
+export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
 
 const getApiBaseUrl = () => {
   // 1. In browser, prioritize same-origin relative URL for known proxy hosts

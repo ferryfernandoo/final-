@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../apiConfig';
+import { API_BASE_URL, PUBLIC_API_BASE_URL } from '../apiConfig';
 import './ApiMarketplace.css';
 
 const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRequest }) => {
@@ -45,6 +45,7 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
   });
 
   const apiBaseUrl = API_BASE_URL;
+  const publicApiBaseUrl = (PUBLIC_API_BASE_URL || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://conversion-unified-rat-fellowship.trycloudflare.com')).replace(/\/+$/, '');
 
   useEffect(() => {
     fetchApiKeys();
@@ -339,37 +340,65 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
       {/* Sticky Top Navbar */}
       <nav className="api-nav">
         <div className="nav-container">
-          <div className="logo" onClick={() => setCurrentPage('landing')} style={{ cursor: 'pointer' }}>
-            <h1>⚡ DeeperNova API Platforms</h1>
-            <span className="tagline">Enterprise AI Gateway & Sub-20ms Search Engine</span>
+          <div className="logo" onClick={() => { setCurrentPage('landing'); setNavOpen(false); }} style={{ cursor: 'pointer' }}>
+            <h1>⚡ DeeperNova API</h1>
+            <span className="tagline">Enterprise AI Gateway & Sub-20ms Search</span>
           </div>
 
-          <button 
-            className="nav-toggle" 
-            onClick={() => setNavOpen(prev => !prev)} 
-            aria-label="Toggle navigation menu"
-          >
-            {navOpen ? '✕' : '☰'}
-          </button>
+          <div className="nav-right-cluster">
+            <div className="api-nav-actions">
+              <button 
+                className="btn-back-home desktop-only-btn" 
+                onClick={() => onNavigate?.('landing')}
+                title="Kembali ke Beranda Utama"
+              >
+                ← Beranda
+              </button>
+              {apiKeys.length > 0 ? (
+                <button className="btn-get-started" onClick={() => { setShowCreateKeyModal(true); setNavOpen(false); }}>
+                  <span className="btn-text-full">+ Buat API Key</span>
+                  <span className="btn-text-mobile">+ Key</span>
+                </button>
+              ) : isAuthenticated ? (
+                <button className="btn-get-started" onClick={() => { setShowCreateKeyModal(true); setNavOpen(false); }}>
+                  <span className="btn-text-full">Dapatkan Kunci API</span>
+                  <span className="btn-text-mobile">Kunci API</span>
+                </button>
+              ) : (
+                <button className="btn-get-started" onClick={() => { onLoginRequest ? onLoginRequest() : onNavigate?.('landing'); setNavOpen(false); }}>
+                  <span className="btn-text-full">Login / Daftar</span>
+                  <span className="btn-text-mobile">Login</span>
+                </button>
+              )}
+            </div>
+
+            <button 
+              className="nav-toggle" 
+              onClick={() => setNavOpen(prev => !prev)} 
+              aria-label="Toggle navigation menu"
+            >
+              {navOpen ? '✕' : '☰'}
+            </button>
+          </div>
 
           <div className={`api-nav-menu ${navOpen ? 'open' : 'collapsed'}`}>
             <button 
               className={`api-nav-btn ${currentPage === 'landing' ? 'active' : ''}`} 
               onClick={() => { setCurrentPage('landing'); setNavOpen(false); }}
             >
-              Beranda
+              🏠 Beranda Portal API
             </button>
             <button 
               className={`api-nav-btn ${currentPage === 'docs' ? 'active' : ''}`} 
               onClick={() => { setCurrentPage('docs'); setNavOpen(false); }}
             >
-              Dokumentasi API
+              📖 Dokumentasi API
             </button>
             <button 
               className={`api-nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`} 
               onClick={() => { setCurrentPage('dashboard'); setNavOpen(false); }}
             >
-              Dashboard & Keys
+              🔑 Dashboard & Keys
             </button>
             <button 
               className={`api-nav-btn ${currentPage === 'usage' ? 'active' : ''}`} 
@@ -377,28 +406,19 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
             >
               📊 Laporan Usage & Grafik
             </button>
-          </div>
 
-          <div className="api-nav-actions">
+            {/* Mobile Menu Bottom Navigation */}
+            <div className="mobile-menu-divider"></div>
             <button 
-              className="btn-back-home" 
-              onClick={() => onNavigate?.('landing')}
-              title="Kembali ke Beranda Utama"
+              className="api-nav-btn mobile-back-home-btn" 
+              onClick={() => { onNavigate?.('landing'); setNavOpen(false); }}
             >
-              ← Beranda
+              ⬅️ Kembali ke Beranda Utama
             </button>
-            {apiKeys.length > 0 ? (
-              <button className="btn-get-started" onClick={() => setShowCreateKeyModal(true)}>
-                + Buat API Key
-              </button>
-            ) : isAuthenticated ? (
-              <button className="btn-get-started" onClick={() => setShowCreateKeyModal(true)}>
-                Dapatkan Kunci API
-              </button>
-            ) : (
-              <button className="btn-get-started" onClick={onLoginRequest || (() => onNavigate?.('landing'))}>
-                Login / Daftar Akun
-              </button>
+            {user && (
+              <div className="mobile-user-status">
+                <span>Login sebagai: <strong>{user.username || user.email || 'Developer'}</strong></span>
+              </div>
             )}
           </div>
         </div>
@@ -435,7 +455,7 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
                 <span className="gradient-text">Mesin Pencari Berkecepatan Tinggi</span>
               </h1>
               <p className="hero-subtitle">
-                Hubungkan aplikasi web, mobile, bot, dan backend Anda ke model AI <strong>DeeperNova Gold 1.5</strong> (OpenAI-compatible) serta <strong>DeeperNova Search Engine API</strong> sub-20ms. Gratis 1.000.000 Token.
+                Hubungkan aplikasi web, mobile, bot, dan backend Anda ke model AI <strong>DeeperNova Gold 1.5</strong> via direct Cloudflare REST API serta <strong>DeeperNova Search Engine API</strong> sub-20ms. Gratis 1.000.000 Token.
               </p>
 
               <div className="hero-cta-group">
@@ -457,7 +477,7 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
                   <h3>DeeperNova Gold 1.5 AI API</h3>
                   <p>Inference cloud ultra-cepat dengan arsitektur multimodal vision dan penalaran mendalam.</p>
                   <ul className="pillar-list">
-                    <li>✓ Kompatibel 100% dengan OpenAI SDK & LangChain</li>
+                    <li>✓ Direct Cloudflare REST API (Tembak langsung tanpa library OpenAI)</li>
                     <li>✓ Jendela Konteks Luas 128.000 Token</li>
                     <li>✓ Dukungan Streaming Real-Time (SSE)</li>
                     <li>✓ Model: Gold 1.5 & Gold 1.5 Pro (70B)</li>
@@ -488,7 +508,7 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
             <section className="preview-section">
               <div className="preview-header">
                 <h3>Integrasi Instan dalam 3 Baris Kode</h3>
-                <p>Cukup arahkan <code>baseURL</code> ke DeeperNova dan masukkan API Key Anda.</p>
+                <p>Langsung tembak endpoint Cloudflare DeeperNova menggunakan <code>fetch()</code> atau HTTP client pilihan Anda.</p>
               </div>
 
               <div className="code-box-wrapper">
@@ -496,40 +516,42 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
                   <div className="window-dots">
                     <span></span><span></span><span></span>
                   </div>
-                  <span className="code-box-title">Node.js / OpenAI SDK Integration</span>
+                  <span className="code-box-title">Direct Cloudflare REST API (JavaScript / Fetch)</span>
                   <button 
                     className="copy-btn-snippet" 
-                    onClick={() => copyToClipboard(`import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: "deepernova_sk_live_YOUR_KEY",
-  baseURL: "${apiBaseUrl}/v1"
+                    onClick={() => copyToClipboard(`const response = await fetch("${publicApiBaseUrl}/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
+  },
+  body: JSON.stringify({
+    model: "deepernova-gold-1.5",
+    messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
+  })
 });
 
-const response = await openai.chat.completions.create({
-  model: "deepernova-gold-1.5",
-  messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
-});
-
-console.log(response.choices[0].message.content);`, 'quick-snippet')}
+const data = await response.json();
+console.log(data.choices[0].message.content);`, 'quick-snippet')}
                   >
                     {copiedText === 'quick-snippet' ? '✓ Tersalin' : 'Salin Kode'}
                   </button>
                 </div>
                 <pre className="code-snippet-pre">
-                  <code>{`import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: "deepernova_sk_live_YOUR_KEY",
-  baseURL: "${apiBaseUrl}/v1"
+                  <code>{`const response = await fetch("${publicApiBaseUrl}/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
+  },
+  body: JSON.stringify({
+    model: "deepernova-gold-1.5",
+    messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
+  })
 });
 
-const response = await openai.chat.completions.create({
-  model: "deepernova-gold-1.5",
-  messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
-});
-
-console.log(response.choices[0].message.content);`}</code>
+const data = await response.json();
+console.log(data.choices[0].message.content);`}</code>
                 </pre>
               </div>
             </section>
@@ -763,68 +785,70 @@ console.log(response.choices[0].message.content);`}</code>
                     <section className="docs-section">
                       <h3>1. Memulai Integrasi DeeperNova Gold 1.5</h3>
                       <p>
-                        DeeperNova Gold 1.5 sepenuhnya kompatibel dengan format <strong>OpenAI API</strong>. Anda cukup mengganti <code>baseURL</code> dan <code>apiKey</code> pada library OpenAI resmi.
+                        DeeperNova Gold 1.5 menggunakan arsitektur <strong>Direct Cloudflare REST API</strong>. Anda dapat langsung menembak endpoint resmi dari backend, aplikasi web, bot, atau script tanpa perlu menginstal library OpenAI pihak ketiga.
                       </p>
 
                       <div className="base-url-card">
-                        <span className="base-url-label">Endpoint Base URL Resmi:</span>
-                        <code className="base-url-val">{apiBaseUrl}/v1</code>
-                        <button className="btn-copy-small" onClick={() => copyToClipboard(`${apiBaseUrl}/v1`, 'base-url-ai')}>
+                        <span className="base-url-label">Endpoint Base URL Resmi (Cloudflare):</span>
+                        <code className="base-url-val">{publicApiBaseUrl}/v1</code>
+                        <button className="btn-copy-small" onClick={() => copyToClipboard(`${publicApiBaseUrl}/v1`, 'base-url-ai')}>
                           {copiedText === 'base-url-ai' ? '✓ Tersalin' : 'Copy'}
                         </button>
                       </div>
 
                       <div className="lang-selector-row">
-                        <button className={`lang-btn ${codeLanguage === 'javascript' ? 'active' : ''}`} onClick={() => setCodeLanguage('javascript')}>Node.js</button>
-                        <button className={`lang-btn ${codeLanguage === 'python' ? 'active' : ''}`} onClick={() => setCodeLanguage('python')}>Python</button>
+                        <button className={`lang-btn ${codeLanguage === 'javascript' ? 'active' : ''}`} onClick={() => setCodeLanguage('javascript')}>JavaScript (Fetch)</button>
+                        <button className={`lang-btn ${codeLanguage === 'python' ? 'active' : ''}`} onClick={() => setCodeLanguage('python')}>Python (Requests)</button>
                         <button className={`lang-btn ${codeLanguage === 'curl' ? 'active' : ''}`} onClick={() => setCodeLanguage('curl')}>cURL</button>
                       </div>
 
                       <div className="code-display-box">
                         {codeLanguage === 'javascript' && (
-                          <pre><code>{`import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.DEEPERNOVA_API_KEY, // Kunci API DeeperNova Anda
-  baseURL: "${apiBaseUrl}/v1"
-});
-
-async function main() {
-  const completion = await client.chat.completions.create({
+                          <pre><code>{`// Panggil langsung via Fetch API (Native Node.js / Browser)
+const response = await fetch("${publicApiBaseUrl}/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
+  },
+  body: JSON.stringify({
     model: "deepernova-gold-1.5",
     messages: [
-      { role: "system", content: "Kamu adalah asisten cerdas." },
+      { role: "system", content: "Kamu adalah asisten cerdas DeeperNova." },
       { role: "user", content: "Halo DeeperNova Gold 1.5!" }
     ],
     temperature: 0.7
-  });
+  })
+});
 
-  console.log(completion.choices[0].message.content);
-}
-
-main();`}</code></pre>
+const data = await response.json();
+console.log(data.choices[0].message.content);`}</code></pre>
                         )}
                         {codeLanguage === 'python' && (
-                          <pre><code>{`from openai import OpenAI
+                          <pre><code>{`# Panggil langsung via requests (Python)
 import os
+import requests
 
-client = OpenAI(
-    api_key=os.environ.get("DEEPERNOVA_API_KEY"),
-    base_url="${apiBaseUrl}/v1"
-)
-
-response = client.chat.completions.create(
-    model="deepernova-gold-1.5",
-    messages=[
-        {"role": "system", "content": "Kamu adalah asisten cerdas."},
+url = "${publicApiBaseUrl}/v1/chat/completions"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {os.environ.get('DEEPERNOVA_API_KEY', 'YOUR_DEEPERNOVA_API_KEY')}"
+}
+payload = {
+    "model": "deepernova-gold-1.5",
+    "messages": [
+        {"role": "system", "content": "Kamu adalah asisten cerdas DeeperNova."},
         {"role": "user", "content": "Halo DeeperNova Gold 1.5!"}
-    ]
-)
+    ],
+    "temperature": 0.7
+}
 
-print(response.choices[0].message.content)`}</code></pre>
+response = requests.post(url, headers=headers, json=payload)
+data = response.json()
+print(data["choices"][0]["message"]["content"])`}</code></pre>
                         )}
                         {codeLanguage === 'curl' && (
-                          <pre><code>{`curl -X POST "${apiBaseUrl}/v1/chat/completions" \\
+                          <pre><code>{`curl -X POST "${publicApiBaseUrl}/v1/chat/completions" \\
   -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -841,7 +865,7 @@ print(response.choices[0].message.content)`}</code></pre>
                   {activeTab === 'chat' && (
                     <section className="docs-section">
                       <h3>2. Endpoint Chat Completions (<code>POST /v1/chat/completions</code>)</h3>
-                      <p>Mendukung percakapan teks, streaming real-time, serta parameter standar OpenAI.</p>
+                      <p>Mendukung percakapan teks, streaming real-time (SSE), serta parameter standar industri.</p>
                       
                       <div className="param-table-card">
                         <h4>Parameter Request:</h4>
@@ -1166,7 +1190,8 @@ curl -X GET "${apiBaseUrl}/api/v1/images?q=indonesia&limit=5" \\
                   onChange={(e) => setTestPrompt(e.target.value)}
                   rows={2}
                   className="form-textarea"
-                  placeholder="Ketik pertanyaan untuk menguji respons API..."
+                  placeholder="Tulis prompt untuk uji coba API..."
+                  spellCheck="false"
                 />
               </div>
 
@@ -1324,8 +1349,10 @@ curl -X GET "${apiBaseUrl}/api/v1/images?q=indonesia&limit=5" \\
                 type="text"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="misal: Aplikasi Mobile, Production Web"
+                placeholder="Contoh: Aplikasi Mobile"
                 className="form-input"
+                autoComplete="off"
+                spellCheck="false"
                 autoFocus
               />
             </div>

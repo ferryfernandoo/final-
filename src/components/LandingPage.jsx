@@ -251,7 +251,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               </div>
 
               <div className="lp-eco-footer">
-                <span className="lp-eco-api-spec">REST API • OpenAI Compatible • Instant Key</span>
+                <span className="lp-eco-api-spec">Cloudflare REST API • Instant Key • 1M Free Tokens</span>
                 <button type="button" className="lp-eco-link-btn orange" onClick={(e) => { e.stopPropagation(); onNavigate?.('api'); }}>
                   Konsol API &amp; Kunci ➔
                 </button>

@@ -101,10 +101,10 @@ const HELP_DATA = [
       'Akses Konsol API: Klik tombol "Developer API" di bilah navigasi atau buka halaman API Platforms (/api).',
       'Buat Kunci API: Di dashboard pengembang, klik "Generate New API Key". Salin dan simpan kunci rahasia Anda dengan aman.',
       'Kuota Gratis: Setiap pengguna berhak mendapatkan 1.000.000 Token gratis untuk menguji coba seluruh endpoint DeeperNova AI.',
-      'Kompatibilitas OpenAI: Format endpoint dan body request dirancang mengikuti standar OpenAI API, sehingga Anda cukup mengganti baseURL dan apiKey di pustaka SDK yang sudah ada.'
+      'Direct Cloudflare REST API: Format endpoint dan body request menggunakan REST API standar industri (/v1/chat/completions), sehingga Anda dapat langsung memanggilnya via Fetch, Requests, atau cURL tanpa ketergantungan library pihak ketiga.'
     ],
     tips: 'Jangan pernah membagikan API Key di repositori publik (GitHub). Selalu simpan kunci di berkas lingkungan (.env).',
-    keywords: 'developer api, api key gratis, 1 juta token api, openai compatible, integrasi bot deepernova'
+    keywords: 'developer api, api key gratis, 1 juta token api, cloudflare api, rest api, integrasi bot deepernova'
   },
   {
     id: 'api-chat-endpoint',

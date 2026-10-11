@@ -142,9 +142,6 @@ const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') 
 const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
 const TOKENMIX_API_KEYS = Array.from(new Set([
   ...RAW_ENV_KEYS,
-  'sk-tm-OF4766UuCGjWtGRJ1J9g4LEpXLWs5l22Cve7rIE8tuDYfPYl',
-  'sk-tm-v82A9S7sevlYYSN9nJYajde36mjGqbawdZDk0IlEh4bRfYnb',
-  'sk-tm-O4IPdEpJpeu2cV80ivoYscDzG0TU82XQkUoPYBW3MtWdoTkz',
   'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
   'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
   'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
@@ -484,13 +481,40 @@ const isAllowedOrigin = (origin) => {
   return false;
 };
 
+// ⚡ OPEN CORS FOR PUBLIC DEVELOPER API GATEWAY ENDPOINTS (/v1, /api/v1, /chat)
+app.use((req, res, next) => {
+  const p = (req.path || '').toLowerCase();
+  if (
+    p.startsWith('/v1') || 
+    p.startsWith('/api/v1') || 
+    p.startsWith('/chat') || 
+    p.startsWith('/models') || 
+    p.startsWith('/balance') ||
+    p.startsWith('/test')
+  ) {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Api-Key, api-key, x-deepernova-key, Cache-Control, Pragma, Accept');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+  }
+  next();
+});
+
 app.use(cors({
   origin: function(origin, callback) {
     if (isAllowedOrigin(origin)) {
       return callback(null, origin || true);
     }
-    console.warn(`[CORS SHIELD REJECTED] Origin unauthorized: ${origin}`);
-    return callback(new Error(`CORS Security Violation: Origin ${origin} is not authorized`));
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+    // For general API endpoints, permit origin rather than throwing 500
+    return callback(null, origin);
   },
   credentials: true,
   allowedHeaders: [
@@ -730,8 +754,12 @@ app.post(['/auth/logout', '/api/auth/logout'], (req, res) => {
 // ============================================================================
 // DEEPERNOVA AI & SEARCH ENGINE API PROXY ROUTES (/v1 & /api/v1)
 // ============================================================================
-// Mount OpenAI compatible AI Gateway endpoints (/v1/chat/completions, etc.)
+// Mount Cloudflare & REST AI Gateway endpoints (/v1/chat/completions, /chat/completions, etc.)
 app.use('/v1', apiProxyRoutes);
+app.use('/chat', (req, res, next) => {
+  req.url = '/chat' + req.url;
+  apiProxyRoutes(req, res, next);
+});
 
 // High-Speed Search Engine API Proxies (/api/v1/search, /api/v1/search-fast, /api/v1/images, /api/v1/suggest, etc.)
 const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000';

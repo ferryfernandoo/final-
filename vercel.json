@@ -109,6 +109,10 @@
       "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/v1/:path*"
     },
     {
+      "source": "/chat/:path*",
+      "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/chat/:path*"
+    },
+    {
       "source": "/download/:path*",
       "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/download/:path*"
     },
