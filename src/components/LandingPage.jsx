@@ -53,7 +53,18 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
     { q: 'Bagaimana keamanan data saya?', a: 'Pada mode lokal, data tersimpan di perangkat Anda. Sesi akun dilindungi enkripsi penuh.' },
   ];
 
-  const loggedIn = isAuthenticated && !isGuest;
+  const hasStoredAuth = () => {
+    try {
+      const raw = localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      return Boolean(parsed && !parsed.guest && (parsed.id || parsed.email || parsed.name || parsed.username));
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const loggedIn = Boolean((isAuthenticated && !isGuest) || (user && !isGuest && !user.guest) || hasStoredAuth());
 
   return (
     <div className="lp">
@@ -74,14 +85,15 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           </nav>
 
           <div className="lp-nav-actions">
-            {!loggedIn && (
-              <button type="button" onClick={onOpenLogin} className="lp-btn lp-btn-text lp-hide-sm">
-                Masuk
+            {loggedIn ? (
+              <button type="button" onClick={onStartChat} className="lp-btn lp-btn-dark">
+                Mulai Chat
+              </button>
+            ) : (
+              <button type="button" onClick={onOpenLogin} className="lp-btn lp-btn-dark">
+                Login
               </button>
             )}
-            <button type="button" onClick={onStartChat} className="lp-btn lp-btn-dark">
-              Mulai Chat
-            </button>
           </div>
         </div>
       </header>
@@ -90,11 +102,6 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
         {/* ===== HERO ===== */}
         <section className="lp-hero">
           <div className="lp-container lp-hero-inner">
-            <span className="lp-pill">
-              <span className="lp-pill-dot" />
-              Deepernova AI 2.0 · Riset Teknologi Indonesia
-            </span>
-
             <h1 className="lp-hero-title">
               Asisten AI yang <span className="lp-gradient">cerdas, cepat</span>,<br className="lp-br-lg" /> dan sepenuhnya gratis.
             </h1>
