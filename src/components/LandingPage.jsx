@@ -2,8 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { SEARCH_ENGINE_URL } from '../apiConfig';
 import './LandingPage.css';
 
+const openSearch = (q) => {
+  const url = q ? `${SEARCH_ENGINE_URL}?q=${encodeURIComponent(q)}` : SEARCH_ENGINE_URL;
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
 const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user }) => {
-  const [activeFaq, setActiveFaq] = useState(null);
+  const [activeFaq, setActiveFaq] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
 
   // Pastikan scrolling halaman vertikal aktif dan mulus di semua perangkat & browser
   useEffect(() => {
@@ -17,390 +23,262 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
     document.documentElement.style.overflowY = 'auto';
     document.body.style.overflowY = 'visible';
 
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', onScroll, { passive: true });
+
     return () => {
       document.documentElement.style.overflowY = prevHtmlOverflowY;
       document.body.style.overflowY = prevBodyOverflowY;
+      window.removeEventListener('scroll', onScroll);
     };
   }, []);
 
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const features = [
-    {
-      icon: '💬',
-      title: 'Multi-Model Chat',
-      desc: 'Penalaran mendalam, coding, dan obrolan multi-bahasa.'
-    },
-    {
-      icon: '⚡',
-      title: 'Coding Agent & IDE',
-      desc: 'Cloud Sandbox Monaco dengan live web preview otomatis.'
-    },
-    {
-      icon: '📄',
-      title: 'Typernova Studio',
-      desc: 'Buat file Word (.docx), Excel (.xlsx), & PPT (.pptx) instan.'
-    },
-    {
-      icon: '🎨',
-      title: 'Vision & Gambar',
-      desc: 'Analisis foto, OCR teks, dan generate gambar resolusi tinggi.'
-    },
-    {
-      icon: '⏰',
-      title: 'Alarm Mandiri',
-      desc: 'Pasang pengingat dan alarm otomatis langsung di aplikasi.'
-    },
-    {
-      icon: '🧠',
-      title: 'Memory Bank',
-      desc: 'Ingat preferensi dan konteks penting Anda di tiap percakapan.'
-    },
-    {
-      icon: '🔒',
-      title: 'Cloud Vault 3GB',
-      desc: 'Penyimpanan dokumen terenkripsi SHA-256 yang aman.'
-    },
+    { icon: 'fa-comments', title: 'Multi-Model Chat', desc: 'Penalaran mendalam, coding, dan obrolan multi-bahasa.' },
+    { icon: 'fa-code', title: 'Coding Agent & IDE', desc: 'Cloud sandbox dengan live web preview otomatis.' },
+    { icon: 'fa-file-lines', title: 'Typernova Studio', desc: 'Buat Word, Excel, dan PowerPoint secara instan.' },
+    { icon: 'fa-image', title: 'Vision & Gambar', desc: 'Analisis foto, OCR teks, dan generate gambar.' },
+    { icon: 'fa-brain', title: 'Memory Bank', desc: 'Mengingat preferensi dan konteks penting Anda.' },
+    { icon: 'fa-shield-halved', title: 'Cloud Vault 3GB', desc: 'Penyimpanan dokumen terenkripsi dan aman.' },
   ];
 
   const faqs = [
-    {
-      q: 'Apakah Deepernova AI gratis?',
-      a: 'Ya, seluruh fitur utama dapat digunakan 100% gratis tanpa biaya langganan.'
-    },
-    {
-      q: 'Apakah wajib mendaftar akun?',
-      a: 'Tidak. Anda bisa langsung menggunakan Mode Tamu tanpa perlu login.'
-    },
-    {
-      q: 'Format dokumen apa saja yang didukung?',
-      a: 'Microsoft Word (.docx), Microsoft Excel (.xlsx), dan PowerPoint (.pptx).'
-    },
-    {
-      q: 'Bagaimana keamanan data saya?',
-      a: 'Pada mode lokal, data tersimpan di perangkat Anda. Sesi akun dilindungi enkripsi penuh.'
-    },
+    { q: 'Apakah Deepernova AI gratis?', a: 'Ya, seluruh fitur utama dapat digunakan 100% gratis tanpa biaya langganan.' },
+    { q: 'Apakah wajib mendaftar akun?', a: 'Tidak. Anda bisa langsung menggunakan Mode Tamu tanpa perlu login.' },
+    { q: 'Format dokumen apa saja yang didukung?', a: 'Microsoft Word (.docx), Microsoft Excel (.xlsx), dan PowerPoint (.pptx).' },
+    { q: 'Bagaimana keamanan data saya?', a: 'Pada mode lokal, data tersimpan di perangkat Anda. Sesi akun dilindungi enkripsi penuh.' },
   ];
+
+  const loggedIn = isAuthenticated && !isGuest;
 
   return (
     <div className="lp">
-      {/* Background subtle luminous glow */}
-      <div className="lp-ambient-light"></div>
-
-      {/* Navbar — Bersih & Minimalis: HANYA ADA Login dan Masuk Chat */}
-      <header className="lp-nav">
+      {/* ===== NAVBAR ===== */}
+      <header className={`lp-nav ${scrolled ? 'is-scrolled' : ''}`}>
         <div className="lp-nav-inner">
-          <div className="lp-brand" onClick={onStartChat}>
+          <button type="button" className="lp-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <img src="/logo.png" alt="Deepernova AI" className="lp-brand-icon" />
-            <div className="lp-brand-text">
-              <span className="lp-brand-name">Deepernova AI</span>
-              <span className="lp-brand-sub">indonesian technology research</span>
-            </div>
-          </div>
+            <span className="lp-brand-name">Deepernova</span>
+          </button>
+
+          <nav className="lp-nav-links" aria-label="Navigasi utama">
+            <button type="button" onClick={() => scrollTo('produk')}>Produk</button>
+            <button type="button" onClick={() => scrollTo('fitur')}>Fitur</button>
+            <button type="button" onClick={() => onNavigate?.('api')}>API</button>
+            <button type="button" onClick={() => scrollTo('faq')}>FAQ</button>
+            <button type="button" onClick={() => onNavigate?.('help')}>Bantuan</button>
+          </nav>
 
           <div className="lp-nav-actions">
-            {isAuthenticated && !isGuest ? (
-              <button onClick={onStartChat} className="lp-btn-primary">
-                Masuk Chat ➔
+            {!loggedIn && (
+              <button type="button" onClick={onOpenLogin} className="lp-btn lp-btn-text lp-hide-sm">
+                Masuk
               </button>
-            ) : (
-              <>
-                <button onClick={onOpenLogin} className="lp-btn-ghost">
-                  Masuk
-                </button>
-                <button onClick={onStartChat} className="lp-btn-primary">
-                  Masuk Chat ➔
-                </button>
-              </>
             )}
+            <button type="button" onClick={onStartChat} className="lp-btn lp-btn-dark">
+              Mulai Chat
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="lp-hero">
-        <div className="lp-hero-tag-wrap">
-          <span className="lp-hero-tag">
-            <span className="lp-hero-tag-dot"></span>
-            DEEPERNOVA AI 2.0 • INDONESIAN RESEARCH
-          </span>
-        </div>
-        <h1 className="lp-hero-h1">
-          Kecerdasan Buatan <br />
-          <span className="lp-accent">Cerdas, Cepat &amp; Mandiri.</span>
-        </h1>
-        <p className="lp-hero-sub">
-          Platform AI multi-model Indonesia dengan generator dokumen otomatis dan mesin pencari mandiri. 100% gratis tanpa langganan.
-        </p>
+      <main>
+        {/* ===== HERO ===== */}
+        <section className="lp-hero">
+          <div className="lp-container lp-hero-inner">
+            <span className="lp-pill">
+              <span className="lp-pill-dot" />
+              Deepernova AI 2.0 · Riset Teknologi Indonesia
+            </span>
 
-        <div className="lp-hero-btns">
-          <button onClick={onStartChat} className="lp-btn-hero">
-            <i className="fa-solid fa-comments" style={{ marginRight: '8px' }}></i>
-            Masuk Chat Sekarang ➔
-          </button>
-          <button onClick={onOpenOffice} className="lp-btn-hero-outline">
-            <i className="fa-solid fa-file-lines" style={{ marginRight: '8px' }}></i>
-            Document Studio
-          </button>
-          <button onClick={() => onNavigate?.('help')} className="lp-btn-hero-outline lp-btn-help-link">
-            <i className="fa-solid fa-circle-question" style={{ marginRight: '8px', color: '#ea580c' }}></i>
-            Pusat Bantuan
-          </button>
-        </div>
+            <h1 className="lp-hero-title">
+              Asisten AI yang <span className="lp-gradient">cerdas, cepat</span>,<br className="lp-br-lg" /> dan sepenuhnya gratis.
+            </h1>
 
-        {/* Harmonious Ecosystem Section: Search Engine & Developer API Selaras Berdampingan */}
-        <div className="lp-ecosystem-section">
-          <div className="lp-ecosystem-grid">
-            {/* Kiri: Search Engine Mandiri */}
-            <div className="lp-eco-card lp-eco-card-search">
-              <div className="lp-eco-header">
-                <div className="lp-eco-title-group">
-                  <div className="lp-eco-icon search-icon">
-                    <i className="fa-solid fa-magnifying-glass"></i>
-                  </div>
-                  <div>
-                    <h3 className="lp-eco-title">DeeperNova Search Engine</h3>
-                    <p className="lp-eco-tagline">Mesin Pencari Web Mandiri &amp; Real-Time</p>
-                  </div>
-                </div>
-                <span className="lp-eco-badge green">Live • Mandiri</span>
+            <p className="lp-hero-sub">
+              Chat multi-model, buat dokumen Word, Excel &amp; PPT otomatis, dan cari informasi real-time — semua dalam satu tempat.
+            </p>
+
+            <div className="lp-hero-actions">
+              <button type="button" onClick={onStartChat} className="lp-btn lp-btn-primary lp-btn-lg">
+                Mulai Chat Gratis
+                <i className="fa-solid fa-arrow-right" />
+              </button>
+              <button type="button" onClick={onOpenOffice} className="lp-btn lp-btn-outline lp-btn-lg">
+                <i className="fa-solid fa-file-lines" />
+                Document Studio
+              </button>
+            </div>
+
+            <ul className="lp-trust">
+              <li><i className="fa-solid fa-check" /> Tanpa langganan</li>
+              <li><i className="fa-solid fa-check" /> Tanpa wajib daftar</li>
+              <li><i className="fa-solid fa-check" /> Bahasa Indonesia</li>
+            </ul>
+
+            {/* Chat preview */}
+            <div className="lp-preview" aria-hidden="true">
+              <div className="lp-preview-bar">
+                <span className="lp-dots"><i /><i /><i /></span>
+                <span className="lp-preview-title">Deepernova Workspace</span>
+                <span className="lp-preview-status">Online</span>
               </div>
-
-              <p className="lp-eco-desc">
-                Pencarian web independen berkecepatan tinggi dengan data real-time, ringkasan AI, dan indeks mandiri.
-              </p>
-
-              <form 
-                className="lp-eco-search-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const input = e.currentTarget.elements.namedItem('q');
-                  const query = input?.value?.trim();
-                  if (query) {
-                    window.open(`${SEARCH_ENGINE_URL}?q=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
-                  } else {
-                    window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
-                  }
-                }}
-              >
-                <div className="lp-eco-input-wrapper">
-                  <i className="fa-solid fa-search lp-eco-search-icon"></i>
-                  <input 
-                    type="text" 
-                    name="q"
-                    placeholder="Cari web atau berita terkini..." 
-                    className="lp-eco-search-input"
-                    autoComplete="off"
-                  />
-                  <button type="submit" className="lp-eco-submit-btn">
-                    <span>Cari</span>
-                    <i className="fa-solid fa-arrow-right"></i>
-                  </button>
+              <div className="lp-preview-body">
+                <div className="lp-msg lp-msg-user">
+                  Rangkum analisa adopsi AI di Indonesia dan siapkan dokumennya.
                 </div>
-              </form>
-
-              <div className="lp-eco-footer">
-                <div className="lp-eco-chips">
-                  <span className="lp-eco-chips-label">Cepat:</span>
-                  <button type="button" onClick={() => window.open(`${SEARCH_ENGINE_URL}?q=AI%20Indonesia`, '_blank', 'noopener,noreferrer')}>AI Indonesia</button>
-                  <button type="button" onClick={() => window.open(`${SEARCH_ENGINE_URL}?q=Berita%20Terkini`, '_blank', 'noopener,noreferrer')}>Berita Terkini</button>
+                <div className="lp-msg-row">
+                  <img src="/logo.png" alt="" className="lp-msg-avatar" />
+                  <div className="lp-msg lp-msg-ai">
+                    <p>Analisis selesai. Adopsi AI nasional tumbuh 38% dengan akselerasi otomatisasi dokumen. Berkas siap diunduh:</p>
+                    <div className="lp-files">
+                      <span className="lp-file word"><i className="fa-solid fa-file-word" /> Analisa_AI.docx</span>
+                      <span className="lp-file excel"><i className="fa-solid fa-file-excel" /> Proyeksi_2026.xlsx</span>
+                      <span className="lp-file web"><i className="fa-solid fa-globe" /> 6 sumber</span>
+                    </div>
+                  </div>
                 </div>
-                <a 
-                  href={SEARCH_ENGINE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="lp-eco-link-btn green"
-                  onClick={(e) => {
-                    window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== PRODUK ===== */}
+        <section id="produk" className="lp-section">
+          <div className="lp-container">
+            <div className="lp-section-head">
+              <span className="lp-eyebrow">Ekosistem</span>
+              <h2>Satu platform, tiga produk utama</h2>
+            </div>
+
+            <div className="lp-products">
+              {/* Search Engine */}
+              <article className="lp-card lp-product">
+                <div className="lp-product-icon green"><i className="fa-solid fa-magnifying-glass" /></div>
+                <h3>Search Engine</h3>
+                <p>Mesin pencari web mandiri dengan data real-time dan ringkasan AI.</p>
+                <form
+                  className="lp-search"
+                  onSubmit={(e) => {
                     e.preventDefault();
+                    const q = e.currentTarget.elements.namedItem('q')?.value?.trim();
+                    openSearch(q);
                   }}
                 >
-                  Buka Mesin Pencari ➔
-                </a>
-              </div>
+                  <input type="text" name="q" placeholder="Cari sesuatu..." autoComplete="off" aria-label="Kata kunci pencarian" />
+                  <button type="submit" aria-label="Cari"><i className="fa-solid fa-arrow-right" /></button>
+                </form>
+              </article>
+
+              {/* Developer API */}
+              <article className="lp-card lp-product is-clickable" onClick={() => onNavigate?.('api')}>
+                <div className="lp-product-icon orange"><i className="fa-solid fa-bolt" /></div>
+                <h3>Developer API</h3>
+                <p>Integrasikan model Gold 1.5 &amp; Search API ke aplikasi Anda. 1 juta token gratis.</p>
+                <span className="lp-link">Buka Konsol API <i className="fa-solid fa-arrow-right" /></span>
+              </article>
+
+              {/* Document Studio */}
+              <article className="lp-card lp-product is-clickable" onClick={onOpenOffice}>
+                <div className="lp-product-icon blue"><i className="fa-solid fa-file-word" /></div>
+                <h3>Document Studio</h3>
+                <p>AI menyusun naskah, rumus spreadsheet, dan slide yang siap diunduh.</p>
+                <span className="lp-link">Buka Studio <i className="fa-solid fa-arrow-right" /></span>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== FITUR ===== */}
+        <section id="fitur" className="lp-section lp-section-muted">
+          <div className="lp-container">
+            <div className="lp-section-head">
+              <span className="lp-eyebrow">Fitur</span>
+              <h2>Semua yang Anda butuhkan</h2>
+              <p>Kemampuan AI lengkap dalam satu antarmuka yang sederhana.</p>
             </div>
 
-            {/* Kanan: Developer API Console */}
-            <div className="lp-eco-card lp-eco-card-api" onClick={() => onNavigate?.('api')}>
-              <div className="lp-eco-header">
-                <div className="lp-eco-title-group">
-                  <div className="lp-eco-icon api-icon">
-                    <i className="fa-solid fa-bolt"></i>
-                  </div>
+            <div className="lp-features">
+              {features.map((f) => (
+                <div key={f.title} className="lp-feature">
+                  <div className="lp-feature-icon"><i className={`fa-solid ${f.icon}`} /></div>
                   <div>
-                    <h3 className="lp-eco-title">Developer API Platforms</h3>
-                    <p className="lp-eco-tagline">Inference LLM 1M Token &amp; Search API</p>
+                    <h3>{f.title}</h3>
+                    <p>{f.desc}</p>
                   </div>
                 </div>
-                <span className="lp-eco-badge orange">1.000.000 Token Gratis</span>
-              </div>
-
-              <p className="lp-eco-desc">
-                Integrasikan model DeeperNova Gold 1.5, Silicon 1.4, dan SERP Search API langsung ke aplikasi Anda.
-              </p>
-
-              <div className="lp-eco-api-endpoints">
-                <div className="lp-eco-endpoint-pill">
-                  <span className="method post">POST</span>
-                  <span className="endpoint-path">/api/chat</span>
-                  <span className="endpoint-desc">Model Gold 1.5 &amp; Silicon 1.4</span>
-                </div>
-                <div className="lp-eco-endpoint-pill">
-                  <span className="method get">GET</span>
-                  <span className="endpoint-path">/api/v1/search</span>
-                  <span className="endpoint-desc">Real-time Web Search SERP</span>
-                </div>
-              </div>
-
-              <div className="lp-eco-footer">
-                <span className="lp-eco-api-spec">Cloudflare REST API • Instant Key • 1M Free Tokens</span>
-                <button type="button" className="lp-eco-link-btn orange" onClick={(e) => { e.stopPropagation(); onNavigate?.('api'); }}>
-                  Konsol API &amp; Kunci ➔
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Liquid Glass Chat Preview Card (Clean, Punchy, Visual) */}
-        <div className="lp-preview">
-          <div className="lp-preview-bar">
-            <div className="lp-preview-dots"><span></span><span></span><span></span></div>
-            <div className="lp-preview-brand-center">
-              <img src="/logo.png" alt="" className="lp-preview-logo-micro" />
-              <span className="lp-preview-title">Deepernova Workspace</span>
+        {/* ===== FAQ ===== */}
+        <section id="faq" className="lp-section">
+          <div className="lp-container lp-container-sm">
+            <div className="lp-section-head">
+              <span className="lp-eyebrow">FAQ</span>
+              <h2>Pertanyaan umum</h2>
             </div>
-            <span className="lp-preview-status">● Online</span>
-          </div>
-          <div className="lp-preview-body">
-            <div className="lp-msg lp-msg-user">
-              <div className="lp-bubble lp-bubble-user">
-                Rangkum analisa adopsi AI di Indonesia dan siapkan dokumen resminya.
-              </div>
-            </div>
-            <div className="lp-msg lp-msg-ai">
-              <img src="/logo.png" alt="Deepernova AI" className="lp-ai-avatar" />
-              <div className="lp-bubble lp-bubble-ai">
-                <p className="lp-bubble-intro">
-                  Analisis selesai: Adopsi AI nasional tumbuh 38% dengan akselerasi otomatisasi dokumen. Berkas siap diunduh:
-                </p>
-                <div className="lp-preview-doc-chips">
-                  <div className="lp-pchip word" onClick={onOpenOffice}>
-                    <i className="fa-solid fa-file-word"></i>
-                    <span>Analisa_AI_Indonesia.docx</span>
+
+            <div className="lp-faq">
+              {faqs.map((f, i) => {
+                const open = activeFaq === i;
+                return (
+                  <div key={f.q} className={`lp-faq-item ${open ? 'open' : ''}`}>
+                    <button
+                      type="button"
+                      className="lp-faq-q"
+                      aria-expanded={open}
+                      onClick={() => setActiveFaq(open ? null : i)}
+                    >
+                      <span>{f.q}</span>
+                      <i className="fa-solid fa-chevron-down" />
+                    </button>
+                    <div className="lp-faq-a"><p>{f.a}</p></div>
                   </div>
-                  <div className="lp-pchip excel" onClick={onOpenOffice}>
-                    <i className="fa-solid fa-file-excel"></i>
-                    <span>Data_Proyeksi_2026.xlsx</span>
-                  </div>
-                  <div className="lp-pchip web" onClick={() => window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer')}>
-                    <i className="fa-solid fa-globe"></i>
-                    <span>6 Sumber Terverifikasi</span>
-                  </div>
-                </div>
-                <div className="lp-preview-footer-chip">
-                  <span>100% Gratis • Memori 1 Juta Token • Unduh Seketika</span>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Features Bento */}
-      <section id="fitur" className="lp-features">
-        <h2 className="lp-section-h2">Fitur Unggulan</h2>
-        <p className="lp-section-sub">Kemampuan AI komprehensif dalam satu platform terpadu.</p>
-        <div className="lp-features-grid">
-          {features.map((f, i) => (
-            <div key={i} className="lp-feat-card">
-              <span className="lp-feat-icon">{f.icon}</span>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Studio Showcase */}
-      <section id="studio" className="lp-studio">
-        <div className="lp-studio-card">
-          <div className="lp-studio-text">
-            <span className="lp-overline">TYPERNOVA STUDIO</span>
-            <h2>Buat Dokumen Word, Excel &amp; PPT Otomatis.</h2>
-            <p className="lp-studio-desc">
-              AI menyusun naskah akademis, rumus spreadsheet, dan slide presentasi yang siap Anda unduh langsung.
-            </p>
-            <div className="lp-studio-btns">
-              <button onClick={onOpenOffice} className="lp-btn-primary">Buka Document Studio ➔</button>
-              <button onClick={onStartChat} className="lp-btn-ghost">Coba di Chat</button>
+        {/* ===== CTA ===== */}
+        <section className="lp-section lp-section-tight">
+          <div className="lp-container">
+            <div className="lp-cta">
+              <h2>Siap mencoba Deepernova?</h2>
+              <p>Gratis dan langsung bisa dipakai dari browser Anda.</p>
+              <button type="button" onClick={onStartChat} className="lp-btn lp-btn-light lp-btn-lg">
+                Mulai Chat Sekarang
+                <i className="fa-solid fa-arrow-right" />
+              </button>
             </div>
           </div>
-          <div className="lp-studio-visual">
-            <div className="lp-doc-pill"><div className="lp-doc-tag" style={{background:'#2563eb'}}>W</div>Word (.docx)</div>
-            <div className="lp-doc-pill"><div className="lp-doc-tag" style={{background:'#16a34a'}}>X</div>Excel (.xlsx)</div>
-            <div className="lp-doc-pill"><div className="lp-doc-tag" style={{background:'#ea580c'}}>P</div>PowerPoint (.pptx)</div>
-          </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
-      {/* FAQ Section */}
-      <section id="faq" className="lp-faq">
-        <h2 className="lp-section-h2">Pertanyaan Umum (FAQ)</h2>
-        <p className="lp-section-sub">Informasi penting mengenai penggunaan Deepernova AI.</p>
-        <div className="lp-faq-list">
-          {faqs.map((f, i) => (
-            <div key={i} className={`lp-faq-item ${activeFaq === i ? 'open' : ''}`} onClick={() => setActiveFaq(activeFaq === i ? null : i)}>
-              <div className="lp-faq-q">
-                <span>{f.q}</span>
-                <span className="lp-faq-chevron">{activeFaq === i ? '−' : '+'}</span>
-              </div>
-              {activeFaq === i && <p className="lp-faq-a">{f.a}</p>}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Final Conversion CTA */}
-      <section className="lp-cta">
-        <h2>Mulai Gunakan Deepernova AI.</h2>
-        <p>Gratis, cepat, dan siap digunakan langsung dari browser Anda.</p>
-        <button onClick={onStartChat} className="lp-btn-hero">Masuk Chat Sekarang ➔</button>
-      </section>
-
-      {/* Footer */}
+      {/* ===== FOOTER ===== */}
       <footer className="lp-footer">
-        <div className="lp-footer-inner">
+        <div className="lp-container lp-footer-inner">
           <div className="lp-footer-brand">
-            <div className="lp-brand">
-              <img src="/logo.png" alt="" className="lp-brand-icon" />
-              <div className="lp-brand-text">
-                <span className="lp-brand-name">Deepernova AI</span>
-                <span className="lp-brand-sub">indonesian technology research</span>
-              </div>
-            </div>
-            <p>Platform AI untuk Indonesia.</p>
+            <img src="/logo.png" alt="" className="lp-brand-icon" />
+            <span className="lp-brand-name">Deepernova</span>
           </div>
           <div className="lp-footer-links">
-            <button onClick={onStartChat}>Masuk Chat</button>
-            <button onClick={onOpenOffice}>Document Studio</button>
-            <button onClick={onOpenUniverse}>Universe</button>
-            <a 
-              href={SEARCH_ENGINE_URL} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={{ color: '#10b981', fontWeight: '600', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}
-            >
-              🔍 Search Engine
-            </a>
-            <button onClick={() => onNavigate?.('api')} style={{ color: '#ea580c', fontWeight: '600' }}>
-              ⚡ Developer API
-            </button>
-            <button onClick={() => onNavigate?.('help')} style={{ color: '#ea580c', fontWeight: 'bold' }}>
-              Pusat Bantuan
-            </button>
+            <button type="button" onClick={onStartChat}>Chat</button>
+            <button type="button" onClick={onOpenOffice}>Document Studio</button>
+            <button type="button" onClick={onOpenUniverse}>Universe</button>
+            <button type="button" onClick={() => openSearch()}>Search Engine</button>
+            <button type="button" onClick={() => onNavigate?.('api')}>Developer API</button>
+            <button type="button" onClick={() => onNavigate?.('help')}>Pusat Bantuan</button>
           </div>
         </div>
-        <div className="lp-footer-bottom">
-          © {new Date().getFullYear()} Deepernova.com • PT Deepernova AI Indonesia
+        <div className="lp-container lp-footer-bottom">
+          © {new Date().getFullYear()} Deepernova.com · PT Deepernova AI Indonesia
         </div>
       </footer>
     </div>
