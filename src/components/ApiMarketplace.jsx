@@ -19,6 +19,7 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
   const [activeTab, setActiveTab] = useState('getting-started');
   const [codeLanguage, setCodeLanguage] = useState('javascript');
   const [searchCodeLanguage, setSearchCodeLanguage] = useState('javascript');
+  const [searchAuthMode, setSearchAuthMode] = useState('no-key'); // 'no-key' (Bebas Tanpa API Key) or 'with-key' (Dengan API Key)
   
   const [navOpen, setNavOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
@@ -970,140 +971,475 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
               </div>
             )}
 
-            {/* --- SEARCH ENGINE API DOCUMENTATION --- */}
+            {/* --- SEARCH ENGINE API DOCUMENTATION (SELARAS DENGAN HALAMAN DEEPERNOVA SEARCH) --- */}
             {docsSection === 'search' && (
               <div className="docs-content-wrapper">
                 <div className="docs-body" style={{ width: '100%' }}>
                   <section className="docs-section">
-                    <div className="search-docs-badge">SUB-20MS ULTRA-FAST WEB SEARCH</div>
-                    <h3>DeeperNova Search Engine API</h3>
+                    <div className="search-docs-badge">SUB-20MS ULTRA-FAST WEB SEARCH • PUBLIC & ENTERPRISE SERP</div>
+                    <h3>DeeperNova Search Engine API (Mandiri & Terdistribusi)</h3>
                     <p>
-                      Akses indeks web mandiri DeeperNova dengan pencarian berbasis BM25 dan latensi di bawah 20 milidetik. Sangat cocok untuk sistem <strong>RAG (Retrieval-Augmented Generation)</strong>, agen AI otonom, dan aplikasi pencarian.
+                      Akses indeks web mandiri DeeperNova dengan pencarian berbasis algoritma <strong>BM25 & PageRank</strong>, latensi sub-20ms, dan ringkasan <strong>AI Context</strong> yang siap diintegrasikan ke sistem <strong>RAG (Retrieval-Augmented Generation)</strong>, agen AI otonom, peramban web, atau bot.
                     </p>
 
-                    <div className="base-url-card">
-                      <span className="base-url-label">Endpoint Pencarian Web:</span>
-                      <code className="base-url-val">{apiBaseUrl}/api/v1/search?q=query_anda</code>
+                    {/* CORS & Free Access Banner (Selaras dengan DeeperNova Search) */}
+                    <div className="cors-banner-box">
+                      <span className="cors-banner-icon">🟢</span>
+                      <div>
+                        <strong>Dukungan Frontend CORS 100% Aktif & Akses Bebas Tanpa API Key:</strong>
+                        <p style={{ margin: '4px 0 0', fontSize: '13px' }}>
+                          Anda dapat langsung memanggil API ini dari peramban web mana saja (React, Next.js, Vue, Svelte, vanilla JS, skrip HTML) tanpa terhalang error CORS dan tanpa perlu backend proxy! Anda bisa menggunakannya <strong>secara bebas tanpa API Key</strong> (Anonymous Free Access) atau menyertakan API Key untuk prioritas antrean QoS Governor.
+                        </p>
+                      </div>
                     </div>
 
-                    <h4>Daftar Endpoint DeeperNova Search Engine API:</h4>
+                    <div className="base-url-card">
+                      <div>
+                        <span className="base-url-label">Endpoint Base URL Resmi (Cloudflare & Server):</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                          <code className="base-url-val">{publicApiBaseUrl}/api/v1</code>
+                          <button className="btn-copy-small" onClick={() => copyToClipboard(`${publicApiBaseUrl}/api/v1`, 'base-url-search')}>
+                            {copiedText === 'base-url-search' ? '✓ Tersalin' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Authentication Mode Switcher */}
+                    <div style={{ margin: '22px 0 10px' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-title)', display: 'block', marginBottom: '8px' }}>
+                        Pilih Mode Autentikasi Contoh Kode:
+                      </span>
+                      <div className="search-auth-switcher">
+                        <button 
+                          className={`search-auth-btn ${searchAuthMode === 'no-key' ? 'active' : ''}`}
+                          onClick={() => setSearchAuthMode('no-key')}
+                        >
+                          🟢 Mode Bebas (Tanpa API Key - Anonymous)
+                        </button>
+                        <button 
+                          className={`search-auth-btn with-key ${searchAuthMode === 'with-key' ? 'active with-key' : ''}`}
+                          onClick={() => setSearchAuthMode('with-key')}
+                        >
+                          🔑 Mode API Key (Dedicated Developer Key)
+                        </button>
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 14px' }}>
+                        {searchAuthMode === 'no-key' 
+                          ? '⚡ Mode Bebas: Panggil endpoint langsung tanpa header Authorization atau query key. Otomatis dilayani sebagai Anonymous Free User.'
+                          : '🚀 Mode API Key: Gunakan header Authorization: Bearer <KEY> atau demo key \'dn_live_free_public_demo\' untuk alokasi bandwidth prioritas QoS.'}
+                      </p>
+                    </div>
+
+                    {/* Endpoints Reference Table */}
+                    <h4>Referensi Endpoint DeeperNova Search API:</h4>
                     <div className="table-responsive">
                       <table className="param-table">
                         <thead>
                           <tr>
-                            <th>Metode & Path</th>
-                            <th>Fungsi</th>
+                            <th>Endpoint & Metode</th>
+                            <th>Autentikasi</th>
+                            <th>Deskripsi Fungsi</th>
                             <th>Parameter Utama</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td><code>GET /api/v1/search</code></td>
-                            <td>Pencarian web organik presisi tinggi (BM25 & PageRank)</td>
+                            <td>
+                              <code>/api/v1/search</code><br />
+                              <span className="search-method-badge">GET / POST</span>
+                            </td>
+                            <td><span className="auth-badge-free">Bebas (Tanpa Key)</span></td>
+                            <td>Pencarian web berkecepatan tinggi dengan BM25, PageRank, dan ringkasan context AI RAG.</td>
+                            <td><code>q</code> (wajib), <code>limit</code> (1-50), <code>page</code>, <code>timeFilter</code> ('all','24h','7d')</td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <code>/api/v1/news</code><br />
+                              <span className="search-method-badge">GET</span>
+                            </td>
+                            <td><span className="auth-badge-free">Bebas (Tanpa Key)</span></td>
+                            <td>Pencarian berita terkini langsung dari 50+ media nasional terpercaya & RSS feeds real-time.</td>
+                            <td><code>q</code>, <code>limit</code> (1-50), <code>sort</code> ('latest' | 'relevance')</td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <code>/api/v1/images</code><br />
+                              <span className="search-method-badge">GET</span>
+                            </td>
+                            <td><span className="auth-badge-free">Bebas (Tanpa Key)</span></td>
+                            <td>Pencarian gambar, ilustrasi, media visual, dan logo website terindeks.</td>
+                            <td><code>q</code> (wajib), <code>limit</code> (1-50), <code>page</code></td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <code>/api/v1/health</code><br />
+                              <span className="search-method-badge">GET</span>
+                            </td>
+                            <td><span className="auth-badge-free">Bebas (Tanpa Key)</span></td>
+                            <td>Cek status operasional node pencari, antrean crawler, metrik indeks, dan QoS Governor.</td>
+                            <td><em>Tidak memerlukan parameter</em></td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <code>/api/v1/suggest</code><br />
+                              <span className="search-method-badge">GET</span>
+                            </td>
+                            <td><span className="auth-badge-free">Bebas (Tanpa Key)</span></td>
+                            <td>Autocomplete & saran pelengkap frasa kueri pencarian sub-10ms.</td>
+                            <td><code>q</code> (kata kunci pencarian)</td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <code>/api/v1/search-fast</code><br />
+                              <span className="search-method-badge">GET</span>
+                            </td>
+                            <td><span className="auth-badge-free">Bebas (Tanpa Key)</span></td>
+                            <td>Pencarian instan sub-10ms indeks lokal SQLite database.</td>
                             <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
-                          </tr>
-                          <tr>
-                            <td><code>GET /api/v1/search-fast</code></td>
-                            <td>Pencarian instan sub-10ms indeks lokal SQLite</td>
-                            <td><code>q</code> (kata kunci), <code>limit</code> (1-50), <code>ai</code> (false/true)</td>
-                          </tr>
-                          <tr>
-                            <td><code>GET /api/v1/images</code></td>
-                            <td>Pencarian gambar terindeks dari halaman web</td>
-                            <td><code>q</code> (kata kunci), <code>limit</code> (1-50)</td>
-                          </tr>
-                          <tr>
-                            <td><code>GET /api/v1/suggest</code></td>
-                            <td>Autocomplete & saran pelengkap query pencarian</td>
-                            <td><code>q</code> (kata kunci)</td>
-                          </tr>
-                          <tr>
-                            <td><code>GET /api/v1/status</code></td>
-                            <td>Status kesehatan node, antrean crawler & metrik indeks</td>
-                            <td><em>Tidak ada parameter</em></td>
-                          </tr>
-                          <tr>
-                            <td><code>POST /api/v1/explain</code></td>
-                            <td>Analisis pembobotan kata dan skor relevansi dokumen</td>
-                            <td>Body: <code>{`{ "q": "kata kunci", "url": "..." }`}</code></td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
 
-                    <h4 style={{ marginTop: '20px' }}>Contoh Implementasi Kode:</h4>
+                    {/* Multi-Language Code Snippets */}
+                    <h4 style={{ marginTop: '24px' }}>Contoh Implementasi Kode:</h4>
                     <div className="lang-selector-row">
-                      <button className={`lang-btn ${searchCodeLanguage === 'javascript' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('javascript')}>JavaScript (Fetch)</button>
-                      <button className={`lang-btn ${searchCodeLanguage === 'python' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('python')}>Python (Requests)</button>
-                      <button className={`lang-btn ${searchCodeLanguage === 'curl' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('curl')}>cURL</button>
+                      <button className={`lang-btn ${searchCodeLanguage === 'javascript' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('javascript')}>
+                        🌐 JavaScript (Browser Fetch)
+                      </button>
+                      <button className={`lang-btn ${searchCodeLanguage === 'react' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('react')}>
+                        ⚛️ React / Next.js
+                      </button>
+                      <button className={`lang-btn ${searchCodeLanguage === 'html' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('html')}>
+                        📄 HTML Standalone Widget
+                      </button>
+                      <button className={`lang-btn ${searchCodeLanguage === 'python' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('python')}>
+                        🐍 Python (Requests & RAG)
+                      </button>
+                      <button className={`lang-btn ${searchCodeLanguage === 'curl' ? 'active' : ''}`} onClick={() => setSearchCodeLanguage('curl')}>
+                        💻 cURL (Terminal)
+                      </button>
                     </div>
 
                     <div className="code-display-box">
                       {searchCodeLanguage === 'javascript' && (
-                        <pre><code>{`// Pencarian Web Real-Time via DeeperNova Search API
+                        searchAuthMode === 'no-key' ? (
+                          <pre><code>{`// 🌐 Pencarian Web Bebas Tanpa API Key (100% Dukungan CORS dari Browser)
 async function searchWeb(query) {
-  const url = "${apiBaseUrl}/api/v1/search?q=" + encodeURIComponent(query) + "&limit=5";
+  const url = "${publicApiBaseUrl}/api/v1/search?q=" + encodeURIComponent(query) + "&limit=5";
+
+  // Panggil langsung dari peramban web (React, Vue, Vanilla JS) tanpa perlu backend proxy
+  const response = await fetch(url);
+  const data = await response.json();
+
+  console.log("⚡ Status:", data.status, "| Latensi:", data.duration_ms + "ms");
+  console.log("Total Hasil:", data.total_results);
+
+  (data.results || []).forEach((res, i) => {
+    console.log(\`[\${i + 1}] \${res.title} (\${res.url})\`);
+    console.log(\`    \${res.snippet}\\n\`);
+  });
+
+  return data;
+}
+
+// Uji coba pencarian langsung:
+searchWeb("indonesia");`}</code></pre>
+                        ) : (
+                          <pre><code>{`// 🔑 Pencarian Web dengan API Key (Prioritas QoS Governor)
+async function searchWeb(query) {
+  const url = "${publicApiBaseUrl}/api/v1/search?q=" + encodeURIComponent(query) + "&limit=5";
+
   const response = await fetch(url, {
     headers: {
       "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY",
-      "X-API-Key": "YOUR_DEEPERNOVA_API_KEY"
+      "X-API-Key": "YOUR_DEEPERNOVA_API_KEY" // atau gunakan demo key: dn_live_free_public_demo
     }
   });
 
   const data = await response.json();
-  console.log("Query:", data.query, "Hasil:", data.results?.length);
-  (data.results || []).forEach((res, i) => {
-    console.log(\`\${i + 1}. \${res.title} - \${res.url || res.link}\`);
-  });
+  console.log("⚡ Selesai dalam", data.duration_ms, "ms (Total:", data.total_results, "hasil)");
+  return data.results;
 }
 
 searchWeb("indonesia");`}</code></pre>
+                        )
                       )}
-                      {searchCodeLanguage === 'python' && (
-                        <pre><code>{`import requests
 
-url = "${apiBaseUrl}/api/v1/search"
-params = {"q": "indonesia", "limit": 5}
-headers = {
-    "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY",
-    "X-API-Key": "YOUR_DEEPERNOVA_API_KEY"
+                      {searchCodeLanguage === 'react' && (
+                        searchAuthMode === 'no-key' ? (
+                          <pre><code>{`// ⚛️ React / Next.js Component: Client-Side Web Search (Bebas Tanpa API Key)
+import React, { useState } from 'react';
+
+const SEARCH_ENDPOINT = "${publicApiBaseUrl}/api/v1/search";
+
+export default function DeeperNovaSearchWidget() {
+  const [query, setQuery] = useState('teknologi ai');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [latency, setLatency] = useState(null);
+
+  const handleSearch = async (e) => {
+    if (e) e.preventDefault();
+    if (!query.trim()) return;
+
+    setLoading(true);
+    try {
+      // Direct browser fetch tanpa API Key & bebas CORS!
+      const res = await fetch(\`\${SEARCH_ENDPOINT}?q=\${encodeURIComponent(query)}&limit=5\`);
+      const data = await res.json();
+      setResults(data.results || []);
+      setLatency(data.duration_ms);
+    } catch (err) {
+      console.error("Search error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 640, margin: '20px auto', fontFamily: 'sans-serif' }}>
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
+        <input 
+          value={query} 
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Cari web..."
+          style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+        />
+        <button type="submit" disabled={loading} style={{ padding: '10px 18px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700 }}>
+          {loading ? 'Mencari...' : 'Cari'}
+        </button>
+      </form>
+
+      {latency != null && <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>⚡ Latensi: <strong>{latency} ms</strong></p>}
+
+      <div style={{ marginTop: 16 }}>
+        {results.map((r, i) => (
+          <div key={i} style={{ padding: 12, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: '#059669', fontWeight: 700 }}>{r.domain}</span>
+            <h4 style={{ margin: '4px 0' }}><a href={r.url} target="_blank" rel="noreferrer" style={{ color: '#0f172a' }}>{r.title}</a></h4>
+            <p style={{ margin: 0, fontSize: 13, color: '#475569' }}>{r.snippet}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}`}</code></pre>
+                        ) : (
+                          <pre><code>{`// ⚛️ React / Next.js Component: Client-Side Web Search (Dengan API Key)
+import React, { useState } from 'react';
+
+const SEARCH_ENDPOINT = "${publicApiBaseUrl}/api/v1/search";
+const API_KEY = "YOUR_DEEPERNOVA_API_KEY"; // atau gunakan "dn_live_free_public_demo"
+
+export default function DeeperNovaSearchWidget() {
+  const [query, setQuery] = useState('teknologi ai');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async (e) => {
+    if (e) e.preventDefault();
+    if (!query.trim()) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(\`\${SEARCH_ENDPOINT}?q=\${encodeURIComponent(query)}&limit=5\`, {
+        headers: { "Authorization": \`Bearer \${API_KEY}\` }
+      });
+      const data = await res.json();
+      setResults(data.results || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 640, margin: '20px auto' }}>
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Cari..." style={{ flex: 1, padding: 10, borderRadius: 8 }} />
+        <button type="submit" disabled={loading} style={{ background: '#059669', color: '#fff', padding: '10px 18px', border: 'none', borderRadius: 8 }}>Cari</button>
+      </form>
+    </div>
+  );
+}`}</code></pre>
+                        )
+                      )}
+
+                      {searchCodeLanguage === 'html' && (
+                        <pre><code>{`<!-- 📄 Simpan sebagai 'search.html' dan buka langsung di Browser (Chrome / Edge / Firefox) -->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeeperNova Live Search Widget</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 680px; margin: 2.5rem auto; padding: 0 1rem; color: #0f172a; }
+    .box { display: flex; gap: 8px; margin-bottom: 12px; }
+    input { flex: 1; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; outline: none; }
+    button { background: #059669; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .stat { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+    .card a { color: #059669; text-decoration: none; font-size: 17px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>DeeperNova Search (Frontend Standalone Demo)</h2>
+  <div class="box">
+    <input type="text" id="qInput" value="indonesia" placeholder="Ketik kata kunci..." />
+    <button onclick="cari()">Cari Web</button>
+  </div>
+  <div id="stat" class="stat">Siap melakukan pencarian...</div>
+  <div id="results"></div>
+
+  <script>
+    async function cari() {
+      const q = document.getElementById('qInput').value;
+      const stat = document.getElementById('stat');
+      const list = document.getElementById('results');
+      stat.innerText = '⚡ Mengambil hasil pencarian...';
+      list.innerHTML = '';
+
+      try {
+        // Panggilan langsung tanpa API Key & 100% bebas CORS:
+        const response = await fetch(\`${publicApiBaseUrl}/api/v1/search?q=\${encodeURIComponent(q)}&limit=5\`${searchAuthMode === 'with-key' ? `, { headers: { 'Authorization': 'Bearer YOUR_DEEPERNOVA_API_KEY' } }` : ''});
+        const data = await response.json();
+        stat.innerHTML = \`⚡ Selesai dalam <strong>\${data.duration_ms}ms</strong> (Total: \${data.total_results} hasil)\`;
+
+        (data.results || []).forEach(r => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = \`
+            <small style="color:#059669; font-weight:bold;">\${r.domain}</small>
+            <div><a href="\${r.url}" target="_blank">\${r.title}</a></div>
+            <p style="margin:4px 0 0; color:#475569; font-size:14px;">\${r.snippet}</p>
+          \`;
+          list.appendChild(div);
+        });
+      } catch (err) {
+        stat.innerText = 'Error: ' + err.message;
+      }
+    }
+    cari();
+  </script>
+</body>
+</html>`}</code></pre>
+                      )}
+
+                      {searchCodeLanguage === 'python' && (
+                        searchAuthMode === 'no-key' ? (
+                          <pre><code>{`import requests
+
+# 🐍 Panggilan Search Engine DeeperNova Bebas Tanpa API Key
+url = "${publicApiBaseUrl}/api/v1/search"
+params = {
+    "q": "perkembangan ai indonesia",
+    "limit": 5
 }
 
-response = requests.get(url, params=params, headers=headers)
+response = requests.get(url, params=params)
 data = response.json()
 
-print(f"Total hasil: {len(data.get('results', []))}")
-for idx, item in enumerate(data.get('results', []), 1):
-    print(f"{idx}. {item.get('title')} -> {item.get('url')}")`}</code></pre>
+print(f"⚡ Status: {data.get('status')} | Latensi: {data.get('duration_ms')}ms")
+print(f"Total Ditemukan: {data.get('total_results')} hasil\\n")
+
+for idx, item in enumerate(data.get("results", []), 1):
+    print(f"[{idx}] {item.get('title')}")
+    print(f"    URL: {item.get('url')}")
+    print(f"    Snippet: {item.get('snippet')[:120]}...\\n")
+
+# ai_context siap langsung dimasukkan ke prompt LLM / sistem RAG:
+if "ai_context" in data:
+    print("--- CONTEXT RAG SIAP PAKAI ---")
+    print(data["ai_context"])`}</code></pre>
+                        ) : (
+                          <pre><code>{`import requests
+
+# 🔑 Panggilan Search Engine DeeperNova dengan API Key
+API_KEY = "YOUR_DEEPERNOVA_API_KEY"
+url = "${publicApiBaseUrl}/api/v1/search"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "X-API-Key": API_KEY # atau gunakan "dn_live_free_public_demo"
+}
+params = {
+    "q": "perkembangan ai indonesia",
+    "limit": 5
+}
+
+response = requests.get(url, headers=headers, params=params)
+data = response.json()
+
+print(f"⚡ Status: {data.get('status')} | Latensi: {data.get('duration_ms')}ms")
+for item in data.get("results", []):
+    print(f"• {item.get('title')} -> {item.get('url')}")`}</code></pre>
+                        )
                       )}
+
                       {searchCodeLanguage === 'curl' && (
-                        <pre><code>{`# 1. Pencarian Web Utama
-curl -X GET "${apiBaseUrl}/api/v1/search?q=indonesia&limit=5" \\
+                        searchAuthMode === 'no-key' ? (
+                          <pre><code>{`# 1. Web Search Organik (Tanpa API Key - Anonymous Free Access)
+curl -X GET "${publicApiBaseUrl}/api/v1/search?q=indonesia&limit=5"
+
+# 2. Berita Nasional Terkini (Tanpa API Key)
+curl -X GET "${publicApiBaseUrl}/api/v1/news?q=teknologi+ai&limit=5"
+
+# 3. Pencarian Gambar & Visual Media (Tanpa API Key)
+curl -X GET "${publicApiBaseUrl}/api/v1/images?q=ai+indonesia&limit=8"
+
+# 4. Cek Status Kesehatan Mesin & QoS Governor
+curl -X GET "${publicApiBaseUrl}/api/v1/health"
+
+# 5. POST Request Body (Tanpa API Key)
+curl -X POST "${publicApiBaseUrl}/api/v1/search" \\
+  -H "Content-Type: application/json" \\
+  -d '{"query": "mobil listrik indonesia", "limit": 5}'`}</code></pre>
+                        ) : (
+                          <pre><code>{`# 1. Web Search dengan Dedicated API Key (Prioritas QoS Governor)
+curl -X GET "${publicApiBaseUrl}/api/v1/search?q=indonesia&limit=5" \\
   -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"
 
-# 2. Pencarian Instan (Fast Search)
-curl -X GET "${apiBaseUrl}/api/v1/search-fast?q=indonesia&limit=5" \\
+# 2. Atau menggunakan Demo Key Bawaan:
+curl -X GET "${publicApiBaseUrl}/api/v1/search?q=indonesia&limit=5" \\
+  -H "X-API-Key: dn_live_free_public_demo"
+
+# 3. Pencarian Berita Nasional Terkini
+curl -X GET "${publicApiBaseUrl}/api/v1/news?q=teknologi+ai&limit=5" \\
   -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"
 
-# 3. Pencarian Gambar
-curl -X GET "${apiBaseUrl}/api/v1/images?q=indonesia&limit=5" \\
+# 4. Pencarian Gambar
+curl -X GET "${publicApiBaseUrl}/api/v1/images?q=ai+indonesia&limit=8" \\
   -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY"`}</code></pre>
+                        )
                       )}
                     </div>
 
-                    <h4>Contoh Respons JSON (/api/v1/search):</h4>
+                    <h4>Contoh Format Respons JSON Realistis (/api/v1/search):</h4>
                     <pre><code>{`{
+  "status": "success",
   "query": "indonesia",
+  "duration_ms": 14.8,
+  "total_results": 142,
   "results": [
     {
-      "url": "https://media.licdn.com",
-      "title": "indonesia",
-      "snippet": "Community And Social Services jobs in Gambir, Jakarta, Indonesia...",
-      "image": "https://media.licdn.com/dms/image/...",
-      "score": 1000000000000
+      "title": "Portal Informasi Indonesia - Berita & Layanan Publik",
+      "url": "https://indonesia.go.id",
+      "domain": "indonesia.go.id",
+      "snippet": "Portal resmi informasi pemerintah Republik Indonesia. Berita terkini, regulasi, pariwisata, dan layanan digital nasional.",
+      "score": 98.4,
+      "crawled_at": "2026-10-11T12:00:00Z"
+    },
+    {
+      "title": "Kementerian Komunikasi dan Digital RI",
+      "url": "https://komdigi.go.id",
+      "domain": "komdigi.go.id",
+      "snippet": "Perkembangan ekosistem teknologi informasi, kecerdasan buatan, dan kedaulatan data digital nasional Indonesia.",
+      "score": 95.1
     }
   ],
-  "cached": false
+  "ai_context": "Indonesia adalah negara kepulauan yang sedang mengakselerasi transformasi digital dan adopsi kecerdasan buatan nasional...",
+  "auth_mode": "${searchAuthMode === 'no-key' ? 'Anonymous Free User (Tanpa API Key)' : 'Dedicated Developer Key'}"
 }`}</code></pre>
                   </section>
                 </div>
