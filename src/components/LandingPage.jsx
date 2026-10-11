@@ -126,31 +126,6 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               <li><i className="fa-solid fa-check" /> Tanpa wajib daftar</li>
               <li><i className="fa-solid fa-check" /> Bahasa Indonesia</li>
             </ul>
-
-            {/* Chat preview */}
-            <div className="lp-preview" aria-hidden="true">
-              <div className="lp-preview-bar">
-                <span className="lp-dots"><i /><i /><i /></span>
-                <span className="lp-preview-title">Deepernova Workspace</span>
-                <span className="lp-preview-status">Online</span>
-              </div>
-              <div className="lp-preview-body">
-                <div className="lp-msg lp-msg-user">
-                  Rangkum analisa adopsi AI di Indonesia dan siapkan dokumennya.
-                </div>
-                <div className="lp-msg-row">
-                  <img src="/logo.png" alt="" className="lp-msg-avatar" />
-                  <div className="lp-msg lp-msg-ai">
-                    <p>Analisis selesai. Adopsi AI nasional tumbuh 38% dengan akselerasi otomatisasi dokumen. Berkas siap diunduh:</p>
-                    <div className="lp-files">
-                      <span className="lp-file word"><i className="fa-solid fa-file-word" /> Analisa_AI.docx</span>
-                      <span className="lp-file excel"><i className="fa-solid fa-file-excel" /> Proyeksi_2026.xlsx</span>
-                      <span className="lp-file web"><i className="fa-solid fa-globe" /> 6 sumber</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 

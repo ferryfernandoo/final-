@@ -172,26 +172,32 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       <div className="auth-box modern">
         <aside className="auth-side-left" aria-hidden="true">
           <div className="visual-brand">
-            <h1 className="brand-title">🚀 Deepernova AI</h1>
-            <p className="brand-subtitle">Platform AI mandiri & berkecepatan tinggi Indonesia</p>
-            <div className="brand-deco" />
+            <img src="/logo.png" alt="" className="brand-logo" />
+            <h1 className="brand-title">Deepernova AI</h1>
+            <p className="brand-subtitle">Asisten AI cerdas, cepat, dan gratis untuk Indonesia.</p>
+            <ul className="brand-points">
+              <li><i className="fa-solid fa-check" /> Chat multi-model</li>
+              <li><i className="fa-solid fa-check" /> Word, Excel &amp; PPT otomatis</li>
+              <li><i className="fa-solid fa-check" /> Cloud Vault 3GB</li>
+            </ul>
           </div>
         </aside>
 
         <main className="auth-side-right">
           <div className="auth-card">
             <div className="mobile-brand-header">
-              <h2>🚀 Deepernova AI</h2>
-              <p>Platform AI Cloud Mandiri, Cepat & Aman</p>
+              <img src="/logo.png" alt="Deepernova AI" className="brand-logo" />
+              <h2>Deepernova AI</h2>
             </div>
 
-            <p className="auth-welcome">Buat Akun Baru</p>
+            <h2 className="auth-title">Buat akun baru</h2>
+            <p className="auth-welcome">Mulai gunakan Deepernova secara gratis</p>
 
             {error && <div className="error-message">{error}</div>}
 
             <form className="auth-form" onSubmit={handleSubmit}>
-              <div className="form-group name-field-group">
-                <label htmlFor="reg-name" className="name-field-label">👋 Siapa nama kamu?</label>
+              <div className="form-group">
+                <label htmlFor="reg-name">Nama Lengkap</label>
                 <input
                   id="reg-name"
                   type="text"
@@ -200,15 +206,14 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                   onChange={handleChange}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  placeholder="Contoh: Nando"
+                  placeholder="Nama Anda"
                   autoComplete="name"
                   disabled={loading}
-                  className="name-field-input"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="reg-email">Username / Identitas Akun</label>
+                <label htmlFor="reg-email">Username</label>
                 <div className="input-with-domain">
                   <input
                     id="reg-email"
@@ -219,7 +224,7 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                     onBlur={handleEmailBlur}
                     onFocus={handleInputFocus}
                     onClick={handleInputFocus}
-                    placeholder="Contoh: nando"
+                    placeholder="username"
                     autoComplete="username"
                     disabled={loading}
                     autoCapitalize="none"
@@ -227,9 +232,6 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                   />
                   <span className="auto-domain-badge">@deepernova.com</span>
                 </div>
-                <p className="domain-help-text">
-                  ✨ Akun baru otomatis mendapatkan alamat <strong>@deepernova.com</strong> & kuota gratis 1.000.000 Token.
-                </p>
               </div>
 
               <div className="form-group">
@@ -241,7 +243,7 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Min 6 karakter"
+                    placeholder="Minimal 6 karakter"
                     autoComplete="new-password"
                     disabled={loading}
                   />
@@ -250,9 +252,9 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                     className="toggle-password"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={loading}
-                    aria-label="Toggle password visibility"
+                    aria-label="Tampilkan password"
                   >
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                    <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
                   </button>
                 </div>
                 {formData.password && (
@@ -289,9 +291,9 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                     className="toggle-password"
                     onClick={() => setShowConfirm(!showConfirm)}
                     disabled={loading}
-                    aria-label="Toggle confirm password visibility"
+                    aria-label="Tampilkan konfirmasi password"
                   >
-                    {showConfirm ? '👁️' : '👁️‍🗨️'}
+                    <i className={`fa-solid ${showConfirm ? 'fa-eye-slash' : 'fa-eye'}`} />
                   </button>
                 </div>
                 {formData.confirmPassword && (
@@ -299,8 +301,8 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                     formData.password === formData.confirmPassword ? 'match' : 'no-match'
                   }`}>
                     {formData.password === formData.confirmPassword 
-                      ? '✓ Password cocok' 
-                      : '✗ Password tidak cocok'}
+                      ? 'Password cocok' 
+                      : 'Password tidak cocok'}
                   </span>
                 )}
               </div>
@@ -310,7 +312,7 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                 type="submit" 
                 disabled={loading}
               >
-                {loading ? 'Mendaftarkan Akun...' : 'Daftar Sekarang'}
+                {loading ? 'Mendaftarkan...' : 'Daftar'}
               </button>
             </form>
 
@@ -321,13 +323,8 @@ const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
                 onClick={onSwitchToLogin}
                 disabled={loading}
               >
-                Login sekarang
+                Masuk
               </button>
-            </div>
-
-            <div className="auth-terms">
-              <p>Dengan mendaftar, Anda menyetujui</p>
-              <p>Syarat & Ketentuan Layanan DeeperNova AI</p>
             </div>
           </div>
         </main>

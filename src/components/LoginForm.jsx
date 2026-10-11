@@ -162,43 +162,32 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
       <div className="auth-box modern">
         <aside className="auth-side-left" aria-hidden="true">
           <div className="visual-brand">
-            <h1 className="brand-title">🚀 Deepernova AI</h1>
-            <p className="brand-subtitle">Platform AI mandiri & berkecepatan tinggi Indonesia</p>
-            <div className="brand-deco" />
+            <img src="/logo.png" alt="" className="brand-logo" />
+            <h1 className="brand-title">Deepernova AI</h1>
+            <p className="brand-subtitle">Asisten AI cerdas, cepat, dan gratis untuk Indonesia.</p>
+            <ul className="brand-points">
+              <li><i className="fa-solid fa-check" /> Chat multi-model</li>
+              <li><i className="fa-solid fa-check" /> Word, Excel &amp; PPT otomatis</li>
+              <li><i className="fa-solid fa-check" /> Cloud Vault 3GB</li>
+            </ul>
           </div>
         </aside>
 
         <main className="auth-side-right">
           <div className="auth-card">
             <div className="mobile-brand-header">
-              <h2>🚀 Deepernova AI</h2>
-              <p>Platform AI Cloud Mandiri, Cepat & Aman</p>
+              <img src="/logo.png" alt="Deepernova AI" className="brand-logo" />
+              <h2>Deepernova AI</h2>
             </div>
 
-            <p className="auth-welcome">Selamat datang kembali</p>
+            <h2 className="auth-title">Masuk ke akun</h2>
+            <p className="auth-welcome">Selamat {timeLabel.toLowerCase()} · {timeString}</p>
 
             {error && <div className={`error-message ${errorType || ''}`}>{error}</div>}
 
-            <div className="guest-quick-card">
-              <div className="guest-quick-badge">⚡ Masuk Instan</div>
-              <h3>Mulai pakai AI tanpa login</h3>
-              <p>Coba langsung percakapan dan studio tanpa perlu mendaftar akun.</p>
-              <button
-                className="guest-btn primary"
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={loading || guestLoading}
-              >
-                {guestLoading ? 'Membuka AI Cloud...' : '🚀 Mulai Mode Tamu Instan'}
-              </button>
-              <div className="guest-privacy-inline">🔒 Sesi instan aman & berkecepatan tinggi</div>
-            </div>
-
-            <div className="auth-divider">atau masuk dengan akun DeeperNova</div>
-
             <form className="auth-form" onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="login-email">Username / Akun</label>
+                <label htmlFor="login-email">Username</label>
                 <div className="input-with-domain">
                   <input
                     id="login-email"
@@ -207,7 +196,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
                     value={usernameInput}
                     onChange={handleUsernameChange}
                     onBlur={handleInputBlur}
-                    placeholder="Contoh: nando"
+                    placeholder="username"
                     autoComplete="username"
                     disabled={loading}
                     autoCapitalize="none"
@@ -215,9 +204,6 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
                   />
                   <span className="auto-domain-badge">@deepernova.com</span>
                 </div>
-                <p className="domain-help-text">
-                  ✨ Domain <strong>@deepernova.com</strong> terpasang otomatis. Cukup masukkan username Anda.
-                </p>
               </div>
 
               <div className="form-group">
@@ -238,36 +224,35 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onGuestLogin }) => {
                     className="toggle-password"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={loading}
-                    aria-label="Toggle password visibility"
+                    aria-label="Tampilkan password"
                   >
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                    <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
                   </button>
                 </div>
               </div>
 
-              <button
-                className="auth-submit-btn"
-                type="submit"
-                disabled={loading}
-              >
-                {loading ? 'Masuk...' : 'Masuk ke Akun'}
+              <button className="auth-submit-btn" type="submit" disabled={loading}>
+                {loading ? 'Masuk...' : 'Masuk'}
               </button>
             </form>
 
+            <div className="auth-divider">atau</div>
+
+            <button
+              className="guest-btn"
+              type="button"
+              onClick={handleGuestAccess}
+              disabled={loading || guestLoading}
+            >
+              <i className="fa-solid fa-bolt" />
+              {guestLoading ? 'Membuka...' : 'Lanjut sebagai Tamu'}
+            </button>
+
             <div className="auth-footer">
               <p>Belum punya akun?</p>
-              <button
-                className="switch-auth-btn"
-                onClick={onSwitchToRegister}
-                disabled={loading}
-              >
+              <button className="switch-auth-btn" onClick={onSwitchToRegister} disabled={loading}>
                 Daftar sekarang
               </button>
-            </div>
-
-            <div className="greeting-banner" aria-live="polite">
-              <div className="greeting-time">{`${timeLabel} • ${timeString}`}</div>
-              <div className="greeting-text">selamat datang di deepernova ai</div>
             </div>
           </div>
         </main>
