@@ -193,6 +193,20 @@ class AgentService {
   }
 
   /**
+   * Get direct screenshot URL for session
+   */
+  static getScreenshotUrl(sessionId) {
+    return `${API_BASE_URL}/api/agent/screenshot/${encodeURIComponent(sessionId)}`;
+  }
+
+  /**
+   * Get raw file URL for previewing image/chart inline
+   */
+  static getRawFileUrl(sessionId, filePath) {
+    return `${API_BASE_URL}/api/agent/file/raw?sessionId=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(filePath)}`;
+  }
+
+  /**
    * Upload user file directly to sandbox session
    */
   static async uploadFile(sessionId, file) {

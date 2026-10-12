@@ -3,7 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import fetch from 'node-fetch';
 import JSZip from 'jszip';
-import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions } from '../services/agentSandboxService.js';
+import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions, getRelevantDeliverables } from '../services/agentSandboxService.js';
+import agentScreenshotService from '../services/agentScreenshotService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
 import { TOKENMIX_API_KEYS } from '../apiProxyService.js';
 import webSearchService from '../webSearchService.js';
@@ -187,6 +188,24 @@ router.get('/file/download', (req, res) => {
   }
 });
 
+// GET /api/agent/file/raw - Inline raw file display (for images, charts, and preview)
+router.get('/file/raw', (req, res) => {
+  try {
+    const { sessionId, path: relativePath } = req.query;
+    if (!sessionId || !relativePath) {
+      return res.status(400).send('sessionId dan path diperlukan');
+    }
+    const fullPath = agentSandboxService.safeResolvePath(sessionId, relativePath);
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).send('File tidak ditemukan di sandbox');
+    }
+    res.sendFile(fullPath);
+  } catch (err) {
+    console.error('[AGENT_ROUTES] Raw file error:', err);
+    res.status(500).send(err.message);
+  }
+});
+
 // GET /api/agent/download-zip - Bundle all files in sandbox into a ZIP
 router.get('/download-zip', async (req, res) => {
   try {
@@ -294,6 +313,26 @@ router.get('/preview/:sessionId/*', (req, res) => {
     res.sendFile(filePath);
   } catch (err) {
     res.status(500).send(`Error loading preview: ${err.message}`);
+  }
+});
+
+// GET /api/agent/screenshot/:sessionId - Direct live rendered screenshot PNG
+router.get('/screenshot/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const visual = await agentScreenshotService.getSessionVisualPreview(sessionId);
+    if (!visual) {
+      return res.status(404).send('Belum ada tangkapan layar untuk sesi ini.');
+    }
+    const fullPath = agentSandboxService.safeResolvePath(sessionId, visual.filename);
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).send('Berkas tangkapan layar tidak ditemukan di disk.');
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.sendFile(fullPath);
+  } catch (err) {
+    res.status(500).send(`Error loading screenshot: ${err.message}`);
   }
 });
 
@@ -406,6 +445,24 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep) {
       updateLastStep('failed', checkErr.message);
       pillXml = `<action_pill id="${actionId}" type="check" title="Pemeriksaan Berkas: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(checkErr.message)}</action_pill>`;
     }
+  } else if (action.type === 'screenshot' || action.type === 'take_screenshot') {
+    const targetFile = action.target || action.path || 'index.html';
+    addStep('screenshot', `Mengambil Tangkapan Layar: ${targetFile}`, `Mengambil screenshot visual menggunakan browser engine...`, 'running');
+    try {
+      const ssRes = await agentScreenshotService.captureWebScreenshot(sessionId, targetFile, 'screenshot.png');
+      if (ssRes.success) {
+        updateLastStep('completed', `Tangkapan layar visual berhasil disimpan (${(ssRes.size / 1024).toFixed(1)} KB).`, {
+          screenshotUrl: ssRes.url
+        });
+        pillXml = `<action_pill id="${actionId}" type="screenshot" title="Tangkapan Layar: ${targetFile}" meta="screenshot.png" status="completed">Tangkapan layar berhasil disimpan ke screenshot.png (${(ssRes.size / 1024).toFixed(1)} KB)</action_pill>`;
+      } else {
+        updateLastStep('failed', `Gagal mengambil tangkapan layar: ${ssRes.error}`);
+        pillXml = `<action_pill id="${actionId}" type="screenshot" title="Screenshot Gagal" meta="${targetFile}" status="failed">${escapeXml(ssRes.error)}</action_pill>`;
+      }
+    } catch (ssErr) {
+      updateLastStep('failed', ssErr.message);
+      pillXml = `<action_pill id="${actionId}" type="screenshot" title="Screenshot Gagal" meta="${targetFile}" status="failed">${escapeXml(ssErr.message)}</action_pill>`;
+    }
   } else if (action.type === 'preview') {
     const previewFile = action.entryFile || 'index.html';
     addStep('preview', 'Live Web Preview', `Entry point: ${previewFile}`, 'completed');
@@ -418,7 +475,7 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep) {
 // Stream Action Parser to separate narrative text chunks from XML action tags
 function createStreamActionParser(callbacks) {
   let buffer = '';
-  const KNOWN_TAGS = ['thought', 'read_file', 'read', 'search_web', 'search', 'run_command', 'command', 'terminal', 'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file', 'preview'];
+  const KNOWN_TAGS = ['thought', 'read_file', 'read', 'search_web', 'search', 'run_command', 'command', 'terminal', 'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file', 'preview', 'screenshot', 'take_screenshot'];
   let queue = Promise.resolve();
 
   async function processChunk(chunk) {
@@ -634,6 +691,12 @@ TAG AKSI SANDBOX YANG TERSEDIA:
   Memeriksa keberadaan dan ukuran berkas hasil eksekusi di sandbox.
 - <preview>index.html</preview>
   (Opsional) Menetapkan file visual preview untuk aplikasi web.
+- <screenshot target="index.html" />
+  Mengambil tangkapan layar (screenshot preview) dari aplikasi web / berkas HTML dan langsung menampilkannya di obrolan pengguna.
+
+ATURAN KECERDASAN RELEVANSI BERKAS (AI CERDAS):
+1. Pengguna hanya ingin menerima berkas akhir yang relevan dan diminta (seperti berkas .docx, .pptx, .xlsx, atau aplikasi web). Jangan jadikan skrip python pembantu sementara sebagai file unduhan utama, kecuali bila pengguna meminta kode/skrip atau meminta semua berkas.
+2. Setiap kali Anda membuat aplikasi web (HTML/CSS/JS), selalu panggil <screenshot target="index.html" /> agar tangkapan layarnya langsung tampil di obrolan pengguna!
 
 PETUNJUK KEAHLIAN MASTER OFFICE & KURVA GRAFIK (.DOCX, .PPTX, .XLSX, MATPLOTLIB):
 Pustaka Python 'python-docx', 'python-pptx', 'openpyxl', 'matplotlib', 'numpy', dan 'pandas' SUDAH TERPASANG di sistem dan siap dieksekusi!
@@ -811,10 +874,18 @@ Berkas 'SKILL.md' telah disiapkan di dalam workspace sandbox berisi panduan sint
 
     const previewUrl = hasPreview ? `/api/agent/preview/${sessionId}/${previewFile}` : null;
 
-    addStep('finish', 'Verifikasi Selesai', `Seluruh tugas berhasil dieksekusi dengan ${finalFiles.length} berkas aktif di sandbox.`, 'running');
-    updateLastStep('completed', `Seluruh tugas berhasil dieksekusi dengan ${finalFiles.length} berkas aktif di sandbox.`, {
-      totalFiles: finalFiles.length,
-      previewUrl
+    // Capture or resolve visual preview (screenshot of HTML or chart image)
+    const visualPreview = await agentScreenshotService.getSessionVisualPreview(sessionId);
+    const screenshotUrl = visualPreview ? visualPreview.url : null;
+
+    // Filter deliverables intelligently based on user prompt (AI Cerdas)
+    const relevantFiles = agentSandboxService.getRelevantDeliverables(finalFiles, prompt);
+
+    addStep('finish', 'Verifikasi Selesai', `Seluruh tugas berhasil dieksekusi dengan ${relevantFiles.length} berkas utama siap diunduh.`, 'running');
+    updateLastStep('completed', `Seluruh tugas berhasil dieksekusi dengan ${relevantFiles.length} berkas utama siap diunduh.`, {
+      totalFiles: relevantFiles.length,
+      previewUrl,
+      screenshotUrl
     });
 
     // Save final assistant message to DB
@@ -826,8 +897,8 @@ Berkas 'SKILL.md' telah disiapkan di dalam workspace sandbox berisi panduan sint
       'assistant',
       accumulatedAnswer,
       chainOfWork,
-      finalFiles,
-      previewUrl
+      relevantFiles,
+      screenshotUrl || previewUrl
     );
 
     // Emit final 'done' event
@@ -835,8 +906,10 @@ Berkas 'SKILL.md' telah disiapkan di dalam workspace sandbox berisi panduan sint
       messageId: botMsgId,
       content: accumulatedAnswer,
       chainOfWork,
-      files: finalFiles,
-      previewUrl
+      files: relevantFiles,
+      allFiles: finalFiles,
+      previewUrl,
+      screenshotUrl
     });
 
     res.end();

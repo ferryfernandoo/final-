@@ -30,6 +30,8 @@ function getPillConfig(type) {
       return { icon: 'fa-solid fa-circle-check', color: '#16a34a', bg: '#dcfce7', label: 'Pemeriksaan Berkas' };
     case 'thought':
       return { icon: 'fa-solid fa-lightbulb', color: '#eab308', bg: '#fef9c3', label: 'Catatan Rencana' };
+    case 'screenshot':
+      return { icon: 'fa-solid fa-camera-retro', color: '#e11d48', bg: '#ffe4e6', label: 'Tangkapan Layar' };
     case 'preview':
       return { icon: 'fa-solid fa-eye', color: '#7c3aed', bg: '#f3e8ff', label: 'Visual Preview' };
     default:
@@ -37,7 +39,7 @@ function getPillConfig(type) {
   }
 }
 
-function InlineActionPill({ id, type, title, meta, status = 'completed', detail, onSelectFile, onOpenDrawer }) {
+function InlineActionPill({ id, type, title, meta, status = 'completed', detail, sessionId, onSelectFile, onOpenDrawer }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const config = getPillConfig(type);
@@ -106,6 +108,18 @@ function InlineActionPill({ id, type, title, meta, status = 'completed', detail,
                 <i className="fa-solid fa-code" />
                 <span>Buka di Editor</span>
               </button>
+            )}
+            {type === 'screenshot' && sessionId && (
+              <a
+                href={`/api/agent/screenshot/${sessionId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="agent-pill-action-btn"
+                style={{ textDecoration: 'none' }}
+              >
+                <i className="fa-solid fa-image" />
+                <span>Buka Tangkapan Layar</span>
+              </a>
             )}
           </div>
         </div>
@@ -186,6 +200,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const [activeChainOfWork, setActiveChainOfWork] = useState([]);
   const [expandedChains, setExpandedChains] = useState({});
   const toggleChain = (id) => setExpandedChains(prev => ({ ...prev, [id]: !prev[id] }));
+
+  // Expandable files map for internal/extra files toggle
+  const [showAllFilesMap, setShowAllFilesMap] = useState({});
+  const toggleShowAllFiles = (id) => setShowAllFilesMap(prev => ({ ...prev, [id]: !prev[id] }));
 
   // File Attachment & Upload State
   const [uploadedAttachments, setUploadedAttachments] = useState([]);
@@ -371,16 +389,19 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 content: payload.content || m.content,
                 chainOfWork: payload.chainOfWork || m.chainOfWork,
                 sandboxFiles: payload.files || m.sandboxFiles,
-                screenshotUrl: payload.previewUrl
+                allFiles: payload.allFiles || payload.files || m.sandboxFiles,
+                screenshotUrl: payload.screenshotUrl || payload.previewUrl,
+                previewUrl: payload.previewUrl
               };
             }
             return m;
           }));
           setActiveChainOfWork([]);
 
-          if (payload.files) {
-            setSandboxFiles(payload.files);
-            const html = payload.files.find(f => f.ext === 'html');
+          const filesList = payload.allFiles || payload.files;
+          if (filesList) {
+            setSandboxFiles(filesList);
+            const html = filesList.find(f => f.ext === 'html');
             if (html) {
               setPreviewUrl(`/api/agent/preview/${currentSessionId}/${html.path}`);
               setPreviewKey(Date.now());
@@ -863,6 +884,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               meta={segment.meta}
                               status={segment.status}
                               detail={segment.detail}
+                              sessionId={currentSessionId}
                               onSelectFile={handleSelectFile}
                               onOpenDrawer={(tab) => {
                                 setActiveDrawerTab(tab);
@@ -884,18 +906,103 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     </div>
                   )}
 
-                  {/* Interactive Downloadable File Deliverables */}
+                  {/* Screenshot / Visual Result Preview Card */}
+                  {msg.role === 'assistant' && (msg.screenshotUrl || (msg.sandboxFiles || []).some(f => f.name === 'screenshot.png' || f.name === 'preview.png')) && (() => {
+                    const ssUrl = msg.screenshotUrl || `/api/agent/screenshot/${currentSessionId}?t=${Date.now()}`;
+                    return (
+                      <div className="agent-msg-screenshot-preview">
+                        <div className="agent-screenshot-preview-header">
+                          <div className="agent-screenshot-header-left">
+                            <i className="fa-solid fa-camera-retro" style={{ color: '#ea580c' }} />
+                            <span className="agent-screenshot-title">Tangkapan Layar Hasil Kodingan</span>
+                            <span className="agent-screenshot-badge">Live Capture</span>
+                          </div>
+                          <div className="agent-screenshot-header-right">
+                            <a
+                              href={ssUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="agent-screenshot-btn is-zoom"
+                              title="Buka gambar resolusi penuh di tab baru"
+                            >
+                              <i className="fa-solid fa-up-right-and-down-left-from-center" />
+                              <span>Ukuran Penuh</span>
+                            </a>
+                            {(msg.previewUrl || previewUrl) && (
+                              <button
+                                type="button"
+                                className="agent-screenshot-btn is-live"
+                                onClick={() => {
+                                  if (msg.previewUrl) setPreviewUrl(msg.previewUrl);
+                                  setActiveDrawerTab('preview');
+                                  setIsDrawerOpen(true);
+                                }}
+                                title="Buka live web interaktif"
+                              >
+                                <i className="fa-solid fa-globe" />
+                                <span>Buka Live Web</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          className="agent-screenshot-img-container"
+                          onClick={() => window.open(ssUrl, '_blank')}
+                          title="Klik untuk melihat resolusi penuh"
+                        >
+                          <img
+                            src={ssUrl}
+                            alt="Tangkapan layar hasil kodingan"
+                            className="agent-screenshot-img"
+                            loading="lazy"
+                            onError={(e) => {
+                              if (e.currentTarget?.parentElement?.parentElement) {
+                                e.currentTarget.parentElement.parentElement.style.display = 'none';
+                              }
+                            }}
+                          />
+                          <div className="agent-screenshot-zoom-overlay">
+                            <i className="fa-solid fa-magnifying-glass-plus" />
+                            <span>Klik untuk memperbesar gambar</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Interactive Downloadable File Deliverables (AI Cerdas) */}
                   {msg.role === 'assistant' && (() => {
-                    const deliverables = (msg.sandboxFiles || []).filter(f => 
+                    const allSessionFiles = msg.allFiles || sandboxFiles || [];
+                    const primaryDeliverables = (msg.sandboxFiles || []).filter(f => 
                       f.path !== 'SKILL.md' && !f.path.startsWith('_runner_temp')
                     );
-                    if (deliverables.length === 0) return null;
+                    
+                    if (primaryDeliverables.length === 0 && allSessionFiles.length === 0) return null;
+
+                    const extraFiles = allSessionFiles.filter(f => 
+                      f.path !== 'SKILL.md' && 
+                      !f.path.startsWith('_runner_temp') &&
+                      !f.path.endsWith('.pyc') &&
+                      !f.path.includes('__pycache__') &&
+                      !primaryDeliverables.some(p => p.path === f.path)
+                    );
+
+                    const isExtraExpanded = !!showAllFilesMap[msg.id];
+                    const filesToShow = isExtraExpanded 
+                      ? [...primaryDeliverables, ...extraFiles] 
+                      : primaryDeliverables;
+
+                    if (filesToShow.length === 0) return null;
+
                     return (
                       <div className="agent-msg-files-section">
                         <div className="agent-msg-files-header">
                           <div className="agent-msg-files-title">
                             <i className="fa-solid fa-file-circle-check" style={{ color: '#ea580c' }} />
-                            <span>Berkas yang Dibuat AI ({deliverables.length})</span>
+                            <span>Berkas yang Dibuat AI ({primaryDeliverables.length})</span>
+                            <span className="agent-smart-filter-badge" title="AI secara otomatis menyaring berkas yang relevan dengan instruksi Anda">
+                              <i className="fa-solid fa-wand-magic-sparkles" /> AI Cerdas: Relevan
+                            </span>
                           </div>
                           <button 
                             className="agent-zip-download-btn"
@@ -908,16 +1015,20 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                         </div>
 
                         <div className="agent-msg-files-grid">
-                          {deliverables.map((file) => {
+                          {filesToShow.map((file) => {
                             const iconMeta = getFileIcon(file.ext);
+                            const isExtra = !primaryDeliverables.some(p => p.path === file.path);
                             return (
-                              <div key={file.path} className="agent-msg-file-card">
+                              <div key={file.path} className={`agent-msg-file-card ${isExtra ? 'is-extra-file' : ''}`}>
                                 <div className="agent-msg-file-info">
                                   <div className="agent-file-icon-box">
                                     <i className={iconMeta.icon} style={{ color: iconMeta.color }} />
                                   </div>
                                   <div className="agent-msg-file-meta">
-                                    <span className="agent-msg-file-name" title={file.path}>{file.name}</span>
+                                    <span className="agent-msg-file-name" title={file.path}>
+                                      {file.name}
+                                      {isExtra && <span className="agent-extra-badge">internal</span>}
+                                    </span>
                                     <span className="agent-msg-file-size">
                                       {file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'}
                                     </span>
@@ -960,6 +1071,23 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                             );
                           })}
                         </div>
+
+                        {extraFiles.length > 0 && (
+                          <div className="agent-extra-files-toggle-wrap">
+                            <button
+                              type="button"
+                              className="agent-extra-files-toggle-btn"
+                              onClick={() => toggleShowAllFiles(msg.id)}
+                            >
+                              <i className={`fa-solid fa-chevron-${isExtraExpanded ? 'up' : 'down'}`} />
+                              <span>
+                                {isExtraExpanded 
+                                  ? `Sembunyikan ${extraFiles.length} berkas teknis/internal` 
+                                  : `Tampilkan Semua Berkas Sandbox (+${extraFiles.length} berkas teknis/internal)`}
+                              </span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}

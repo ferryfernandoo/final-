@@ -44,6 +44,8 @@ Language: Indonesian (Warm, Conversational, Professional, Highly Detailed)
   Mengeksekusi kode langsung di sandbox dan menangkap output stdout/stderr.
 - \`<check_file path="nama_file.ext" />\`
   Memverifikasi keberadaan dan ukuran berkas di disk sandbox.
+- \`<screenshot target="index.html" />\`
+  Mengambil tangkapan layar (screenshot visual) dari aplikasi web / berkas HTML dan menampilkannya di obrolan pengguna.
 - \`<preview>index.html</preview>\`
   Menetapkan live web preview (khusus proyek aplikasi web).
 
@@ -617,7 +619,7 @@ export function extractSequentialActions(text) {
   const writtenPaths = new Set();
 
   // Unified tag regex matching paired or self-closing action tags
-  const tagRegex = /<(thought|read_file|read|search_web|search|run_command|command|terminal|write_file|file|execute_code|run_code|check_file|verify_file|preview)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|search_web|search|check_file|verify_file)\s+([^>]*?)\/?>/gi;
+  const tagRegex = /<(thought|read_file|read|search_web|search|run_command|command|terminal|write_file|file|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|search_web|search|check_file|verify_file|screenshot|take_screenshot)\s+([^>]*?)\/?>/gi;
 
   let match;
   while ((match = tagRegex.exec(text)) !== null) {
@@ -655,6 +657,9 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'check_file' || tagName === 'verify_file') {
         const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
         actions.push({ type: 'check_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'screenshot' || tagName === 'take_screenshot') {
+        const targetPath = getAttr('target') || getAttr('path') || body.split('\n')[0].trim() || 'index.html';
+        actions.push({ type: 'screenshot', target: targetPath, rawMatch, index });
       } else if (tagName === 'preview') {
         actions.push({ type: 'preview', entryFile: body || 'index.html', rawMatch, index });
       }
@@ -677,6 +682,9 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'check_file' || tagName === 'verify_file') {
         const filePath = getAttr('path') || getAttr('file');
         actions.push({ type: 'check_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'screenshot' || tagName === 'take_screenshot') {
+        const targetPath = getAttr('target') || getAttr('path') || 'index.html';
+        actions.push({ type: 'screenshot', target: targetPath, rawMatch, index });
       }
     }
   }
@@ -732,7 +740,7 @@ export function extractSequentialActions(text) {
  */
 export function extractAgentActions(text) {
   const actions = extractSequentialActions(text);
-  const cleanSummary = text
+  const cleanSummary = (text || '')
     .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
     .replace(/<(?:write_file|file)[\s\S]*?<\/(?:write_file|file)>/gi, '')
     .replace(/<execute_code[\s\S]*?<\/execute_code>/gi, '')
@@ -740,11 +748,63 @@ export function extractAgentActions(text) {
     .replace(/<preview>[\s\S]*?<\/preview>/gi, '')
     .replace(/<read_file[^>]*>(?:[\s\S]*?<\/read_file>)?/gi, '')
     .replace(/<search_web[^>]*>(?:[\s\S]*?<\/search_web>)?/gi, '')
-    .replace(/<check_file[^>]*>(?:[\s\S]*?<\/check_file>)?/gi, '')
-    .replace(/\((?:do|do_search)\)\s*/gi, '')
     .trim();
 
-  return { actions, cleanSummary };
+  return { actions, summary: cleanSummary };
+}
+/**
+ * Filter files intelligently based on user prompt and deliverables:
+ * 1. Exclude internal system files: SKILL.md, *.pyc, __pycache__, _runner_temp*
+ * 2. If prompt asks for "semua" / "all" / "seluruh berkas" -> return all clean files
+ * 3. If primary office document exists (.docx, .pptx, .xlsx, .pdf):
+ *    -> Only return those documents! (Suppress generator scripts like generate_ppt.py, generate_docx.py, chart.png)
+ *    -> Unless the prompt specifically asked for code/script!
+ * 4. If web project exists (index.html, style.css, app.js, screenshot.png):
+ *    -> Return web files and screenshot
+ */
+export function getRelevantDeliverables(files = [], userPrompt = '') {
+  const promptLower = (userPrompt || '').toLowerCase();
+  const wantAll = /\b(semua|all|seluruh|lengkap|arsip|zip|semuanya)\b/i.test(promptLower);
+  const wantCode = /\b(script|skrip|kode|codingan|program|python|javascript|node|source\s*code)\b/i.test(promptLower);
+
+  // Exclude system and cache files always
+  const cleanFiles = (files || []).filter(f => {
+    if (!f || !f.name) return false;
+    if (f.name === 'SKILL.md') return false;
+    if (f.name.startsWith('_runner_temp')) return false;
+    if (f.ext === 'pyc' || (f.path && f.path.includes('__pycache__'))) return false;
+    if (f.name === '.DS_Store' || f.name === 'Thumbs.db') return false;
+    return true;
+  });
+
+  if (wantAll) {
+    return cleanFiles;
+  }
+
+  // Check if primary office/export documents exist (.docx, .pptx, .xlsx, .pdf, .csv)
+  const officeDocs = cleanFiles.filter(f => ['docx', 'pptx', 'xlsx', 'pdf', 'csv'].includes(f.ext));
+  if (officeDocs.length > 0) {
+    if (wantCode) {
+      return cleanFiles;
+    }
+    // Only return the office documents! (The generator scripts and temp charts are suppressed)
+    return officeDocs;
+  }
+
+  // Check if web project exists
+  const hasHtml = cleanFiles.some(f => f.ext === 'html');
+  if (hasHtml) {
+    const webFiles = cleanFiles.filter(f => 
+      ['html', 'css', 'js', 'json', 'svg', 'png', 'jpg', 'webp'].includes(f.ext) &&
+      !f.name.startsWith('generate_') &&
+      !f.name.startsWith('buat_')
+    );
+    return webFiles.length > 0 ? webFiles : cleanFiles;
+  }
+
+  // If specific python/node scripts or files were requested
+  const outputFiles = cleanFiles.filter(f => !f.name.startsWith('_runner_temp'));
+  return outputFiles;
 }
 
 export default {
@@ -757,5 +817,6 @@ export default {
   executeInSandbox,
   extractSequentialActions,
   extractAgentActions,
+  getRelevantDeliverables,
   DEFAULT_SKILL_MD
 };
