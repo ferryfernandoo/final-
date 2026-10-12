@@ -239,6 +239,8 @@ class AgentService {
     model = 'deepernova-gold-1.5',
     history = [],
     signal,
+    onDelta,
+    onFilesUpdate,
     onStep,
     onStepUpdate,
     onDone,
@@ -297,7 +299,11 @@ class AgentService {
           if (eventData) {
             try {
               const parsed = JSON.parse(eventData);
-              if (eventType === 'step' && onStep) {
+              if (eventType === 'delta' && onDelta) {
+                onDelta(parsed.content || '');
+              } else if (eventType === 'files_update' && onFilesUpdate) {
+                onFilesUpdate(parsed.files || []);
+              } else if (eventType === 'step' && onStep) {
                 onStep(parsed);
               } else if (eventType === 'step_update' && onStepUpdate) {
                 onStepUpdate(parsed);

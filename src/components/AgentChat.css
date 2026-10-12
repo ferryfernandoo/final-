@@ -1834,4 +1834,29 @@
   word-break: break-word;
 }
 
+/* Streaming live indicators */
+.agent-streaming-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #64748b;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.agent-typing-cursor {
+  display: inline-block;
+  color: #ea580c;
+  font-weight: 700;
+  margin-left: 2px;
+  animation: agentCursorBlink 0.8s infinite;
+  vertical-align: baseline;
+}
+
+@keyframes agentCursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 

@@ -292,7 +292,18 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       createdAt: new Date().toISOString()
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    const botMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const initialBotMsg = {
+      id: botMsgId,
+      role: 'assistant',
+      content: '',
+      isStreaming: true,
+      chainOfWork: [],
+      sandboxFiles: [],
+      createdAt: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMsg, initialBotMsg]);
     setTimeout(() => scrollToBottom(true), 50);
 
     const abortController = new AbortController();
@@ -305,31 +316,67 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         model: 'deepernova-gold-1.5',
         history: messages,
         signal: abortController.signal,
+        onDelta: (chunk) => {
+          setMessages(prev => prev.map(m => {
+            if (m.id === botMsgId) {
+              return { ...m, content: (m.content || '') + chunk };
+            }
+            return m;
+          }));
+          scrollToBottom(true);
+        },
+        onFilesUpdate: (newFiles) => {
+          setSandboxFiles(newFiles);
+          setMessages(prev => prev.map(m => {
+            if (m.id === botMsgId) {
+              return { ...m, sandboxFiles: newFiles };
+            }
+            return m;
+          }));
+          const html = newFiles.find(f => f.ext === 'html');
+          if (html) {
+            setPreviewUrl(`/api/agent/preview/${currentSessionId}/${html.path}`);
+          }
+        },
         onStep: (step) => {
+          setMessages(prev => prev.map(m => {
+            if (m.id === botMsgId) {
+              const currentCow = m.chainOfWork || [];
+              return { ...m, chainOfWork: [...currentCow, step] };
+            }
+            return m;
+          }));
           setActiveChainOfWork(prev => [...prev, step]);
           scrollToBottom(true);
         },
         onStepUpdate: (updatedStep) => {
+          setMessages(prev => prev.map(m => {
+            if (m.id === botMsgId) {
+              const currentCow = (m.chainOfWork || []).map(s => s.id === updatedStep.id ? updatedStep : s);
+              return { ...m, chainOfWork: currentCow };
+            }
+            return m;
+          }));
           setActiveChainOfWork(prev => prev.map(s => s.id === updatedStep.id ? updatedStep : s));
           scrollToBottom(true);
         },
         onDone: (payload) => {
           setIsExecuting(false);
-          const botMsg = {
-            id: payload.messageId || `bot_${Date.now()}`,
-            role: 'assistant',
-            content: payload.content,
-            chainOfWork: payload.chainOfWork || [],
-            sandboxFiles: payload.files || [],
-            screenshotUrl: payload.previewUrl,
-            createdAt: new Date().toISOString()
-          };
-
-          setMessages(prev => [...prev, botMsg]);
+          setMessages(prev => prev.map(m => {
+            if (m.id === botMsgId) {
+              return {
+                ...m,
+                id: payload.messageId || m.id,
+                isStreaming: false,
+                content: payload.content || m.content,
+                chainOfWork: payload.chainOfWork || m.chainOfWork,
+                sandboxFiles: payload.files || m.sandboxFiles,
+                screenshotUrl: payload.previewUrl
+              };
+            }
+            return m;
+          }));
           setActiveChainOfWork([]);
-          if (botMsg.chainOfWork && botMsg.chainOfWork.length > 0) {
-            setExpandedChains(prev => ({ ...prev, [botMsg.id]: true }));
-          }
 
           if (payload.files) {
             setSandboxFiles(payload.files);
@@ -341,25 +388,30 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           }
 
           // Update sidebar title if first turn
-          if (messages.length === 0) {
+          if (messages.length <= 1) {
             setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: textToSend.slice(0, 35) } : s));
           }
 
-          setTimeout(() => scrollToBottom(true), 100);
+          setTimeout(() => scrollToBottom(true), 80);
         },
         onError: (errPayload) => {
           setIsExecuting(false);
-          const errorMsg = {
-            id: `bot_err_${Date.now()}`,
-            role: 'assistant',
-            content: `⚠️ Kendala eksekusi agent: ${errPayload.error || 'Terjadi kesalahan tidak terduga.'}`,
-            createdAt: new Date().toISOString()
-          };
-          setMessages(prev => [...prev, errorMsg]);
+          setMessages(prev => prev.map(m => {
+            if (m.id === botMsgId) {
+              return {
+                ...m,
+                isStreaming: false,
+                content: (m.content ? m.content + '\n\n' : '') + `⚠️ Kendala eksekusi agent: ${errPayload.error || 'Terjadi kesalahan tidak terduga.'}`
+              };
+            }
+            return m;
+          }));
+          setActiveChainOfWork([]);
           scrollToBottom(true);
         }
       });
     } catch (err) {
+      if (err.name === 'AbortError') return;
       setIsExecuting(false);
     }
   };
@@ -367,8 +419,19 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const handleStopExecution = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      setIsExecuting(false);
     }
+    setIsExecuting(false);
+    setMessages(prev => prev.map(m => {
+      if (m.isStreaming) {
+        return {
+          ...m,
+          isStreaming: false,
+          content: (m.content || '') + '\n\n*(Proses dihentikan oleh pengguna)*'
+        };
+      }
+      return m;
+    }));
+    setActiveChainOfWork([]);
   };
 
   // 6. Sandbox File Editor Actions
@@ -740,7 +803,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                         <div className="agent-cow-trigger-left">
                           <i className="fa-solid fa-bolt" style={{ color: '#ea580c', fontSize: 11 }} />
                           <span className="agent-cow-title">
-                            {msg.chainOfWork.length} langkah kerja selesai
+                            {msg.isStreaming ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c', fontSize: 10 }} />
+                                <span>{msg.chainOfWork[msg.chainOfWork.length - 1]?.title || 'Sedang memproses tugas...'}</span>
+                              </span>
+                            ) : (
+                              `${msg.chainOfWork.length} langkah kerja selesai`
+                            )}
                           </span>
                         </div>
                         <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 10, color: '#94a3b8' }} />
@@ -753,7 +823,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               <div className="agent-cow-step-bullet">
                                 {step.status === 'completed' && <i className="fa-solid fa-check" style={{ color: '#10b981' }} />}
                                 {step.status === 'failed' && <i className="fa-solid fa-xmark" style={{ color: '#ef4444' }} />}
-                                {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#3b82f6' }} />}
+                                {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />}
                               </div>
                               <div className="agent-cow-step-info">
                                 <div className="agent-cow-step-name">{step.title}</div>
@@ -776,6 +846,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     </ReactMarkdown>
                   ) : (
                     <div className="agent-msg-body">
+                      {msg.isStreaming && !msg.content?.trim() && (
+                        <div className="agent-streaming-placeholder">
+                          <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />
+                          <span>Deepernova AI sedang merancang & menyusun jawaban...</span>
+                        </div>
+                      )}
                       {parseContentWithPills(msg.content).map((segment, sIdx) => {
                         if (segment.type === 'pill') {
                           return (
@@ -802,6 +878,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                           </ReactMarkdown>
                         );
                       })}
+                      {msg.isStreaming && msg.content?.trim() && (
+                        <span className="agent-typing-cursor">▌</span>
+                      )}
                     </div>
                   )}
 
@@ -933,58 +1012,6 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               </div>
             </div>
           ))}
-
-          {/* Real-time Transparent Live Chain-of-Work Tracker */}
-          {isExecuting && activeChainOfWork.length > 0 && (
-            <div className="agent-msg-row is-bot">
-              <div className="agent-msg-avatar">
-                <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
-              </div>
-              <div className="agent-msg-content" style={{ width: '100%', maxWidth: 760 }}>
-                <div className="agent-live-work-card">
-                  <div className="agent-live-work-header">
-                    <div className="agent-live-work-header-left">
-                      <span className="agent-live-work-pulse">
-                        <i className="fa-solid fa-circle-notch fa-spin" />
-                      </span>
-                      <div>
-                        <div className="agent-live-work-heading">AI Agent Sedang Bekerja Secara Otonom</div>
-                        <div className="agent-live-work-current">
-                          {activeChainOfWork[activeChainOfWork.length - 1]?.title || 'Memproses tugas...'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="agent-live-work-counter">
-                      <span className="agent-live-counter-num">
-                        {activeChainOfWork.filter(s => s.status === 'completed').length} / {activeChainOfWork.length}
-                      </span>
-                      <span className="agent-live-counter-label">selesai</span>
-                    </div>
-                  </div>
-
-                  <div className="agent-live-work-step-list">
-                    {activeChainOfWork.map((step, idx) => (
-                      <div key={step.id || idx} className={`agent-live-step-row is-${step.status}`}>
-                        <div className="agent-live-step-icon">
-                          {step.status === 'completed' && <i className="fa-solid fa-check" style={{ color: '#10b981' }} />}
-                          {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />}
-                          {step.status === 'failed' && <i className="fa-solid fa-xmark" style={{ color: '#ef4444' }} />}
-                        </div>
-                        <div className="agent-live-step-body">
-                          <div className="agent-live-step-title">{step.title}</div>
-                          {step.detail && (
-                            <div className="agent-live-step-detail">
-                              {step.detail.length > 140 ? step.detail.slice(0, 140) + '...' : step.detail}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div ref={messagesEndRef} />
         </div>
