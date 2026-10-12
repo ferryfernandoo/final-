@@ -38,7 +38,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   // Live Chain of Work Accordion state for active turn
   const [activeChainOfWork, setActiveChainOfWork] = useState([]);
-  const [collapsedChains, setCollapsedChains] = useState({});
+  const [expandedChains, setExpandedChains] = useState({});
+  const toggleChain = (id) => setExpandedChains(prev => ({ ...prev, [id]: !prev[id] }));
 
   // File Attachment & Upload State
   const [uploadedAttachments, setUploadedAttachments] = useState([]);
@@ -349,7 +350,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 14.5, fontWeight: 800, color: '#0f172a', lineHeight: 1.15 }}>Deepernova</span>
-              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: '#ea580c', letterSpacing: '0.5px' }}>AI Agent Sandbox</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: '#ea580c', letterSpacing: '0.5px' }}>AI Agent</span>
             </div>
           </div>
           {typeof window !== 'undefined' && window.innerWidth < 768 && (
@@ -411,7 +412,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {user?.name || 'Developer'}
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>AI Agent Sandbox</div>
+              <div style={{ fontSize: 11, color: '#64748b' }}>AI Agent</div>
             </div>
           </div>
           <button
@@ -432,9 +433,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             <button className="agent-sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
               <i className="fa-solid fa-bars" />
             </button>
-            <div className="agent-model-pill">
-              <i className="fa-solid fa-circle-dot" style={{ color: '#10b981', fontSize: 10 }} />
-              <span>Deepernova Agent 2.5 (Sandbox Ready)</span>
+            <div className="agent-header-brand-clean">
+              <span className="agent-header-brand-title">Deepernova AI</span>
+              <span className="agent-header-brand-badge">Agent</span>
             </div>
           </div>
 
@@ -564,39 +565,47 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 )}
               </div>
               <div className="agent-msg-content">
-                {/* Chain of Work Accordion if attached to this assistant message */}
-                {msg.chainOfWork && msg.chainOfWork.length > 0 && (
-                  <div className="agent-chain-container">
-                    <div
-                      className="agent-chain-header"
-                      onClick={() => setCollapsedChains(prev => ({ ...prev, [msg.id]: !prev[msg.id] }))}
-                    >
-                      <h4>
-                        <i className="fa-solid fa-list-check" />
-                        <span>Chain-of-Work: {msg.chainOfWork.length} Langkah Selesai</span>
-                      </h4>
-                      <i className={`fa-solid fa-chevron-${collapsedChains[msg.id] ? 'down' : 'up'}`} style={{ color: '#64748b', fontSize: 11 }} />
-                    </div>
+                {/* Minimalist Chain of Work: simple title by default, click to open details */}
+                {msg.chainOfWork && msg.chainOfWork.length > 0 && (() => {
+                  const isExpanded = !!expandedChains[msg.id];
+                  return (
+                    <div className="agent-simple-cow">
+                      <button
+                        type="button"
+                        className={`agent-cow-trigger ${isExpanded ? 'is-expanded' : ''}`}
+                        onClick={() => toggleChain(msg.id)}
+                      >
+                        <div className="agent-cow-trigger-left">
+                          <i className="fa-solid fa-bolt" style={{ color: '#ea580c', fontSize: 11 }} />
+                          <span className="agent-cow-title">
+                            {msg.chainOfWork.length} langkah kerja selesai
+                          </span>
+                        </div>
+                        <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 10, color: '#94a3b8' }} />
+                      </button>
 
-                    {!collapsedChains[msg.id] && (
-                      <div className="agent-chain-steps">
-                        {msg.chainOfWork.map((step, idx) => (
-                          <div key={idx} className={`agent-step-item is-${step.status}`}>
-                            <div className="agent-step-icon">
-                              {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#3b82f6' }} />}
-                              {step.status === 'completed' && <i className="fa-solid fa-circle-check" style={{ color: '#10b981' }} />}
-                              {step.status === 'failed' && <i className="fa-solid fa-circle-xmark" style={{ color: '#ef4444' }} />}
+                      {isExpanded && (
+                        <div className="agent-cow-drawer">
+                          {msg.chainOfWork.map((step, idx) => (
+                            <div key={idx} className={`agent-cow-step-row is-${step.status}`}>
+                              <div className="agent-cow-step-bullet">
+                                {step.status === 'completed' && <i className="fa-solid fa-check" style={{ color: '#10b981' }} />}
+                                {step.status === 'failed' && <i className="fa-solid fa-xmark" style={{ color: '#ef4444' }} />}
+                                {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#3b82f6' }} />}
+                              </div>
+                              <div className="agent-cow-step-info">
+                                <div className="agent-cow-step-name">{step.title}</div>
+                                {step.detail && (
+                                  <pre className="agent-cow-step-pre">{step.detail}</pre>
+                                )}
+                              </div>
                             </div>
-                            <div className="agent-step-content">
-                              <div className="agent-step-title">{step.title}</div>
-                              {step.detail && <div className="agent-step-detail">{step.detail}</div>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="agent-msg-bubble">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -732,34 +741,22 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             </div>
           ))}
 
-          {/* Real-time Streaming Active Chain-of-Work during generation */}
+          {/* Real-time Streaming Minimal Chain-of-Work during generation */}
           {isExecuting && activeChainOfWork.length > 0 && (
             <div className="agent-msg-row is-bot">
               <div className="agent-msg-avatar">
                 <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
               </div>
               <div className="agent-msg-content">
-                <div className="agent-chain-container" style={{ borderStyle: 'solid', borderColor: '#fed7aa' }}>
-                  <div className="agent-chain-header" style={{ background: '#fff7ed' }}>
-                    <h4>
-                      <i className="fa-solid fa-spinner fa-spin" style={{ color: '#ea580c' }} />
-                      <span style={{ color: '#c2410c' }}>AI Agent Sedang Bekerja di Sandbox...</span>
-                    </h4>
-                  </div>
-                  <div className="agent-chain-steps">
-                    {activeChainOfWork.map((step, idx) => (
-                      <div key={idx} className={`agent-step-item is-${step.status}`}>
-                        <div className="agent-step-icon">
-                          {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#3b82f6' }} />}
-                          {step.status === 'completed' && <i className="fa-solid fa-circle-check" style={{ color: '#10b981' }} />}
-                          {step.status === 'failed' && <i className="fa-solid fa-circle-xmark" style={{ color: '#ef4444' }} />}
-                        </div>
-                        <div className="agent-step-content">
-                          <div className="agent-step-title">{step.title}</div>
-                          {step.detail && <div className="agent-step-detail">{step.detail}</div>}
-                        </div>
-                      </div>
-                    ))}
+                <div className="agent-simple-cow is-running">
+                  <div className="agent-cow-trigger is-running">
+                    <div className="agent-cow-trigger-left">
+                      <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c', fontSize: 11 }} />
+                      <span className="agent-cow-title" style={{ color: '#0f172a' }}>
+                        {activeChainOfWork[activeChainOfWork.length - 1]?.title || 'AI Agent sedang bekerja...'}
+                      </span>
+                    </div>
+                    <span className="agent-cow-live-count">{activeChainOfWork.length} langkah</span>
                   </div>
                 </div>
               </div>
@@ -769,24 +766,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar */}
+        {/* Input Bar — Exactly Matching ChatBot Claude-Style */}
         <div className="agent-input-wrapper">
           <div className="agent-input-container">
-            <div className="agent-prompt-chips">
-              <button className="agent-prompt-chip" onClick={() => setInputValue('Buat aplikasi web to-do list modern dengan LocalStorage, animasi CSS, dan dark mode')}>
-                ⚡ Web To-Do App
-              </button>
-              <button className="agent-prompt-chip" onClick={() => setInputValue('Buat script Python untuk kalkulasi algoritma Fibonacci dan benchmark waktu eksekusinya')}>
-                🐍 Benchmark Python
-              </button>
-              <button className="agent-prompt-chip" onClick={() => setInputValue('Jalankan terminal command di sandbox untuk mengecek versi node dan file yang ada')}>
-                💻 Terminal Inspect
-              </button>
-              <button className="agent-prompt-chip" onClick={() => setInputValue('Buka dan evaluasi file SKILL.md apakah ada aturan baru yang perlu disesuaikan')}>
-                📜 Evaluasi SKILL.md
-              </button>
-            </div>
-
             {/* User Attachments Preview Chips */}
             {uploadedAttachments.length > 0 && (
               <div className="agent-upload-chips">
@@ -808,7 +790,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               </div>
             )}
 
-            <div className="agent-textarea-box">
+            <div className={`input-container claude-style ${isExecuting ? 'generating' : ''}`}>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -817,46 +799,66 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 style={{ display: 'none' }}
               />
 
-              <textarea
-                placeholder="Instruksikan AI Agent untuk membuat file, koding, atau mengeksekusi sandbox..."
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                disabled={isExecuting}
-              />
+              <div className="textarea-wrapper">
+                <textarea
+                  className="message-input"
+                  placeholder="Tanya Deepernova AI Agent..."
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  disabled={isExecuting}
+                  rows={1}
+                />
+              </div>
 
-              <div className="agent-input-actions">
-                <div className="agent-input-actions-left">
+              <div className="input-card-toolbar">
+                <div className="file-menu-container">
                   <button
                     type="button"
-                    className="agent-attach-btn"
+                    className="claude-attach-btn"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isExecuting || isUploading}
-                    title="Unggah berkas ke sandbox (Kode, Dokumen, Skrip, Data)"
+                    title="Opsi & Lampiran"
                   >
-                    <i className="fa-solid fa-paperclip" />
-                    <span>Lampirkan</span>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
                   </button>
-
-                  <span className="agent-input-tip">
-                    Tekan <b>Enter</b> untuk mengeksekusi otonom, <b>Shift+Enter</b> untuk baris baru
-                  </span>
                 </div>
 
-                {isExecuting ? (
-                  <button className="agent-send-btn is-running" onClick={handleStopExecution} title="Hentikan Eksekusi">
-                    <i className="fa-solid fa-square" />
-                  </button>
-                ) : (
-                  <button className="agent-send-btn" onClick={() => handleSendMessage()} disabled={!inputValue.trim() && uploadedAttachments.length === 0}>
-                    <i className="fa-solid fa-arrow-up" />
-                  </button>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {isExecuting ? (
+                    <button
+                      type="button"
+                      className="claude-action-btn stop-mode"
+                      onClick={handleStopExecution}
+                      title="Hentikan eksekusi"
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+                      </svg>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`claude-action-btn send-mode ${(inputValue.trim() || uploadedAttachments.length > 0) ? 'has-text' : 'empty'}`}
+                      onClick={() => handleSendMessage()}
+                      disabled={!inputValue.trim() && uploadedAttachments.length === 0}
+                      title="Kirim pesan"
+                    >
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="19" x2="12" y2="5"></line>
+                        <polyline points="5 12 12 5 19 12"></polyline>
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
