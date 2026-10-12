@@ -3242,19 +3242,23 @@ app.post('/api/chat', async (req, res) => {
         req.on('aborted', handleClientDisconnect);
         res.on('close', handleClientDisconnect);
 
-        // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & NO REFUSALS)
-        let selectedModel = 'doubao-seed-2.0-lite';
+        // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & IMMEDIATE FIRST-TOKEN STREAMING)
+        let selectedModel = 'llama-4-maverick';
         const reqModelLower = (requestedModel || '').toLowerCase();
+        const enableReasoning = req.body.enableReasoning === true || reqModelLower.includes('reason') || reqModelLower.includes('think') || reqModelLower.includes('boron');
+
         if (hasImagesInPayload) {
           selectedModel = 'llama-4-maverick';
           console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
-        } else if (reqModelLower.includes('70b') || reqModelLower.includes('reason') || reqModelLower.includes('pure')) {
+        } else if (reqModelLower.includes('70b')) {
           selectedModel = 'llama-3.3-70b';
-        } else {
-          // Default ALL general chat (including Gold 1.5, Silicon 1.4, Boron) to doubao-seed-2.0-lite for instant response (<400ms)
+        } else if (enableReasoning) {
           selectedModel = 'doubao-seed-2.0-lite';
+        } else {
+          // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to llama-4-maverick for instant zero-lag response
+          selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
         }
-        console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Vision: ${hasImagesInPayload})`);
+        console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Reasoning: ${enableReasoning}, Vision: ${hasImagesInPayload})`);
 
         // 1. Try High-Speed AI Engine with Key Rotation across all active keys
         if (TOKENMIX_API_KEYS.length > 0) {
@@ -3276,11 +3280,12 @@ app.post('/api/chat', async (req, res) => {
                   body: JSON.stringify({
                     model: selectedModel,
                     messages: messages,
-                    temperature: req.body.temperature || 0.5,
+                    temperature: req.body.temperature || 0.6,
                     max_tokens: req.body.max_tokens || 4096,
                     presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
                     frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
                     stream: shouldStream,
+                    ...(selectedModel.includes('doubao') && !enableReasoning ? { reasoning_effort: 'none' } : {})
                   }),
                 });
 
