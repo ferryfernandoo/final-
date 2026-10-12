@@ -283,15 +283,17 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       {/* ===== SIDEBAR ===== */}
       <aside className={`agent-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="agent-sidebar-header">
-          <div className="agent-sidebar-brand">
-            <img src="/logo.png" alt="Deepernova AI" style={{ width: 24, height: 24, borderRadius: 6 }} />
-            <span>AI Agent</span>
-            <span className="agent-brand-badge">SANDBOX</span>
+          <div className="agent-sidebar-brand" onClick={() => onNavigate?.('landing')}>
+            <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#0f172a', lineHeight: 1.15 }}>Deepernova</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: '#ea580c', letterSpacing: '0.5px' }}>AI Agent Sandbox</span>
+            </div>
           </div>
           {typeof window !== 'undefined' && window.innerWidth < 768 && (
             <button
               onClick={() => setSidebarOpen(false)}
-              style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 18, cursor: 'pointer' }}
+              style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 18, cursor: 'pointer' }}
             >
               ✕
             </button>
@@ -321,8 +323,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               onClick={() => selectSession(session.id)}
             >
               <div className="agent-session-title">
-                <i className="fa-solid fa-bolt" style={{ marginRight: 8, fontSize: 11, opacity: 0.7 }} />
-                {session.title || 'Tugas Otonom AI'}
+                <i className="fa-solid fa-bolt" style={{ color: '#ea580c', fontSize: 11 }} />
+                <span>{session.title || 'Tugas Otonom AI'}</span>
               </div>
               <button
                 className="agent-session-delete"
@@ -338,21 +340,21 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         <div className="agent-sidebar-footer">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: '50%', background: '#3b82f6',
+              width: 32, height: 32, borderRadius: '50%', background: '#ea580c', color: '#ffffff',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13
             }}>
               {(user?.name || user?.email || 'A')[0].toUpperCase()}
             </div>
             <div style={{ overflow: 'hidden', maxWidth: 140 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {user?.name || 'Developer'}
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>Mode Otonom Aktif</div>
+              <div style={{ fontSize: 11, color: '#64748b' }}>AI Agent Sandbox</div>
             </div>
           </div>
           <button
             onClick={() => onNavigate?.('landing')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 6, fontSize: 14 }}
+            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 6, fontSize: 15 }}
             title="Kembali ke Beranda"
           >
             <i className="fa-solid fa-arrow-right-from-bracket" />
@@ -440,7 +442,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         <div className="agent-messages-container">
           {messages.length === 0 && activeChainOfWork.length === 0 && (
             <div className="agent-welcome">
-              <div className="agent-welcome-icon">⚡</div>
+              <img src="/logo.png" alt="Deepernova AI" style={{ width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px', display: 'block', boxShadow: '0 4px 16px rgba(234, 88, 12, 0.2)' }} />
               <h2>Deepernova Autonomous AI Agent</h2>
               <p>
                 Agent cerdas berkemampuan koding penuh dengan eksekusi sandbox nyata.
@@ -453,7 +455,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   className="agent-starter-card"
                   onClick={() => handleSendMessage('Buat kalkulator modern interaktif lengkap dengan HTML, CSS, dan JavaScript lalu jalankan di sandbox.')}
                 >
-                  <h4><i className="fa-solid fa-calculator" style={{ color: '#38bdf8' }} /> Kalkulator Modern</h4>
+                  <h4><i className="fa-solid fa-calculator" style={{ color: '#ea580c' }} /> Kalkulator Modern</h4>
                   <p>Aplikasi web interaktif dengan tombol estetik dan live preview.</p>
                 </div>
 
@@ -461,7 +463,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   className="agent-starter-card"
                   onClick={() => handleSendMessage('Buat script Python yang melakukan simulasi data statistik dan visualisasi ASCII, lalu eksekusi dan perlihatkan output terminalnya.')}
                 >
-                  <h4><i className="fa-brands fa-python" style={{ color: '#fbbf24' }} /> Eksekusi Script Python</h4>
+                  <h4><i className="fa-brands fa-python" style={{ color: '#ea580c' }} /> Eksekusi Script Python</h4>
                   <p>Menjalankan kode Python di sandbox dan menangkap log stdout.</p>
                 </div>
 
@@ -469,7 +471,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   className="agent-starter-card"
                   onClick={() => handleSendMessage('Buat game Snake klasik menggunakan Canvas HTML5 dan JavaScript yang playable dan modern.')}
                 >
-                  <h4><i className="fa-solid fa-gamepad" style={{ color: '#34d399' }} /> Game Snake HTML5</h4>
+                  <h4><i className="fa-solid fa-gamepad" style={{ color: '#ea580c' }} /> Game Snake HTML5</h4>
                   <p>Membuat game arcade yang langsung bisa dimainkan di tab Live Preview.</p>
                 </div>
 
@@ -480,7 +482,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     setIsDrawerOpen(true);
                   }}
                 >
-                  <h4><i className="fa-solid fa-scroll" style={{ color: '#f472b6' }} /> Periksa SKILL.md</h4>
+                  <h4><i className="fa-solid fa-scroll" style={{ color: '#ea580c' }} /> Periksa SKILL.md</h4>
                   <p>Pelajari atau sesuaikan protokol panduan teknis yang dipatuhi AI.</p>
                 </div>
               </div>
@@ -491,7 +493,13 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           {messages.map((msg) => (
             <div key={msg.id} className={`agent-msg-row is-${msg.role === 'user' ? 'user' : 'bot'}`}>
               <div className="agent-msg-avatar">
-                {msg.role === 'user' ? <i className="fa-solid fa-user" /> : <i className="fa-solid fa-bolt" />}
+                {msg.role === 'user' ? (
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontSize: 13, fontWeight: 700 }}>
+                    {(user?.name || user?.email || 'U')[0].toUpperCase()}
+                  </div>
+                ) : (
+                  <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
+                )}
               </div>
               <div className="agent-msg-content">
                 {/* Chain of Work Accordion if attached to this assistant message */}
@@ -578,14 +586,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           {isExecuting && activeChainOfWork.length > 0 && (
             <div className="agent-msg-row is-bot">
               <div className="agent-msg-avatar">
-                <i className="fa-solid fa-bolt fa-bounce" />
+                <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
               </div>
               <div className="agent-msg-content">
-                <div className="agent-chain-container" style={{ borderStyle: 'dashed' }}>
-                  <div className="agent-chain-header" style={{ background: 'rgba(59, 130, 246, 0.2)' }}>
+                <div className="agent-chain-container" style={{ borderStyle: 'solid', borderColor: '#fed7aa' }}>
+                  <div className="agent-chain-header" style={{ background: '#fff7ed' }}>
                     <h4>
-                      <i className="fa-solid fa-spinner fa-spin" style={{ color: '#38bdf8' }} />
-                      <span>AI Agent Sedang Bekerja di Sandbox...</span>
+                      <i className="fa-solid fa-spinner fa-spin" style={{ color: '#ea580c' }} />
+                      <span style={{ color: '#c2410c' }}>AI Agent Sedang Bekerja di Sandbox...</span>
                     </h4>
                   </div>
                   <div className="agent-chain-steps">
