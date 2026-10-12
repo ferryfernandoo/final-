@@ -112,7 +112,7 @@ cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
 cap.runs[0].font.size = Pt(9.5)
 cap.runs[0].font.italic = True
 
-# 4. Tabel Elegan Berwarna
+# 4. Tabel Elegan Berwarna & Zebra Striping
 doc.add_heading('Tabel Rincian Metrik Kuartalan', level=1)
 tbl = doc.add_table(rows=1, cols=4)
 tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -124,6 +124,24 @@ for i, h in enumerate(headers):
     for r in cell.paragraphs[0].runs:
         r.font.bold = True
         r.font.color.rgb = RGBColor(255, 255, 255)
+
+# Mengisi baris data tabel (GUNAKAN enumerate(data_rows), DILARANG KERAS table.rows.index):
+data_rows = [
+    ['Kuartal I', 'Rp 1.200 M', 'Rp 1.450 M', '+20.8%'],
+    ['Kuartal II', 'Rp 1.400 M', 'Rp 1.680 M', '+20.0%'],
+    ['Kuartal III', 'Rp 1.600 M', 'Rp 1.950 M', '+21.8%'],
+    ['Kuartal IV', 'Rp 1.800 M', 'Rp 2.300 M', '+27.7%'],
+]
+for r_idx, row in enumerate(data_rows):
+    row_cells = tbl.add_row().cells
+    for c_idx, val in enumerate(row):
+        row_cells[c_idx].text = str(val)
+        if r_idx % 2 == 0:
+            row_cells[c_idx]._tc.get_or_add_tcPr().append(parse_xml(f'<w:shd {nsdecls("w")} w:fill="F8FAFC"/>'))
+
+# ⚠️ PERINGATAN KERAS DOCX:
+# JANGAN PERNAH MENULIS table.rows.index(...) KARENA OBJEK _Rows BUKAN LIST DAN AKAN ERROR!
+# GUNAKAN SELALU enumerate(data_rows) SEPERTI CONTOH DI ATAS!
 
 doc.save('dokumen_laporan.docx')
 \`\`\`
@@ -386,13 +404,202 @@ plt.close()
 
 ---
 
-## 🌐 KEAHLIAN SUPER #5: APLIKASI WEB, DASHBOARD INTERAKTIF & SCREENSHOT
-- Tulis berkas web lengkap di \`index.html\` (beserta styling CSS dan interaktivitas JS).
-- Gunakan tata letak modern berkelas:
-  * Tema gelap elegan \`#0F172A\` atau terang profesional \`#F8FAFC\`.
-  * Kartu-kartu KPI, tabel interaktif, tombol responsif, dan layout rapi.
-  * Hindari halaman kosong/putih polos tanpa isi; pastikan konten langsung hidup saat dibuka.
-- Panggil \`<screenshot target="index.html" />\` setelah menulis berkas web agar browser otomatis merender dan mengambil tangkapan layar 1280x800 beresolusi tinggi untuk pengguna.
+## 🌐 KEAHLIAN SUPER #5: APLIKASI WEB & CARA NGODING FRONT END MODERN & INTERAKTIF
+### Standar Mutlak Koding Front End:
+1. **Struktur Berkas Tunggal Mandiri**:
+   - Selalu susun berkas web lengkap di \`index.html\` (HTML5, embedded CSS berkelas, dan interaktivitas JS).
+   - Pastikan halaman TIDAK blank putih atau berstatus loading tanpa isi. Konten utama harus langsung tampil dan hidup saat pertama kali dimuat!
+2. **Desain Estetika Visual Berkelas (Deepernova Design System)**:
+   - Skema Warna:
+     * Latar Belakang: Dark Executive Slate (\`#0F172A\`) atau Clean Light (\`#F8FAFC\`).
+     * Kartu Konten: Surface Card (\`#1E293B\`) dengan border tipis elegan (\`1px solid #334155\`) dan shadow lembut (\`box-shadow: 0 4px 20px rgba(0,0,0,0.3)\`).
+     * Aksen Utama: Vibrant Tangerine (\`#EA580C\` / \`#F97316\`).
+     * Aksen Metrik: Emerald Green (\`#10B981\`) untuk positif/sukses, Sky Blue (\`#38BDF8\`) untuk data/angka.
+     * Tipografi: Font sistem modern: \`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif\`.
+3. **Komponen Wajib Front End**:
+   - **Header Area**: Logo/Ikon, Judul Aplikasi yang tegas, Badge status sistem (\`● Live Active\`).
+   - **Scorecard KPI Grid**: 3-4 kartu metrik utama dengan angka raksasa bold (30-36px), label abu-abu halus, dan persentase tren.
+   - **Tabel Interaktif / Data Grid**: Header gelap (\`#0B0F19\`), teks rapi, zebra border, dan status pill berwarna.
+   - **Form / Tombol Aksi**: Tombol dengan hover micro-animation (\`transform: translateY(-2px)\`, \`transition: all 0.2s ease\`).
+4. **Interaktivitas JavaScript Nyata**:
+   - Tambahkan interaktivitas fungsional (misal: filter pencarian real-time, toggle tab, kalkulator instan, modal popup, atau animasi counter).
+5. **Tangkapan Layar Browser Wajib**:
+   - Setiap kali menulis \`index.html\`, selalu akhiri dengan tag aksi \`<screenshot target="index.html" />\` agar mesin browser headless Puppeteer otomatis merender halaman, mengeksekusi script, dan mengirimkan hasil tangkapan layarnya ke pengguna!
+
+### Cuplikan Kode Referensi Front-End (\`index.html\`):
+\`\`\`html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Analisis & Manajemen Operasional</title>
+  <style>
+    :root {
+      --bg: #0F172A;
+      --card-bg: #1E293B;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --accent: #EA580C;
+      --accent-hover: #F97316;
+      --border: #334155;
+      --success: #10B981;
+      --info: #38BDF8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      padding: 28px;
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 28px;
+    }
+    .title-area h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+    .title-area p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+    .badge {
+      background: rgba(16, 185, 129, 0.15); color: var(--success);
+      padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 28px; }
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+    .card-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-num { font-size: 32px; font-weight: 800; color: var(--text-main); margin-top: 8px; }
+    .card-trend { font-size: 13px; color: var(--success); margin-top: 6px; font-weight: 600; }
+    .content-box {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px;
+    }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
+    .search-input {
+      background: #0B0F19; border: 1px solid var(--border); color: var(--text-main);
+      padding: 10px 16px; border-radius: 8px; font-size: 14px; width: 300px; outline: none;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .btn {
+      background: var(--accent); color: #FFF; border: none; padding: 10px 20px;
+      border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s ease;
+    }
+    .btn:hover { background: var(--accent-hover); transform: translateY(-2px); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { background: #0B0F19; padding: 14px 18px; font-size: 13px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+    td { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    .status-pill {
+      display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    }
+    .status-active { background: rgba(16, 185, 129, 0.15); color: #34D399; }
+    .status-pending { background: rgba(234, 88, 12, 0.15); color: #FB923C; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-area">
+        <h1>Sistem Pemantauan Operasional</h1>
+        <p>Ringkasan real-time metrik kinerja dan data terintegrasi</p>
+      </div>
+      <div class="badge">● Sistem Beroperasi Normal</div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-label">Total Aktivitas</div>
+        <div class="card-num" id="stat-total">1,280</div>
+        <div class="card-trend">↑ +14.8% dari minggu lalu</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Efisiensi Rata-rata</div>
+        <div class="card-num" id="stat-eff">94.6%</div>
+        <div class="card-trend">↑ +3.2% optimalisasi</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Waktu Respons</div>
+        <div class="card-num" id="stat-resp">240 ms</div>
+        <div class="card-trend" style="color: var(--info);">⚡ Performa ultra-cepat</div>
+      </div>
+    </div>
+
+    <div class="content-box">
+      <div class="toolbar">
+        <input type="text" id="filterInput" class="search-input" placeholder="Cari data atau item..." onkeyup="filterTable()">
+        <button class="btn" onclick="addNewItem()">+ Tambah Data</button>
+      </div>
+      <div style="overflow-x: auto;">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th>ID Modul</th>
+              <th>Nama Komponen</th>
+              <th>Status</th>
+              <th>Penggunaan</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>MOD-01</td>
+              <td>Gateway Pembayaran & Verifikasi</td>
+              <td><span class="status-pill status-active">Aktif</span></td>
+              <td>88.4%</td>
+              <td><button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Modul Aktif')">Detail</button></td>
+            </tr>
+            <tr>
+              <td>MOD-02</td>
+              <td>Sinkronisasi Basis Data & Cache</td>
+              <td><span class="status-pill status-active">Aktif</span></td>
+              <td>92.1%</td>
+              <td><button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Modul Aktif')">Detail</button></td>
+            </tr>
+            <tr>
+              <td>MOD-03</td>
+              <td>Penjadwal Tugas Latar Belakang</td>
+              <td><span class="status-pill status-pending">Proses</span></td>
+              <td>45.0%</td>
+              <td><button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Dalam Proses')">Detail</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function filterTable() {
+      const input = document.getElementById('filterInput').value.toLowerCase();
+      const rows = document.querySelectorAll('#dataTable tbody tr');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(input) ? '' : 'none';
+      });
+    }
+
+    function addNewItem() {
+      const table = document.querySelector('#dataTable tbody');
+      const count = table.rows.length + 1;
+      const tr = document.createElement('tr');
+      tr.innerHTML = \`
+        <td>MOD-0\${count}</td>
+        <td>Layanan Pemrosesan Baru #\${count}</td>
+        <td><span class="status-pill status-active">Aktif</span></td>
+        <td>100%</td>
+        <td><button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Detail Baru')">Detail</button></td>
+      \`;
+      table.appendChild(tr);
+      document.getElementById('stat-total').innerText = (1280 + count).toLocaleString();
+    }
+  </script>
+</body>
+</html>
+\`\`\`
 
 ---
 Setiap kali pengguna meminta berkas Word (.docx), PowerPoint (.pptx), Excel (.xlsx), atau aplikasi web, Anda WAJIB menerapkan seluruh standar estetika, tabel bergaya, dan kurva/grafik di atas secara maksimal!`;
@@ -413,9 +620,18 @@ export function getSandboxDir(sessionId) {
   const dir = path.join(SANDBOX_ROOT, safeId);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
-    // Initialize default SKILL.md
-    const skillPath = path.join(dir, 'SKILL.md');
+  }
+  // Ensure SKILL.md is always up-to-date with latest comprehensive skills
+  const skillPath = path.join(dir, 'SKILL.md');
+  if (!fs.existsSync(skillPath)) {
     fs.writeFileSync(skillPath, DEFAULT_SKILL_MD, 'utf8');
+  } else {
+    try {
+      const existingSkill = fs.readFileSync(skillPath, 'utf8');
+      if (!existingSkill.includes('KEAHLIAN SUPER #5') || !existingSkill.includes('table.rows.index')) {
+        fs.writeFileSync(skillPath, DEFAULT_SKILL_MD, 'utf8');
+      }
+    } catch (_) {}
   }
   return dir;
 }
@@ -442,6 +658,18 @@ export function writeFile(sessionId, relativePath, content) {
   const fenceMatch = cleanContent.trim().match(/^```(?:[a-zA-Z0-9_-]+)?\r?\n([\s\S]*?)\r?\n```$/);
   if (fenceMatch) {
     cleanContent = fenceMatch[1];
+  }
+
+  // Preventative auto-healing for common python-docx syntax errors
+  if (relativePath.endsWith('.py') || cleanContent.includes('docx') || cleanContent.includes('python-docx')) {
+    // Replace table.rows.index(...) or tbl.rows.index(...) or anyvar.rows.index(...) or .columns.index(...) with 0
+    cleanContent = cleanContent.replace(/\b(?:\w+\.)?(?:rows|columns)\.index\s*\([^)]*\)/g, '0');
+    // Fix font.color.rgb = parse_xml(...)
+    cleanContent = cleanContent.replace(/\.font\.color\.rgb\s*=\s*parse_xml\([^)]*\)/g, '.font.color.rgb = RGBColor(255, 255, 255)');
+    // Fix truncated WD_ALIGN_PARAGR
+    cleanContent = cleanContent.replace(/\bWD_ALIGN_PARAGR\b/g, 'WD_ALIGN_PARAGRAPH');
+    // Fix hallucinated .paragraphProperties on CT_P element
+    cleanContent = cleanContent.replace(/\.paragraphProperties/g, '');
   }
 
   const filePath = safeResolvePath(sessionId, relativePath);
@@ -579,44 +807,102 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
   }
 
   return new Promise((resolve) => {
-    exec(
-      execCommand,
-      {
-        cwd: sandboxDir,
-        timeout: timeoutMs,
-        maxBuffer: 1024 * 512, // 512 KB
-        env: {
-          ...process.env,
-          NODE_ENV: 'sandbox',
-          SANDBOX_SESSION: sessionId
-        }
-      },
-      (error, stdout, stderr) => {
-        if (createdRunnerFile && fs.existsSync(createdRunnerFile)) {
-          try { fs.unlinkSync(createdRunnerFile); } catch {}
-        }
-        const executionTimeMs = Date.now() - startTime;
-        const cleanStdout = (stdout || '').toString();
-        const cleanStderr = (stderr || '').toString();
+    const runProcess = (cmdToRun, isRetry = false) => {
+      exec(
+        cmdToRun,
+        {
+          cwd: sandboxDir,
+          timeout: timeoutMs,
+          maxBuffer: 1024 * 512, // 512 KB
+          env: {
+            ...process.env,
+            NODE_ENV: 'sandbox',
+            SANDBOX_SESSION: sessionId
+          }
+        },
+        (error, stdout, stderr) => {
+          const executionTimeMs = Date.now() - startTime;
+          const cleanStdout = (stdout || '').toString();
+          const cleanStderr = (stderr || '').toString();
 
-        let exitCode = 0;
-        let success = true;
+          let exitCode = 0;
+          let success = true;
 
-        if (error) {
-          exitCode = error.code || (error.killed ? 124 : 1);
-          success = false;
+          if (error) {
+            exitCode = error.code || (error.killed ? 124 : 1);
+            success = false;
+          }
+
+          // Reactive Auto-Healing for Python docx errors, NameErrors, and syntax issues
+          if (!success && !isRetry) {
+            const scriptMatch = cmdToRun.match(/python\s+["']?([^"'\s]+\.py)["']?/i);
+            const scriptFile = scriptMatch ? scriptMatch[1] : (createdRunnerFile ? path.basename(createdRunnerFile) : null);
+            if (scriptFile) {
+              const fullScriptPath = path.isAbsolute(scriptFile) ? scriptFile : path.join(sandboxDir, scriptFile);
+              if (fs.existsSync(fullScriptPath)) {
+                try {
+                  let scriptContent = fs.readFileSync(fullScriptPath, 'utf8');
+                  let patched = false;
+
+                  // 1. Python "Did you mean: '...'" auto-healing
+                  const didYouMeanMatch = cleanStderr.match(/NameError:\s*name\s*['"](\w+)['"]\s*is not defined[^\n]*Did you mean:\s*['"](\w+)['"]/i);
+                  if (didYouMeanMatch) {
+                    const wrongName = didYouMeanMatch[1];
+                    const rightName = didYouMeanMatch[2];
+                    scriptContent = scriptContent.replace(new RegExp(`\\b${wrongName}\\b`, 'g'), rightName);
+                    patched = true;
+                  }
+
+                  // 2. Truncated WD_ALIGN_PARAGR
+                  if (cleanStderr.includes('WD_ALIGN_PARAGR') || scriptContent.includes('WD_ALIGN_PARAGR.')) {
+                    scriptContent = scriptContent.replace(/\bWD_ALIGN_PARAGR\b/g, 'WD_ALIGN_PARAGRAPH');
+                    patched = true;
+                  }
+
+                  // 3. CT_P object has no attribute 'paragraphProperties'
+                  if (cleanStderr.includes("paragraphProperties") || scriptContent.includes('.paragraphProperties')) {
+                    scriptContent = scriptContent.replace(/\.paragraphProperties/g, '');
+                    patched = true;
+                  }
+
+                  // 4. AttributeError on rows.index or columns.index
+                  if (cleanStderr.includes("AttributeError: '_Rows' object has no attribute 'index'") || cleanStderr.includes("object has no attribute 'index'")) {
+                    scriptContent = scriptContent.replace(/\b(?:\w+\.)?(?:rows|columns)\.index\s*\([^)]*\)/g, '0');
+                    patched = true;
+                  }
+
+                  // 5. XMLSyntaxError on font.color.rgb
+                  if (cleanStderr.includes('XMLSyntaxError') || cleanStderr.includes('font.color.rgb')) {
+                    scriptContent = scriptContent.replace(/\.font\.color\.rgb\s*=\s*parse_xml\([^)]*\)/g, '.font.color.rgb = RGBColor(255, 255, 255)');
+                    patched = true;
+                  }
+
+                  if (patched) {
+                    fs.writeFileSync(fullScriptPath, scriptContent, 'utf8');
+                    return runProcess(cmdToRun, true);
+                  }
+                } catch (_) {}
+              }
+            }
+          }
+
+          if (createdRunnerFile && fs.existsSync(createdRunnerFile)) {
+            try { fs.unlinkSync(createdRunnerFile); } catch {}
+          }
+
+          resolve({
+            command: cmdToRun,
+            stdout: cleanStdout,
+            stderr: cleanStderr + (error && error.killed ? '\n[TIMEOUT] Eksekusi dihentikan karena melebihi batas waktu 15 detik.' : ''),
+            exitCode,
+            executionTimeMs,
+            success: success && exitCode === 0
+          });
         }
+      );
+    };
 
-        resolve({
-          command: execCommand,
-          stdout: cleanStdout,
-          stderr: cleanStderr + (error && error.killed ? '\n[TIMEOUT] Eksekusi dihentikan karena melebihi batas waktu 15 detik.' : ''),
-          exitCode,
-          executionTimeMs,
-          success: success && exitCode === 0
-        });
-      }
-    );
+    runProcess(execCommand);
   });
 }
 
