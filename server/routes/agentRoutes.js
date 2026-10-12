@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import fetch from 'node-fetch';
+import JSZip from 'jszip';
 import agentSandboxService, { DEFAULT_SKILL_MD } from '../services/agentSandboxService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
 import { TOKENMIX_API_KEYS } from '../apiProxyService.js';
@@ -152,6 +153,78 @@ router.delete('/file', (req, res) => {
     res.json({ success: true, files });
   } catch (err) {
     console.error('[AGENT_ROUTES] Error deleting file:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/agent/file/download - Direct file download for individual created files
+router.get('/file/download', (req, res) => {
+  try {
+    const { sessionId, path: relativePath } = req.query;
+    if (!sessionId || !relativePath) {
+      return res.status(400).send('sessionId dan path diperlukan');
+    }
+    const fullPath = agentSandboxService.safeResolvePath(sessionId, relativePath);
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).send('File tidak ditemukan di sandbox');
+    }
+    const filename = path.basename(fullPath);
+    res.download(fullPath, filename);
+  } catch (err) {
+    console.error('[AGENT_ROUTES] Download error:', err);
+    res.status(500).send(err.message);
+  }
+});
+
+// GET /api/agent/download-zip - Bundle all files in sandbox into a ZIP
+router.get('/download-zip', async (req, res) => {
+  try {
+    const { sessionId } = req.query;
+    if (!sessionId) {
+      return res.status(400).send('sessionId diperlukan');
+    }
+    const sandboxDir = agentSandboxService.getSandboxDir(sessionId);
+    const files = agentSandboxService.listFiles(sessionId);
+
+    const zip = new JSZip();
+    for (const f of files) {
+      if (f.name.startsWith('_runner_temp')) continue;
+      const fullPath = path.join(sandboxDir, f.path);
+      if (fs.existsSync(fullPath)) {
+        const content = fs.readFileSync(fullPath);
+        zip.file(f.path, content);
+      }
+    }
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="deepernova-project-${sessionId.slice(-6)}.zip"`);
+    res.send(zipBuffer);
+  } catch (err) {
+    console.error('[AGENT_ROUTES] Download zip error:', err);
+    res.status(500).send(err.message);
+  }
+});
+
+// POST /api/agent/upload - Upload user file directly to sandbox session
+router.post('/upload', (req, res) => {
+  try {
+    const { sessionId, filename, content, base64 } = req.body;
+    if (!sessionId || !filename) {
+      return res.status(400).json({ success: false, error: 'sessionId dan filename diperlukan' });
+    }
+    let fileBuffer;
+    if (base64) {
+      fileBuffer = Buffer.from(base64, 'base64');
+    } else {
+      fileBuffer = Buffer.from(content || '', 'utf8');
+    }
+    const targetPath = agentSandboxService.safeResolvePath(sessionId, filename);
+    fs.writeFileSync(targetPath, fileBuffer);
+    const files = agentSandboxService.listFiles(sessionId);
+    res.json({ success: true, files, filename });
+  } catch (err) {
+    console.error('[AGENT_ROUTES] Upload error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -252,7 +252,7 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
  */
 export function extractAgentActions(text) {
   const actions = [];
-  let remainingText = text;
+  const writtenPaths = new Set();
 
   // 1. Extract thought
   const thoughtRegex = /<thought>([\s\S]*?)<\/thought>/gi;
@@ -264,18 +264,20 @@ export function extractAgentActions(text) {
     });
   }
 
-  // 2. Extract write_file
-  const writeFileRegex = /<write_file\s+path=["']([^"']+)["']>([\s\S]*?)<\/write_file>/gi;
+  // 2. Extract write_file & file tags (flexible attributes and quotes)
+  const writeFileRegex = /<(?:write_file|file)\s+(?:path|file|name)=["']?([^"'>\s]+)["']?[^>]*>([\s\S]*?)<\/(?:write_file|file)>/gi;
   while ((match = writeFileRegex.exec(text)) !== null) {
+    const filePath = match[1].trim().replace(/^['"]|['"]$/g, '');
     actions.push({
       type: 'write_file',
-      path: match[1].trim(),
-      content: match[2]
+      path: filePath,
+      content: match[2].trim()
     });
+    writtenPaths.add(filePath.toLowerCase());
   }
 
   // 3. Extract execute_code
-  const execCodeRegex = /<execute_code(?:\s+language=["']([^"']+)["'])?>([\s\S]*?)<\/execute_code>/gi;
+  const execCodeRegex = /<execute_code(?:\s+language=["']?([^"'>\s]+)["']?)?[^>]*>([\s\S]*?)<\/execute_code>/gi;
   while ((match = execCodeRegex.exec(text)) !== null) {
     actions.push({
       type: 'execute_code',
@@ -302,10 +304,52 @@ export function extractAgentActions(text) {
     });
   }
 
+  // 6. Intelligent Fallback: Code blocks with filename headers
+  // e.g. ```html:index.html or ```python filename="script.py" or first line <!-- index.html -->
+  const codeBlockRegex = /```([a-zA-Z0-9_-]+)?(?::|\s+(?:file|filename|path)=["']?([^\s"'>\n]+)["']?)?\n([\s\S]*?)```/g;
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    const lang = (match[1] || '').toLowerCase();
+    let detectedPath = match[2] || '';
+    const codeContent = match[3] || '';
+
+    // If no explicit path in header, check first line for comment like // index.html or <!-- index.html --> or # main.py
+    if (!detectedPath) {
+      const firstLine = (codeContent.trim().split('\n')[0] || '').trim();
+      const commentFileMatch = firstLine.match(/^(?:\/{2}|<!--|#|\/\*)\s*(?:file(?:name)?:\s*)?([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)\s*(?:-->|\*\/)?$/i);
+      if (commentFileMatch) {
+        detectedPath = commentFileMatch[1].trim();
+      }
+    }
+
+    // Infer filename if user asked for a file and model omitted XML tags
+    if (!detectedPath && !writtenPaths.size && codeContent.trim().length > 30) {
+      if (lang === 'html' || codeContent.includes('<!DOCTYPE') || codeContent.includes('<html')) {
+        detectedPath = 'index.html';
+      } else if (lang === 'css' || codeContent.includes('margin:') || codeContent.includes('padding:')) {
+        detectedPath = 'style.css';
+      } else if (lang === 'js' || lang === 'javascript') {
+        detectedPath = 'app.js';
+      } else if (lang === 'py' || lang === 'python') {
+        detectedPath = 'main.py';
+      } else if (lang === 'json') {
+        detectedPath = 'data.json';
+      }
+    }
+
+    if (detectedPath && !writtenPaths.has(detectedPath.toLowerCase())) {
+      actions.push({
+        type: 'write_file',
+        path: detectedPath,
+        content: codeContent.trim()
+      });
+      writtenPaths.add(detectedPath.toLowerCase());
+    }
+  }
+
   // Clean the text from XML tags for human friendly reading
   const cleanSummary = text
     .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
-    .replace(/<write_file[\s\S]*?<\/write_file>/gi, '')
+    .replace(/<(?:write_file|file)[\s\S]*?<\/(?:write_file|file)>/gi, '')
     .replace(/<execute_code[\s\S]*?<\/execute_code>/gi, '')
     .replace(/<run_command>[\s\S]*?<\/run_command>/gi, '')
     .replace(/<preview>[\s\S]*?<\/preview>/gi, '')

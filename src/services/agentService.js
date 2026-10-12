@@ -179,6 +179,58 @@ class AgentService {
   }
 
   /**
+   * Get direct download URL for a file
+   */
+  static getDownloadUrl(sessionId, filePath) {
+    return `${API_BASE_URL}/api/agent/file/download?sessionId=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(filePath)}`;
+  }
+
+  /**
+   * Get full ZIP download URL for the entire project in sandbox
+   */
+  static getZipDownloadUrl(sessionId) {
+    return `${API_BASE_URL}/api/agent/download-zip?sessionId=${encodeURIComponent(sessionId)}`;
+  }
+
+  /**
+   * Upload user file directly to sandbox session
+   */
+  static async uploadFile(sessionId, file) {
+    try {
+      const filename = file.name;
+      const isText = file.type.startsWith('text/') || /\.(html|css|js|jsx|ts|tsx|py|json|md|txt|sql|env|csv|xml|yaml|yml)$/i.test(filename);
+
+      let payload = { sessionId, filename };
+
+      if (isText) {
+        const text = await file.text();
+        payload.content = text;
+      } else {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        payload.base64 = btoa(binary);
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/agent/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+      return await res.json();
+    } catch (e) {
+      console.warn('[AgentService] Upload error:', e);
+      return null;
+    }
+  }
+
+  /**
    * Run autonomous agent task with real-time SSE streaming for Chain-of-Work
    */
   static async runTask({

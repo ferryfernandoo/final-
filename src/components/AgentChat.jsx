@@ -40,6 +40,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const [activeChainOfWork, setActiveChainOfWork] = useState([]);
   const [collapsedChains, setCollapsedChains] = useState({});
 
+  // File Attachment & Upload State
+  const [uploadedAttachments, setUploadedAttachments] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
@@ -121,8 +126,13 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   // 5. Send Prompt & Execute Autonomous Loop
   const handleSendMessage = async (customPrompt = null) => {
-    const textToSend = customPrompt || inputValue.trim();
+    let textToSend = customPrompt || inputValue.trim();
     if (!textToSend || isExecuting || !currentSessionId) return;
+
+    if (uploadedAttachments.length > 0) {
+      textToSend += `\n\n[Berkas lampiran yang diunggah pengguna ke sandbox: ${uploadedAttachments.join(', ')}]`;
+      setUploadedAttachments([]);
+    }
 
     setInputValue('');
     setIsExecuting(true);
@@ -231,14 +241,66 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   };
 
   const handleDownloadFile = () => {
-    if (!selectedFile || !fileContent) return;
-    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = selectedFile.split('/').pop() || 'download';
-    a.click();
-    URL.revokeObjectURL(url);
+    if (!selectedFile) return;
+    handleDownloadSingleFile(selectedFile);
+  };
+
+  const getFileIcon = (ext) => {
+    switch (ext?.toLowerCase()) {
+      case 'html': return { icon: 'fa-brands fa-html5', color: '#e34f26' };
+      case 'css': return { icon: 'fa-brands fa-css3-alt', color: '#1572b6' };
+      case 'js':
+      case 'jsx': return { icon: 'fa-brands fa-js', color: '#ca8a04' };
+      case 'ts':
+      case 'tsx': return { icon: 'fa-solid fa-code', color: '#2563eb' };
+      case 'py': return { icon: 'fa-brands fa-python', color: '#0284c7' };
+      case 'json': return { icon: 'fa-solid fa-brackets-curly', color: '#d97706' };
+      case 'md': return { icon: 'fa-solid fa-file-lines', color: '#64748b' };
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+      case 'svg':
+      case 'webp': return { icon: 'fa-solid fa-file-image', color: '#10b981' };
+      default: return { icon: 'fa-solid fa-file-code', color: '#ea580c' };
+    }
+  };
+
+  const handleDownloadSingleFile = (filePath) => {
+    if (!currentSessionId || !filePath) return;
+    const url = AgentService.getDownloadUrl(currentSessionId, filePath);
+    window.open(url, '_blank');
+  };
+
+  const handleDownloadAllZip = () => {
+    if (!currentSessionId) return;
+    const url = AgentService.getZipDownloadUrl(currentSessionId);
+    window.open(url, '_blank');
+  };
+
+  const handleUserFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !currentSessionId) return;
+
+    setIsUploading(true);
+    try {
+      for (const file of files) {
+        const res = await AgentService.uploadFile(currentSessionId, file);
+        if (res && res.success) {
+          setUploadedAttachments(prev => [...prev, file.name]);
+        }
+      }
+      const updated = await AgentService.getFiles(currentSessionId);
+      setSandboxFiles(updated);
+    } catch (err) {
+      console.error('File upload error:', err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (fileName) => {
+    setUploadedAttachments(prev => prev.filter(n => n !== fileName));
   };
 
   // 7. Terminal Execution Action
@@ -541,6 +603,86 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     {msg.content}
                   </ReactMarkdown>
 
+                  {/* Interactive Downloadable File Deliverables */}
+                  {msg.role === 'assistant' && (() => {
+                    const deliverables = (msg.sandboxFiles || []).filter(f => 
+                      f.path !== 'SKILL.md' && !f.path.startsWith('_runner_temp')
+                    );
+                    if (deliverables.length === 0) return null;
+                    return (
+                      <div className="agent-msg-files-section">
+                        <div className="agent-msg-files-header">
+                          <div className="agent-msg-files-title">
+                            <i className="fa-solid fa-file-circle-check" style={{ color: '#ea580c' }} />
+                            <span>Berkas yang Dibuat AI ({deliverables.length})</span>
+                          </div>
+                          <button 
+                            className="agent-zip-download-btn"
+                            onClick={handleDownloadAllZip}
+                            title="Unduh seluruh project sebagai arsip .ZIP"
+                          >
+                            <i className="fa-solid fa-file-zipper" />
+                            <span>Unduh Semua (.ZIP)</span>
+                          </button>
+                        </div>
+
+                        <div className="agent-msg-files-grid">
+                          {deliverables.map((file) => {
+                            const iconMeta = getFileIcon(file.ext);
+                            return (
+                              <div key={file.path} className="agent-msg-file-card">
+                                <div className="agent-msg-file-info">
+                                  <div className="agent-file-icon-box">
+                                    <i className={iconMeta.icon} style={{ color: iconMeta.color }} />
+                                  </div>
+                                  <div className="agent-msg-file-meta">
+                                    <span className="agent-msg-file-name" title={file.path}>{file.name}</span>
+                                    <span className="agent-msg-file-size">
+                                      {file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="agent-msg-file-actions">
+                                  <button
+                                    className="agent-file-card-btn is-download"
+                                    onClick={() => handleDownloadSingleFile(file.path)}
+                                    title={`Unduh berkas ${file.name}`}
+                                  >
+                                    <i className="fa-solid fa-download" /> Unduh
+                                  </button>
+                                  <button
+                                    className="agent-file-card-btn is-view"
+                                    onClick={() => {
+                                      handleSelectFile(file.path);
+                                      setActiveDrawerTab('files');
+                                      setIsDrawerOpen(true);
+                                    }}
+                                    title={`Buka & periksa ${file.name}`}
+                                  >
+                                    <i className="fa-solid fa-code" /> Lihat
+                                  </button>
+                                  {file.ext === 'html' && (
+                                    <button
+                                      className="agent-file-card-btn is-preview"
+                                      onClick={() => {
+                                        setPreviewUrl(`/api/agent/preview/${currentSessionId}/${file.path}`);
+                                        setActiveDrawerTab('preview');
+                                        setIsDrawerOpen(true);
+                                      }}
+                                      title="Live Preview di tab web"
+                                    >
+                                      <i className="fa-solid fa-eye" /> Preview
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Actions Bar */}
                   {msg.role === 'assistant' && (
                     <div className="agent-action-bar">
@@ -552,6 +694,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                         }}
                       >
                         <i className="fa-solid fa-folder-open" /> Buka Sandbox
+                      </button>
+
+                      <button
+                        className="agent-action-btn"
+                        onClick={handleDownloadAllZip}
+                        title="Unduh seluruh project sebagai berkas ZIP"
+                      >
+                        <i className="fa-solid fa-file-zipper" /> Unduh ZIP Proyek
                       </button>
 
                       {msg.screenshotUrl && (
@@ -637,7 +787,36 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               </button>
             </div>
 
+            {/* User Attachments Preview Chips */}
+            {uploadedAttachments.length > 0 && (
+              <div className="agent-upload-chips">
+                {uploadedAttachments.map((name) => (
+                  <span key={name} className="agent-upload-chip">
+                    <i className="fa-solid fa-paperclip" />
+                    <span>{name}</span>
+                    <button type="button" onClick={() => removeAttachment(name)} title="Hapus lampiran">✕</button>
+                  </span>
+                ))}
+                <span className="agent-upload-status">Tersimpan di sandbox</span>
+              </div>
+            )}
+
+            {isUploading && (
+              <div className="agent-uploading-indicator">
+                <i className="fa-solid fa-circle-notch fa-spin" />
+                <span>Mengunggah berkas ke sandbox...</span>
+              </div>
+            )}
+
             <div className="agent-textarea-box">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleUserFileUpload}
+                multiple
+                style={{ display: 'none' }}
+              />
+
               <textarea
                 placeholder="Instruksikan AI Agent untuk membuat file, koding, atau mengeksekusi sandbox..."
                 value={inputValue}
@@ -652,16 +831,29 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               />
 
               <div className="agent-input-actions">
-                <span className="agent-input-tip">
-                  Tekan <b>Enter</b> untuk mengeksekusi otonom, <b>Shift+Enter</b> untuk baris baru
-                </span>
+                <div className="agent-input-actions-left">
+                  <button
+                    type="button"
+                    className="agent-attach-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isExecuting || isUploading}
+                    title="Unggah berkas ke sandbox (Kode, Dokumen, Skrip, Data)"
+                  >
+                    <i className="fa-solid fa-paperclip" />
+                    <span>Lampirkan</span>
+                  </button>
+
+                  <span className="agent-input-tip">
+                    Tekan <b>Enter</b> untuk mengeksekusi otonom, <b>Shift+Enter</b> untuk baris baru
+                  </span>
+                </div>
 
                 {isExecuting ? (
                   <button className="agent-send-btn is-running" onClick={handleStopExecution} title="Hentikan Eksekusi">
                     <i className="fa-solid fa-square" />
                   </button>
                 ) : (
-                  <button className="agent-send-btn" onClick={() => handleSendMessage()} disabled={!inputValue.trim()}>
+                  <button className="agent-send-btn" onClick={() => handleSendMessage()} disabled={!inputValue.trim() && uploadedAttachments.length === 0}>
                     <i className="fa-solid fa-arrow-up" />
                   </button>
                 )}
@@ -712,8 +904,31 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             {activeDrawerTab === 'files' && (
               <div className="agent-files-layout">
                 <div className="agent-files-tree">
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', padding: '4px 6px', textTransform: 'uppercase' }}>
-                    Workspace
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px', borderBottom: '1px solid rgba(0,0,0,0.06)', marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                      Workspace ({sandboxFiles.length})
+                    </span>
+                    {sandboxFiles.length > 0 && (
+                      <button
+                        onClick={handleDownloadAllZip}
+                        style={{
+                          background: 'rgba(234, 88, 12, 0.1)',
+                          border: 'none',
+                          color: '#ea580c',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                        title="Unduh seluruh project sebagai ZIP"
+                      >
+                        <i className="fa-solid fa-file-zipper" /> .ZIP
+                      </button>
+                    )}
                   </div>
                   {sandboxFiles.map(file => (
                     <div
