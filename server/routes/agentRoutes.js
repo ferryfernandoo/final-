@@ -7,7 +7,7 @@ import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions, getRel
 import agentScreenshotService from '../services/agentScreenshotService.js';
 import agentMemoryService from '../services/agentMemoryService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
-import { TOKENMIX_API_KEYS } from '../apiProxyService.js';
+import { TOKENMIX_API_KEYS, TOKENMIX_CHAT_API_URL } from '../apiProxyService.js';
 import webSearchService from '../webSearchService.js';
 
 function escapeXml(unsafe) {
@@ -917,36 +917,76 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
 
       let upstreamRes = null;
       let lastErr = null;
-      for (const uUrl of upstreamUrls) {
-        try {
-          const res = await fetch(uUrl, {
-            method: 'POST',
-            signal: upstreamAbortController.signal,
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'deepernova v1 flash 1',
-              messages: apiMessages,
-              temperature: 0.6,
-              max_tokens: 4500,
-              stream: true
-            })
-          });
-          if (res.ok) {
-            upstreamRes = res;
-            break;
-          } else {
-            const errText = await res.text().catch(() => '');
-            lastErr = new Error(`GPU Engine Error (${res.status}): ${errText.slice(0, 100)}`);
+
+      // 1. High-Speed Cloud AI with key rotation
+      if (TOKENMIX_API_KEYS && TOKENMIX_API_KEYS.length > 0) {
+        const agentModel = process.env.TOKENMIX_AGENT_MODEL || 'llama-3.3-70b';
+        for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
+          const key = TOKENMIX_API_KEYS[i];
+          try {
+            const res = await fetch(TOKENMIX_CHAT_API_URL, {
+              method: 'POST',
+              signal: upstreamAbortController.signal,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${key}`
+              },
+              body: JSON.stringify({
+                model: agentModel,
+                messages: apiMessages,
+                temperature: 0.5,
+                max_tokens: 4096,
+                stream: true
+              })
+            });
+            if (res.ok) {
+              upstreamRes = res;
+              lastErr = null;
+              break;
+            } else {
+              const errText = await res.text().catch(() => '');
+              lastErr = new Error(`Key ${i} status ${res.status}: ${errText.slice(0, 100)}`);
+            }
+          } catch (fetchErr) {
+            lastErr = fetchErr;
           }
-        } catch (fetchErr) {
-          lastErr = fetchErr;
+        }
+      }
+
+      // 2. Seamless Fallback: Native GPU Engine
+      if (!upstreamRes || !upstreamRes.ok) {
+        for (const uUrl of upstreamUrls) {
+          try {
+            const res = await fetch(uUrl, {
+              method: 'POST',
+              signal: upstreamAbortController.signal,
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: 'deepernova v1 flash 1',
+                messages: apiMessages,
+                temperature: 0.6,
+                max_tokens: 4500,
+                stream: true
+              })
+            });
+            if (res.ok) {
+              upstreamRes = res;
+              lastErr = null;
+              break;
+            } else {
+              const errText = await res.text().catch(() => '');
+              lastErr = new Error(`GPU Engine Error (${res.status}): ${errText.slice(0, 100)}`);
+            }
+          } catch (fetchErr) {
+            lastErr = fetchErr;
+          }
         }
       }
 
       if (!upstreamRes || !upstreamRes.ok) {
-        throw (lastErr || new Error('GPU Engine unreachable'));
+        throw (lastErr || new Error('Semua engine AI DeeperNova saat ini sedang sibuk. Silakan coba sesaat lagi.'));
       }
 
       const streamParser = createStreamActionParser({

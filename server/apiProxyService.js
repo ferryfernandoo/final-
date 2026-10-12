@@ -15,9 +15,15 @@ import { Readable } from 'stream';
 
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
 
-export const TOKENMIX_API_KEYS = [];
-const TOKENMIX_API_KEY = '';
-const TOKENMIX_CHAT_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
+const RAW_PROXY_KEYS = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+export const TOKENMIX_API_KEYS = Array.from(new Set([
+  ...RAW_PROXY_KEYS,
+  process.env.TOKENMIX_API_KEY,
+  process.env.TOKENMIX_SECONDARY_API_KEY,
+  process.env.TOKENMIX_FALLBACK_API_KEY
+].filter(Boolean).map(sanitizeTokenKey)));
+export const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
+let activeProxyKeyIndex = 0;
 
 class ApiProxyService {
   constructor() {
@@ -101,16 +107,16 @@ class ApiProxyService {
    */
   resolveTargetModel(modelName = '') {
     const lower = (modelName || '').toLowerCase();
-    if (lower.includes('pure') || lower.includes('reason')) {
-      return 'deepernova-pure-reasoning';
+    if (lower.includes('pure') || lower.includes('reason') || lower.includes('deep')) {
+      return 'llama-3.3-70b';
     }
-    if (lower.includes('smart') || lower.includes('0.5b')) {
-      return 'deepernova-smart-0.5b';
+    if (lower.includes('vision') || lower.includes('maverick') || lower.includes('image')) {
+      return 'llama-4-maverick';
     }
-    if (lower.includes('100m') || lower.includes('nano')) {
-      return 'deepernova-100m';
+    if (lower.includes('smart') || lower.includes('70b') || lower.includes('pro')) {
+      return 'llama-3.3-70b';
     }
-    return 'deepernova v1 flash 1';
+    return 'doubao-seed-2.0-lite';
   }
 
   /**
@@ -536,37 +542,74 @@ ATURAN KOMUNIKASI MUTLAK:
     let upstreamError = null;
     const startTime = Date.now();
 
-    // 1. Prioritize Native Cloudflare AI Engine (GPU Engine at port 8000 / Cloudflare Tunnel)
-    const nativeEndpoints = [
-      process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
-      process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
-    ].filter(Boolean);
+    // 1. High-Speed Cloud AI Engine with Key Rotation
+    if (TOKENMIX_API_KEYS.length > 0) {
+      for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
+        const idx = (activeProxyKeyIndex + count) % TOKENMIX_API_KEYS.length;
+        const activeKey = TOKENMIX_API_KEYS[idx];
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 12000);
+          const response = await fetch(TOKENMIX_CHAT_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeKey}`
+            },
+            body: JSON.stringify(outbound),
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
 
-    for (const nativeUrl of nativeEndpoints) {
-      try {
-        const nativeController = new AbortController();
-        const nativeTimeout = setTimeout(() => nativeController.abort(), 8000);
-        const nativeRes = await fetch(nativeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(outbound),
-          signal: nativeController.signal
-        });
-        clearTimeout(nativeTimeout);
-
-        if (nativeRes.ok) {
-          responseData = await nativeRes.json();
-          upstreamError = null;
-          console.log(`[ApiProxyService] ✅ Responded via Cloudflare Native AI Engine (${nativeUrl})!`);
-          break;
+          if (response.ok) {
+            responseData = await response.json();
+            upstreamError = null;
+            activeProxyKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
+            break;
+          } else {
+            const errBody = await response.text().catch(() => '');
+            console.warn(`[ApiProxyService] Key index ${idx} status ${response.status}: ${errBody.substring(0, 100)}`);
+            upstreamError = { status: response.status, body: errBody };
+          }
+        } catch (netErr) {
+          console.warn(`[ApiProxyService] Error key index ${idx}: ${netErr.message}`);
+          upstreamError = { status: 500, message: netErr.message };
         }
-      } catch (nativeErr) {
-        // Native AI engine offline, fallback to TokenMix
+      }
+    }
+
+    // 2. Seamless Fallback: Native GPU Engine
+    if (!responseData || !responseData.choices || responseData.choices.length === 0) {
+      const nativeEndpoints = [
+        process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
+        process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+      ].filter(Boolean);
+
+      for (const nativeUrl of nativeEndpoints) {
+        try {
+          const nativeController = new AbortController();
+          const nativeTimeout = setTimeout(() => nativeController.abort(), 8000);
+          const nativeOutbound = { ...outbound, model: 'deepernova v1 flash 1' };
+          const nativeRes = await fetch(nativeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nativeOutbound),
+            signal: nativeController.signal
+          });
+          clearTimeout(nativeTimeout);
+
+          if (nativeRes.ok) {
+            responseData = await nativeRes.json();
+            upstreamError = null;
+            console.log(`[ApiProxyService] ✅ Responded via Native GPU Engine (${nativeUrl})!`);
+            break;
+          }
+        } catch (nativeErr) {}
       }
     }
 
     if (!responseData || !responseData.choices || responseData.choices.length === 0) {
-      upstreamError = { status: 503, message: 'Native GPU AI engine offline' };
+      upstreamError = upstreamError || { status: 503, message: 'All AI engines offline' };
     }
 
     latencyMs = Date.now() - startTime;
@@ -708,44 +751,76 @@ ATURAN KOMUNIKASI MUTLAK:
       outbound.messages.unshift(identityPrompt);
     }
 
-    // 1. Prioritize Native Cloudflare AI Engine Streaming
-    const nativeEndpoints = [
-      process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
-      process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
-    ].filter(Boolean);
+    let upstreamStream = null;
+    let streamError = null;
 
-    for (const nativeUrl of nativeEndpoints) {
-      try {
-        const nativeController = new AbortController();
-        const nativeTimeout = setTimeout(() => nativeController.abort(), 8000);
-        const nativeRes = await fetch(nativeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(outbound),
-          signal: nativeController.signal
-        });
-        clearTimeout(nativeTimeout);
+    // 1. High-Speed Cloud AI Streaming with Key Rotation
+    if (TOKENMIX_API_KEYS.length > 0) {
+      for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
+        const idx = (activeProxyKeyIndex + count) % TOKENMIX_API_KEYS.length;
+        const activeKey = TOKENMIX_API_KEYS[idx];
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 12000);
+          const response = await fetch(TOKENMIX_CHAT_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeKey}`
+            },
+            body: JSON.stringify(outbound),
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
 
-        if (nativeRes.ok && nativeRes.body) {
-          console.log(`[ApiProxyService Stream] ✅ Streaming via Cloudflare Native AI Engine (${nativeUrl})!`);
-          return {
-            stream: nativeRes.body,
-            auth,
-            requestedModel,
-            targetModel
-          };
+          if (response.ok && response.body) {
+            upstreamStream = response.body;
+            activeProxyKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
+            streamError = null;
+            break;
+          } else {
+            const errBody = await response.text().catch(() => '');
+            console.warn(`[ApiProxyService Stream] Key index ${idx} status ${response.status}: ${errBody.substring(0, 100)}`);
+            streamError = { status: response.status, body: errBody };
+          }
+        } catch (netErr) {
+          console.warn(`[ApiProxyService Stream] Error key index ${idx}: ${netErr.message}`);
+          streamError = { status: 500, message: netErr.message };
         }
-      } catch (nativeErr) {
-        // Native AI engine offline, fallback to TokenMix stream
+      }
+    }
+
+    // 2. Fallback to Native GPU Engine
+    if (!upstreamStream) {
+      const nativeEndpoints = [
+        process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
+        process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+      ].filter(Boolean);
+
+      for (const nativeUrl of nativeEndpoints) {
+        try {
+          const nativeController = new AbortController();
+          const nativeTimeout = setTimeout(() => nativeController.abort(), 8000);
+          const nativeOutbound = { ...outbound, model: 'deepernova v1 flash 1' };
+          const nativeRes = await fetch(nativeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nativeOutbound),
+            signal: nativeController.signal
+          });
+          clearTimeout(nativeTimeout);
+
+          if (nativeRes.ok && nativeRes.body) {
+            upstreamStream = nativeRes.body;
+            streamError = null;
+            console.log(`[ApiProxyService Stream] ✅ Streaming via Native GPU Engine (${nativeUrl})!`);
+            break;
+          }
+        } catch (nativeErr) {}
       }
     }
 
     if (!upstreamStream) {
-      useStandbyStream = true;
-      streamError = { status: 503, message: 'Native GPU AI engine offline' };
-    }
-
-    if (useStandbyStream || !upstreamStream) {
       const generatedContent = this.generateStandbyCompletion(outbound.messages, requestedModel, streamError);
       const syntheticStream = this.createSyntheticSSEStream(generatedContent, requestedModel);
       return {
