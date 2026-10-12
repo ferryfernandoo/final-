@@ -12917,19 +12917,102 @@ pre.code-block code {
 .claude-wave-bars .bar:nth-child(4) { height: 10px; }
 .claude-wave-bars .bar:nth-child(5) { height: 5px; }
 
+.claude-tool-btn.auto-voice-btn,
+.claude-tool-btn.voice-btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.claude-tool-btn.auto-voice-btn.active,
+.claude-tool-btn.auto-voice-btn.voice-on {
+  background: rgba(6, 182, 212, 0.16) !important;
+  color: #06b6d4 !important;
+  border-color: rgba(6, 182, 212, 0.4) !important;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25) !important;
+}
+
+.claude-tool-btn.auto-voice-btn.voice-off {
+  color: #64748b !important;
+  opacity: 0.85;
+}
+
+.claude-tool-btn.auto-voice-btn.voice-off:hover {
+  color: #06b6d4 !important;
+  background: rgba(6, 182, 212, 0.08) !important;
+}
+
+.claude-tool-btn.auto-voice-btn .claude-wave-bars.active .bar {
+  background: #06b6d4 !important;
+  animation: waveBarAnim 0.75s ease-in-out infinite alternate !important;
+}
+
+.claude-tool-btn.auto-voice-btn:hover .claude-wave-bars .bar,
 .claude-tool-btn.voice-btn:hover .claude-wave-bars .bar {
   animation: waveBarAnim 0.8s ease-in-out infinite alternate !important;
 }
 
+.claude-tool-btn.auto-voice-btn .claude-wave-bars .bar:nth-child(1),
 .claude-tool-btn.voice-btn:hover .claude-wave-bars .bar:nth-child(1) { animation-delay: 0.1s !important; }
+.claude-tool-btn.auto-voice-btn .claude-wave-bars .bar:nth-child(2),
 .claude-tool-btn.voice-btn:hover .claude-wave-bars .bar:nth-child(2) { animation-delay: 0.2s !important; }
+.claude-tool-btn.auto-voice-btn .claude-wave-bars .bar:nth-child(3),
 .claude-tool-btn.voice-btn:hover .claude-wave-bars .bar:nth-child(3) { animation-delay: 0.3s !important; }
+.claude-tool-btn.auto-voice-btn .claude-wave-bars .bar:nth-child(4),
 .claude-tool-btn.voice-btn:hover .claude-wave-bars .bar:nth-child(4) { animation-delay: 0.15s !important; }
+.claude-tool-btn.auto-voice-btn .claude-wave-bars .bar:nth-child(5),
 .claude-tool-btn.voice-btn:hover .claude-wave-bars .bar:nth-child(5) { animation-delay: 0.25s !important; }
 
 @keyframes waveBarAnim {
   0% { height: 4px; }
   100% { height: 14px; }
+}
+
+/* Header Voice Mode Floating Button */
+.header-voice-toggle-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 0 14px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+  color: #64748b !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.header-voice-toggle-btn:hover {
+  background: #ffffff !important;
+  color: #0284c7 !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.18) !important;
+  transform: translateY(-2px) !important;
+}
+
+.header-voice-toggle-btn.active {
+  border-color: #06b6d4 !important;
+  background: rgba(6, 182, 212, 0.1) !important;
+  color: #0891b2 !important;
+  box-shadow: 0 6px 18px rgba(6, 182, 212, 0.22) !important;
+}
+
+[data-theme="dark"] .header-voice-toggle-btn {
+  background: rgba(30, 41, 59, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .header-voice-toggle-btn.active {
+  background: rgba(6, 182, 212, 0.18) !important;
+  border-color: rgba(6, 182, 212, 0.5) !important;
+  color: #22d3ee !important;
+  box-shadow: 0 6px 18px rgba(6, 182, 212, 0.3) !important;
 }
 
 /* Claude Send / Stop Action Button */

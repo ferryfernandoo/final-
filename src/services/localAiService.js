@@ -52,7 +52,13 @@ export function generateInstantBoronResponse(prompt = '') {
   const p = prompt.toLowerCase().trim();
 
   if (/^(halo|hai|hi|hey|assalamu|selamat|pagi|siang|sore|malam)\b/i.test(p) || p.length < 5) {
-    return 'Halo! Ada yang bisa saya bantu?';
+    const greetings = [
+      'Halo! Saya DeeperNova Boron 1.1, siap membantu Anda. Apa yang ingin kita bahas hari ini?',
+      'Hai! Senang bertemu Anda. Ada tugas atau pertanyaan yang ingin diselesaikan?',
+      'Halo! DeeperNova AI aktif dan siap membantu. Silakan sampaikan pertanyaan atau tugas Anda.',
+      'Hai! Saya siap membantu coding, analisis teks, atau tanya jawab umum. Apa yang bisa saya bantu?'
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
   }
 
   if (/(siapa kamu|kamu siapa|identitas|siapa pembuatmu|siapa ciptakan|model apa)/i.test(p)) {

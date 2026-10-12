@@ -1932,6 +1932,10 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const [inputValue, setInputValue] = useState('');
   const [aiMode, setAiMode] = useState('brainstorm'); // 'brainstorm' | 'agent'
   const [activeFile, setActiveFile] = useState(null); // null or { id, name, type, content }
@@ -2409,7 +2413,23 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [pendingAnswerMessage, _setPendingAnswerMessageContent] = useState(null); // Message pending answer generation
   const [messageFeedback, setMessageFeedback] = useState({}); // Track like/dislike feedback for messages: { messageId: 'like'|'dislike'|null }
   const [playingMessageId, setPlayingMessageId] = useState(null); // Currently playing TTS message ID
+  const playingMessageIdRef = useRef(null);
   const [ttsLoading, setTtsLoading] = useState(null); // Message ID currently generating TTS
+  const [isAutoVoiceEnabled, setIsAutoVoiceEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_auto_voice') === 'true';
+    } catch (_) {
+      return false;
+    }
+  });
+  const isAutoVoiceEnabledRef = useRef(isAutoVoiceEnabled);
+
+  useEffect(() => {
+    isAutoVoiceEnabledRef.current = isAutoVoiceEnabled;
+    try {
+      localStorage.setItem('deepernova_auto_voice', String(isAutoVoiceEnabled));
+    } catch (_) {}
+  }, [isAutoVoiceEnabled]);
   const [aiGreeting, setAiGreeting] = useState(null); // AI-generated greeting
   const [aiHint, setAiHint] = useState(null); // AI-generated hint for empty chat
   const [generatingGreeting, setGeneratingGreeting] = useState(false); // Loading state for AI greeting
@@ -3958,6 +3978,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           console.warn('[ChatBot] finishStreaming instant save error:', e);
         }
 
+        // 🎙️ AUTO-VOICE is handled by a dedicated useEffect watching `messages` (always reads the freshest final text)
+
         const recentMessages = updated
           .filter(m => m.text && m.sender)
           .slice(-3)
@@ -4300,6 +4322,16 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     };
     // Clean out empty non-active sessions when user starts a fresh chat
     remoteTypewriterRef.current?.finishNow();
+    tokenMixTtsService.stop();
+    tokenMixTtsService.clearCache();
+    playingMessageIdRef.current = null;
+    setPlayingMessageId(null);
+    streamingSeenIdsRef.current.clear();
+    autoSpokenIdsRef.current.clear();
+    if (autoVoiceTimerRef.current) {
+      clearTimeout(autoVoiceTimerRef.current);
+      autoVoiceTimerRef.current = null;
+    }
     setConversations((prev) => [newConv, ...prev.filter(c => c && c.messages && c.messages.length > 0)]);
     switchingConvRef.current = true;
     setCurrentConversationId(newId);
@@ -5579,6 +5611,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const conv = conversations.find((c) => c.id === convId);
     if (conv) {
       remoteTypewriterRef.current?.finishNow();
+      tokenMixTtsService.stop();
+      tokenMixTtsService.clearCache();
+      playingMessageIdRef.current = null;
+      setPlayingMessageId(null);
+      streamingSeenIdsRef.current.clear();
+      autoSpokenIdsRef.current.clear();
+      if (autoVoiceTimerRef.current) {
+        clearTimeout(autoVoiceTimerRef.current);
+        autoVoiceTimerRef.current = null;
+      }
       switchingConvRef.current = true;
       const convMsgs = conv.messages || [];
       const imageCount = convMsgs.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
@@ -6538,26 +6580,58 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   };
 
   /**
-   * Handle TTS play/stop for a message
-   * Always available - no mute check needed
+   * Helper to strip technical markdown, URLs, and code blocks for ultra-clean, natural speech
    */
-  const handleTtsToggle = async (message) => {
+  const cleanTextForTts = (raw) => {
+    if (!raw) return '';
+    return raw
+      .replace(/<think[\s\S]*?<\/think>/gi, '')
+      .replace(/<reasoning[\s\S]*?<\/reasoning>/gi, '')
+      .replace(/<thought[\s\S]*?<\/thought>/gi, '')
+      .replace(/<\/?(?:reasoning|thought|think|action_pill)\b[^>]*>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\[(?:FILE_DOWNLOAD_START|FILEDOWNLOADSTART):[\s\S]*?\]/gi, '')
+      .replace(/\[(?:FILE_DOWNLOAD_END|FILEDOWNLOADEND)\]/gi, '')
+      .replace(/\[(?:MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|REMINDER_REQUEST|NAVIGATE_UNIVERSE|SEARCH_REQUEST)[\s\S]*?\]/gi, '')
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\!\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\[\d+\]/g, '')
+      .replace(/https?:\/\/\S+/gi, 'tautan')
+      .replace(/[#*_~>]/g, ' ')
+      .replace(/&/g, ' dan ')
+      .replace(/[<>{}\\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  /**
+   * Handle TTS play/stop for a message with zero latency and natural voice
+   */
+  const handleTtsToggle = async (message, options = {}) => {
+    const { forcePlay = false } = options;
     try {
-      // If already playing this message, stop it
-      if (playingMessageId === message.id) {
+      tokenMixTtsService.unlockAudio();
+
+      // If already playing this message, stop it (manual toggle only)
+      if (!forcePlay && playingMessageIdRef.current === message.id) {
         tokenMixTtsService.stop();
+        playingMessageIdRef.current = null;
         setPlayingMessageId(null);
         return;
       }
 
-      // Stop any currently playing audio
-      if (playingMessageId) {
-        tokenMixTtsService.stop();
-      }
+      // Stop any currently playing audio unconditionally
+      tokenMixTtsService.stop();
 
       setTtsLoading(message.id);
 
-      const textForSpeech = message.text.replace(/<\/?reasoning\b[^>]*>/gi, '').trim();
+      // Always resolve the FRESHEST version of this message from state (avoids stale closures)
+      const freshMsg = (messagesRef.current || []).find(m => m.id === message.id);
+      const rawText = (freshMsg && (freshMsg.text || freshMsg.content)) || message.text || message.content || '';
+      const textForSpeech = cleanTextForTts(rawText);
+      console.log('[TTS] Speaking message', message.id, '→', textForSpeech.substring(0, 80));
 
       if (!textForSpeech) {
         setTtsLoading(null);
@@ -6566,32 +6640,129 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             ? 'Tidak ada teks utama untuk dibaca.'
             : 'No main text available to speak.',
           'warning',
-          3000
+          2500
         );
         return;
       }
 
-      // Generate and play TTS on frontend for low latency
-      const audioBlob = await tokenMixTtsService.textToSpeech(textForSpeech, 'alloy');
+      // Generate and play TTS (optimal neural voice selection on server, with web speech fallback)
+      const audioBlob = await tokenMixTtsService.textToSpeech(textForSpeech);
       
+      playingMessageIdRef.current = message.id;
       setPlayingMessageId(message.id);
       setTtsLoading(null);
 
-      tokenMixTtsService.play(audioBlob, () => {
-        setPlayingMessageId(null);
-      });
+      const onDone = () => {
+        if (playingMessageIdRef.current === message.id) playingMessageIdRef.current = null;
+        setPlayingMessageId(prev => (prev === message.id ? null : prev));
+      };
+      tokenMixTtsService.play(audioBlob, onDone, onDone, textForSpeech);
     } catch (error) {
+      if (error?.name === 'AbortError') return;
       console.error('[ChatBot] TTS Error:', error);
       setTtsLoading(null);
+      setPlayingMessageId(null);
       showAlert(
         userLanguage === 'id' 
-          ? 'Gagal membaca: ' + error.message 
-          : 'Failed to play audio: ' + error.message,
+          ? 'Gagal memutar audio: ' + (error?.message || 'Error audio')
+          : 'Failed to play audio: ' + (error?.message || 'Audio error'),
         'error',
         3000
       );
     }
   };
+
+  /**
+   * Global Auto-Voice Toggle:
+   * When ON: Automatically speaks all latest AI responses with low latency
+   * When OFF: Silent
+   */
+  const handleToggleAutoVoice = () => {
+    tokenMixTtsService.unlockAudio();
+    const nextState = !isAutoVoiceEnabled;
+    setIsAutoVoiceEnabled(nextState);
+    isAutoVoiceEnabledRef.current = nextState;
+    try {
+      localStorage.setItem('deepernova_auto_voice', String(nextState));
+    } catch (_) {}
+
+    if (nextState) {
+      showAlert(
+        userLanguage === 'id'
+          ? '🔊 Mode Suara Aktif: Setiap respon AI baru akan otomatis dibaca'
+          : '🔊 Auto-Voice ON: New AI responses will be read aloud',
+        'success',
+        2500
+      );
+    } else {
+      tokenMixTtsService.stop();
+      playingMessageIdRef.current = null;
+      setPlayingMessageId(null);
+      if (autoVoiceTimerRef.current) {
+        clearTimeout(autoVoiceTimerRef.current);
+        autoVoiceTimerRef.current = null;
+      }
+      showAlert(
+        userLanguage === 'id'
+          ? '🔇 Mode Senyap: Respon AI hening'
+          : '🔇 Silent Mode: AI responses silent',
+        'info',
+        2000
+      );
+    }
+  };
+
+  // 🎙️ AUTO-VOICE ENGINE
+  // Watches messages: any bot message that was seen streaming in this session and is now
+  // finished gets spoken exactly once, using its FINAL text (never stale/old answers).
+  const handleTtsToggleRef = useRef(handleTtsToggle);
+  handleTtsToggleRef.current = handleTtsToggle;
+  const streamingSeenIdsRef = useRef(new Set());
+  const autoSpokenIdsRef = useRef(new Set());
+  const autoVoiceTimerRef = useRef(null);
+
+  useEffect(() => {
+    const list = messages || [];
+    let candidate = null;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i];
+      if (m.sender === 'bot' || m.role === 'assistant') {
+        candidate = m;
+        break;
+      }
+    }
+    if (!candidate) return;
+
+    const isBusy = candidate.isStreaming || candidate.isThinking || candidate.isSearching ||
+      candidate.isReasoning || candidate.isRecallingMemory || candidate.isImageGenerating;
+
+    if (isBusy) {
+      streamingSeenIdsRef.current.add(candidate.id);
+      if (autoVoiceTimerRef.current) {
+        clearTimeout(autoVoiceTimerRef.current);
+        autoVoiceTimerRef.current = null;
+      }
+      return;
+    }
+
+    const text = (candidate.text || candidate.content || '').trim();
+    if (!isAutoVoiceEnabledRef.current) return;
+    if (!streamingSeenIdsRef.current.has(candidate.id)) return; // skip loaded history
+    if (autoSpokenIdsRef.current.has(candidate.id)) return;
+    if (!text || /\[SEARCH_REQUEST:/i.test(text)) return;
+
+    // Small debounce so follow-up updates (search/memory/finalization) settle first
+    if (autoVoiceTimerRef.current) clearTimeout(autoVoiceTimerRef.current);
+    const targetId = candidate.id;
+    autoVoiceTimerRef.current = setTimeout(() => {
+      autoVoiceTimerRef.current = null;
+      const fresh = (messagesRef.current || []).find(m => m.id === targetId);
+      if (!fresh || fresh.isStreaming || !isAutoVoiceEnabledRef.current) return;
+      if (autoSpokenIdsRef.current.has(targetId)) return;
+      autoSpokenIdsRef.current.add(targetId);
+      handleTtsToggleRef.current(fresh, { forcePlay: true });
+    }, 350);
+  }, [messages]);
 
   // Handle stop streaming
   const handleStopStreaming = () => {
@@ -8855,6 +9026,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       e.preventDefault();
     }
 
+    // Unlock browser audio upon sending so auto-voice can speak seamlessly when generation completes
+    tokenMixTtsService.unlockAudio();
+
     // Check 700k Token Limit
     if (isTokenUsageLimited()) {
       showAlert(
@@ -9151,6 +9325,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     lockedUserMessageIdRef.current = userMessageForChat.id;
     scrollToUserMessage(false);
 
+    let rawText = '';
+    let targetFullText = '';
+    let displayedFullText = '';
+    let fullText = '';
+    let targetReasoningText = '';
+    let displayedReasoningText = '';
+    let reasoningStartTime = null;
+    let reasoningEndTime = null;
+    let isReasoning = false;
+    let reasoningDuration = null;
+
     try {
       // Send to Deepernova AI with conversation history for advanced context
       // Use fullMessage (with file contents) instead of inputValue
@@ -9158,17 +9343,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const streamingConversationId = currentConversationId;
       
       const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningCapable ? isReasoningEnabled : false);
-
-      // Declare accumulatedText and reasoning tracking variables
-      let rawText = '';
-      let targetFullText = '';
-      let displayedFullText = '';
-      let targetReasoningText = '';
-      let displayedReasoningText = '';
-      let reasoningStartTime = null;
-      let reasoningEndTime = null;
-      let isReasoning = false;
-      let reasoningDuration = null;
       let streamDone = false;
       currentStreamingTextRef.current = '';
 
@@ -11869,20 +12043,32 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 </svg>
               </button>
 
-              {/* Real-time Voice Chat Mode Button */}
+              {/* Auto-Voice / TTS Mode Toggle Button */}
               <button
                 type="button"
-                className="claude-tool-btn voice-btn"
-                onClick={() => setShowVoiceDevModal(true)}
-                title={userLanguage === 'id' ? 'Mode Obrolan Suara' : 'Voice Chat Mode'}
+                className={`claude-tool-btn auto-voice-btn ${isAutoVoiceEnabled ? 'active voice-on' : 'voice-off'}`}
+                onClick={handleToggleAutoVoice}
+                title={
+                  isAutoVoiceEnabled
+                    ? (userLanguage === 'id' ? '🔊 Suara Otomatis: AKTIF (Membaca otomatis setiap jawaban) - Klik untuk matikan' : '🔊 Auto-Voice: ON (AI responses read aloud) - Click to mute')
+                    : (userLanguage === 'id' ? '🔇 Suara Otomatis: NONAKTIF (Hening) - Klik untuk aktifkan' : '🔇 Auto-Voice: OFF (Silent) - Click to enable')
+                }
               >
-                <span className="claude-wave-bars">
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                </span>
+                {isAutoVoiceEnabled ? (
+                  <span className="claude-wave-bars active">
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                  </span>
+                ) : (
+                  <svg className="tool-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                )}
               </button>
 
               {/* Unified Send or Stop Action Button */}
@@ -14014,6 +14200,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           {messages.length > 0 && (
             <div className="header-right-actions">
+              <button
+                type="button"
+                className={`header-voice-toggle-btn ${isAutoVoiceEnabled ? 'active' : ''}`}
+                onClick={handleToggleAutoVoice}
+                title={
+                  isAutoVoiceEnabled
+                    ? (userLanguage === 'id' ? 'Suara Otomatis: AKTIF (Klik untuk nonaktifkan)' : 'Auto-Voice: ON (Click to mute)')
+                    : (userLanguage === 'id' ? 'Suara Otomatis: NONAKTIF (Klik untuk aktifkan)' : 'Auto-Voice: OFF (Click to enable)')
+                }
+              >
+                <i className={`fa-solid ${isAutoVoiceEnabled ? 'fa-volume-high' : 'fa-volume-xmark'}`}></i>
+                <span className="header-voice-label">{isAutoVoiceEnabled ? (userLanguage === 'id' ? 'Suara' : 'Voice') : (userLanguage === 'id' ? 'Senyap' : 'Muted')}</span>
+              </button>
               <button 
                 type="button" 
                 className={`header-agentic-btn ${showAgenticPanel ? 'active' : ''}`}
@@ -14782,20 +14981,32 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 </svg>
               </button>
 
-              {/* Real-time Voice Chat Mode Button */}
+              {/* Auto-Voice / TTS Mode Toggle Button */}
               <button
                 type="button"
-                className="claude-tool-btn voice-btn"
-                onClick={() => setShowVoiceDevModal(true)}
-                title={userLanguage === 'id' ? 'Mode Obrolan Suara' : 'Voice Chat Mode'}
+                className={`claude-tool-btn auto-voice-btn ${isAutoVoiceEnabled ? 'active voice-on' : 'voice-off'}`}
+                onClick={handleToggleAutoVoice}
+                title={
+                  isAutoVoiceEnabled
+                    ? (userLanguage === 'id' ? '🔊 Suara Otomatis: AKTIF (Membaca otomatis setiap jawaban) - Klik untuk matikan' : '🔊 Auto-Voice: ON (AI responses read aloud) - Click to mute')
+                    : (userLanguage === 'id' ? '🔇 Suara Otomatis: NONAKTIF (Hening) - Klik untuk aktifkan' : '🔇 Auto-Voice: OFF (Silent) - Click to enable')
+                }
               >
-                <span className="claude-wave-bars">
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                  <span className="bar"></span>
-                </span>
+                {isAutoVoiceEnabled ? (
+                  <span className="claude-wave-bars active">
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                    <span className="bar"></span>
+                  </span>
+                ) : (
+                  <svg className="tool-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                )}
               </button>
 
               {/* Unified Send or Stop Action Button */}

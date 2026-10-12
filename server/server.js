@@ -3618,6 +3618,26 @@ app.post('/api/chat', async (req, res) => {
 // 🎙️ SECURE SERVER-SIDE TEXT-TO-SPEECH (TTS) ENDPOINT
 // Primary: Microsoft Edge Neural TTS (Free, Ultra-Fast, Human-Like Indonesian & English, No API Quota)
 // Fallback: TokenMix API
+function cleanTextForEdgeTts(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  return raw
+    .replace(/<think[\s\S]*?<\/think>/gi, '')
+    .replace(/<reasoning[\s\S]*?<\/reasoning>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]+`/g, ' ')
+    .replace(/\[(?:FILE_DOWNLOAD_START|FILEDOWNLOADSTART):[\s\S]*?\]/gi, '')
+    .replace(/\[(?:FILE_DOWNLOAD_END|FILEDOWNLOADEND)\]/gi, '')
+    .replace(/\[(?:MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|REMINDER_REQUEST|NAVIGATE_UNIVERSE|SEARCH_REQUEST)[\s\S]*?\]/gi, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/https?:\/\/\S+/gi, 'tautan')
+    .replace(/[#*_~>]/g, ' ')
+    .replace(/&/g, ' dan ')
+    .replace(/[<>{}\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 app.post('/api/tts', express.json(), async (req, res) => {
   try {
     const { input, text, voice = 'nova', model = 'tts-1' } = req.body;
@@ -3626,31 +3646,50 @@ app.post('/api/tts', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Text/input is required for TTS' });
     }
 
-    const maxChars = 3500;
-    const truncatedText = inputText.length > maxChars ? inputText.substring(0, maxChars) + '...' : inputText;
+    let cleanText = cleanTextForEdgeTts(inputText);
+    if (!cleanText) {
+      return res.status(400).json({ error: 'No readable speech text' });
+    }
+
+    // Graceful sentence-boundary truncation
+    const maxChars = 3200;
+    if (cleanText.length > maxChars) {
+      const boundary = cleanText.lastIndexOf('.', maxChars);
+      cleanText = (boundary > 1200 ? cleanText.substring(0, boundary + 1) : cleanText.substring(0, maxChars)).trim();
+    }
 
     // 1. Primary Engine: msedge-tts (High Fidelity Neural Audio, ~400ms latency, 0 API cost)
     try {
       const edgeTts = new MsEdgeTTS();
-      const isIndonesian = /[a-z]/i.test(truncatedText) && (
-        /yang|untuk|dengan|ini|adalah|dari|ke|di|apa|siapa|bagaimana|dan|tidak|bisa|akan|sudah|terima/i.test(truncatedText)
+      const isIndonesian = /[a-z]/i.test(cleanText) && (
+        /yang|untuk|dengan|ini|adalah|dari|ke|di|apa|siapa|bagaimana|dan|tidak|bisa|akan|sudah|terima|mohon|halo|hai|selamat|saya|kamu|anda/i.test(cleanText)
       );
 
       let selectedEdgeVoice = 'id-ID-GadisNeural';
       if (isIndonesian) {
-        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx') ? 'id-ID-ArdiNeural' : 'id-ID-GadisNeural';
+        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx' || voice === 'ardi') ? 'id-ID-ArdiNeural' : 'id-ID-GadisNeural';
       } else {
-        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx') ? 'en-US-GuyNeural' : 'en-US-AvaNeural';
+        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx' || voice === 'guy') ? 'en-US-GuyNeural' : 'en-US-AvaNeural';
       }
 
       await edgeTts.setMetadata(selectedEdgeVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-      const { audioStream } = await edgeTts.toStream(truncatedText);
+      const { audioStream } = await edgeTts.toStream(cleanText);
 
       const chunks = [];
       await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Edge TTS synthesis timed out after 15s'));
+        }, 15000);
+
         audioStream.on('data', chunk => chunks.push(chunk));
-        audioStream.on('end', resolve);
-        audioStream.on('error', reject);
+        audioStream.on('end', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        audioStream.on('error', err => {
+          clearTimeout(timeout);
+          reject(err);
+        });
       });
 
       const audioBuffer = Buffer.concat(chunks);
@@ -3660,42 +3699,46 @@ app.post('/api/tts', express.json(), async (req, res) => {
         return res.send(audioBuffer);
       }
     } catch (edgeErr) {
-      console.warn('[TTS FALLBACK] Edge Neural TTS failed, falling back to TokenMix:', edgeErr.message);
+      console.warn('[TTS FALLBACK] Edge Neural TTS failed, attempting fallback:', edgeErr.message);
     }
 
     // 2. Fallback Engine: TokenMix API
     const key = TOKENMIX_API_KEY;
-    if (!key) {
-      return res.status(500).json({ error: 'TTS service not configured' });
+    if (key) {
+      try {
+        const ttsResponse = await fetch('https://api.tokenmix.ai/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            model,
+            input: cleanText,
+            voice
+          })
+        });
+
+        if (ttsResponse.ok) {
+          const contentType = ttsResponse.headers.get('content-type') || 'audio/mpeg';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          const buffer = await ttsResponse.arrayBuffer();
+          return res.send(Buffer.from(buffer));
+        } else {
+          const errText = await ttsResponse.text().catch(() => '');
+          console.error(`[TTS PROVIDER ERROR] ${ttsResponse.status}:`, errText);
+        }
+      } catch (tokenMixErr) {
+        console.error('[TTS TOKENMIX EXCEPTION]', tokenMixErr.message);
+      }
     }
 
-    const ttsResponse = await fetch('https://api.tokenmix.ai/v1/audio/speech', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`
-      },
-      body: JSON.stringify({
-        model,
-        input: truncatedText,
-        voice
-      })
-    });
-
-    if (!ttsResponse.ok) {
-      const errText = await ttsResponse.text().catch(() => '');
-      console.error(`[TTS PROVIDER ERROR] ${ttsResponse.status}:`, errText);
-      return res.status(ttsResponse.status).json({ error: 'TTS provider error', details: errText });
-    }
-
-    const contentType = ttsResponse.headers.get('content-type') || 'audio/mpeg';
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    const buffer = await ttsResponse.arrayBuffer();
-    return res.send(Buffer.from(buffer));
+    // 3. Fallback to client-side speech synthesis indication
+    return res.status(500).json({ error: 'TTS provider unavailable, use local speech synthesis', fallbackToWebSpeech: true });
   } catch (err) {
     console.error('[TTS SERVER EXCEPTION]', err);
-    return res.status(500).json({ error: 'Failed to generate speech: ' + err.message });
+    return res.status(500).json({ error: 'Failed to generate speech: ' + err.message, fallbackToWebSpeech: true });
   }
 });
 

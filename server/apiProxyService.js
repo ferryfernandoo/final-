@@ -165,7 +165,13 @@ Koneksi ke provider upstream (**TokenMix AI**) saat ini mengembalikan status **H
       (lower === 'halo' || lower === 'hai' || lower === 'hi' || lower === 'hello' || lower === 'hey') ||
       /^(halo|hai|hi|hello|selamat pagi|selamat siang|selamat sore|selamat malam|assalamu['a-z]*)[!.]?$/i.test(lower)
     ) {
-      return 'Halo! Ada yang bisa saya bantu?';
+      const greetings = [
+        'Halo! Saya DeeperNova AI. Ada yang bisa saya bantu untuk Anda hari ini?',
+        'Hai! Senang menyapa Anda. Silakan sampaikan apa yang ingin kita bahas atau kerjakan.',
+        'Halo! Sistem DeeperNova AI aktif dan siap mendampingi Anda.',
+        'Hai! Saya siap membantu pertanyaan, analisis, atau tugas Anda.'
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
     }
 
     // 2. Pertanyaan Santai Singkat (Lagi apa, apa kabar)
