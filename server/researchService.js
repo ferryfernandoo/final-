@@ -87,53 +87,59 @@ export class ResearchService {
    * Execute SerpAPI search with intelligent engine selection
    */
   async search(query, options = {}) {
-    // 1. Try Deepernova High-Speed Search API first
-    const dnSearchUrl = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:3000/api/v1';
+    // 1. Try Deepernova High-Speed Search API first (Port 4000 & Cloudflare)
     const dnSearchKey = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
+    const searchBases = [
+      'http://127.0.0.1:4000/api/v1',
+      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`,
+      'https://challenge-roles-cincinnati-indicator.trycloudflare.com/api/v1'
+    ].filter(Boolean);
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${dnSearchUrl}/search?q=${encodeURIComponent(query)}&limit=8`, {
-        headers: {
-          'Authorization': `Bearer ${dnSearchKey}`,
-          'X-API-Key': dnSearchKey
-        },
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+    for (const dnSearchUrl of searchBases) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(`${dnSearchUrl}/search?q=${encodeURIComponent(query)}&limit=8`, {
+          headers: {
+            'Authorization': `Bearer ${dnSearchKey}`,
+            'X-API-Key': dnSearchKey
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-          const clean = (s) => (s || '').replace(/<\/?mark[^>]*>/gi, '').trim();
-          const sources = data.results.map((r, idx) => ({
-            id: `dn-src-${idx}`,
-            title: clean(r.title) || 'Untitled Source',
-            link: r.url || '',
-            snippet: clean(r.snippet) || '',
-            source: r.domain || (r.url ? new URL(r.url).hostname : '')
-          }));
+        if (res.ok) {
+          const data = await res.json();
+          if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+            const clean = (s) => (s || '').replace(/<\/?mark[^>]*>/gi, '').trim();
+            const sources = data.results.map((r, idx) => ({
+              id: `dn-src-${idx}`,
+              title: clean(r.title) || 'Untitled Source',
+              link: r.url || '',
+              snippet: clean(r.snippet) || '',
+              source: r.domain || (r.url ? new URL(r.url).hostname : '')
+            }));
 
-          return {
-            success: true,
-            query,
-            engine: 'deepernova_bm25',
-            results: data,
-            sources,
-            textBlocks: sources.map(s => ({ snippet: s.snippet })),
-            shoppingResults: [],
-            searchMetadata: {
-              duration_ms: data.duration_ms || 0,
-              total_results: data.total_results || sources.length
-            },
-            timestamp: new Date().toISOString(),
-            totalTime: (data.duration_ms || 0) / 1000
-          };
+            return {
+              success: true,
+              query,
+              engine: 'deepernova_bm25',
+              results: data,
+              sources,
+              textBlocks: sources.map(s => ({ snippet: s.snippet })),
+              shoppingResults: [],
+              searchMetadata: {
+                duration_ms: data.duration_ms || 0,
+                total_results: data.total_results || sources.length
+              },
+              timestamp: new Date().toISOString(),
+              totalTime: (data.duration_ms || 0) / 1000
+            };
+          }
         }
+      } catch (dnErr) {
+        console.warn(`[ResearchService] Deepernova search error on ${dnSearchUrl}:`, dnErr.message);
       }
-    } catch (dnErr) {
-      console.warn('[ResearchService] Deepernova search error, falling back to SerpAPI:', dnErr.message);
     }
 
     // 2. Fallback to SerpAPI if configured

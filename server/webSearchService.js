@@ -37,42 +37,50 @@ class WebSearchService {
    * @returns {Promise<{success: boolean, results: Array, error?: string}>}
    */
   async searchGoogle(query, maxResults = 5, language = 'id') {
-    // 1. Primary Engine: Deepernova High-Speed Search API
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
+    // 1. Primary Engine: Deepernova High-Speed Search API (Port 4000 & Cloudflare)
+    const searchBases = [
+      'http://127.0.0.1:4000/api/v1',
+      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`,
+      'https://challenge-roles-cincinnati-indicator.trycloudflare.com/api/v1'
+    ].filter(Boolean);
 
-      const response = await fetch(`${DEEPERNOVA_SEARCH_API_URL}/search?q=${encodeURIComponent(query)}&limit=${maxResults}`, {
-        headers: {
-          'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
-          'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
-        },
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+    for (const sBase of searchBases) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      const contentType = response.headers.get('content-type') || '';
-      if (response.ok && contentType.includes('application/json')) {
-        const data = await response.json();
-        if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-          const results = data.results.slice(0, maxResults).map((r, idx) => ({
-            title: cleanText(r.title) || 'Untitled',
-            url: r.url || '',
-            snippet: cleanText(r.snippet) || '',
-            position: idx + 1
-          }));
+        const response = await fetch(`${sBase}/search?q=${encodeURIComponent(query)}&limit=${maxResults}`, {
+          headers: {
+            'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
+            'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-          console.log(`[WebSearchService] ✓ Deepernova Search found ${results.length} results for: "${query}" (${data.duration_ms || 0}ms)`);
-          return {
-            success: true,
-            results,
-            query,
-            engine: 'deepernova_bm25'
-          };
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
+          const data = await response.json();
+          if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+            const results = data.results.slice(0, maxResults).map((r, idx) => ({
+              title: cleanText(r.title) || 'Untitled',
+              url: r.url || '',
+              snippet: cleanText(r.snippet) || cleanText(r.description) || '',
+              position: idx + 1
+            }));
+
+            console.log(`[WebSearchService] ✓ Deepernova Search found ${results.length} results from ${sBase} (${data.duration_ms || 0}ms)`);
+            return {
+              success: true,
+              results,
+              query,
+              engine: 'deepernova_bm25'
+            };
+          }
         }
+      } catch (dnErr) {
+        console.warn(`[WebSearchService] Deepernova search error on ${sBase} (${dnErr.message})`);
       }
-    } catch (dnErr) {
-      console.warn(`[WebSearchService] Deepernova search error (${dnErr.message}), checking fallback...`);
     }
 
     // 2. Fallback: SerpAPI (Google)

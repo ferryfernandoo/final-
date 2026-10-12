@@ -24,7 +24,7 @@ import GlobalMemorySettings from './GlobalMemorySettings';
 import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, enrichQueryWithDateIfRecent } from '../services/clientSearchService';
+import { executeWebSearch, enrichQueryWithDateIfRecent, detectUpfrontSearchIntent } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import './ChatBot.css';
 
@@ -9259,8 +9259,47 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
+    // ⚡ UPFRONT DEEPERNOVA SEARCH INTENT DETECTION
+    // Eliminates slow LLM double-hop round-trips for news, current info, search directives!
+    const upfrontSearch = detectUpfrontSearchIntent(cleanUserText || fullMessage, userLanguage);
+    if (upfrontSearch && upfrontSearch.shouldSearch && imagesToPass.length === 0) {
+      const finalSearchQuery = enrichQueryWithDateIfRecent(upfrontSearch.searchQuery, cleanUserText || fullMessage, userLanguage);
+      console.log(`[ChatBot] ⚡ Upfront search intent detected: "${upfrontSearch.searchQuery}" -> enriched: "${finalSearchQuery}" for message ${placeholderId}`);
 
-    
+      triggeredSearchRequestsRef.current.add(placeholderId);
+
+      // Immediately mark the bot message as searching with initial step block
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === placeholderId
+            ? {
+                ...msg,
+                text: '',
+                isStreaming: false,
+                isSearching: true,
+                searchQuery: finalSearchQuery,
+                searchResults: null,
+                searchSources: [],
+                searchSteps: [{
+                  query: finalSearchQuery,
+                  isSearching: true,
+                  sources: [],
+                  images: []
+                }]
+              }
+            : msg
+        )
+      );
+
+      // Directly execute DeeperNova Search and conversational synthesis
+      executeSearchAndSynthesize({
+        messageId: placeholderId,
+        searchQuery: finalSearchQuery,
+        userPrompt: cleanUserText || fullMessage,
+        baseHistory: updatedConversationHistory
+      });
+      return;
+    }
     // Keep the visual payload available for the model, but do not force a UI decision.
     // The assistant should decide naturally whether to read an image or edit it.
     if (imagesToPass.length > 0 && !isReasoningImage) {
@@ -10275,13 +10314,33 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === messageId) {
-            const steps = msg.searchSteps || [];
-            const lastIdx = steps.map(s => s.query).lastIndexOf(searchQuery);
-            const updatedSteps = steps.map((step, idx) => 
-              idx === lastIdx
-                ? { ...step, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) }
-                : step
-            );
+            const steps = (msg.searchSteps && msg.searchSteps.length > 0) ? [...msg.searchSteps] : [];
+            let updatedSteps = [];
+            if (steps.length === 0) {
+              updatedSteps = [{
+                query: searchQuery,
+                isSearching: false,
+                sources: sources,
+                images: uniqueImages.slice(0, 6)
+              }];
+            } else {
+              let matched = false;
+              updatedSteps = steps.map((step) => {
+                if (step.query === searchQuery || !matched) {
+                  matched = true;
+                  return { ...step, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) };
+                }
+                return step;
+              });
+              if (!matched) {
+                updatedSteps.push({
+                  query: searchQuery,
+                  isSearching: false,
+                  sources: sources,
+                  images: uniqueImages.slice(0, 6)
+                });
+              }
+            }
 
             return { 
               ...msg, 
@@ -12321,13 +12380,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                               </span>
                             </div>
                           ) : (
-                            step.sources && step.sources.length > 0 && (
+                            ((step.sources && step.sources.length > 0) || (message.searchSources && message.searchSources.length > 0)) && (
                               <div className="search-sources-section" style={{ marginTop: '4px', animation: 'float-source-in 0.35s ease both' }}>
                                 <SourceBubbleCarousel
-                                  key={`carousel_${sIdx}_${step.query}_${step.sources.length}`}
-                                  sources={step.sources}
+                                  key={`carousel_${sIdx}_${step.query}_${((step.sources && step.sources.length > 0) ? step.sources : message.searchSources).length}`}
+                                  sources={(step.sources && step.sources.length > 0) ? step.sources : message.searchSources}
                                   language={userLanguage}
-                                  onShowAll={() => setActiveSearchSources({ query: step.query, sources: step.sources })}
+                                  onShowAll={() => setActiveSearchSources({ query: step.query || message.searchQuery, sources: (step.sources && step.sources.length > 0) ? step.sources : message.searchSources })}
                                 />
                               </div>
                             )

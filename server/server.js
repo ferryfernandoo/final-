@@ -5450,64 +5450,59 @@ async function handleUnifiedSearch(req, res) {
     let imagesData = null;
     let engineUsed = 'deepernova_bm25';
 
-    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API on Port 4000
-    try {
-      const searchHeaders = {
-        'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
-        'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
-      };
+    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API
+    const searchApiBases = [
+      'http://127.0.0.1:4000/api/v1',
+      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`,
+      'https://challenge-roles-cincinnati-indicator.trycloudflare.com/api/v1'
+    ].filter(Boolean);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
-      const baseSearchUrl = DEEPERNOVA_SEARCH_API_URL.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
+    const searchHeaders = {
+      'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
+      'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
+    };
 
-      // Query web search and images in parallel for rich experience
-      const [searchResp, imagesResp] = await Promise.allSettled([
-        fetch(`${baseSearchUrl}/search?q=${encodeURIComponent(q)}&limit=${limit}&crawl=${req.query?.crawl !== undefined ? req.query.crawl : '0'}`, {
-          headers: searchHeaders,
-          signal: controller.signal
-        }),
-        fetch(`${baseSearchUrl}/search-images?q=${encodeURIComponent(q)}&limit=8`, {
-          headers: searchHeaders,
-          signal: controller.signal
-        })
-      ]);
-
-      clearTimeout(timeoutId);
-
-      if (searchResp.status === 'fulfilled' && searchResp.value.ok) {
-        searchData = await searchResp.value.json();
-        console.log(`[SEARCH] ✓ Deepernova search responded with ${searchData?.results?.length || 0} results`);
-      } else {
-        console.warn('[SEARCH FAIL]', {
-          status: searchResp.status,
-          http: searchResp.value?.status,
-          reason: searchResp.reason?.message
-        });
-      }
-
-      if (imagesResp.status === 'fulfilled' && imagesResp.value.ok) {
-        imagesData = await imagesResp.value.json();
-      }
-    } catch (dnErr) {
-      console.warn('[SEARCH] Deepernova search error, trying fallback:', dnErr.message);
-    }
-
-    // 2. Fallback Engine: SerpApi if Deepernova search failed or returned 0 results
-    if (!searchData || !searchData.results || searchData.results.length === 0) {
-      const serpKey = process.env.SERPAPI_KEY || '';
-      if (serpKey) {
-        console.log(`[SEARCH] Fallback to SerpApi (Google) for: "${q}"`);
-        engineUsed = 'serpapi_fallback';
+    for (const searchBase of searchApiBases) {
+      try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        const serpUrl = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&api_key=${serpKey}&num=${limit}&hl=id&gl=id`;
-        const serpResp = await fetch(serpUrl, { signal: controller.signal });
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const [searchResp, imagesResp] = await Promise.allSettled([
+          fetch(`${searchBase}/search?q=${encodeURIComponent(q)}&limit=${limit}&crawl=${req.query?.crawl !== undefined ? req.query.crawl : '0'}`, {
+            headers: searchHeaders,
+            signal: controller.signal
+          }),
+          fetch(`${searchBase}/images?q=${encodeURIComponent(q)}&limit=8`, {
+            headers: searchHeaders,
+            signal: controller.signal
+          })
+        ]);
         clearTimeout(timeoutId);
-        if (serpResp.ok) {
-          const serpJson = await serpResp.json();
-          return res.json({ success: true, data: serpJson, engine: engineUsed });
+
+        if (searchResp.status === 'fulfilled' && searchResp.value.ok) {
+          const ct = searchResp.value.headers.get('content-type') || '';
+          if (ct.includes('application/json')) {
+            const data = await searchResp.value.json();
+            if (data.results && data.results.length > 0) {
+              searchData = data;
+              engineUsed = `deepernova_bm25 (${searchBase})`;
+              console.log(`[SEARCH] ✓ Deepernova search responded with ${searchData.results.length} results from ${searchBase}`);
+            }
+          }
         }
+
+        if (imagesResp.status === 'fulfilled' && imagesResp.value.ok) {
+          const ct = imagesResp.value.headers.get('content-type') || '';
+          if (ct.includes('application/json')) {
+            imagesData = await imagesResp.value.json();
+          }
+        }
+
+        if (searchData && searchData.results && searchData.results.length > 0) {
+          break; // Succeeded with DeeperNova Search
+        }
+      } catch (dnErr) {
+        console.warn(`[SEARCH] Deepernova error on ${searchBase}:`, dnErr.message);
       }
     }
 

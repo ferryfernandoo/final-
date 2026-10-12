@@ -6,11 +6,15 @@
 
 import { API_BASE_URL as BACKEND_BASE_URL } from '../apiConfig.js';
 
-export const API_BASE_URL = 
-  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:4000/api/v1'
-    : 'https://challenge-roles-cincinnati-indicator.trycloudflare.com/api/v1');
+const isLocal = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' || 
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === ''
+);
+
+export const API_BASE_URL = isLocal
+  ? 'http://127.0.0.1:4000/api/v1'
+  : (import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000/api/v1');
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 
@@ -336,20 +340,18 @@ export async function executeWebSearch(query, options = {}) {
 
   console.log(`[ClientSearchService] Executing search for: "${effectiveQuery}" (orig: "${query}", isGuest: ${isGuest}, limit: ${limit})`);
 
-  // MODE GUEST: Direct Front-End Hit to Deepernova Search Engine (CORS enabled, no backend required)
-  if (isGuest) {
-    try {
-      console.log('[ClientSearchService] 🚀 [GUEST MODE] Direct Front-End Hit to Deepernova Search Engine (BM25)');
-      const directResult = await performDirectSearch(effectiveQuery, limit, includeImages);
-      if (directResult) {
-        return directResult;
-      }
-    } catch (guestErr) {
-      console.warn('[ClientSearchService] Direct guest hit failed or blocked, falling back to proxy:', guestErr.message);
+  // 1. Primary: Direct Front-End Hit to Deepernova Search Engine (Sub-20ms BM25, CORS enabled)
+  try {
+    const directResult = await performDirectSearch(effectiveQuery, limit, includeImages);
+    if (directResult && directResult.success && directResult.data?.organic_results?.length > 0) {
+      console.log('[ClientSearchService] 🚀 Direct Front-End Hit Success to Deepernova Search Engine');
+      return directResult;
     }
+  } catch (directErr) {
+    console.warn('[ClientSearchService] Direct hit failed or blocked, falling back to proxy:', directErr.message);
   }
 
-  // NON-GUEST or FALLBACK: Backend Search Proxy (always using BACKEND_BASE_URL)
+  // 2. Backend Search Proxy Fallback
   try {
     const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`;
     console.log('[ClientSearchService] Fetching search via backend proxy:', backendProxyUrl);
