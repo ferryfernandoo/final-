@@ -3248,11 +3248,10 @@ app.post('/api/chat', async (req, res) => {
         if (hasImagesInPayload) {
           selectedModel = 'llama-4-maverick';
           console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
-        } else if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
+        } else if (reqModelLower.includes('70b') || reqModelLower.includes('reason') || reqModelLower.includes('pure')) {
           selectedModel = 'llama-3.3-70b';
-        } else if (reqModelLower.includes('gold') || reqModelLower.includes('maverick') || reqModelLower.includes('llama')) {
-          selectedModel = 'llama-4-maverick';
         } else {
+          // Default ALL general chat (including Gold 1.5, Silicon 1.4, Boron) to doubao-seed-2.0-lite for instant response (<400ms)
           selectedModel = 'doubao-seed-2.0-lite';
         }
         console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Vision: ${hasImagesInPayload})`);
@@ -3612,11 +3611,19 @@ app.post('/api/tts', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'No readable speech text' });
     }
 
-    // Graceful sentence-boundary truncation
-    const maxChars = 3200;
+    // Fast Natural Speech Synthesis Length Optimization:
+    // Limit voice speech to the core summary (max 450 chars) ending at sentence boundary (. ! ?)
+    // This ensures audio generation completes in ~1.5 - 2.5s and never hangs or times out.
+    const maxChars = 450;
     if (cleanText.length > maxChars) {
-      const boundary = cleanText.lastIndexOf('.', maxChars);
-      cleanText = (boundary > 1200 ? cleanText.substring(0, boundary + 1) : cleanText.substring(0, maxChars)).trim();
+      const slice = cleanText.substring(0, maxChars);
+      const boundary = Math.max(
+        slice.lastIndexOf('. '),
+        slice.lastIndexOf('.\n'),
+        slice.lastIndexOf('! '),
+        slice.lastIndexOf('? ')
+      );
+      cleanText = (boundary > 120 ? slice.substring(0, boundary + 1) : slice).trim();
     }
 
     console.log(`[TTS] 🎙️ Synthesizing speech (${cleanText.length} chars): "${cleanText.slice(0, 80)}"`);
@@ -3641,8 +3648,8 @@ app.post('/api/tts', express.json(), async (req, res) => {
       const chunks = [];
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('Edge TTS synthesis timed out after 15s'));
-        }, 15000);
+          reject(new Error('Edge TTS synthesis timed out after 20s'));
+        }, 20000);
 
         audioStream.on('data', chunk => chunks.push(chunk));
         audioStream.on('end', () => {

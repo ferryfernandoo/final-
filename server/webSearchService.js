@@ -40,7 +40,7 @@ class WebSearchService {
     // 1. Primary Engine: Deepernova High-Speed Search API
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
 
       const response = await fetch(`${DEEPERNOVA_SEARCH_API_URL}/search?q=${encodeURIComponent(query)}&limit=${maxResults}`, {
         headers: {
@@ -51,7 +51,8 @@ class WebSearchService {
       });
       clearTimeout(timeoutId);
 
-      if (response.ok) {
+      const contentType = response.headers.get('content-type') || '';
+      if (response.ok && contentType.includes('application/json')) {
         const data = await response.json();
         if (data.results && Array.isArray(data.results) && data.results.length > 0) {
           const results = data.results.slice(0, maxResults).map((r, idx) => ({
