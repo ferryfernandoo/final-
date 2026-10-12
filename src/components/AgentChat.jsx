@@ -741,26 +741,26 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <div className="agent-starters-grid">
                 <div
                   className="agent-starter-card"
-                  onClick={() => handleSendMessage('Buat kalkulator modern interaktif lengkap dengan HTML, CSS, dan JavaScript lalu jalankan di sandbox.')}
+                  onClick={() => handleSendMessage('Buatkan laporan eksekutif resmi dalam format Word (.docx) tentang analisis kinerja dan transformasi AI, lengkap dengan kurva grafik tren dan tabel metrik kuartalan yang elegan.')}
                 >
-                  <h4><i className="fa-solid fa-calculator" style={{ color: '#ea580c' }} /> Kalkulator Modern</h4>
-                  <p>Aplikasi web interaktif dengan tombol estetik dan live preview.</p>
+                  <h4><i className="fa-solid fa-file-word" style={{ color: '#2b579a' }} /> Dokumen Word & Kurva (.docx)</h4>
+                  <p>Laporan eksekutif bergaya McKinsey lengkap dengan kurva analisis performa dan tabel berformat rapi.</p>
                 </div>
 
                 <div
                   className="agent-starter-card"
-                  onClick={() => handleSendMessage('Buat script Python yang melakukan simulasi data statistik dan visualisasi ASCII, lalu eksekusi dan perlihatkan output terminalnya.')}
+                  onClick={() => handleSendMessage('Buatkan presentasi eksekutif PowerPoint (.pptx) rasio 16:9 tentang strategi AI 2026, lengkap dengan kartu KPI, visualisasi data, dan struktur pilar.')}
                 >
-                  <h4><i className="fa-brands fa-python" style={{ color: '#ea580c' }} /> Eksekusi Script Python</h4>
-                  <p>Menjalankan kode Python di sandbox dan menangkap log stdout.</p>
+                  <h4><i className="fa-solid fa-file-powerpoint" style={{ color: '#d24726' }} /> Presentasi Eksekutif (.pptx)</h4>
+                  <p>Pitch deck modern 16:9 dengan kartu metrik KPI, visualisasi grafik, dan tata letak elegan.</p>
                 </div>
 
                 <div
                   className="agent-starter-card"
-                  onClick={() => handleSendMessage('Buat game Snake klasik menggunakan Canvas HTML5 dan JavaScript yang playable dan modern.')}
+                  onClick={() => handleSendMessage('Buatkan spreadsheet dashboard keuangan (.xlsx) untuk proyeksi bisnis 2026, lengkap dengan scorecard KPI, tabel berformat rapi, dan grafik native openpyxl.')}
                 >
-                  <h4><i className="fa-solid fa-gamepad" style={{ color: '#ea580c' }} /> Game Snake HTML5</h4>
-                  <p>Membuat game arcade yang langsung bisa dimainkan di tab Live Preview.</p>
+                  <h4><i className="fa-solid fa-file-excel" style={{ color: '#107c41' }} /> Dashboard Excel (.xlsx)</h4>
+                  <p>Model keuangan korporat dengan format angka resmi, freeze panes, dan grafik interaktif native.</p>
                 </div>
 
                 <div
@@ -770,8 +770,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     setIsDrawerOpen(true);
                   }}
                 >
-                  <h4><i className="fa-solid fa-scroll" style={{ color: '#ea580c' }} /> Periksa SKILL.md</h4>
-                  <p>Pelajari atau sesuaikan protokol panduan teknis yang dipatuhi AI.</p>
+                  <h4><i className="fa-solid fa-book-bookmark" style={{ color: '#ea580c' }} /> Periksa SKILL.md</h4>
+                  <p>Pelajari panduan arsitektur lengkap, pustaka Python, dan standar estetika dokumen AI.</p>
                 </div>
               </div>
             </div>

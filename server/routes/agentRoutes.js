@@ -419,8 +419,9 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep) {
 function createStreamActionParser(callbacks) {
   let buffer = '';
   const KNOWN_TAGS = ['thought', 'read_file', 'read', 'search_web', 'search', 'run_command', 'command', 'terminal', 'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file', 'preview'];
+  let queue = Promise.resolve();
 
-  async function feed(chunk) {
+  async function processChunk(chunk) {
     buffer += chunk;
 
     while (buffer.length > 0) {
@@ -437,9 +438,13 @@ function createStreamActionParser(callbacks) {
         buffer = buffer.slice(openIndex);
       }
 
-      const tagMatch = buffer.match(/^<([a-zA-Z0-9_-]+)/);
+      // Check if tag name is delimited by whitespace, '>', or '/>'
+      const tagMatch = buffer.match(/^<([a-zA-Z0-9_-]+)([\s>\/])/);
       if (!tagMatch) {
-        if (buffer.length < 20) break;
+        const isPotentiallyIncomplete = /^<[a-zA-Z0-9_-]*$/.test(buffer);
+        if (isPotentiallyIncomplete && buffer.length < 30) {
+          break; // Wait for next streaming chunk!
+        }
         await callbacks.onText(buffer[0]);
         buffer = buffer.slice(1);
         continue;
@@ -454,11 +459,12 @@ function createStreamActionParser(callbacks) {
 
       const closeGtIndex = buffer.indexOf('>');
       if (closeGtIndex === -1) {
-        break; // Wait for opening tag to finish
+        break; // Wait for complete opening tag
       }
 
       const openTagSubstr = buffer.slice(0, closeGtIndex + 1);
       const isSelfClosing = openTagSubstr.endsWith('/>') || 
+                            openTagSubstr.includes('/>') ||
                             tagName === 'check_file' || 
                             tagName === 'verify_file' || 
                             (tagName === 'search_web' && !buffer.includes(`</${tagName}>`)) || 
@@ -483,7 +489,15 @@ function createStreamActionParser(callbacks) {
     }
   }
 
+  function feed(chunk) {
+    queue = queue.then(() => processChunk(chunk)).catch((err) => {
+      console.error('[STREAM_PARSER] Error processing chunk:', err);
+    });
+    return queue;
+  }
+
   async function flush() {
+    await queue;
     if (buffer.length > 0) {
       const actions = extractSequentialActions(buffer);
       if (actions.length > 0) {
@@ -621,24 +635,61 @@ TAG AKSI SANDBOX YANG TERSEDIA:
 - <preview>index.html</preview>
   (Opsional) Menetapkan file visual preview untuk aplikasi web.
 
-PETUNJUK PEMBUATAN BERKAS OFFICE:
-- Pustaka Python 'python-docx' (Word) dan 'openpyxl' (Excel) SUDAH TERPASANG dan siap digunakan di sistem.
-- Jika pengguna meminta berkas Word / DOCX:
-  1. Anda bisa membaca panduan atau mencari referensi inspirasi jika perlu (<search_web query="..." />).
-  2. Tulis skrip Python (misal 'create_docx.py') menggunakan 'docx' (from docx import Document, styles, heading, paragraph, table, dsb) yang menyimpan dokumen ke sandbox root (misal doc.save('nama_file.docx')).
-  3. Eksekusi skrip tersebut dengan <execute_code language="python"> agar berkas .docx NYATA terbuat di disk!
-  4. Periksa berkas dengan <check_file path="nama_file.docx" />.
-  5. Sampaikan kabar baik ke pengguna bahwa dokumen siap diunduh.
-- Jika pengguna meminta berkas Excel / XLSX:
-  Tulis skrip Python dengan 'openpyxl', simpan (wb.save('nama_file.xlsx')), dan eksekusi!
-- Jika pengguna meminta aplikasi web:
-  Tulis 'index.html', 'style.css', dan 'app.js' yang modern, responsif, dan rapi.
+PETUNJUK KEAHLIAN MASTER OFFICE & KURVA GRAFIK (.DOCX, .PPTX, .XLSX, MATPLOTLIB):
+Pustaka Python 'python-docx', 'python-pptx', 'openpyxl', 'matplotlib', 'numpy', dan 'pandas' SUDAH TERPASANG di sistem dan siap dieksekusi!
+
+1. JIKA PENGGUNA MEMINTA DOKUMEN WORD (.DOCX):
+   - Jangan pernah membuat dokumen polos tanpa format! Terapkan standar laporan eksekutif (McKinsey/BCG style).
+   - Terapkan elemen wajib:
+     a) Judul besar berkelas (24-28pt bold) dan subjudul.
+     b) Callout Box 1x1:
+        c_cell = doc.add_table(rows=1, cols=1).rows[0].cells[0]
+        c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:shd {nsdecls("w")} w:fill="F8FAFC"/>'))
+        c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:tcBorders {nsdecls("w")}><w:left w:val="single" w:sz="36" w:color="EA580C"/><w:top w:val="none"/><w:right w:val="none"/><w:bottom w:val="none"/></w:tcBorders>'))
+     c) Tabel Bergaya: Buat tabel 1 baris header tbl = doc.add_table(rows=1, cols=...). Header sel cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:shd {nsdecls("w")} w:fill="0F172A"/>')), teks putih bold (from docx.shared import RGBColor; run.font.color.rgb = RGBColor(255, 255, 255)). Tambahkan data dengan row_cells = tbl.add_row().cells (otomatis aman tanpa IndexError!), beri zebra striping baris genap 'F8FAFC'.
+     d) Visualisasi Grafik & Kurva: Buat kurva Matplotlib (dpi=300), simpan sebagai 'chart.png', lalu sisipkan ke dokumen via doc.add_picture('chart.png', width=Inches(5.8))!
+     e) Kartu Scorecard KPI jika memuat metrik kuantitatif.
+
+2. JIKA PENGGUNA MEMINTA PRESENTASI POWERPOINT (.PPTX):
+   - Gunakan 'python-pptx' dengan RASIO LAYAR LEBAR 16:9 (prs.slide_width = Inches(13.333), prs.slide_height = Inches(7.5)).
+   - Terapkan estetika Pitch Deck Unicorn / Apple Keynote (pilih Dark Executive Theme '#0F172A' atau Clean Light Theme '#F8FAFC').
+   - Desain slide wajib:
+     a) Slide 1: Hero Title (Judul 40-44pt bold, Subjudul 20pt aksen oranye, tag penulis/tanggal).
+     b) Slide 2: KPI Scorecard Cards (3-4 kotak rounded rectangle MSO_SHAPE.ROUNDED_RECTANGLE dengan angka raksasa 36pt bold dan label).
+     c) Slide 3: Data Visual & Kurva Grafik (Sisipkan grafik Matplotlib resolusi tinggi slide.shapes.add_picture).
+     d) Slide 4: 3-Column Feature Cards / Struktur Pilar.
+     e) Slide 5: Roadmap Milestone / Kesimpulan & Langkah Strategis.
+
+3. JIKA PENGGUNA MEMINTA SPREADSHEET EXCEL (.XLSX):
+   - Gunakan 'openpyxl' untuk merancang dashboard keuangan atau model data korporat (bukan sheet mentah polos!).
+   - Terapkan:
+     a) Baris 1: Header Banner Gelap ('#0F172A'), tinggi 32pt, teks putih tebal (13pt).
+     b) Baris 3-4: Kartu KPI Summary (Total Pendapatan, Pertumbuhan %, Laba Bersih) dengan angka besar berwarna.
+     c) Baris 6+: Tabel data ber-header gelap '#1E293B', teks putih bold, zebra striping '#F8FAFC', border tipis.
+     d) Format Angka Resmi: Rupiah ('Rp #,##0'), Persentase ('0.0%'), Angka ('#,##0').
+     e) Auto-fit lebar kolom (hitung max panjang teks + 3 padding) agar kolom tidak terpotong (###).
+     f) Freeze Panes: ws.freeze_panes = 'A7'. Gridlines aktif: ws.views.sheetView[0].showGridLines = True.
+     g) Grafik Interaktif Native: Buat LineChart atau BarChart menggunakan 'openpyxl.chart' dan tempelkan di ws.add_chart(chart, "G3")!
+
+4. JIKA PERLU MEMBUAT KURVA GRAFIK / DATA VISUALIZATION (MATPLOTLIB):
+   - Gunakan matplotlib.use('Agg'), dpi=300, dan bbox_inches='tight'.
+   - Buat kurva halus (smooth spline curves) dengan np.linspace, tambahkan area fill transparan di bawah kurva (fill_between), hilangkan border atas & kanan (ax.spines['top'].set_visible(False)), dan beri grid halus.
+   - Grafik dapat disisipkan langsung ke dalam berkas .docx atau .pptx!
+
+5. JIKA PENGGUNA MEMINTA APLIKASI WEB:
+   - Tulis 'index.html', 'style.css', dan 'app.js' yang modern, interaktif, dan rapi.
+
+ALUR EKSEKUSI NYATA & EFISIENSI TOKEN:
+- JANGAN PERNAH menduplikasi atau mengulang kode di dalam teks markdown biasa (\`\`\`python ... \`\`\`) sebelum atau sesudah tag aksi. Hal ini membuang token!
+- Langsung tuliskan kode lengkap di dalam tag <write_file path="generate.py">isi kode</write_file> lalu jalankan, atau langsung di dalam <execute_code language="python">kode lengkap</execute_code>.
+- Jika membuat presentasi PowerPoint (.pptx) atau Word (.docx) yang memerlukan grafik kurva, GABUNGKAN pembuatan grafik Matplotlib dan penyisipannya ke dalam SATU skrip Python yang sama, sehingga skrip langsung menghasilkan grafik 'chart.png' lalu menyematkannya ke berkas .pptx/.docx.
+- Setelah mengeksekusi skrip, selalu panggil <check_file path="nama_berkas.ext" /> untuk memverifikasi berkas sudah terbentuk dengan sempurna di disk sandbox.
 
 BERKAS SAAT INI DI SANDBOX:
 ${fileListText}
 
-PANDUAN PROTOKOL SKILL.MD:
-${skillContent}`;
+CATATAN PROTOKOL WORKSPACE:
+Berkas 'SKILL.md' telah disiapkan di dalam workspace sandbox berisi panduan sintaksis eksekutif lengkap. Anda dapat membacanya dengan <read_file path="SKILL.md" /> kapan pun membutuhkan referensi tambahan.`;
 
     // Messages payload for LLM
     const apiMessages = [
@@ -664,8 +715,8 @@ ${skillContent}`;
       body: JSON.stringify({
         model: 'llama-4-maverick',
         messages: apiMessages,
-        temperature: 0.3,
-        max_tokens: 3000,
+        temperature: 0.6,
+        max_tokens: 4500,
         stream: true
       })
     });
