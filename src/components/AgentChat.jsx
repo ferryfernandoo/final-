@@ -327,6 +327,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
           setMessages(prev => [...prev, botMsg]);
           setActiveChainOfWork([]);
+          if (botMsg.chainOfWork && botMsg.chainOfWork.length > 0) {
+            setExpandedChains(prev => ({ ...prev, [botMsg.id]: true }));
+          }
 
           if (payload.files) {
             setSandboxFiles(payload.files);
@@ -931,22 +934,52 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             </div>
           ))}
 
-          {/* Real-time Streaming Minimal Chain-of-Work during generation */}
+          {/* Real-time Transparent Live Chain-of-Work Tracker */}
           {isExecuting && activeChainOfWork.length > 0 && (
             <div className="agent-msg-row is-bot">
               <div className="agent-msg-avatar">
                 <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
               </div>
-              <div className="agent-msg-content">
-                <div className="agent-simple-cow is-running">
-                  <div className="agent-cow-trigger is-running">
-                    <div className="agent-cow-trigger-left">
-                      <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c', fontSize: 11 }} />
-                      <span className="agent-cow-title" style={{ color: '#0f172a' }}>
-                        {activeChainOfWork[activeChainOfWork.length - 1]?.title || 'AI Agent sedang bekerja...'}
+              <div className="agent-msg-content" style={{ width: '100%', maxWidth: 760 }}>
+                <div className="agent-live-work-card">
+                  <div className="agent-live-work-header">
+                    <div className="agent-live-work-header-left">
+                      <span className="agent-live-work-pulse">
+                        <i className="fa-solid fa-circle-notch fa-spin" />
                       </span>
+                      <div>
+                        <div className="agent-live-work-heading">AI Agent Sedang Bekerja Secara Otonom</div>
+                        <div className="agent-live-work-current">
+                          {activeChainOfWork[activeChainOfWork.length - 1]?.title || 'Memproses tugas...'}
+                        </div>
+                      </div>
                     </div>
-                    <span className="agent-cow-live-count">{activeChainOfWork.length} langkah</span>
+                    <div className="agent-live-work-counter">
+                      <span className="agent-live-counter-num">
+                        {activeChainOfWork.filter(s => s.status === 'completed').length} / {activeChainOfWork.length}
+                      </span>
+                      <span className="agent-live-counter-label">selesai</span>
+                    </div>
+                  </div>
+
+                  <div className="agent-live-work-step-list">
+                    {activeChainOfWork.map((step, idx) => (
+                      <div key={step.id || idx} className={`agent-live-step-row is-${step.status}`}>
+                        <div className="agent-live-step-icon">
+                          {step.status === 'completed' && <i className="fa-solid fa-check" style={{ color: '#10b981' }} />}
+                          {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />}
+                          {step.status === 'failed' && <i className="fa-solid fa-xmark" style={{ color: '#ef4444' }} />}
+                        </div>
+                        <div className="agent-live-step-body">
+                          <div className="agent-live-step-title">{step.title}</div>
+                          {step.detail && (
+                            <div className="agent-live-step-detail">
+                              {step.detail.length > 140 ? step.detail.slice(0, 140) + '...' : step.detail}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

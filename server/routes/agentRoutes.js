@@ -365,8 +365,10 @@ router.post('/run', async (req, res) => {
       prompt
     );
 
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
     // Step 1: Inisialisasi Workspace & Memeriksa SKILL.md
-    addStep('plan', 'Menganalisis Permintaan & Memeriksa SKILL.md', 'Mempersiapkan jailed workspace sandbox dan memverifikasi protokol agentic...', 'running');
+    addStep('plan', 'Menganalisis Permintaan Pengguna', `Memahami instruksi: "${prompt.slice(0, 80)}" dan memeriksa workspace sandbox...`, 'running');
     agentSandboxService.getSandboxDir(sessionId);
     const existingFiles = agentSandboxService.listFiles(sessionId);
     const fileListText = existingFiles.map(f => `- ${f.path} (${(f.size / 1024).toFixed(1)} KB)`).join('\n') || '(Belum ada berkas)';
@@ -376,10 +378,16 @@ router.post('/run', async (req, res) => {
       skillContent = agentSandboxService.readFile(sessionId, 'SKILL.md');
     } catch (_) {}
 
-    updateLastStep('completed', `Workspace siap. Berkas terdeteksi:\n${fileListText}`);
+    await sleep(600);
+    updateLastStep('completed', `Workspace sandbox siap (${existingFiles.length} berkas terdeteksi).`);
 
-    // Step 2: Merumuskan Rencana dan Mengeksekusi
-    addStep('thought', 'Merancang Solusi Kode & Menghubungi Model AI', 'Menyusun arsitektur berkas dan pengujian di sandbox...', 'running');
+    // Step 2: Verifikasi Lingkungan & Protokol
+    addStep('read', 'Memverifikasi Lingkungan & Protokol Kerja', 'Mengecek modul python-docx, openpyxl, dan panduan SKILL.md...', 'running');
+    await sleep(600);
+    updateLastStep('completed', 'Pustaka pembuat dokumen (Word/Excel) dan runtime sandbox aktif.');
+
+    // Step 3: Merumuskan Rencana dan Mengeksekusi
+    addStep('thought', 'Merancang Arsitektur & Menghubungi Model AI', 'Menyusun rancangan isi dokumen dan skrip pembuat berkas...', 'running');
 
     // Build system prompt with SKILL.md and Sandbox context
     const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih.
@@ -389,7 +397,8 @@ GAYA KOMUNIKASI & PERILAKU ANDA:
 1. Berbicaralah secara hangat, komunikatif, dan alami dalam Bahasa Indonesia. Tetaplah ramah dan santai layaknya rekan kerja profesional.
 2. Jelaskan langkah yang akan atau sedang Anda lakukan di antara aksi-aksi Anda (interleaved narrative workflow).
 3. JANGAN PERNAH menulis teks pura-pura seperti "(do)" atau "(do_search)". Cukup tulis percakapan Anda dan gunakan tag aksi XML nyata. Sistem akan otomatis mengubah aksi Anda menjadi tombol pill interaktif yang dapat diklik oleh pengguna.
-4. Tulis kode nyata, lengkap, dan tanpa placeholder.
+4. JANGAN menuliskan blok kode markdown triple-backtick di luar tag aksi jika kode tersebut sudah dibuat di dalam <write_file path="...">. Cukup jelaskan rencana Anda dengan ramah lalu letakkan kode di dalam tag aksi.
+5. Tulis kode nyata, lengkap, dan tanpa placeholder.
 
 TAG AKSI SANDBOX YANG TERSEDIA:
 - <read_file path="nama_file.ext" />
@@ -462,7 +471,8 @@ ${skillContent}`;
     const aiData = await upstreamRes.json();
     const rawAiText = aiData.choices?.[0]?.message?.content || '';
 
-    updateLastStep('completed', 'Rencana dan aksi teknis telah dirumuskan oleh AI Agent.');
+    updateLastStep('completed', 'Arsitektur dan rencana aksi teknis selesai dirumuskan oleh AI Agent.');
+    await sleep(500);
 
     // Parse and execute actions sequentially
     const actions = agentSandboxService.extractSequentialActions(rawAiText);
@@ -474,6 +484,9 @@ ${skillContent}`;
       const action = actions[i];
       const actionId = `act_${Date.now()}_${i}`;
       let pillXml = '';
+
+      // Smooth realistic pacing so user can visibly watch each step transition
+      await sleep(700);
 
       if (action.type === 'thought') {
         addStep('thought', 'Catatan Berpikir Agent', action.content, 'completed');
@@ -589,6 +602,8 @@ ${skillContent}`;
       if (action.rawMatch && pillXml) {
         formattedAnswer = formattedAnswer.replace(action.rawMatch, `\n\n${pillXml}\n\n`);
       }
+
+      await sleep(400); // Visual pause after step finishes
     }
 
     // Clean any accidental (do) or (do_search) notation from text
@@ -602,6 +617,7 @@ ${skillContent}`;
     }
 
     // Step Final: Verifikasi seluruh file yang ada di sandbox
+    await sleep(400);
     const finalFiles = agentSandboxService.listFiles(sessionId);
     if (!hasPreview && finalFiles.some(f => f.ext === 'html')) {
       hasPreview = true;
@@ -610,10 +626,13 @@ ${skillContent}`;
 
     const previewUrl = hasPreview ? `/api/agent/preview/${sessionId}/${previewFile}` : null;
 
-    addStep('finish', 'Verifikasi Selesai', `Seluruh tugas berhasil dieksekusi dengan ${finalFiles.length} berkas aktif di sandbox.`, 'completed', {
+    addStep('finish', 'Verifikasi Selesai', `Seluruh tugas berhasil dieksekusi dengan ${finalFiles.length} berkas aktif di sandbox.`, 'running');
+    await sleep(450);
+    updateLastStep('completed', `Seluruh tugas berhasil dieksekusi dengan ${finalFiles.length} berkas aktif di sandbox.`, {
       totalFiles: finalFiles.length,
       previewUrl
     });
+    await sleep(300);
 
     // Save bot message with complete chainOfWork and sandboxFiles in Database
     const botMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
