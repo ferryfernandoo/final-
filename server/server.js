@@ -34,6 +34,7 @@ import sourceTracker from './sourceTracker.js';
 import DocumentGeneratorService from './documentGeneratorService.js';
 import sharp from 'sharp';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
 /**
  * Helper: Apply faststart optimization to MP4/video files (-movflags +faststart)
@@ -3615,6 +3616,8 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // 🎙️ SECURE SERVER-SIDE TEXT-TO-SPEECH (TTS) ENDPOINT
+// Primary: Microsoft Edge Neural TTS (Free, Ultra-Fast, Human-Like Indonesian & English, No API Quota)
+// Fallback: TokenMix API
 app.post('/api/tts', express.json(), async (req, res) => {
   try {
     const { input, text, voice = 'nova', model = 'tts-1' } = req.body;
@@ -3623,13 +3626,48 @@ app.post('/api/tts', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Text/input is required for TTS' });
     }
 
+    const maxChars = 3500;
+    const truncatedText = inputText.length > maxChars ? inputText.substring(0, maxChars) + '...' : inputText;
+
+    // 1. Primary Engine: msedge-tts (High Fidelity Neural Audio, ~400ms latency, 0 API cost)
+    try {
+      const edgeTts = new MsEdgeTTS();
+      const isIndonesian = /[a-z]/i.test(truncatedText) && (
+        /yang|untuk|dengan|ini|adalah|dari|ke|di|apa|siapa|bagaimana|dan|tidak|bisa|akan|sudah|terima/i.test(truncatedText)
+      );
+
+      let selectedEdgeVoice = 'id-ID-GadisNeural';
+      if (isIndonesian) {
+        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx') ? 'id-ID-ArdiNeural' : 'id-ID-GadisNeural';
+      } else {
+        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx') ? 'en-US-GuyNeural' : 'en-US-AvaNeural';
+      }
+
+      await edgeTts.setMetadata(selectedEdgeVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+      const { audioStream } = await edgeTts.toStream(truncatedText);
+
+      const chunks = [];
+      await new Promise((resolve, reject) => {
+        audioStream.on('data', chunk => chunks.push(chunk));
+        audioStream.on('end', resolve);
+        audioStream.on('error', reject);
+      });
+
+      const audioBuffer = Buffer.concat(chunks);
+      if (audioBuffer.length > 0) {
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(audioBuffer);
+      }
+    } catch (edgeErr) {
+      console.warn('[TTS FALLBACK] Edge Neural TTS failed, falling back to TokenMix:', edgeErr.message);
+    }
+
+    // 2. Fallback Engine: TokenMix API
     const key = TOKENMIX_API_KEY;
     if (!key) {
       return res.status(500).json({ error: 'TTS service not configured' });
     }
-
-    const maxChars = 3000;
-    const truncatedText = inputText.length > maxChars ? inputText.substring(0, maxChars) + '...' : inputText;
 
     const ttsResponse = await fetch('https://api.tokenmix.ai/v1/audio/speech', {
       method: 'POST',
