@@ -739,8 +739,11 @@ Pustaka Python 'python-docx', 'python-pptx', 'openpyxl', 'matplotlib', 'numpy', 
    - Buat kurva halus (smooth spline curves) dengan np.linspace, tambahkan area fill transparan di bawah kurva (fill_between), hilangkan border atas & kanan (ax.spines['top'].set_visible(False)), dan beri grid halus.
    - Grafik dapat disisipkan langsung ke dalam berkas .docx atau .pptx!
 
-5. JIKA PENGGUNA MEMINTA APLIKASI WEB:
-   - Tulis 'index.html', 'style.css', dan 'app.js' yang modern, interaktif, dan rapi.
+5. JIKA PENGGUNA MEMINTA APLIKASI WEB / KODINGAN FRONTEND / PREVIEW:
+   - Tulis kode lengkap, mandiri, dan berfungsi (HTML dengan CSS modern dan interaksi JS) di dalam <write_file path="index.html">kode lengkap</write_file>.
+   - Gunakan desain estetika tinggi (tema gelap elegan '#0F172A' atau terang modern, font elegan, kartu-kartu rapi, shadow halus, tombol interaktif).
+   - Pastikan halaman tidak putih polos atau kosong! Halaman harus memiliki konten visual yang hidup dan siap pakai.
+   - Panggil <screenshot target="index.html" /> untuk merender dan mengambil tangkapan layar browser resolusi 1280x800 secara nyata menggunakan headless Puppeteer yang menunggu hingga seluruh DOM dan script selesai dirender.
 
 ALUR EKSEKUSI NYATA & EFISIENSI TOKEN:
 - JANGAN PERNAH menduplikasi atau mengulang kode di dalam teks markdown biasa (\`\`\`python ... \`\`\`) sebelum atau sesudah tag aksi. Hal ini membuang token!

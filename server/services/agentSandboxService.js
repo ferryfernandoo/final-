@@ -385,7 +385,17 @@ plt.close()
 \`\`\`
 
 ---
-Setiap kali pengguna meminta berkas Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx), Anda WAJIB menerapkan seluruh standar estetika, tabel bergaya, dan kurva/grafik di atas secara maksimal!`;
+
+## 🌐 KEAHLIAN SUPER #5: APLIKASI WEB, DASHBOARD INTERAKTIF & SCREENSHOT
+- Tulis berkas web lengkap di \`index.html\` (beserta styling CSS dan interaktivitas JS).
+- Gunakan tata letak modern berkelas:
+  * Tema gelap elegan \`#0F172A\` atau terang profesional \`#F8FAFC\`.
+  * Kartu-kartu KPI, tabel interaktif, tombol responsif, dan layout rapi.
+  * Hindari halaman kosong/putih polos tanpa isi; pastikan konten langsung hidup saat dibuka.
+- Panggil \`<screenshot target="index.html" />\` setelah menulis berkas web agar browser otomatis merender dan mengambil tangkapan layar 1280x800 beresolusi tinggi untuk pengguna.
+
+---
+Setiap kali pengguna meminta berkas Word (.docx), PowerPoint (.pptx), Excel (.xlsx), atau aplikasi web, Anda WAJIB menerapkan seluruh standar estetika, tabel bergaya, dan kurva/grafik di atas secara maksimal!`;
 
 /**
  * Helper to safely sanitize sessionId
