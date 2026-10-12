@@ -327,9 +327,36 @@ export function initializeDatabase() {
     if (sanitized.changes > 0) {
       console.log(`🔒 [SECURITY LOCKDOWN] Quarantined ${sanitized.changes} personal files to private mode`);
     }
-  } catch (_e) {
-    console.warn('[SECURITY LOCKDOWN] Sanitization warning:', _e.message);
+  } catch (err) {
+    // ignore
   }
+
+  // ⚡ AI Agent Sessions & Transparent Chain-of-Work table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_sessions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      title TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id TEXT PRIMARY KEY,
+      sessionId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      chainOfWork TEXT,
+      sandboxFiles TEXT,
+      screenshotUrl TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(sessionId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_sessions_user ON agent_sessions(userId)`);
 
   console.log('✅ Database initialized');
 }
@@ -1593,6 +1620,70 @@ export const cloudDb = {
       console.warn('[cloudDb.delete] Error deleting from database:', err.message);
       return false;
     }
+  }
+};
+
+// ============================================================================
+// ⚡ AI AGENT AUTONOMOUS DATABASE OPERATIONS
+// ============================================================================
+export const agentSessionDb = {
+  create: (id, userId, title = 'Tugas Otonom AI') => {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO agent_sessions (id, userId, title, createdAt, updatedAt)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `);
+    stmt.run(id, userId, title);
+    return agentSessionDb.findById(id);
+  },
+  findById: (id) => {
+    return db.prepare('SELECT * FROM agent_sessions WHERE id = ?').get(id);
+  },
+  findByUser: (userId) => {
+    return db.prepare('SELECT * FROM agent_sessions WHERE userId = ? ORDER BY updatedAt DESC').all(userId);
+  },
+  update: (id, title) => {
+    return db.prepare('UPDATE agent_sessions SET title = COALESCE(?, title), updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run(title, id);
+  },
+  delete: (id, userId) => {
+    db.prepare('DELETE FROM agent_messages WHERE sessionId = ?').run(id);
+    return db.prepare('DELETE FROM agent_sessions WHERE id = ? AND userId = ?').run(id, userId);
+  }
+};
+
+export const agentMessageDb = {
+  create: (id, sessionId, userId, role, content, chainOfWork = [], sandboxFiles = [], screenshotUrl = null) => {
+    const stmt = db.prepare(`
+      INSERT INTO agent_messages (id, sessionId, userId, role, content, chainOfWork, sandboxFiles, screenshotUrl, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+    stmt.run(
+      id,
+      sessionId,
+      userId,
+      role,
+      content,
+      typeof chainOfWork === 'string' ? chainOfWork : JSON.stringify(chainOfWork || []),
+      typeof sandboxFiles === 'string' ? sandboxFiles : JSON.stringify(sandboxFiles || []),
+      screenshotUrl
+    );
+    return agentMessageDb.findById(id);
+  },
+  findById: (id) => {
+    const row = db.prepare('SELECT * FROM agent_messages WHERE id = ?').get(id);
+    if (!row) return null;
+    return {
+      ...row,
+      chainOfWork: row.chainOfWork ? JSON.parse(row.chainOfWork) : [],
+      sandboxFiles: row.sandboxFiles ? JSON.parse(row.sandboxFiles) : []
+    };
+  },
+  findBySession: (sessionId) => {
+    const rows = db.prepare('SELECT * FROM agent_messages WHERE sessionId = ? ORDER BY createdAt ASC, rowid ASC').all(sessionId);
+    return rows.map(r => ({
+      ...r,
+      chainOfWork: r.chainOfWork ? JSON.parse(r.chainOfWork) : [],
+      sandboxFiles: r.sandboxFiles ? JSON.parse(r.sandboxFiles) : []
+    }));
   }
 };
 

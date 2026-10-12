@@ -123,6 +123,49 @@ body[data-view="landing"] #root {
 .lp-btn-light { background: #fff; color: var(--lp-orange); }
 .lp-btn-light:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.25); }
 
+.lp-btn-agent {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  color: #fff !important;
+  box-shadow: 0 6px 20px -6px rgba(124, 58, 237, 0.55);
+}
+.lp-btn-agent:hover {
+  box-shadow: 0 10px 28px -8px rgba(124, 58, 237, 0.65);
+  transform: translateY(-1px);
+}
+.lp-badge-pulse {
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lp-nav-agent-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: #7c3aed !important;
+  font-weight: 700 !important;
+}
+.lp-nav-agent-btn:hover {
+  background: #f5f3ff !important;
+  color: #6d28d9 !important;
+}
+.lp-agent-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a855f7;
+  box-shadow: 0 0 8px #a855f7;
+  animation: lp-dot-pulse 2s infinite ease-in-out;
+}
+@keyframes lp-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.65; }
+}
+
 /* ---------- Navbar ---------- */
 .lp-nav {
   position: sticky;
@@ -391,7 +434,7 @@ body[data-view="landing"] #root {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.lp-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.lp-products { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
 
 .lp-product { display: flex; flex-direction: column; gap: 10px; }
 .lp-product.is-clickable { cursor: pointer; }
@@ -411,6 +454,7 @@ body[data-view="landing"] #root {
 .lp-product-icon.green { background: #ecfdf5; color: #059669; }
 .lp-product-icon.orange { background: var(--lp-orange-soft); color: var(--lp-orange); }
 .lp-product-icon.blue { background: #eff6ff; color: #2563eb; }
+.lp-product-icon.purple { background: #f5f3ff; color: #7c3aed; }
 
 .lp-link {
   margin-top: 8px;

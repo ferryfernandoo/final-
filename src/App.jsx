@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import ChatBot from './components/ChatBot'
+import AgentChat from './components/AgentChat'
 import ModelLoaderScreen from './components/ModelLoaderScreen'
 import Login from './components/Login'
 import LandingPage from './components/LandingPage'
@@ -156,6 +157,7 @@ function App() {
     if (typeof window !== 'undefined') {
       const path = (window.location.pathname || '').toLowerCase();
       const hash = (window.location.hash || '').toLowerCase();
+      if (path === '/agent' || hash === '#agent') return 'agent';
       if (path === '/help' || hash === '#help') return 'help';
       if (path === '/codedance' || hash === '#codedance') return 'codedance';
       if (path === '/documents' || hash === '#documents') return 'documents';
@@ -206,9 +208,14 @@ function App() {
       return;
     }
 
+    if (view === 'agent' && !isAuthenticated && !isGuest) {
+      handleGuestLogin();
+    }
+
     setCurrentView(view);
     if (typeof window !== 'undefined' && window.history && window.history.pushState) {
       const routeMap = {
+        agent: '/agent',
         help: '/help',
         codedance: '/codedance',
         documents: '/documents',
@@ -241,7 +248,11 @@ function App() {
     const handleUrlChange = () => {
       const path = (window.location.pathname || '').toLowerCase();
       const hash = (window.location.hash || '').toLowerCase();
-      if (path === '/help' || hash === '#help') setCurrentView('help');
+      if (path === '/agent' || hash === '#agent') {
+        if (!isAuthenticated && !isGuest) handleGuestLogin();
+        setCurrentView('agent');
+      }
+      else if (path === '/help' || hash === '#help') setCurrentView('help');
       else if (path === '/codedance' || hash === '#codedance') setCurrentView('codedance');
       else if (path === '/documents' || hash === '#documents') setCurrentView('documents');
       else if (path === '/chat' || hash === '#chat') setCurrentView('chat');
@@ -258,12 +269,12 @@ function App() {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
     };
-  }, []);
+  }, [isAuthenticated, isGuest]);
 
   // Synchronize active view class on document.body and document.documentElement for clean scroll behavior
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const allViews = ['view-landing', 'view-chat', 'view-documents', 'view-codedance', 'view-help', 'view-dte', 'view-office', 'view-universe'];
+    const allViews = ['view-landing', 'view-chat', 'view-agent', 'view-documents', 'view-codedance', 'view-help', 'view-dte', 'view-office', 'view-universe'];
     document.body.classList.remove(...allViews);
     document.documentElement.classList.remove(...allViews);
     
@@ -704,6 +715,22 @@ function App() {
             }}
           />
         </div>
+      </ErrorBoundary>
+    );
+  }
+
+  // 1.8. Dedicated Autonomous AI Agent & Code Execution Sandbox (/agent)
+  if (currentView === 'agent') {
+    return (
+      <ErrorBoundary onNavigate={handleNavigate}>
+        <AgentChat
+          user={user}
+          isAuthenticated={isAuthenticated}
+          isGuest={isGuest}
+          onLogout={handleLogout}
+          onNavigate={handleNavigate}
+          onUpdateUser={handleUpdateUser}
+        />
       </ErrorBoundary>
     );
   }

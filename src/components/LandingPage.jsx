@@ -77,6 +77,9 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           </button>
 
           <nav className="lp-nav-links" aria-label="Navigasi utama">
+            <button type="button" onClick={() => onNavigate?.('agent')} className="lp-nav-agent-btn">
+              <span className="lp-agent-dot"></span> AI Agent
+            </button>
             <button type="button" onClick={() => scrollTo('produk')}>Produk</button>
             <button type="button" onClick={() => scrollTo('fitur')}>Fitur</button>
             <button type="button" onClick={() => onNavigate?.('api')}>API</button>
@@ -107,13 +110,18 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             </h1>
 
             <p className="lp-hero-sub">
-              Chat multi-model, buat dokumen Word, Excel &amp; PPT otomatis, dan cari informasi real-time — semua dalam satu tempat.
+              Chat multi-model, AI Agent mandiri dengan sandbox eksekusi kode, naskah Word/Excel/PPT otomatis — semua dalam satu ekosistem.
             </p>
 
             <div className="lp-hero-actions">
               <button type="button" onClick={onStartChat} className="lp-btn lp-btn-primary lp-btn-lg">
                 Mulai Chat Gratis
                 <i className="fa-solid fa-arrow-right" />
+              </button>
+              <button type="button" onClick={() => onNavigate?.('agent')} className="lp-btn lp-btn-agent lp-btn-lg">
+                <i className="fa-solid fa-microchip" />
+                AI Agent
+                <span className="lp-badge-pulse">Sandbox</span>
               </button>
               <button type="button" onClick={onOpenOffice} className="lp-btn lp-btn-outline lp-btn-lg">
                 <i className="fa-solid fa-file-lines" />
@@ -123,7 +131,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
 
             <ul className="lp-trust">
               <li><i className="fa-solid fa-check" /> Tanpa langganan</li>
-              <li><i className="fa-solid fa-check" /> Tanpa wajib daftar</li>
+              <li><i className="fa-solid fa-check" /> Sandbox Eksekusi Aman</li>
               <li><i className="fa-solid fa-check" /> Bahasa Indonesia</li>
             </ul>
           </div>
@@ -134,10 +142,18 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           <div className="lp-container">
             <div className="lp-section-head">
               <span className="lp-eyebrow">Ekosistem</span>
-              <h2>Satu platform, tiga produk utama</h2>
+              <h2>Satu platform, produk terintegrasi</h2>
             </div>
 
             <div className="lp-products">
+              {/* AI Agent Sandbox */}
+              <article className="lp-card lp-product is-clickable" onClick={() => onNavigate?.('agent')}>
+                <div className="lp-product-icon purple"><i className="fa-solid fa-microchip" /></div>
+                <h3>AI Agent</h3>
+                <p>Agentic AI otonom seperti Claude / Devin: manipulasi file sandbox, eksekusi kode terisolasi, live preview &amp; chain of work transparan.</p>
+                <span className="lp-link">Buka AI Agent <i className="fa-solid fa-arrow-right" /></span>
+              </article>
+
               {/* Search Engine */}
               <article className="lp-card lp-product">
                 <div className="lp-product-icon green"><i className="fa-solid fa-magnifying-glass" /></div>

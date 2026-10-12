@@ -26,6 +26,7 @@ import db from './database.js';
 import { SQLiteSessionStore } from './sessionStore.js';
 import { v4 as uuidv4 } from 'uuid';
 import apiProxyRoutes from './routes/api-proxy.js';
+import agentRoutes from './routes/agentRoutes.js';
 import { apiProxyService } from './apiProxyService.js';
 import ragService from './ragService.js';
 import externalFinanceService from './externalFinanceService.js';
@@ -891,6 +892,11 @@ app.post(['/auth/logout', '/api/auth/logout'], (req, res) => {
     res.json({ success: true, message: 'Berhasil logout' });
   });
 });
+
+// ============================================================================
+// ⚡ DEEPERNOVA AUTONOMOUS AGENT & SANDBOX ROUTES (/api/agent)
+// ============================================================================
+app.use('/api/agent', agentRoutes);
 
 // ============================================================================
 // DEEPERNOVA AI & SEARCH ENGINE API PROXY ROUTES (/v1 & /api/v1)
