@@ -530,7 +530,7 @@ function App() {
     }
   };
 
-  // Cloud TokenMix Meta AI is ready immediately (no heavy local model downloading)
+  // Native DeeperNova GPU AI is ready immediately
 
   if (loading) {
     return (

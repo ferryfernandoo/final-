@@ -9076,7 +9076,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     }, 4000);
 
-    // TokenMix Meta AI requires active connection
+    // DeeperNova AI requires active connection
     if (!navigator.onLine) {
       console.warn('[ChatBot] Cannot send message: offline detected');
       setIsSendGenerating(false);
@@ -9086,8 +9086,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setConvLoading(false);
       setConnectionErrorMessage(
         userLanguage === 'id'
-          ? 'Tidak ada koneksi internet. Pastikan jaringan aktif untuk menggunakan TokenMix Meta AI.'
-          : 'No internet connection. Please ensure an active network to use TokenMix Meta AI.'
+          ? 'Tidak ada koneksi internet. Pastikan jaringan aktif untuk menggunakan DeeperNova AI.'
+          : 'No internet connection. Please ensure an active network to use DeeperNova AI.'
       );
       setShowConnectionErrorModal(true);
       return;

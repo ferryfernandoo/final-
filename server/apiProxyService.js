@@ -15,21 +15,9 @@ import { Readable } from 'stream';
 
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
 
-const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
-
-export const TOKENMIX_API_KEYS = Array.from(new Set([
-  ...RAW_ENV_KEYS,
-  'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
-  'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
-  'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
-  'sk-tm-XdNatQm0mzIzifTrrKCfmeQMZ3CpFxL212QAp8wQYIelbrNX',
-  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
-  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
-  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
-].filter(Boolean)));
-let activeKeyIndex = 0;
-const TOKENMIX_API_KEY = TOKENMIX_API_KEYS[0];
-const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
+export const TOKENMIX_API_KEYS = [];
+const TOKENMIX_API_KEY = '';
+const TOKENMIX_CHAT_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
 
 class ApiProxyService {
   constructor() {
@@ -109,15 +97,20 @@ class ApiProxyService {
   }
 
   /**
-   * Resolve target TokenMix model from requested model name
+   * Resolve target Native GPU model from requested model name
    */
   resolveTargetModel(modelName = '') {
     const lower = (modelName || '').toLowerCase();
-    if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-      return 'doubao-seed-2.1-turbo';
+    if (lower.includes('pure') || lower.includes('reason')) {
+      return 'deepernova-pure-reasoning';
     }
-    // Default to llama-4-maverick (Meta AI Llama Maverick flagship)
-    return 'llama-4-maverick';
+    if (lower.includes('smart') || lower.includes('0.5b')) {
+      return 'deepernova-smart-0.5b';
+    }
+    if (lower.includes('100m') || lower.includes('nano')) {
+      return 'deepernova-100m';
+    }
+    return 'deepernova v1 flash 1';
   }
 
   /**
@@ -146,32 +139,12 @@ class ApiProxyService {
     const isQuotaExhausted = Boolean(upstreamError?.status === 402 || errText.includes('402') || errText.includes('insufficient') || errText.includes('balance'));
 
     // 0. Pertanyaan Meta Mengenai Status AI, TokenMix, Saldo, Kuota
-    if (
-      lower.includes('tokenmix') ||
-      lower.includes('balance') ||
-      lower.includes('saldo') ||
-      lower.includes('kuota')
-    ) {
-      if (isQuotaExhausted) {
-        return `⚠️ **Pemberitahuan Sistem: Saldo/Kredit TokenMix Upstream Habis**
-
-Koneksi ke provider upstream (**TokenMix AI**) saat ini mengembalikan status **HTTP 402 (Insufficient Balance)**. Silakan tambahkan kredit di [https://tokenmix.ai/dashboard/credits](https://tokenmix.ai/dashboard/credits).`;
-      }
-      return `Koneksi ke **TokenMix Meta AI** saat ini aktif dan berjalan normal. Kuota dan API key telah diperbarui.`;
-    }
-
-    // 1. Sapaan Singkat / Greetings (Cukup 1 kalimat langsung)
+    // 1. Sapaan Singkat / Greetings
     if (
       (lower === 'halo' || lower === 'hai' || lower === 'hi' || lower === 'hello' || lower === 'hey') ||
       /^(halo|hai|hi|hello|selamat pagi|selamat siang|selamat sore|selamat malam|assalamu['a-z]*)[!.]?$/i.test(lower)
     ) {
-      const greetings = [
-        'Halo! Saya DeeperNova AI. Ada yang bisa saya bantu untuk Anda hari ini?',
-        'Hai! Senang menyapa Anda. Silakan sampaikan apa yang ingin kita bahas atau kerjakan.',
-        'Halo! Sistem DeeperNova AI aktif dan siap mendampingi Anda.',
-        'Hai! Saya siap membantu pertanyaan, analisis, atau tugas Anda.'
-      ];
-      return greetings[Math.floor(Math.random() * greetings.length)];
+      return 'Halo! Model DeeperNova AI siap membantu Anda.';
     }
 
     // 2. Pertanyaan Santai Singkat (Lagi apa, apa kabar)
@@ -442,22 +415,7 @@ try {
       return '**Charles Babbage** dikenal sebagai "Bapak Komputer" karena merancang mesin mekanis *Difference Engine* dan *Analytical Engine* di abad ke-19, sedangkan **Alan Turing** meletakkan dasar komputasi modern melalui konsep *Turing Machine*.';
     }
 
-    // 14. Fallback Terbuka & Transparan Jika Saldo Upstream TokenMix Habis
-    if (isQuotaExhausted) {
-      return `⚠️ **Pemberitahuan Sistem: Saldo/Kredit TokenMix Upstream Habis ($0.0109 USD)**
-
-AI saat ini tidak dapat memproses jawaban dinamis untuk:
-> **"${userPrompt}"**
-
-📌 **Penyebab**:
-Koneksi ke upstream AI provider (**TokenMix**) mengembalikan status **HTTP 402 Insufficient Balance** (sisa saldo akun: **$0.0109 USD**).
-
-💡 **Solusi**:
-1. Isi ulang saldo di dashboard TokenMix: [https://tokenmix.ai/dashboard/credits](https://tokenmix.ai/dashboard/credits)
-2. Atau tambahkan API Key alternatif (\`GROQ_API_KEY\` gratis Llama 3.3 70B, atau \`DEEPSEEK_API_KEY\`) ke file \`.env\` di server.`;
-    }
-
-    return `Permintaan Anda tidak dapat diproses saat ini. Silakan periksa koneksi atau coba beberapa saat lagi.`;
+    return `Permintaan Anda tidak dapat diproses saat ini karena engine AI sedang sibuk. Silakan coba beberapa saat lagi.`;
   }
 
   /**
@@ -607,37 +565,8 @@ ATURAN KOMUNIKASI MUTLAK:
       }
     }
 
-    // 2. Fallback to active TokenMix keys if native AI engine did not respond
     if (!responseData || !responseData.choices || responseData.choices.length === 0) {
-      for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
-        const activeKey = TOKENMIX_API_KEYS[i];
-        try {
-          const response = await fetch(TOKENMIX_CHAT_API_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${activeKey}`
-            },
-            body: JSON.stringify(outbound),
-            timeout: 15000
-          });
-
-          if (response.ok) {
-            responseData = await response.json();
-            upstreamError = null;
-            break; // Key berhasil, stop loop
-          } else {
-            const errBody = await response.text();
-            console.warn(`[ApiProxyService] TokenMix key index ${i} failed (${response.status}): ${errBody.substring(0, 150)}. Rotating to next key...`);
-            upstreamError = { status: response.status, body: errBody };
-            responseData = null;
-          }
-        } catch (netErr) {
-          console.warn(`[ApiProxyService] Network error with TokenMix key index ${i}: ${netErr.message}`);
-          upstreamError = { status: 500, message: netErr.message };
-          responseData = null;
-        }
-      }
+      upstreamError = { status: 503, message: 'Native GPU AI engine offline' };
     }
 
     latencyMs = Date.now() - startTime;
@@ -811,36 +740,9 @@ ATURAN KOMUNIKASI MUTLAK:
       }
     }
 
-    // 2. Fallback to active TokenMix stream
-    for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
-      const activeKey = TOKENMIX_API_KEYS[i];
-      try {
-        const response = await fetch(TOKENMIX_CHAT_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${activeKey}`
-          },
-          body: JSON.stringify(outbound),
-          timeout: 15000
-        });
-
-        if (response.ok) {
-          upstreamStream = response.body;
-          useStandbyStream = false;
-          streamError = null;
-          break; // Key streaming berhasil, stop loop
-        } else {
-          const errBody = await response.text();
-          console.warn(`[ApiProxyService Stream] TokenMix key index ${i} returned status ${response.status}: ${errBody.substring(0, 150)}. Rotating to next key...`);
-          streamError = { status: response.status, body: errBody };
-          useStandbyStream = true;
-        }
-      } catch (netErr) {
-        console.warn(`[ApiProxyService Stream] Network error with TokenMix key index ${i}: ${netErr.message}`);
-        streamError = { status: 500, message: netErr.message };
-        useStandbyStream = true;
-      }
+    if (!upstreamStream) {
+      useStandbyStream = true;
+      streamError = { status: 503, message: 'Native GPU AI engine offline' };
     }
 
     if (useStandbyStream || !upstreamStream) {

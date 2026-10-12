@@ -179,46 +179,26 @@ const TOKENMIX_API_KEYS = [];
 const TOKENMIX_API_KEY = '';
 const DEEPSEEK_API_KEY = '';
 
-// DeeperNova Model Mapping:
-// - Boron 1.1 / Silicon 1.4: WAJIB ByteDance (doubao-seed-2.1-turbo)
-// - Gold 1.5: WAJIB Llama Maverick (llama-4-maverick)
-// - Gold 1.5 Pro: Llama 3.3 70B (llama-3.3-70b)
-const normalizeDeepernovaModel = (deepernovaModel = 'deepernova-boron-1.1') => {
-  if (!deepernovaModel) return 'doubao-seed-2.1-turbo';
-  const lower = deepernovaModel.toLowerCase();
-  if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-    return 'doubao-seed-2.1-turbo';
-  }
-  if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
-    return 'llama-3.3-70b';
-  }
-  if (lower.includes('gold') || lower.includes('maverick') || lower.includes('llama')) {
-    return 'llama-4-maverick';
-  }
-  return 'llama-4-maverick';
+// DeeperNova Native GPU Model Mapping:
+// - deepernova v1 flash 1: Default ultra-fast GPU model
+// - deepernova-smart-0.5b: Smart compact 0.5B model
+// - deepernova-pure-reasoning: Deep reasoning model
+// - deepernova-100m: Nano 100M model
+const normalizeDeepernovaModel = (deepernovaModel = 'deepernova v1 flash 1') => {
+  const lower = (deepernovaModel || '').toLowerCase();
+  if (lower.includes('pure') || lower.includes('reason')) return 'deepernova-pure-reasoning';
+  if (lower.includes('smart') || lower.includes('0.5b')) return 'deepernova-smart-0.5b';
+  if (lower.includes('100m') || lower.includes('nano')) return 'deepernova-100m';
+  return 'deepernova v1 flash 1';
 };
 
-export const resolveModelForRequest = (deepernovaModel = 'deepernova-boron-1.1', hasImages = false) => {
-  const lower = (deepernovaModel || '').toLowerCase();
-  if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-    return 'doubao-seed-2.1-turbo';
-  }
-  if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
-    return 'llama-3.3-70b';
-  }
-  return 'llama-4-maverick';
+export const resolveModelForRequest = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+  return normalizeDeepernovaModel(deepernovaModel);
 };
 
 // Helper function to get actual model name
-export const getTokenMixModel = (deepernovaModel = 'deepernova-boron-1.1', hasImages = false) => {
-  const lower = (deepernovaModel || '').toLowerCase();
-  if (lower.includes('boron') || lower.includes('silicon') || lower.includes('doubao') || lower.includes('bytedance')) {
-    return 'doubao-seed-2.1-turbo';
-  }
-  if (lower.includes('70b') || lower.includes('pro') || lower.includes('reason') || lower.includes('code')) {
-    return 'llama-3.3-70b';
-  }
-  return 'llama-4-maverick';
+export const getTokenMixModel = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+  return normalizeDeepernovaModel(deepernovaModel);
 };
 
 // Backward compatibility alias

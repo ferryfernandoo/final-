@@ -138,24 +138,11 @@ let ragInitialized = false;
 // Initialize database
 initializeDatabase();
 
-// TokenMix chat API using llama-4-maverick by default (Text + Vision native)
-const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
-const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
-const TOKENMIX_API_KEYS = Array.from(new Set([
-  ...RAW_ENV_KEYS,
-  'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
-  'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
-  'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
-  'sk-tm-XdNatQm0mzIzifTrrKCfmeQMZ3CpFxL212QAp8wQYIelbrNX',
-  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
-  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
-  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
-].filter(Boolean)));
-let activeChatKeyIndex = 0;
-const TOKENMIX_API_KEY = TOKENMIX_API_KEYS[0];
-const TOKENMIX_CHAT_API_KEY = TOKENMIX_API_KEY;
-const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
+// Native DeeperNova GPU Engine on port 8000 & Cloudflare Tunnel
 const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
+const DEEPERNOVA_PUBLIC_API_URL = process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions';
+const DEFAULT_CHAT_MODEL = 'deepernova v1 flash 1';
+
 // Active upstream chat streams tracker for immediate GPU cancellation
 const activeUpstreamRequests = new Set();
 
@@ -174,14 +161,16 @@ process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT_EXCEPTION]', err);
 });
 
-const DEFAULT_CHAT_MODEL = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
-
 // Backward compatibility references
-const DEEPSEEK_API_KEY = TOKENMIX_API_KEY;
-const DEEPSEEK_API_KEYS = TOKENMIX_API_KEYS;
-const DEEPSEEK_API_URL = TOKENMIX_CHAT_API_URL;
+const TOKENMIX_API_KEYS = [];
+const TOKENMIX_API_KEY = '';
+const TOKENMIX_CHAT_API_KEY = '';
+const TOKENMIX_CHAT_API_URL = DEEPERNOVA_API_URL;
+const DEEPSEEK_API_KEY = '';
+const DEEPSEEK_API_KEYS = [];
+const DEEPSEEK_API_URL = DEEPERNOVA_API_URL;
 
-console.log(`✅ Using TokenMix API (${DEFAULT_CHAT_MODEL}) at ${TOKENMIX_CHAT_API_URL}`);
+console.log(`✅ Using Native DeeperNova GPU Engine at ${DEEPERNOVA_API_URL} (Tunnel: ${DEEPERNOVA_PUBLIC_API_URL})`);
 
 const app = express();
 app.disable('x-powered-by');
@@ -2786,21 +2775,7 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  const reqModelEarly = req.body?.model || 'deepernova-gold-1.5';
-  const isDeepernovaEarly = reqModelEarly && (
-    reqModelEarly.toLowerCase().includes('deepernova') ||
-    reqModelEarly.toLowerCase().includes('flash') ||
-    reqModelEarly.toLowerCase().includes('gold') ||
-    reqModelEarly.toLowerCase().includes('boron') ||
-    reqModelEarly.toLowerCase().includes('silicon')
-  );
-
-  if (!isDeepernovaEarly && !TOKENMIX_CHAT_API_KEY) {
-    return res.status(500).json({
-      success: false,
-      error: 'Deepernova chat service not configured',
-    });
-  }
+  const reqModelEarly = req.body?.model || 'deepernova v1 flash 1';
 
   try {
     // Initialize RAG on first request
@@ -3267,157 +3242,71 @@ app.post('/api/chat', async (req, res) => {
         // - Gold 1.5: WAJIB Llama Maverick (llama-4-maverick)
         // - Gold 1.5 Pro: Llama 3.3 70B (llama-3.3-70b)
         // - Jika ada GAMBAR (Vision Mode): WAJIB menggunakan llama-4-maverick karena satu-satunya model multi-modal vision di TokenMix,
-        //   sementara persona sistem prompt tetap 100% identitas model yang dipilih (misal DeeperNova Boron 1.1).
-        let selectedModel = 'llama-4-maverick';
+        // 🚀 NATIVE DEEPERNOVA GPU ENGINE (PORT 8000 & CLOUDFLARE TUNNEL)
+        let selectedModel = 'deepernova v1 flash 1';
         const reqModelLower = (requestedModel || '').toLowerCase();
-        if (hasImagesInPayload) {
-          selectedModel = 'llama-4-maverick';
-          console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
-        } else if (reqModelLower.includes('boron') || reqModelLower.includes('silicon') || reqModelLower.includes('doubao') || reqModelLower.includes('bytedance')) {
-          selectedModel = 'doubao-seed-2.1-turbo';
-        } else if (reqModelLower.includes('70b') || reqModelLower.includes('pro') || reqModelLower.includes('reason') || reqModelLower.includes('code')) {
-          selectedModel = 'llama-3.3-70b';
-        } else if (reqModelLower.includes('gold') || reqModelLower.includes('maverick') || reqModelLower.includes('llama')) {
-          selectedModel = 'llama-4-maverick';
+        if (reqModelLower.includes('pure') || reqModelLower.includes('reason')) {
+          selectedModel = 'deepernova-pure-reasoning';
+        } else if (reqModelLower.includes('smart') || reqModelLower.includes('0.5b')) {
+          selectedModel = 'deepernova-smart-0.5b';
+        } else if (reqModelLower.includes('100m') || reqModelLower.includes('nano')) {
+          selectedModel = 'deepernova-100m';
         } else {
-          selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
+          selectedModel = 'deepernova v1 flash 1';
         }
-        console.log(`[CHAT] ⚡ TokenMix AI: streaming=${shouldStream}, Model=${selectedModel} (Vision Mode: ${hasImagesInPayload})`);
+        console.log(`[CHAT] ⚡ Native GPU Engine: streaming=${shouldStream}, Model=${selectedModel}`);
 
-        for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
-          const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
-          const key = TOKENMIX_API_KEYS[idx];
-          let attempts = 0;
-          const maxAttempts = 3;
-          while (attempts < maxAttempts) {
-            try {
-              console.log(`[CHAT] Attempting chat request with key index ${idx} (attempt ${attempts + 1})...`);
-              tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${key}`,
-                },
-                signal: upstreamAbortController.signal,
-                body: JSON.stringify({
-                  model: selectedModel,
-                  messages: messages,
-                  temperature: req.body.temperature || 0.5,
-                  max_tokens: req.body.max_tokens || 4096,
-                  presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
-                  frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
-                  stream: shouldStream,
-                }),
-              });
+        const gpuEndpoints = [
+          process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
+          process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+        ].filter(Boolean);
 
-              if (tokenmixResponse.ok) {
-                console.log(`[CHAT] ✅ TokenMix AI responded successfully with key index ${idx}`);
-                reqRecord.responseStream = tokenmixResponse;
-                lastError = null;
-                break;
-              } else {
-                const errText = await tokenmixResponse.text();
-                const status = tokenmixResponse.status;
-                lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
-
-                // If doubao-seed-2.1-turbo has upstream issue, fallback to doubao-seed-2.0-lite or llama-4-maverick seamlessly
-                if (selectedModel === 'doubao-seed-2.1-turbo') {
-                  console.warn(`[CHAT] doubao-seed-2.1-turbo status ${status} (${errText.slice(0, 100)}). Falling back to TokenMix doubao-seed-2.0-lite...`);
-                  try {
-                    const fallbackRes = await fetch(TOKENMIX_CHAT_API_URL, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${key}`,
-                      },
-                      signal: upstreamAbortController.signal,
-                      body: JSON.stringify({
-                        model: 'doubao-seed-2.0-lite',
-                        messages: messages,
-                        temperature: req.body.temperature || 0.5,
-                        max_tokens: req.body.max_tokens || 4096,
-                        presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
-                        frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
-                        stream: shouldStream,
-                      }),
-                    });
-                    if (fallbackRes.ok) {
-                      console.log(`[CHAT] ✅ TokenMix fallback responded successfully with key index ${idx}`);
-                      tokenmixResponse = fallbackRes;
-                      reqRecord.responseStream = fallbackRes;
-                      lastError = null;
-                      break;
-                    }
-                  } catch (fbErr) {
-                    console.warn(`[CHAT] Fallback error on key index ${idx}:`, fbErr.message);
-                  }
-                }
-
-                if ((status === 429 || status >= 500) && attempts < maxAttempts - 1) {
-                  const backoff = (attempts + 1) * 1500;
-                  console.warn(`[CHAT] Key index ${idx} status ${status}. Retrying in ${backoff}ms...`);
-                  await new Promise(resolve => setTimeout(resolve, backoff));
-                  attempts++;
-                  continue;
-                }
-                break;
-              }
-            } catch (e) {
-              if (e?.name === 'AbortError' || clientDisconnected) {
-                console.log('[CHAT] Stream connection aborted by user stop.');
-                if (!res.writableEnded) {
-                  try { res.end('data: [DONE]\n\n'); } catch (_e) {}
-                }
-                return;
-              }
-              lastError = e;
-              console.warn(`[CHAT] Key rotation error with index ${idx}: ${e.message}`);
-              break;
-            }
-          }
-          if (tokenmixResponse && tokenmixResponse.ok) {
-            break;
-          }
-        }
-
-        // Fallback ke Groq (Llama 3.3 70B) jika GROQ_API_KEY tersedia di .env
-        const GROQ_API_KEY = process.env.GROQ_API_KEY;
-        if ((lastError || !tokenmixResponse || !tokenmixResponse.ok) && GROQ_API_KEY) {
+        for (const endpointUrl of gpuEndpoints) {
           try {
-            console.log('[CHAT] 🚀 TokenMix unavailable. Attempting fallback to Groq Llama 3.3 70B...');
-            const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            console.log(`[CHAT] Attempting GPU request to ${endpointUrl}...`);
+            const gpuRes = await fetch(endpointUrl, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${GROQ_API_KEY}`
+                'Content-Type': 'application/json'
               },
               signal: upstreamAbortController.signal,
               body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: selectedModel,
                 messages: messages,
-                temperature: req.body.temperature || 0.5,
+                temperature: req.body.temperature || 0.6,
                 max_tokens: req.body.max_tokens || 4096,
                 stream: shouldStream
               })
             });
-            if (groqRes.ok) {
-              console.log('[CHAT] ✅ Groq fallback succeeded!');
-              tokenmixResponse = groqRes;
-              reqRecord.responseStream = groqRes;
+
+            if (gpuRes.ok) {
+              console.log(`[CHAT] ✅ Native GPU Engine responded successfully from ${endpointUrl}`);
+              tokenmixResponse = gpuRes;
+              reqRecord.responseStream = gpuRes;
               lastError = null;
+              break;
             } else {
-              const groqErrText = await groqRes.text();
-              console.warn(`[CHAT] Groq fallback failed (${groqRes.status}): ${groqErrText.slice(0, 100)}`);
+              const errText = await gpuRes.text().catch(() => '');
+              console.warn(`[CHAT] GPU Engine at ${endpointUrl} returned status ${gpuRes.status}: ${errText.slice(0, 100)}`);
+              lastError = new Error(`GPU Engine status ${gpuRes.status}: ${errText}`);
             }
-          } catch (groqErr) {
-            console.warn('[CHAT] Groq fallback error:', groqErr.message);
+          } catch (e) {
+            if (e?.name === 'AbortError' || clientDisconnected) {
+              console.log('[CHAT] Stream connection aborted by user stop.');
+              if (!res.writableEnded) {
+                try { res.end('data: [DONE]\n\n'); } catch (_e) {}
+              }
+              return;
+            }
+            lastError = e;
+            console.warn(`[CHAT] GPU Engine error at ${endpointUrl}: ${e.message}`);
           }
         }
 
         let standbyStream = null;
         if (lastError || !tokenmixResponse || !tokenmixResponse.ok) {
-          console.warn('[CHAT] Upstream AI failed or quota exhausted. Activating transparent DeeperNova Standby Fallback for web chat.');
-          const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel, lastError);
+          console.warn('[CHAT] Native GPU Engine unavailable. Generating diagnostic message.');
+          const standbyContent = "Maaf, engine AI GPU DeeperNova saat ini sedang sibuk atau tidak dapat dijangkau. Pastikan server GPU lokal aktif.";
           standbyStream = apiProxyService.createSyntheticSSEStream(standbyContent, selectedModel);
         }
 
@@ -3702,39 +3591,7 @@ app.post('/api/tts', express.json(), async (req, res) => {
       console.warn('[TTS FALLBACK] Edge Neural TTS failed, attempting fallback:', edgeErr.message);
     }
 
-    // 2. Fallback Engine: TokenMix API
-    const key = TOKENMIX_API_KEY;
-    if (key) {
-      try {
-        const ttsResponse = await fetch('https://api.tokenmix.ai/v1/audio/speech', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${key}`
-          },
-          body: JSON.stringify({
-            model,
-            input: cleanText,
-            voice
-          })
-        });
-
-        if (ttsResponse.ok) {
-          const contentType = ttsResponse.headers.get('content-type') || 'audio/mpeg';
-          res.setHeader('Content-Type', contentType);
-          res.setHeader('Cache-Control', 'public, max-age=86400');
-          const buffer = await ttsResponse.arrayBuffer();
-          return res.send(Buffer.from(buffer));
-        } else {
-          const errText = await ttsResponse.text().catch(() => '');
-          console.error(`[TTS PROVIDER ERROR] ${ttsResponse.status}:`, errText);
-        }
-      } catch (tokenMixErr) {
-        console.error('[TTS TOKENMIX EXCEPTION]', tokenMixErr.message);
-      }
-    }
-
-    // 3. Fallback to client-side speech synthesis indication
+    // Fallback to client-side speech synthesis indication
     return res.status(500).json({ error: 'TTS provider unavailable, use local speech synthesis', fallbackToWebSpeech: true });
   } catch (err) {
     console.error('[TTS SERVER EXCEPTION]', err);

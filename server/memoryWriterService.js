@@ -121,21 +121,14 @@ Guidelines:
 
     const userPrompt = `Recent conversation:\n${conversationText}\n\nProvide the complete updated global memory bullet points.`;
 
-    const apiUrl = TOKENMIX_API_KEY ? TOKENMIX_API_URL : (process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions');
-    const apiKey = TOKENMIX_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.VITE_DEEPSEEK_API_KEY || '';
-    const modelName = TOKENMIX_API_KEY ? 'qwen-flash' : 'deepseek-v4-flash-vision-exp';
+    const apiUrl = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
+    const modelName = 'deepernova-smart-0.5b';
 
-    if (!apiKey) {
-      console.warn('[MemoryWriterService] No API key configured for background memory writing');
-      return currentMemory;
-    }
-
-    // Call LLM for memory writing
+    // Call Native GPU LLM for memory writing
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: modelName,

@@ -899,9 +899,11 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
     let hasPreview = false;
     let previewFile = 'index.html';
 
-    // Call Upstream Model with Autonomous Multi-Step ReAct Loop
-    const tokenMixKey = TOKENMIX_API_KEYS[0] || process.env.TOKENMIX_API_KEY || '';
-    const upstreamUrl = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
+    // Call Native DeeperNova GPU Model with Autonomous Multi-Step ReAct Loop
+    const upstreamUrls = [
+      process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
+      process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+    ].filter(Boolean);
 
     const MAX_AGENT_STEPS = 4;
     let stepIteration = 0;
@@ -913,25 +915,38 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
       let turnObservations = [];
       let turnRawContent = '';
 
-      const upstreamRes = await fetch(upstreamUrl, {
-        method: 'POST',
-        signal: upstreamAbortController.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokenMixKey}`
-        },
-        body: JSON.stringify({
-          model: 'llama-4-maverick',
-          messages: apiMessages,
-          temperature: 0.6,
-          max_tokens: 4500,
-          stream: true
-        })
-      });
+      let upstreamRes = null;
+      let lastErr = null;
+      for (const uUrl of upstreamUrls) {
+        try {
+          const res = await fetch(uUrl, {
+            method: 'POST',
+            signal: upstreamAbortController.signal,
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'deepernova v1 flash 1',
+              messages: apiMessages,
+              temperature: 0.6,
+              max_tokens: 4500,
+              stream: true
+            })
+          });
+          if (res.ok) {
+            upstreamRes = res;
+            break;
+          } else {
+            const errText = await res.text().catch(() => '');
+            lastErr = new Error(`GPU Engine Error (${res.status}): ${errText.slice(0, 100)}`);
+          }
+        } catch (fetchErr) {
+          lastErr = fetchErr;
+        }
+      }
 
-      if (!upstreamRes.ok) {
-        const errText = await upstreamRes.text();
-        throw new Error(`Upstream AI Error (${upstreamRes.status}): ${errText.slice(0, 150)}`);
+      if (!upstreamRes || !upstreamRes.ok) {
+        throw (lastErr || new Error('GPU Engine unreachable'));
       }
 
       const streamParser = createStreamActionParser({

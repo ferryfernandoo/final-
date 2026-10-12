@@ -52,28 +52,22 @@ export function generateInstantBoronResponse(prompt = '') {
   const p = prompt.toLowerCase().trim();
 
   if (/^(halo|hai|hi|hey|assalamu|selamat|pagi|siang|sore|malam)\b/i.test(p) || p.length < 5) {
-    const greetings = [
-      'Halo! Saya DeeperNova Boron 1.1, siap membantu Anda. Apa yang ingin kita bahas hari ini?',
-      'Hai! Senang bertemu Anda. Ada tugas atau pertanyaan yang ingin diselesaikan?',
-      'Halo! DeeperNova AI aktif dan siap membantu. Silakan sampaikan pertanyaan atau tugas Anda.',
-      'Hai! Saya siap membantu coding, analisis teks, atau tanya jawab umum. Apa yang bisa saya bantu?'
-    ];
-    return greetings[Math.floor(Math.random() * greetings.length)];
+    return 'Halo! Model DeeperNova AI siap mendampingi Anda.';
   }
 
   if (/(siapa kamu|kamu siapa|identitas|siapa pembuatmu|siapa ciptakan|model apa)/i.test(p)) {
-    return 'Saya adalah DeeperNova Boron 1.1, model kecerdasan buatan on-device dari DeeperNova AI Indonesia. Ada yang bisa saya bantu?';
+    return 'Saya adalah DeeperNova AI, model kecerdasan buatan dari DeeperNova AI Indonesia.';
   }
 
   if (/(bisa apa|kemampuan|fitur)/i.test(p)) {
-    return `Sebagai model AI lokal DeeperNova Boron 1.1, saya dapat membantu Anda dalam:
+    return `Sebagai model DeeperNova AI, saya dapat membantu Anda dalam:
 - **Tanya Jawab & Pengetahuan Umum**
 - **Pemrograman & Coding** (Python, JavaScript, HTML/CSS, SQL, dll)
 - **Analisis & Rangkuman Teks / Dokumen**
 - **Penulisan Kreatif & Perancangan Logika**`;
   }
 
-  return `Pertanyaan Anda telah diproses. Silakan tanyakan hal yang lebih spesifik atau berikan detail tugas yang ingin diselesaikan.`;
+  return `Maaf, koneksi ke engine GPU AI saat ini sedang menghubungkan ulang. Silakan coba kembali pertanyaan Anda dalam beberapa detik.`;
 }
 
 /**
@@ -117,7 +111,7 @@ export function parseReasoningContent(rawText) {
  */
 export function extractResponseFromReasoning(thought) {
   if (!thought || typeof thought !== 'string') {
-    return 'Halo! Saya DeeperNova Boron 1.1. Ada yang bisa saya bantu untuk Anda?';
+    return 'Berikut adalah hasil analisis DeeperNova AI.';
   }
 
   const cleanThought = thought
