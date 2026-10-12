@@ -1,6 +1,6 @@
 /**
  * Agent Cross-Session Memory Service
- * Implements Claude AI Agent persistent memory architecture:
+ * Implements Autonomous AI Agent persistent memory architecture:
  * 1. Semantic Memory: Persistent user profile, preferences, and facts.
  * 2. Episodic Memory: Cross-session history, past conversation summaries, and generated deliverables.
  * 3. Continuous Learning / Dreaming: Auto-extracts memory facts and project outcomes after every turn.
@@ -119,8 +119,8 @@ class AgentMemoryService {
       }
 
       // Build formatted section
-      let md = `\n=== MEMORI PERSISTEN LINTAS SESI (CLAUDE AGENT PERSISTENT MEMORY) ===\n`;
-      md += `Anda memiliki kesadaran memori persisten lintas sesi (seperti Claude AI). Anda dapat mengingat preferensi pengguna, obrolan sebelumnya, dan berkas/proyek yang pernah dibuat di SEMUA sesi lain pengguna ini.\n\n`;
+      let md = `\n=== MEMORI PERSISTEN LINTAS SESI (DEEPERNOVA PERSISTENT MEMORY) ===\n`;
+      md += `Anda memiliki kesadaran memori persisten lintas sesi otonom. Anda dapat mengingat preferensi pengguna, obrolan sebelumnya, dan berkas/proyek yang pernah dibuat di SEMUA sesi lain pengguna ini.\n\n`;
 
       if (userName || userEmail) {
         md += `[PROFIL & IDENTITAS PENGGUNA]:\n`;

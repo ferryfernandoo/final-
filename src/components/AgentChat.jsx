@@ -244,7 +244,7 @@ function AgentReasoningBox({ reasoning = '', isStreaming = false, isExpanded = f
         <div className="agent-reasoning-drawer" ref={boxRef}>
           <div className="agent-reasoning-drawer-banner">
             <i className="fa-solid fa-microchip" style={{ color: '#ea580c' }} />
-            <span>Analisis Internal & Perencanaan Logika (Claude Extended Thinking)</span>
+            <span>Analisis Internal & Perencanaan Logika (Extended Reasoning)</span>
           </div>
           <div className="agent-reasoning-drawer-body">
             <pre>{reasoning || (isStreaming ? 'Memulai penalaran internal...' : '')}</pre>
@@ -329,7 +329,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const [expandedChains, setExpandedChains] = useState({});
   const toggleChain = (id) => setExpandedChains(prev => ({ ...prev, [id]: !prev[id] }));
 
-  // Claude Extended Thinking / Reasoning Box (Collapsed by default for clean UI)
+  // Extended Thinking / Reasoning Box (Collapsed by default for clean UI)
   const [expandedReasonings, setExpandedReasonings] = useState({});
   const toggleReasoning = (id) => setExpandedReasonings(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -1193,7 +1193,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     );
                   })()}
 
-                  {/* 3. Claude Artifacts Quick-Access Bar */}
+                  {/* 3. Workspace Artifacts Quick-Access Bar */}
                   {isBot && ((msg.sandboxFiles || []).length > 0 || msg.previewUrl) && (
                     <div className="agent-artifacts-quickbar">
                       <button
@@ -1207,10 +1207,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                           }
                           setIsDrawerOpen(true);
                         }}
-                        title="Buka panel kerja Claude Artifacts di sebelah kanan"
+                        title="Buka panel kerja Workspace & Artifacts di sebelah kanan"
                       >
                         <i className="fa-solid fa-layer-group" style={{ color: '#ea580c' }} />
-                        <span>Buka Workspace di Artifacts Panel</span>
+                        <span>Buka Workspace & Artifacts Panel</span>
                         <i className="fa-solid fa-chevron-right" style={{ fontSize: 9, opacity: 0.7 }} />
                       </button>
                     </div>
@@ -1501,7 +1501,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar — Exactly Matching ChatBot Claude-Style */}
+        {/* Input Bar — Autonomous Agent Composer */}
         <div className="agent-input-wrapper">
           <div className="agent-input-container">
             {/* User Attachments Preview Chips */}
@@ -1525,7 +1525,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               </div>
             )}
 
-            <div className={`input-container claude-style ${isExecuting ? 'generating' : ''}`}>
+            <div className={`agent-composer-box ${isExecuting ? 'generating' : ''}`}>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -1534,9 +1534,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 style={{ display: 'none' }}
               />
 
-              <div className="textarea-wrapper">
+              <div className="agent-composer-textarea-wrapper">
                 <textarea
-                  className="message-input"
+                  className="agent-composer-input"
                   placeholder="Tanya Deepernova AI Agent..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
@@ -1551,11 +1551,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 />
               </div>
 
-              <div className="input-card-toolbar">
-                <div className="file-menu-container">
+              <div className="agent-composer-toolbar">
+                <div className="agent-composer-tools-left">
                   <button
                     type="button"
-                    className="claude-attach-btn"
+                    className="agent-composer-attach-btn"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isExecuting || isUploading}
                     title="Opsi & Lampiran"
@@ -1567,11 +1567,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="agent-composer-tools-right">
                   {isExecuting ? (
                     <button
                       type="button"
-                      className="claude-action-btn stop-mode"
+                      className="agent-composer-action-btn stop-mode"
                       onClick={handleStopExecution}
                       title="Hentikan eksekusi"
                     >
@@ -1582,7 +1582,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   ) : (
                     <button
                       type="button"
-                      className={`claude-action-btn send-mode ${(inputValue.trim() || uploadedAttachments.length > 0) ? 'has-text' : 'empty'}`}
+                      className={`agent-composer-action-btn send-mode ${(inputValue.trim() || uploadedAttachments.length > 0) ? 'has-text' : 'empty'}`}
                       onClick={() => handleSendMessage()}
                       disabled={!inputValue.trim() && uploadedAttachments.length === 0}
                       title="Kirim pesan"

@@ -750,7 +750,7 @@ router.post('/run', async (req, res) => {
     const existingFileMap = new Map(existingFiles.map(f => [f.path, f]));
     const fileListText = existingFiles.map(f => `- ${f.path} (${(f.size / 1024).toFixed(1)} KB)`).join('\n') || '(Belum ada berkas)';
 
-    // Retrieve Claude Cross-Session Persistent Memory for this user
+    // Retrieve Cross-Session Persistent Memory for this user
     const crossSessionMemoryText = agentMemoryService.buildCrossSessionContext(userId, sessionId);
 
     updateLastStep('completed', `Workspace sandbox siap (${existingFiles.length} berkas terdeteksi).`);
@@ -765,8 +765,8 @@ router.post('/run', async (req, res) => {
 
     updateLastStep('completed', 'Panduan SKILL.md berhasil dipelajari. Siap menerapkan standar koding dan perancangan berkualitas tinggi.');
 
-    // Build system prompt with SKILL.md and Sandbox context (Claude Agent Orchestrator Standard)
-    const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Claude Agent Orchestrator & Claude Artifacts.
+    // Build system prompt with SKILL.md and Sandbox context (Autonomous Agent Orchestrator Standard)
+    const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator & Workspace Artifacts.
 Anda bertugas mengeksekusi instruksi pengguna secara nyata di dalam sandbox hingga menghasilkan berkas jadi berkualitas tinggi.
 Sebelum melakukan tindakan apapun, Anda telah membaca dan memahami berkas SKILL.MD di workspace sandbox.
 
@@ -793,7 +793,7 @@ PROTOKOL KOMUNIKASI, PENALARAN & PENGALAMAN PENGGUNA (UX STANDAR TINGGI):
    - Tahap 4: KESIMPULAN EKSEKUTIF & PANDUAN PENGGUNA (TEKS BIASA PENUTUP)
      Setelah seluruh aksi sandbox selesai, sampaikan konfirmasi keberhasilan, deskripsi berkas yang terbentuk, ringkasan fitur, serta panduan cara mengunduh atau meninjaunya.
 
-SIKLUS ORKESTRASI CLAUDE MULTI-STEP RE-ACT AGENT:
+SIKLUS ORKESTRASI MULTI-STEP RE-ACT AGENT:
 - Analisis di <thought> -> Penjelasan Pembuka -> Tag Aksi Sandbox/Web -> Pembacaan Observasi Hasil Tindakan -> Analisis Mendalam & Jawaban Komprehensif.
 - PENCARIAN BERITA, RISET & INFORMASI AKTUAL (MULTI-STEP SEARCH & OBSERVATION):
   a. Jika pengguna meminta berita, peristiwa terkini, informasi live, atau riset, panggil <search_web query="kata kunci berita spesifik" />.
@@ -1193,7 +1193,7 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
       screenshotUrl
     });
 
-    // Automatically remember turn in long-term and cross-session memory (Claude Agent Standard)
+    // Automatically remember turn in long-term and cross-session memory (Autonomous Agent Standard)
     agentMemoryService.rememberTurn(
       userId,
       sessionId,

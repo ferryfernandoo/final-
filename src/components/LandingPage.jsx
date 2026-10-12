@@ -150,7 +150,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               <article className="lp-card lp-product is-clickable" onClick={() => onNavigate?.('agent')}>
                 <div className="lp-product-icon purple"><i className="fa-solid fa-microchip" /></div>
                 <h3>AI Agent</h3>
-                <p>Agentic AI otonom seperti Claude / Devin: manipulasi file sandbox, eksekusi kode terisolasi, live preview &amp; chain of work transparan.</p>
+                <p>Agentic AI otonom canggih: manipulasi file sandbox, eksekusi kode terisolasi, live preview &amp; chain of work transparan.</p>
                 <span className="lp-link">Buka AI Agent <i className="fa-solid fa-arrow-right" /></span>
               </article>
 

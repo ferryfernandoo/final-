@@ -294,7 +294,7 @@ const HELP_DATA = [
     id: 'mem-how-it-works',
     category: 'memory',
     title: 'Bagaimana Cara Kerja Memori Otonom AI Deepernova (CRUD Otomatis)?',
-    summary: 'Sistem memori canggih ala Claude yang dapat menyimpan, mengingat, memperbarui, dan menghapus preferensi Anda secara cerdas.',
+    summary: 'Sistem memori canggih otonom yang dapat menyimpan, mengingat, memperbarui, dan menghapus preferensi Anda secara cerdas.',
     solution: [
       'Anda tidak perlu mengonfigurasi memori secara manual. Cukup mengobrol seperti biasa dengan AI.',
       'Setiap kali Anda menyebutkan informasi penting (seperti: "Panggil aku Nando", "Aku mahasiswa teknik informatika", "Gunakan selalu bahasa santai tapi sopan"), AI secara mandiri mengenali data tersebut.',
