@@ -3505,13 +3505,15 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // 🎙️ SECURE SERVER-SIDE TEXT-TO-SPEECH (TTS) ENDPOINT
-// Primary: Microsoft Edge Neural TTS (Free, Ultra-Fast, Human-Like Indonesian & English, No API Quota)
-// Fallback: TokenMix API
+// Primary: Microsoft Edge Neural TTS (Natural, Ultra-Fast, Human-Like Indonesian & English)
+// Strictly NO caching: every message synthesizes fresh audio
 function cleanTextForEdgeTts(raw) {
   if (!raw || typeof raw !== 'string') return '';
   return raw
     .replace(/<think[\s\S]*?<\/think>/gi, '')
     .replace(/<reasoning[\s\S]*?<\/reasoning>/gi, '')
+    .replace(/<thought[\s\S]*?<\/thought>/gi, '')
+    .replace(/<\/?(?:reasoning|thought|think|action_pill)\b[^>]*>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`]+`/g, ' ')
@@ -3547,7 +3549,9 @@ app.post('/api/tts', express.json(), async (req, res) => {
       cleanText = (boundary > 1200 ? cleanText.substring(0, boundary + 1) : cleanText.substring(0, maxChars)).trim();
     }
 
-    // 1. Primary Engine: msedge-tts (High Fidelity Neural Audio, ~400ms latency, 0 API cost)
+    console.log(`[TTS] 🎙️ Synthesizing speech (${cleanText.length} chars): "${cleanText.slice(0, 80)}"`);
+
+    // 1. Primary Engine: msedge-tts (High Fidelity Neural Audio, ~300ms latency, 0 API cost)
     try {
       const edgeTts = new MsEdgeTTS();
       const isIndonesian = /[a-z]/i.test(cleanText) && (
@@ -3584,7 +3588,9 @@ app.post('/api/tts', express.json(), async (req, res) => {
       const audioBuffer = Buffer.concat(chunks);
       if (audioBuffer.length > 0) {
         res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         return res.send(audioBuffer);
       }
     } catch (edgeErr) {

@@ -4,9 +4,6 @@
  * Called every 2 messages to summarize conversation insights
  */
 
-const TOKENMIX_API_KEY = process.env.TOKENMIX_CHAT_API_KEY || process.env.TOKENMIX_API_KEY || process.env.VITE_TOKENMIX_API_KEY || '';
-const TOKENMIX_API_URL = 'https://api.tokenmix.ai/v1/chat/completions';
-
 const BULLET_PREFIXES = ['- ', '* ', '• '];
 
 function normalizeBulletLine(line) {

@@ -12,7 +12,7 @@ import DocumentGenerationService from '../services/documentGenerationService';
 import ImageGenerationService from '../services/imageGenerationService';
 import ClientFileParser from '../services/clientFileParser';
 
-import { tokenMixTtsService } from '../services/tokenMixTtsService';
+import { deepernovaTtsService } from '../services/deepernovaTtsService';
 import { detectLanguage, highlightCode, cleanCodeBlock } from '../utils/codeHighlight';
 import VoiceChat from './VoiceChat';
 import ApiMarketplace from './ApiMarketplace';
@@ -4322,8 +4322,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     };
     // Clean out empty non-active sessions when user starts a fresh chat
     remoteTypewriterRef.current?.finishNow();
-    tokenMixTtsService.stop();
-    tokenMixTtsService.clearCache();
+    deepernovaTtsService.stop();
+    deepernovaTtsService.clearCache();
     playingMessageIdRef.current = null;
     setPlayingMessageId(null);
     streamingSeenIdsRef.current.clear();
@@ -5611,8 +5611,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const conv = conversations.find((c) => c.id === convId);
     if (conv) {
       remoteTypewriterRef.current?.finishNow();
-      tokenMixTtsService.stop();
-      tokenMixTtsService.clearCache();
+      deepernovaTtsService.stop();
+      deepernovaTtsService.clearCache();
       playingMessageIdRef.current = null;
       setPlayingMessageId(null);
       streamingSeenIdsRef.current.clear();
@@ -6072,7 +6072,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (str.includes("quota") || str.includes("insufficient balance") || str.includes("billing")) {
       return "Batas penggunaan server AI saat ini telah habis. Silakan hubungi administrator.";
     }
-    if (str.includes("key index") || str.includes("status 401") || str.includes("tokenmix") || str.includes("failed with status")) {
+    if (str.includes("key index") || str.includes("status 401") || str.includes("failed with status")) {
       return "Akses kunci server AI sedang diperbarui. Silakan coba sesaat lagi.";
     }
     return errStr;
@@ -6612,18 +6612,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const handleTtsToggle = async (message, options = {}) => {
     const { forcePlay = false } = options;
     try {
-      tokenMixTtsService.unlockAudio();
+      deepernovaTtsService.unlockAudio();
 
       // If already playing this message, stop it (manual toggle only)
       if (!forcePlay && playingMessageIdRef.current === message.id) {
-        tokenMixTtsService.stop();
+        deepernovaTtsService.stop();
         playingMessageIdRef.current = null;
         setPlayingMessageId(null);
         return;
       }
 
       // Stop any currently playing audio unconditionally
-      tokenMixTtsService.stop();
+      deepernovaTtsService.stop();
+      deepernovaTtsService.clearCache();
 
       setTtsLoading(message.id);
 
@@ -6646,7 +6647,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       // Generate and play TTS (optimal neural voice selection on server, with web speech fallback)
-      const audioBlob = await tokenMixTtsService.textToSpeech(textForSpeech);
+      const audioBlob = await deepernovaTtsService.textToSpeech(textForSpeech);
       
       playingMessageIdRef.current = message.id;
       setPlayingMessageId(message.id);
@@ -6656,7 +6657,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         if (playingMessageIdRef.current === message.id) playingMessageIdRef.current = null;
         setPlayingMessageId(prev => (prev === message.id ? null : prev));
       };
-      tokenMixTtsService.play(audioBlob, onDone, onDone, textForSpeech);
+      deepernovaTtsService.play(audioBlob, onDone, onDone, textForSpeech);
     } catch (error) {
       if (error?.name === 'AbortError') return;
       console.error('[ChatBot] TTS Error:', error);
@@ -6678,7 +6679,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    * When OFF: Silent
    */
   const handleToggleAutoVoice = () => {
-    tokenMixTtsService.unlockAudio();
+    deepernovaTtsService.unlockAudio();
     const nextState = !isAutoVoiceEnabled;
     setIsAutoVoiceEnabled(nextState);
     isAutoVoiceEnabledRef.current = nextState;
@@ -6695,7 +6696,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         2500
       );
     } else {
-      tokenMixTtsService.stop();
+      deepernovaTtsService.stop();
       playingMessageIdRef.current = null;
       setPlayingMessageId(null);
       if (autoVoiceTimerRef.current) {
@@ -9027,7 +9028,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
 
     // Unlock browser audio upon sending so auto-voice can speak seamlessly when generation completes
-    tokenMixTtsService.unlockAudio();
+    deepernovaTtsService.unlockAudio();
 
     // Check 700k Token Limit
     if (isTokenUsageLimited()) {
