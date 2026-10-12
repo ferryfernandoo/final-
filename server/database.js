@@ -352,9 +352,13 @@ export function initializeDatabase() {
       chainOfWork TEXT,
       sandboxFiles TEXT,
       screenshotUrl TEXT,
+      reasoning TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  try {
+    db.exec(`ALTER TABLE agent_messages ADD COLUMN reasoning TEXT`);
+  } catch (_) {}
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(sessionId)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_sessions_user ON agent_sessions(userId)`);
 
@@ -1651,10 +1655,10 @@ export const agentSessionDb = {
 };
 
 export const agentMessageDb = {
-  create: (id, sessionId, userId, role, content, chainOfWork = [], sandboxFiles = [], screenshotUrl = null) => {
+  create: (id, sessionId, userId, role, content, chainOfWork = [], sandboxFiles = [], screenshotUrl = null, reasoning = null) => {
     const stmt = db.prepare(`
-      INSERT INTO agent_messages (id, sessionId, userId, role, content, chainOfWork, sandboxFiles, screenshotUrl, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO agent_messages (id, sessionId, userId, role, content, chainOfWork, sandboxFiles, screenshotUrl, reasoning, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
     stmt.run(
       id,
@@ -1664,7 +1668,8 @@ export const agentMessageDb = {
       content,
       typeof chainOfWork === 'string' ? chainOfWork : JSON.stringify(chainOfWork || []),
       typeof sandboxFiles === 'string' ? sandboxFiles : JSON.stringify(sandboxFiles || []),
-      screenshotUrl
+      screenshotUrl,
+      reasoning || null
     );
     return agentMessageDb.findById(id);
   },
@@ -1674,7 +1679,8 @@ export const agentMessageDb = {
     return {
       ...row,
       chainOfWork: row.chainOfWork ? JSON.parse(row.chainOfWork) : [],
-      sandboxFiles: row.sandboxFiles ? JSON.parse(row.sandboxFiles) : []
+      sandboxFiles: row.sandboxFiles ? JSON.parse(row.sandboxFiles) : [],
+      reasoning: row.reasoning || null
     };
   },
   findBySession: (sessionId) => {
@@ -1682,7 +1688,8 @@ export const agentMessageDb = {
     return rows.map(r => ({
       ...r,
       chainOfWork: r.chainOfWork ? JSON.parse(r.chainOfWork) : [],
-      sandboxFiles: r.sandboxFiles ? JSON.parse(r.sandboxFiles) : []
+      sandboxFiles: r.sandboxFiles ? JSON.parse(r.sandboxFiles) : [],
+      reasoning: r.reasoning || null
     }));
   }
 };

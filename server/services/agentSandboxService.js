@@ -651,28 +651,107 @@ export function safeResolvePath(sessionId, relativePath) {
 }
 
 /**
+ * Helper to safely remove an indented python block (e.g. invalid loop)
+ */
+function removeIndentedBlock(source, pattern) {
+  const lines = (source || '').split(/\r?\n/);
+  const result = [];
+  let skippingIndent = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (skippingIndent >= 0) {
+      const matchIndent = (line.match(/^(\s*)/) || ['', ''])[1].length;
+      if (line.trim().length === 0 || matchIndent > skippingIndent) {
+        continue;
+      } else {
+        skippingIndent = -1;
+      }
+    }
+
+    if (pattern.test(line)) {
+      const indent = (line.match(/^(\s*)/) || ['', ''])[1];
+      result.push(indent + 'pass  # auto-healed unsupported property');
+      skippingIndent = indent.length;
+      continue;
+    }
+
+    result.push(line);
+  }
+  return result.join('\n');
+}
+
+/**
  * Write file to sandbox
  */
 export function writeFile(sessionId, relativePath, content) {
   let cleanContent = content || '';
-  const fenceMatch = cleanContent.trim().match(/^```(?:[a-zA-Z0-9_-]+)?\r?\n([\s\S]*?)\r?\n```$/);
-  if (fenceMatch) {
-    cleanContent = fenceMatch[1];
+
+  // 1. If wrapped in standard markdown code fences, extract the inner code
+  const fullFenceMatch = cleanContent.trim().match(/^```(?:[a-zA-Z0-9_-]+)?\r?\n([\s\S]*?)\r?\n```$/);
+  if (fullFenceMatch) {
+    cleanContent = fullFenceMatch[1];
+  } else {
+    // 2. Or if there is an embedded code fence inside:
+    const embeddedMatch = cleanContent.match(/```(?:[a-zA-Z0-9_-]+)?\r?\n([\s\S]*?)\r?\n```/);
+    if (embeddedMatch) {
+      cleanContent = embeddedMatch[1];
+    } else {
+      // 3. Strip leading code fences (e.g. ```python, ```js, ```) at the start
+      cleanContent = cleanContent.replace(/^\s*```[a-zA-Z0-9_-]*\r?\n?/, '');
+      // 4. Strip trailing code fence at the end
+      cleanContent = cleanContent.replace(/\r?\n?```\s*$/, '');
+    }
   }
 
-  // Preventative auto-healing for common python-docx syntax errors
-  if (relativePath.endsWith('.py') || cleanContent.includes('docx') || cleanContent.includes('python-docx')) {
+  // 5. Line-by-line inspection to guarantee no orphan code fence remains on line 1 or last line
+  const lines = cleanContent.split(/\r?\n/);
+  while (lines.length > 0 && /^\s*```[a-zA-Z0-9_-]*\s*$/.test(lines[0])) {
+    lines.shift();
+  }
+  while (lines.length > 0 && /^\s*```\s*$/.test(lines[lines.length - 1])) {
+    lines.pop();
+  }
+  cleanContent = lines.join('\n');
+
+  // Preventative auto-healing for code / data files
+  if (!relativePath.endsWith('.md')) {
+    // Remove any remaining stray ``` inside any code / data files
+    cleanContent = cleanContent.split(/\r?\n/).filter(line => !/^\s*```/.test(line)).join('\n');
+  }
+
+  // Preventative auto-healing for common python/document errors
+  if (relativePath.endsWith('.py') || cleanContent.includes('docx') || cleanContent.includes('pptx')) {
+    // Fix hallucinated .lstStyle loop on tcPr
+    if (cleanContent.includes('.lstStyle')) {
+      cleanContent = removeIndentedBlock(cleanContent, /\.lstStyle/);
+    }
     // Replace table.rows.index(...) or tbl.rows.index(...) or anyvar.rows.index(...) or .columns.index(...) with 0
     cleanContent = cleanContent.replace(/\b(?:\w+\.)?(?:rows|columns)\.index\s*\([^)]*\)/g, '0');
     // Fix font.color.rgb = parse_xml(...)
     cleanContent = cleanContent.replace(/\.font\.color\.rgb\s*=\s*parse_xml\([^)]*\)/g, '.font.color.rgb = RGBColor(255, 255, 255)');
     // Fix truncated WD_ALIGN_PARAGR
     cleanContent = cleanContent.replace(/\bWD_ALIGN_PARAGR\b/g, 'WD_ALIGN_PARAGRAPH');
+    // Fix hallucinated .paragraph_format.shading
+    cleanContent = cleanContent.replace(/\bparagraph_format\.shading(?:\.\w+)?\s*=\s*[^;\r\n]+/g, 'pass');
+    cleanContent = cleanContent.replace(/\.shading\.\w+\s*=\s*[^;\r\n]+/g, 'pass');
+    // Fix hallucinated .add_pPr
+    cleanContent = cleanContent.replace(/\b(?:tag\s*=\s*)?[a-zA-Z0-9_.]+\.add_pPr\([^\)]*\)/g, 'pass');
+    // Fix hallucinated get_or_add_tblBorders
+    cleanContent = cleanContent.replace(/[^\n]*\.get_or_add_tblBorders\(\)[^\n]*/g, 'pass');
+    cleanContent = cleanContent.replace(/for\s+\w+\s+in\s+\[['"]top['"],[\s\S]*?(?=\n\s*(?:[a-zA-Z_#]|$))/g, 'pass\n');
+    // Fix openpyxl tuple range styling ws['A1:D1'].font = ...
+    if (cleanContent.includes('openpyxl') || cleanContent.includes('Workbook') || relativePath.endsWith('.py')) {
+      cleanContent = cleanContent.replace(/([a-zA-Z0-9_]+)\s*\[([^\]\r\n]*:[^\]\r\n]*)\]\.(font|fill|alignment|border|number_format)\s*=\s*([^;\r\n]+)/g, (match, wsVar, rangeExpr, prop, val) => {
+        return `for _r in ${wsVar}[${rangeExpr}]:\n    for _c in (_r if isinstance(_r, (tuple, list)) else [_r]):\n        setattr(_c, '${prop}', ${val})`;
+      });
+    }
     // Fix hallucinated .paragraphProperties on CT_P element
     cleanContent = cleanContent.replace(/\.paragraphProperties/g, '');
   }
 
-  const filePath = safeResolvePath(sessionId, relativePath);
+  const cleanRelativePath = (relativePath || 'script.js').replace(/^["']|["']$/g, '').trim();
+  const filePath = safeResolvePath(sessionId, cleanRelativePath);
   const parentDir = path.dirname(filePath);
   if (!fs.existsSync(parentDir)) {
     fs.mkdirSync(parentDir, { recursive: true });
@@ -807,7 +886,7 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
   }
 
   return new Promise((resolve) => {
-    const runProcess = (cmdToRun, isRetry = false) => {
+    const runProcess = (cmdToRun, retryCount = 0) => {
       exec(
         cmdToRun,
         {
@@ -833,8 +912,8 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
             success = false;
           }
 
-          // Reactive Auto-Healing for Python docx errors, NameErrors, and syntax issues
-          if (!success && !isRetry) {
+          // Reactive Auto-Healing for Python docx errors, NameErrors, and syntax issues (up to 3 retries)
+          if (!success && retryCount < 3) {
             const scriptMatch = cmdToRun.match(/python\s+["']?([^"'\s]+\.py)["']?/i);
             const scriptFile = scriptMatch ? scriptMatch[1] : (createdRunnerFile ? path.basename(createdRunnerFile) : null);
             if (scriptFile) {
@@ -843,6 +922,13 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
                 try {
                   let scriptContent = fs.readFileSync(fullScriptPath, 'utf8');
                   let patched = false;
+
+                  // 0. SyntaxError due to markdown backticks (``` or ```python)
+                  if ((cleanStderr.includes('SyntaxError') || cleanStderr.includes('invalid syntax')) && (scriptContent.includes('```') || cleanStderr.includes('`'))) {
+                    const cleanLines = scriptContent.split(/\r?\n/).filter(line => !/^\s*```/.test(line));
+                    scriptContent = cleanLines.join('\n');
+                    patched = true;
+                  }
 
                   // 1. Python "Did you mean: '...'" auto-healing
                   const didYouMeanMatch = cleanStderr.match(/NameError:\s*name\s*['"](\w+)['"]\s*is not defined[^\n]*Did you mean:\s*['"](\w+)['"]/i);
@@ -853,33 +939,132 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
                     patched = true;
                   }
 
-                  // 2. Truncated WD_ALIGN_PARAGR
+                  // 2. Missing common imports (NameError auto-healing)
+                  const isPptxScript = scriptContent.includes('pptx') || (scriptFile && /ppt|presentation/i.test(scriptFile));
+                  const isDocxScript = scriptContent.includes('docx') || (scriptFile && /doc|word/i.test(scriptFile));
+
+                  if (cleanStderr.includes("NameError: name 'RGBColor' is not defined") || cleanStderr.includes('assigned value must be type RGBColor')) {
+                    if (isPptxScript) {
+                      scriptContent = "from pptx.dml.color import RGBColor\n" + scriptContent;
+                    } else {
+                      scriptContent = "from docx.shared import RGBColor\n" + scriptContent;
+                    }
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'Inches' is not defined") || cleanStderr.includes("NameError: name 'Pt' is not defined")) {
+                    if (isPptxScript) {
+                      scriptContent = "from pptx.util import Inches, Pt\n" + scriptContent;
+                    } else {
+                      scriptContent = "from docx.shared import Inches, Pt\n" + scriptContent;
+                    }
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'MSO_SHAPE' is not defined")) {
+                    scriptContent = "from pptx.enum.shapes import MSO_SHAPE\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'MSO_THEME_COLOR' is not defined")) {
+                    scriptContent = "from pptx.enum.dml import MSO_THEME_COLOR\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'PP_ALIGN' is not defined")) {
+                    scriptContent = "from pptx.enum.text import PP_ALIGN\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'WD_ALIGN_PARAGRAPH' is not defined")) {
+                    scriptContent = "from docx.enum.text import WD_ALIGN_PARAGRAPH\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'parse_xml' is not defined")) {
+                    if (isDocxScript) {
+                      scriptContent = "from docx.oxml import parse_xml\n" + scriptContent;
+                    } else {
+                      scriptContent = "from pptx.oxml import parse_xml\n" + scriptContent;
+                    }
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'nsdecls' is not defined")) {
+                    scriptContent = "from docx.oxml.ns import nsdecls\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'OxmlElement' is not defined")) {
+                    scriptContent = "from docx.oxml import OxmlElement\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'plt' is not defined")) {
+                    scriptContent = "import matplotlib.pyplot as plt\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'np' is not defined")) {
+                    scriptContent = "import numpy as np\n" + scriptContent;
+                    patched = true;
+                  }
+                  if (cleanStderr.includes("NameError: name 'Workbook' is not defined")) {
+                    scriptContent = "from openpyxl import Workbook\n" + scriptContent;
+                    patched = true;
+                  }
+
+                  // 3. Truncated WD_ALIGN_PARAGR
                   if (cleanStderr.includes('WD_ALIGN_PARAGR') || scriptContent.includes('WD_ALIGN_PARAGR.')) {
                     scriptContent = scriptContent.replace(/\bWD_ALIGN_PARAGR\b/g, 'WD_ALIGN_PARAGRAPH');
                     patched = true;
                   }
 
-                  // 3. CT_P object has no attribute 'paragraphProperties'
+                  // 4. CT_P object has no attribute 'paragraphProperties'
                   if (cleanStderr.includes("paragraphProperties") || scriptContent.includes('.paragraphProperties')) {
                     scriptContent = scriptContent.replace(/\.paragraphProperties/g, '');
                     patched = true;
                   }
 
-                  // 4. AttributeError on rows.index or columns.index
+                  // 5. AttributeError on rows.index or columns.index
                   if (cleanStderr.includes("AttributeError: '_Rows' object has no attribute 'index'") || cleanStderr.includes("object has no attribute 'index'")) {
                     scriptContent = scriptContent.replace(/\b(?:\w+\.)?(?:rows|columns)\.index\s*\([^)]*\)/g, '0');
                     patched = true;
                   }
 
-                  // 5. XMLSyntaxError on font.color.rgb
+                  // 6. XMLSyntaxError on font.color.rgb
                   if (cleanStderr.includes('XMLSyntaxError') || cleanStderr.includes('font.color.rgb')) {
                     scriptContent = scriptContent.replace(/\.font\.color\.rgb\s*=\s*parse_xml\([^)]*\)/g, '.font.color.rgb = RGBColor(255, 255, 255)');
                     patched = true;
                   }
 
+                  // 7. AttributeError on lstStyle
+                  if (cleanStderr.includes("object has no attribute 'lstStyle'") || scriptContent.includes('.lstStyle')) {
+                    scriptContent = removeIndentedBlock(scriptContent, /\.lstStyle/);
+                    patched = true;
+                  }
+
+                  // 8. AttributeError on shading in paragraph_format
+                  if (cleanStderr.includes("object has no attribute 'shading'") || scriptContent.includes('.shading')) {
+                    scriptContent = scriptContent.replace(/\bparagraph_format\.shading(?:\.\w+)?\s*=\s*[^;\r\n]+/g, 'pass');
+                    scriptContent = scriptContent.replace(/\.shading\.\w+\s*=\s*[^;\r\n]+/g, 'pass');
+                    patched = true;
+                  }
+
+                  // 9. AttributeError on get_or_add_tblBorders
+                  if (cleanStderr.includes("get_or_add_tblBorders") || scriptContent.includes('get_or_add_tblBorders')) {
+                    scriptContent = scriptContent.replace(/[^\n]*\.get_or_add_tblBorders\(\)[^\n]*/g, 'pass');
+                    scriptContent = removeIndentedBlock(scriptContent, /for\s+\w+\s+in\s+\[['"]top['"],/);
+                    patched = true;
+                  }
+
+                  // 10. AttributeError on add_pPr
+                  if (cleanStderr.includes("add_pPr") || scriptContent.includes('add_pPr')) {
+                    scriptContent = scriptContent.replace(/\b(?:tag\s*=\s*)?[a-zA-Z0-9_.]+\.add_pPr\([^\)]*\)/g, 'pass');
+                    patched = true;
+                  }
+
+                  // 11. AttributeError on tuple range in openpyxl
+                  if (cleanStderr.includes("'tuple' object has no attribute") || (cleanStderr.includes("AttributeError") && scriptContent.includes("openpyxl"))) {
+                    scriptContent = scriptContent.replace(/([a-zA-Z0-9_]+)\s*\[([^\]\r\n]*:[^\]\r\n]*)\]\.(font|fill|alignment|border|number_format)\s*=\s*([^;\r\n]+)/g, (match, wsVar, rangeExpr, prop, val) => {
+                      return `for _r in ${wsVar}[${rangeExpr}]:\n    for _c in (_r if isinstance(_r, (tuple, list)) else [_r]):\n        setattr(_c, '${prop}', ${val})`;
+                    });
+                    patched = true;
+                  }
+
                   if (patched) {
                     fs.writeFileSync(fullScriptPath, scriptContent, 'utf8');
-                    return runProcess(cmdToRun, true);
+                    return runProcess(cmdToRun, retryCount + 1);
                   }
                 } catch (_) {}
               }
@@ -944,7 +1129,33 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'run_command' || tagName === 'command' || tagName === 'terminal') {
         actions.push({ type: 'run_command', command: body, rawMatch, index });
       } else if (tagName === 'write_file' || tagName === 'file') {
-        const filePath = getAttr('path') || getAttr('file') || getAttr('name');
+        let filePath = getAttr('path') || getAttr('file') || getAttr('name');
+        if (!filePath) {
+          const attrFileMatch = attrStr.trim().match(/^["']?([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)["']?$/i);
+          if (attrFileMatch) {
+            filePath = attrFileMatch[1].trim();
+          }
+        }
+        if (!filePath) {
+          const firstLine = (body.split('\n')[0] || '').trim();
+          const commentFileMatch = firstLine.match(/^(?:\/{2}|<!--|#|\/\*)\s*(?:file(?:name)?:\s*)?([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)\s*(?:-->|\*\/)?$/i);
+          if (commentFileMatch) {
+            filePath = commentFileMatch[1].trim();
+          }
+        }
+        if (!filePath) {
+          if (body.includes('import pptx') || body.includes('from pptx') || body.includes('Presentation()')) {
+            filePath = 'generate_ppt.py';
+          } else if (body.includes('import docx') || body.includes('from docx') || body.includes('Document()')) {
+            filePath = 'generate_docx.py';
+          } else if (body.includes('import openpyxl') || body.includes('from openpyxl') || body.includes('Workbook()')) {
+            filePath = 'generate_excel.py';
+          } else if (body.includes('<!DOCTYPE html') || body.includes('<html')) {
+            filePath = 'index.html';
+          } else {
+            filePath = 'script.py';
+          }
+        }
         actions.push({ type: 'write_file', path: filePath, content: body, rawMatch, index });
         if (filePath) writtenPaths.add(filePath.toLowerCase());
       } else if (tagName === 'execute_code' || tagName === 'run_code') {
@@ -1023,6 +1234,36 @@ export function extractSequentialActions(text) {
         index: match.index
       });
       writtenPaths.add(detectedPath.toLowerCase());
+    }
+  }
+
+  // Fallback for unclosed write_file tag (e.g. if model output was truncated)
+  const unclosedWrite = text.match(/<(?:write_file|file)([^>]*)>([\s\S]*)$/i);
+  if (unclosedWrite && !unclosedWrite[0].includes('</write_file>') && !unclosedWrite[0].includes('</file>')) {
+    const attrStr = unclosedWrite[1] || '';
+    const body = (unclosedWrite[2] || '').trim();
+    let filePath = '';
+    const m = attrStr.match(/path=["']([^"']+)["']|path=([^\s>]+)|file=["']([^"']+)["']|name=["']([^"']+)["']/i);
+    if (m) filePath = m[1] || m[2] || m[3] || m[4] || '';
+    if (!filePath) {
+      const attrFileMatch = attrStr.trim().match(/^["']?([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)["']?$/i);
+      if (attrFileMatch) filePath = attrFileMatch[1].trim();
+    }
+    if (!filePath) {
+      if (body.includes('import pptx') || body.includes('from pptx')) filePath = 'generate_ppt.py';
+      else if (body.includes('import docx') || body.includes('from docx')) filePath = 'generate_docx.py';
+      else if (body.includes('import openpyxl') || body.includes('from openpyxl')) filePath = 'generate_excel.py';
+      else if (body.includes('<!DOCTYPE html') || body.includes('<html')) filePath = 'index.html';
+    }
+    if (filePath && !writtenPaths.has(filePath.toLowerCase()) && body.length > 20) {
+      actions.push({
+        type: 'write_file',
+        path: filePath,
+        content: body,
+        rawMatch: unclosedWrite[0],
+        index: unclosedWrite.index
+      });
+      writtenPaths.add(filePath.toLowerCase());
     }
   }
 

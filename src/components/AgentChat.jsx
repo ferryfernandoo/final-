@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
@@ -128,6 +128,134 @@ function InlineActionPill({ id, type, title, meta, status = 'completed', detail,
   );
 }
 
+function extractMessageReasoningAndContent(rawContent, existingReasoning = '') {
+  if (!rawContent && !existingReasoning) return { cleanContent: '', reasoning: '' };
+  let reasoning = existingReasoning || '';
+  let cleanContent = String(rawContent || '');
+
+  // Extract <thought>...</thought>, <think>...</think>, <thinking>...</thinking>, <reasoning>...</reasoning>
+  const tagRegex = /<(?:think|thought|thinking|reasoning)>([\s\S]*?)<\/(?:think|thought|thinking|reasoning)>/gi;
+  let match;
+  while ((match = tagRegex.exec(cleanContent)) !== null) {
+    const extracted = match[1].trim();
+    if (extracted) {
+      reasoning += (reasoning ? '\n\n' : '') + extracted;
+    }
+  }
+  cleanContent = cleanContent.replace(tagRegex, '');
+
+  // Handle unclosed <thought> or <think> if currently streaming or trailing
+  const unclosedRegex = /<(?:think|thought|thinking|reasoning)>([\s\S]*)$/i;
+  const unclosedMatch = cleanContent.match(unclosedRegex);
+  if (unclosedMatch) {
+    const extracted = unclosedMatch[1].trim();
+    if (extracted) {
+      reasoning += (reasoning ? '\n\n' : '') + extracted;
+    }
+    cleanContent = cleanContent.replace(unclosedRegex, '');
+  }
+
+  return {
+    cleanContent: cleanContent.trim(),
+    reasoning: reasoning.trim()
+  };
+}
+
+function AgentReasoningBox({ reasoning = '', isStreaming = false, isExpanded = false, onToggle }) {
+  const [copied, setCopied] = useState(false);
+  const boxRef = useRef(null);
+
+  useEffect(() => {
+    if (isExpanded && boxRef.current) {
+      const el = boxRef.current;
+      requestAnimationFrame(() => {
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    }
+  }, [reasoning, isExpanded]);
+
+  const reasoningSnippet = useMemo(() => {
+    if (!reasoning) return '';
+    const clean = reasoning.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return clean.length > 150 ? clean.slice(0, 150) + '...' : clean;
+  }, [reasoning]);
+
+  if (!reasoning && !isStreaming) return null;
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    if (!reasoning) return;
+    navigator.clipboard?.writeText(reasoning);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="agent-reasoning-wrap">
+      <div className="agent-reasoning-header">
+        <button
+          type="button"
+          className={`agent-reasoning-btn ${isExpanded ? 'is-expanded' : ''} ${isStreaming ? 'is-streaming' : ''}`}
+          onClick={onToggle}
+          title={isExpanded ? "Sembunyikan detail penalaran" : "Buka proses penalaran AI"}
+        >
+          <div className="agent-reasoning-btn-left">
+            <span className={`agent-reasoning-brain-icon ${isStreaming ? 'is-pulsing' : ''}`}>
+              <i className="fa-solid fa-brain" />
+            </span>
+            <span className="agent-reasoning-btn-label">
+              {isStreaming ? (
+                'Sedang menalar & merancang strategi...'
+              ) : (
+                `Proses Penalaran AI (${isExpanded ? 'Sembunyikan Detail' : 'Buka Detail'})`
+              )}
+            </span>
+          </div>
+          <div className="agent-reasoning-btn-right">
+            <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'} agent-reasoning-chevron`} />
+          </div>
+        </button>
+
+        {isExpanded && reasoning && (
+          <button
+            type="button"
+            className="agent-reasoning-copy-btn"
+            onClick={handleCopy}
+            title="Salin proses pemikiran"
+          >
+            <i className={copied ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+            <span>{copied ? 'Tersalin' : 'Salin Nalar'}</span>
+          </button>
+        )}
+      </div>
+
+      {!isExpanded && reasoningSnippet && !isStreaming && (
+        <div 
+          className="agent-reasoning-preview-quote" 
+          onClick={onToggle} 
+          title="Klik untuk membaca nalar lengkap"
+        >
+          <i className="fa-solid fa-quote-left agent-reasoning-quote-icon" />
+          <span className="agent-reasoning-quote-text">{reasoningSnippet}</span>
+        </div>
+      )}
+
+      {isExpanded && (
+        <div className="agent-reasoning-drawer" ref={boxRef}>
+          <div className="agent-reasoning-drawer-banner">
+            <i className="fa-solid fa-microchip" style={{ color: '#ea580c' }} />
+            <span>Analisis Internal & Perencanaan Logika (Claude Extended Thinking)</span>
+          </div>
+          <div className="agent-reasoning-drawer-body">
+            <pre>{reasoning || (isStreaming ? 'Memulai penalaran internal...' : '')}</pre>
+            {isStreaming && <span className="agent-reasoning-caret">▌</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function parseContentWithPills(content) {
   if (!content) return [];
   const pillRegex = /<action_pill\s+id="([^"]*)"\s+type="([^"]*)"\s+title="([^"]*)"(?:\s+meta="([^"]*)")?(?:\s+status="([^"]*)")?>([\s\S]*?)<\/action_pill>/gi;
@@ -201,6 +329,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const [expandedChains, setExpandedChains] = useState({});
   const toggleChain = (id) => setExpandedChains(prev => ({ ...prev, [id]: !prev[id] }));
 
+  // Claude Extended Thinking / Reasoning Box (Collapsed by default for clean UI)
+  const [expandedReasonings, setExpandedReasonings] = useState({});
+  const toggleReasoning = (id) => setExpandedReasonings(prev => ({ ...prev, [id]: !prev[id] }));
+
   // Expandable files map for internal/extra files toggle
   const [showAllFilesMap, setShowAllFilesMap] = useState({});
   const toggleShowAllFiles = (id) => setShowAllFilesMap(prev => ({ ...prev, [id]: !prev[id] }));
@@ -212,6 +344,34 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const smoothStreamTimerRef = useRef(null);
+
+  // Top Header 3-dots Menu Dropdown State
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+  const menuDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuDropdownRef.current && !menuDropdownRef.current.contains(e.target)) {
+        setShowMenuDropdown(false);
+      }
+    };
+    if (showMenuDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenuDropdown]);
+
+  useEffect(() => {
+    return () => {
+      if (smoothStreamTimerRef.current) {
+        clearInterval(smoothStreamTimerRef.current);
+        smoothStreamTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const scrollToBottom = (smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
@@ -233,6 +393,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   // 2. Select session and load messages + files
   const selectSession = async (sessionId) => {
+    if (smoothStreamTimerRef.current) {
+      clearInterval(smoothStreamTimerRef.current);
+      smoothStreamTimerRef.current = null;
+    }
     setCurrentSessionId(sessionId);
     setActiveChainOfWork([]);
     const msgs = await AgentService.getMessages(sessionId);
@@ -303,8 +467,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     setIsExecuting(true);
     setActiveChainOfWork([]);
 
+    const userMsgId = `msg_user_${Date.now()}`;
     const userMsg = {
-      id: `user_${Date.now()}`,
+      id: userMsgId,
       role: 'user',
       content: textToSend,
       createdAt: new Date().toISOString()
@@ -315,6 +480,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       id: botMsgId,
       role: 'assistant',
       content: '',
+      reasoning: '',
       isStreaming: true,
       chainOfWork: [],
       sandboxFiles: [],
@@ -322,10 +488,162 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     };
 
     setMessages(prev => [...prev, userMsg, initialBotMsg]);
-    setTimeout(() => scrollToBottom(true), 50);
+
+    // Naikkan bubble ask user ke bagian atas (memberikan ruang untuk jawaban di bawahnya)
+    setTimeout(() => {
+      const el = document.getElementById(userMsgId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+
+    // Smooth Typewriter Controller for Autonomous Agent Chat
+    let targetContent = '';
+    let displayedContent = '';
+    let targetReasoning = '';
+    let displayedReasoning = '';
+    let isStreamDone = false;
+    let pendingDonePayload = null;
+    let smoothTimer = null;
+
+    const stopSmoothTimer = () => {
+      if (smoothTimer) {
+        clearInterval(smoothTimer);
+        smoothTimer = null;
+        smoothStreamTimerRef.current = null;
+      }
+    };
+
+    const finalizeDone = (payload) => {
+      stopSmoothTimer();
+      setIsExecuting(false);
+      setMessages(prev => prev.map(m => {
+        if (m.id === botMsgId) {
+          return {
+            ...m,
+            id: payload?.messageId || m.id,
+            isStreaming: false,
+            content: payload?.content || targetContent || m.content,
+            reasoning: payload?.reasoning || targetReasoning || m.reasoning || '',
+            chainOfWork: payload?.chainOfWork || m.chainOfWork,
+            sandboxFiles: payload?.files || m.sandboxFiles,
+            allFiles: payload?.allFiles || payload?.files || m.sandboxFiles,
+            screenshotUrl: payload?.screenshotUrl || payload?.previewUrl,
+            previewUrl: payload?.previewUrl
+          };
+        }
+        return m;
+      }));
+      setActiveChainOfWork([]);
+
+      const filesList = payload?.allFiles || payload?.files;
+      if (filesList) {
+        setSandboxFiles(filesList);
+        const html = filesList.find(f => f.ext === 'html');
+        if (html) {
+          setPreviewUrl(`/api/agent/preview/${currentSessionId}/${html.path}`);
+          setPreviewKey(Date.now());
+        }
+      }
+
+      // Update sidebar title if first turn
+      if (messages.length <= 1) {
+        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: textToSend.slice(0, 35) } : s));
+      }
+
+      // TIDAK memaksa auto-scroll agar user bebas membaca teks di posisinya
+    };
+
+    const flushSmoothTyping = () => {
+      if (abortController.signal.aborted) {
+        stopSmoothTimer();
+        return;
+      }
+
+      let updated = false;
+
+      // 1. Smooth Reasoning Stream (Santai & Paced)
+      if (displayedReasoning.length < targetReasoning.length) {
+        const diff = targetReasoning.length - displayedReasoning.length;
+        let step = 1;
+        if (diff <= 80) step = 1;
+        else if (diff <= 200) step = 2;
+        else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
+
+        if (isStreamDone) {
+          step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
+        }
+
+        displayedReasoning += targetReasoning.substr(displayedReasoning.length, step);
+        updated = true;
+      }
+
+      // 2. Smooth Main Content Stream (Santai, Halus, Tidak Kalap Token)
+      if (displayedContent.length < targetContent.length) {
+        const remainingTarget = targetContent.slice(displayedContent.length);
+
+        // Instant reveal for completed <action_pill> tags to prevent raw broken XML rendering
+        if (remainingTarget.startsWith('<action_pill')) {
+          const closePillIdx = remainingTarget.indexOf('</action_pill>');
+          if (closePillIdx !== -1) {
+            const pillLength = closePillIdx + '</action_pill>'.length;
+            displayedContent += remainingTarget.slice(0, pillLength);
+            updated = true;
+          }
+        } else {
+          // Regular text content: santai & smooth character pacing
+          const nextPillIdx = remainingTarget.indexOf('<action_pill');
+          const maxAllowed = nextPillIdx !== -1 ? nextPillIdx : remainingTarget.length;
+
+          if (maxAllowed > 0) {
+            const diff = maxAllowed;
+            // Kecepatan santai terkontrol agar nyaman dibaca dan tidak membanjiri teks
+            let step = 1;
+            if (diff <= 80) step = 1;
+            else if (diff <= 220) step = 2;
+            else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
+
+            if (isStreamDone) {
+              step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
+            }
+
+            step = Math.min(step, maxAllowed);
+            displayedContent += remainingTarget.substr(0, step);
+            updated = true;
+          }
+        }
+      }
+
+      if (updated) {
+        setMessages(prev => prev.map(m => {
+          if (m.id === botMsgId) {
+            return {
+              ...m,
+              content: displayedContent,
+              reasoning: displayedReasoning
+            };
+          }
+          return m;
+        }));
+
+        // JANGAN auto-scroll saat streaming agar user bebas membaca & scroll sendiri
+      }
+
+      // 3. Finalization when upstream stream is done AND visual text has fully caught up
+      if (isStreamDone && displayedContent.length >= targetContent.length && displayedReasoning.length >= targetReasoning.length) {
+        finalizeDone(pendingDonePayload);
+      }
+    };
+
+    const startSmoothTimer = () => {
+      if (!smoothTimer) {
+        smoothTimer = setInterval(flushSmoothTyping, 32);
+        smoothStreamTimerRef.current = smoothTimer;
+      }
+    };
 
     try {
       await AgentService.runTask({
@@ -335,13 +653,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         history: messages,
         signal: abortController.signal,
         onDelta: (chunk) => {
-          setMessages(prev => prev.map(m => {
-            if (m.id === botMsgId) {
-              return { ...m, content: (m.content || '') + chunk };
-            }
-            return m;
-          }));
-          scrollToBottom(true);
+          targetContent += chunk;
+          startSmoothTimer();
+        },
+        onReasoning: (chunk) => {
+          targetReasoning += chunk;
+          startSmoothTimer();
         },
         onFilesUpdate: (newFiles) => {
           setSandboxFiles(newFiles);
@@ -379,43 +696,18 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           scrollToBottom(true);
         },
         onDone: (payload) => {
-          setIsExecuting(false);
-          setMessages(prev => prev.map(m => {
-            if (m.id === botMsgId) {
-              return {
-                ...m,
-                id: payload.messageId || m.id,
-                isStreaming: false,
-                content: payload.content || m.content,
-                chainOfWork: payload.chainOfWork || m.chainOfWork,
-                sandboxFiles: payload.files || m.sandboxFiles,
-                allFiles: payload.allFiles || payload.files || m.sandboxFiles,
-                screenshotUrl: payload.screenshotUrl || payload.previewUrl,
-                previewUrl: payload.previewUrl
-              };
-            }
-            return m;
-          }));
-          setActiveChainOfWork([]);
-
-          const filesList = payload.allFiles || payload.files;
-          if (filesList) {
-            setSandboxFiles(filesList);
-            const html = filesList.find(f => f.ext === 'html');
-            if (html) {
-              setPreviewUrl(`/api/agent/preview/${currentSessionId}/${html.path}`);
-              setPreviewKey(Date.now());
-            }
+          isStreamDone = true;
+          pendingDonePayload = payload;
+          if (payload.content) targetContent = payload.content;
+          if (payload.reasoning) targetReasoning = payload.reasoning;
+          startSmoothTimer();
+          // If visual text is already fully rendered, finalize immediately
+          if (displayedContent.length >= targetContent.length && displayedReasoning.length >= targetReasoning.length) {
+            finalizeDone(payload);
           }
-
-          // Update sidebar title if first turn
-          if (messages.length <= 1) {
-            setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: textToSend.slice(0, 35) } : s));
-          }
-
-          setTimeout(() => scrollToBottom(true), 80);
         },
         onError: (errPayload) => {
+          stopSmoothTimer();
           setIsExecuting(false);
           setMessages(prev => prev.map(m => {
             if (m.id === botMsgId) {
@@ -433,11 +725,16 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       });
     } catch (err) {
       if (err.name === 'AbortError') return;
+      stopSmoothTimer();
       setIsExecuting(false);
     }
   };
 
   const handleStopExecution = () => {
+    if (smoothStreamTimerRef.current) {
+      clearInterval(smoothStreamTimerRef.current);
+      smoothStreamTimerRef.current = null;
+    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -685,65 +982,121 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             </div>
           </div>
 
-          <div className="agent-header-right">
-            <button
-              className={`agent-tool-btn ${isDrawerOpen && activeDrawerTab === 'files' ? 'is-active' : ''}`}
-              onClick={() => {
-                setActiveDrawerTab('files');
-                setIsDrawerOpen(true);
-              }}
-              title="Buka Berkas Workspace"
-            >
-              <i className="fa-solid fa-folder-open" />
-              <span>Berkas</span>
-              <span className="agent-count-badge">{sandboxFiles.length}</span>
-            </button>
+          <div className="agent-header-right" ref={menuDropdownRef}>
+            <div className="agent-menu-dropdown-container">
+              <button
+                type="button"
+                className={`agent-more-menu-btn ${showMenuDropdown ? 'is-active' : ''}`}
+                onClick={() => setShowMenuDropdown(prev => !prev)}
+                title="Opsi & Alat Agent"
+                aria-label="Opsi & Alat Agent"
+              >
+                <i className="fa-solid fa-ellipsis-vertical" />
+                {sandboxFiles.length > 0 && <span className="agent-menu-indicator-dot" />}
+              </button>
 
-            <button
-              className={`agent-tool-btn ${isDrawerOpen && activeDrawerTab === 'terminal' ? 'is-active' : ''}`}
-              onClick={() => {
-                setActiveDrawerTab('terminal');
-                setIsDrawerOpen(true);
-              }}
-              title="Terminal Console"
-            >
-              <i className="fa-solid fa-terminal" />
-              <span>Terminal</span>
-            </button>
+              {showMenuDropdown && (
+                <div className="agent-menu-dropdown">
+                  <div className="agent-menu-dropdown-header">
+                    <span>Menu Alat & Workspace</span>
+                  </div>
 
-            <button
-              className={`agent-tool-btn ${isDrawerOpen && activeDrawerTab === 'preview' ? 'is-active' : ''}`}
-              onClick={() => {
-                setActiveDrawerTab('preview');
-                setIsDrawerOpen(true);
-              }}
-              title="Live Web Preview"
-            >
-              <i className="fa-solid fa-globe" />
-              <span>Preview</span>
-            </button>
+                  <button
+                    type="button"
+                    className={`agent-menu-item ${isDrawerOpen && activeDrawerTab === 'files' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setActiveDrawerTab('files');
+                      setIsDrawerOpen(true);
+                      setShowMenuDropdown(false);
+                    }}
+                  >
+                    <span className="agent-menu-item-icon files-icon">
+                      <i className="fa-solid fa-folder-open" />
+                    </span>
+                    <div className="agent-menu-item-info">
+                      <div className="agent-menu-item-title-row">
+                        <span className="agent-menu-item-name">Berkas Workspace</span>
+                        <span className="agent-menu-count-badge">{sandboxFiles.length}</span>
+                      </div>
+                      <span className="agent-menu-item-sub">Lihat file hasil generasi sandbox</span>
+                    </div>
+                  </button>
 
-            <button
-              className={`agent-tool-btn ${isDrawerOpen && activeDrawerTab === 'skill' ? 'is-active' : ''}`}
-              onClick={() => {
-                setActiveDrawerTab('skill');
-                setIsDrawerOpen(true);
-              }}
-              title="Lihat Aturan SKILL.md"
-            >
-              <i className="fa-solid fa-book-bookmark" />
-              <span>SKILL.md</span>
-            </button>
+                  <button
+                    type="button"
+                    className={`agent-menu-item ${isDrawerOpen && activeDrawerTab === 'terminal' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setActiveDrawerTab('terminal');
+                      setIsDrawerOpen(true);
+                      setShowMenuDropdown(false);
+                    }}
+                  >
+                    <span className="agent-menu-item-icon terminal-icon">
+                      <i className="fa-solid fa-terminal" />
+                    </span>
+                    <div className="agent-menu-item-info">
+                      <span className="agent-menu-item-name">Terminal Console</span>
+                      <span className="agent-menu-item-sub">Log terminal & eksekusi shell</span>
+                    </div>
+                  </button>
 
-            <button
-              className="agent-tool-btn"
-              onClick={() => onNavigate?.('chat')}
-              style={{ background: 'rgba(249, 115, 22, 0.1)', borderColor: 'rgba(249, 115, 22, 0.3)', color: '#fdba74' }}
-              title="Kembali ke Chat Standar"
-            >
-              <i className="fa-solid fa-comments" />
-              <span>Chat Biasa</span>
-            </button>
+                  <button
+                    type="button"
+                    className={`agent-menu-item ${isDrawerOpen && activeDrawerTab === 'preview' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setActiveDrawerTab('preview');
+                      setIsDrawerOpen(true);
+                      setShowMenuDropdown(false);
+                    }}
+                  >
+                    <span className="agent-menu-item-icon preview-icon">
+                      <i className="fa-solid fa-globe" />
+                    </span>
+                    <div className="agent-menu-item-info">
+                      <span className="agent-menu-item-name">Live Web Preview</span>
+                      <span className="agent-menu-item-sub">Pratinjau antarmuka web / HTML</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`agent-menu-item ${isDrawerOpen && activeDrawerTab === 'skill' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setActiveDrawerTab('skill');
+                      setIsDrawerOpen(true);
+                      setShowMenuDropdown(false);
+                    }}
+                  >
+                    <span className="agent-menu-item-icon skill-icon">
+                      <i className="fa-solid fa-book-bookmark" />
+                    </span>
+                    <div className="agent-menu-item-info">
+                      <span className="agent-menu-item-name">Panduan SKILL.md</span>
+                      <span className="agent-menu-item-sub">Aturan & arsitektur dokumen</span>
+                    </div>
+                  </button>
+
+                  <div className="agent-menu-divider" />
+
+                  <button
+                    type="button"
+                    className="agent-menu-item is-chat-switch"
+                    onClick={() => {
+                      setShowMenuDropdown(false);
+                      onNavigate?.('chat');
+                    }}
+                  >
+                    <span className="agent-menu-item-icon chat-icon">
+                      <i className="fa-solid fa-comments" />
+                    </span>
+                    <div className="agent-menu-item-info">
+                      <span className="agent-menu-item-name">Beralih ke Chat Biasa</span>
+                      <span className="agent-menu-item-sub">Mode percakapan standar non-agent</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -751,160 +1104,163 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         <div className="agent-messages-container">
           {messages.length === 0 && activeChainOfWork.length === 0 && (
             <div className="agent-welcome">
-              <img src="/logo.png" alt="Deepernova AI" style={{ width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px', display: 'block', boxShadow: '0 4px 16px rgba(234, 88, 12, 0.2)' }} />
-              <h2>Deepernova Autonomous AI Agent</h2>
-              <p>
-                Agent cerdas berkemampuan koding penuh dengan eksekusi sandbox nyata.
-                Dapat menyusun berkas aplikasi, mengeksekusi kode Node.js/Python, menangkap log terminal,
-                dan menampilkan live preview web secara transparan.
-              </p>
-
-              <div className="agent-starters-grid">
-                <div
-                  className="agent-starter-card"
-                  onClick={() => handleSendMessage('Buatkan laporan eksekutif resmi dalam format Word (.docx) tentang analisis kinerja dan transformasi AI, lengkap dengan kurva grafik tren dan tabel metrik kuartalan yang elegan.')}
-                >
-                  <h4><i className="fa-solid fa-file-word" style={{ color: '#2b579a' }} /> Dokumen Word & Kurva (.docx)</h4>
-                  <p>Laporan eksekutif bergaya McKinsey lengkap dengan kurva analisis performa dan tabel berformat rapi.</p>
-                </div>
-
-                <div
-                  className="agent-starter-card"
-                  onClick={() => handleSendMessage('Buatkan presentasi eksekutif PowerPoint (.pptx) rasio 16:9 tentang strategi AI 2026, lengkap dengan kartu KPI, visualisasi data, dan struktur pilar.')}
-                >
-                  <h4><i className="fa-solid fa-file-powerpoint" style={{ color: '#d24726' }} /> Presentasi Eksekutif (.pptx)</h4>
-                  <p>Pitch deck modern 16:9 dengan kartu metrik KPI, visualisasi grafik, dan tata letak elegan.</p>
-                </div>
-
-                <div
-                  className="agent-starter-card"
-                  onClick={() => handleSendMessage('Buatkan spreadsheet dashboard keuangan (.xlsx) untuk proyeksi bisnis 2026, lengkap dengan scorecard KPI, tabel berformat rapi, dan grafik native openpyxl.')}
-                >
-                  <h4><i className="fa-solid fa-file-excel" style={{ color: '#107c41' }} /> Dashboard Excel (.xlsx)</h4>
-                  <p>Model keuangan korporat dengan format angka resmi, freeze panes, dan grafik interaktif native.</p>
-                </div>
-
-                <div
-                  className="agent-starter-card"
-                  onClick={() => {
-                    setActiveDrawerTab('skill');
-                    setIsDrawerOpen(true);
-                  }}
-                >
-                  <h4><i className="fa-solid fa-book-bookmark" style={{ color: '#ea580c' }} /> Periksa SKILL.md</h4>
-                  <p>Pelajari panduan arsitektur lengkap, pustaka Python, dan standar estetika dokumen AI.</p>
-                </div>
+              <div className="agent-welcome-avatar">
+                <img src="/logo.png" alt="Deepernova AI" />
               </div>
+              <h2 className="agent-welcome-title">Deepernova AI Agent</h2>
             </div>
           )}
 
           {/* Historical Messages */}
-          {messages.map((msg) => (
-            <div key={msg.id} className={`agent-msg-row is-${msg.role === 'user' ? 'user' : 'bot'}`}>
-              <div className="agent-msg-avatar">
-                {msg.role === 'user' ? (
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontSize: 13, fontWeight: 700 }}>
-                    {(user?.name || user?.email || 'U')[0].toUpperCase()}
-                  </div>
-                ) : (
-                  <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
-                )}
-              </div>
-              <div className="agent-msg-content">
-                {/* Minimalist Chain of Work: simple title by default, click to open details */}
-                {msg.chainOfWork && msg.chainOfWork.length > 0 && (() => {
-                  const isExpanded = !!expandedChains[msg.id];
-                  return (
-                    <div className="agent-simple-cow">
+          {messages.map((msg) => {
+            const isBot = msg.role === 'assistant';
+            const { cleanContent, reasoning } = isBot
+              ? extractMessageReasoningAndContent(msg.content, msg.reasoning)
+              : { cleanContent: msg.content, reasoning: '' };
+
+            const isReasoningExpanded = expandedReasonings[msg.id] !== undefined
+              ? !!expandedReasonings[msg.id]
+              : !!msg.isStreaming;
+
+            return (
+              <div key={msg.id} id={msg.id} className={`agent-msg-row is-${msg.role === 'user' ? 'user' : 'bot'}`}>
+                <div className="agent-msg-avatar">
+                  {msg.role === 'user' ? (
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontSize: 13, fontWeight: 700 }}>
+                      {(user?.name || user?.email || 'U')[0].toUpperCase()}
+                    </div>
+                  ) : (
+                    <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
+                  )}
+                </div>
+                <div className="agent-msg-content">
+                  {/* 1. Claude Extended Thinking: Live Reasoning Box (Auto-opens while streaming, elegant preview when idle) */}
+                  {isBot && (reasoning || msg.isStreaming) && (
+                    <AgentReasoningBox
+                      reasoning={reasoning}
+                      isStreaming={!!msg.isStreaming}
+                      isExpanded={isReasoningExpanded}
+                      onToggle={() => toggleReasoning(msg.id)}
+                    />
+                  )}
+
+                  {/* 2. Minimalist Chain of Work: simple title by default, click to open details */}
+                  {msg.chainOfWork && msg.chainOfWork.length > 0 && (() => {
+                    const isExpanded = !!expandedChains[msg.id];
+                    return (
+                      <div className="agent-simple-cow">
+                        <button
+                          type="button"
+                          className={`agent-cow-trigger ${isExpanded ? 'is-expanded' : ''}`}
+                          onClick={() => toggleChain(msg.id)}
+                        >
+                          <div className="agent-cow-trigger-left">
+                            <i className="fa-solid fa-bolt" style={{ color: '#ea580c', fontSize: 11 }} />
+                            <span className="agent-cow-title">
+                              {msg.isStreaming ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                  <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c', fontSize: 10 }} />
+                                  <span>{msg.chainOfWork[msg.chainOfWork.length - 1]?.title || 'Sedang memproses tugas...'}</span>
+                                </span>
+                              ) : (
+                                `${msg.chainOfWork.length} langkah kerja selesai`
+                              )}
+                            </span>
+                          </div>
+                          <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 10, color: '#94a3b8' }} />
+                        </button>
+
+                        {isExpanded && (
+                          <div className="agent-cow-drawer">
+                            {msg.chainOfWork.map((step, idx) => (
+                              <div key={idx} className={`agent-cow-step-row is-${step.status}`}>
+                                <div className="agent-cow-step-bullet">
+                                  {step.status === 'completed' && <i className="fa-solid fa-check" style={{ color: '#10b981' }} />}
+                                  {step.status === 'failed' && <i className="fa-solid fa-xmark" style={{ color: '#ef4444' }} />}
+                                  {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />}
+                                </div>
+                                <div className="agent-cow-step-info">
+                                  <div className="agent-cow-step-name">{step.title}</div>
+                                  {step.detail && (
+                                    <pre className="agent-cow-step-pre">{step.detail}</pre>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 3. Claude Artifacts Quick-Access Bar */}
+                  {isBot && ((msg.sandboxFiles || []).length > 0 || msg.previewUrl) && (
+                    <div className="agent-artifacts-quickbar">
                       <button
                         type="button"
-                        className={`agent-cow-trigger ${isExpanded ? 'is-expanded' : ''}`}
-                        onClick={() => toggleChain(msg.id)}
+                        className="agent-artifacts-pill-btn"
+                        onClick={() => {
+                          if (msg.previewUrl || previewUrl) {
+                            setActiveDrawerTab('preview');
+                          } else {
+                            setActiveDrawerTab('files');
+                          }
+                          setIsDrawerOpen(true);
+                        }}
+                        title="Buka panel kerja Claude Artifacts di sebelah kanan"
                       >
-                        <div className="agent-cow-trigger-left">
-                          <i className="fa-solid fa-bolt" style={{ color: '#ea580c', fontSize: 11 }} />
-                          <span className="agent-cow-title">
-                            {msg.isStreaming ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c', fontSize: 10 }} />
-                                <span>{msg.chainOfWork[msg.chainOfWork.length - 1]?.title || 'Sedang memproses tugas...'}</span>
-                              </span>
-                            ) : (
-                              `${msg.chainOfWork.length} langkah kerja selesai`
-                            )}
-                          </span>
-                        </div>
-                        <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 10, color: '#94a3b8' }} />
+                        <i className="fa-solid fa-layer-group" style={{ color: '#ea580c' }} />
+                        <span>Buka Workspace di Artifacts Panel</span>
+                        <i className="fa-solid fa-chevron-right" style={{ fontSize: 9, opacity: 0.7 }} />
                       </button>
-
-                      {isExpanded && (
-                        <div className="agent-cow-drawer">
-                          {msg.chainOfWork.map((step, idx) => (
-                            <div key={idx} className={`agent-cow-step-row is-${step.status}`}>
-                              <div className="agent-cow-step-bullet">
-                                {step.status === 'completed' && <i className="fa-solid fa-check" style={{ color: '#10b981' }} />}
-                                {step.status === 'failed' && <i className="fa-solid fa-xmark" style={{ color: '#ef4444' }} />}
-                                {step.status === 'running' && <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />}
-                              </div>
-                              <div className="agent-cow-step-info">
-                                <div className="agent-cow-step-name">{step.title}</div>
-                                {step.detail && (
-                                  <pre className="agent-cow-step-pre">{step.detail}</pre>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                <div className="agent-msg-bubble">
-                  {msg.role === 'user' ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
-                    </ReactMarkdown>
-                  ) : (
-                    <div className="agent-msg-body">
-                      {msg.isStreaming && !msg.content?.trim() && (
-                        <div className="agent-streaming-placeholder">
-                          <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />
-                          <span>Deepernova AI sedang merancang & menyusun jawaban...</span>
-                        </div>
-                      )}
-                      {parseContentWithPills(msg.content).map((segment, sIdx) => {
-                        if (segment.type === 'pill') {
-                          return (
-                            <InlineActionPill
-                              key={segment.id || `pill_${sIdx}`}
-                              id={segment.id}
-                              type={segment.pillType}
-                              title={segment.title}
-                              meta={segment.meta}
-                              status={segment.status}
-                              detail={segment.detail}
-                              sessionId={currentSessionId}
-                              onSelectFile={handleSelectFile}
-                              onOpenDrawer={(tab) => {
-                                setActiveDrawerTab(tab);
-                                setIsDrawerOpen(true);
-                              }}
-                            />
-                          );
-                        }
-                        if (!segment.content.trim()) return null;
-                        return (
-                          <ReactMarkdown key={`text_${sIdx}`} remarkPlugins={[remarkGfm]}>
-                            {segment.content}
-                          </ReactMarkdown>
-                        );
-                      })}
-                      {msg.isStreaming && msg.content?.trim() && (
-                        <span className="agent-typing-cursor">▌</span>
-                      )}
                     </div>
                   )}
+
+                  <div className="agent-msg-bubble">
+                    {msg.role === 'user' ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <div className="agent-msg-body">
+                        {msg.isStreaming && !cleanContent?.trim() && !reasoning && (
+                          <div className="agent-streaming-placeholder">
+                            <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />
+                            <span>Deepernova AI sedang merancang & menyusun jawaban...</span>
+                          </div>
+                        )}
+                        {parseContentWithPills(cleanContent).map((segment, sIdx) => {
+                          if (segment.type === 'pill') {
+                            return (
+                              <InlineActionPill
+                                key={segment.id || `pill_${sIdx}`}
+                                id={segment.id}
+                                type={segment.pillType}
+                                title={segment.title}
+                                meta={segment.meta}
+                                status={segment.status}
+                                detail={segment.detail}
+                                sessionId={currentSessionId}
+                                onSelectFile={handleSelectFile}
+                                onOpenDrawer={(tab) => {
+                                  setActiveDrawerTab(tab);
+                                  setIsDrawerOpen(true);
+                                }}
+                              />
+                            );
+                          }
+                          if (!segment.content.trim()) return null;
+                          return (
+                            <ReactMarkdown key={`text_${sIdx}`} remarkPlugins={[remarkGfm]}>
+                              {segment.content}
+                            </ReactMarkdown>
+                          );
+                        })}
+                        {msg.isStreaming && cleanContent?.trim() && (
+                          <span className="agent-typing-cursor">▌</span>
+                        )}
+                      </div>
+                    )}
 
                   {/* Screenshot / Visual Result Preview Card */}
                   {msg.role === 'assistant' && (msg.screenshotUrl || (msg.sandboxFiles || []).some(f => f.name === 'screenshot.png' || f.name === 'preview.png')) && (() => {
@@ -1139,7 +1495,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 </div>
               </div>
             </div>
-          ))}
+          );
+        })}
 
           <div ref={messagesEndRef} />
         </div>

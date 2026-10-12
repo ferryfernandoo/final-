@@ -1903,29 +1903,28 @@ const getMessageAttachedFiles = (message) => {
 };
 
 /**
-/**
- * Ultra-fast, strictly character-by-character typewriter animation engine:
- * Delivers responses STRICTLY PER HURUF (1 character per 10ms = 100 chars/sec)
- * creating a hyper-fast, authentic typewriter effect where every single letter
- * visibly races across the screen, NEVER popping in chunky word blocks ("bukan per kata").
+ * Smooth, elegant character-by-character typewriter animation engine:
+ * Delivers responses at an ergonomic, readable cadence (~40-50 chars/sec)
+ * with silky-smooth progressive pacing, never rushing like a blur and never popping chunky blocks.
  */
 const getSmoothTypingStep = (diff, isFinished = false, currentLength = 0, totalLength = 0) => {
   if (diff <= 0) return 0;
 
-  // Stream finish drain: catch up rapidly while maintaining strictly per-huruf flow
+  // Stream finish drain: catch up smoothly without sudden jarring snaps
   if (isFinished) {
-    if (diff <= 15) return 1;
-    if (diff <= 50) return 2;
-    return Math.min(diff, Math.max(3, Math.ceil(diff / 8)));
+    if (diff <= 20) return 1;
+    if (diff <= 60) return 2;
+    return Math.min(diff, Math.max(3, Math.ceil(diff / 10)));
   }
 
-  // Active streaming: STRICTLY PER HURUF! (1 character per 10ms = 100 chars/sec)
-  // Ensures every letter visibly races across the screen like a futuristic laser typewriter.
-  if (diff <= 40) return 1;
-  // If model emits a burst, step 2 chars/tick (200 chars/sec, syllables only)
-  if (diff <= 100) return 2;
-  // Cap at 3 chars/tick max under extreme backlog so it NEVER pops in whole words
-  return 3;
+  // Active streaming: Smooth, comfortable reading cadence (~40-50 chars/sec at 22ms)
+  if (diff <= 35) return 1;
+  // If model emits a burst, step 2 chars/tick to smoothly catch up without blur
+  if (diff <= 90) return 2;
+  // Cap at 3 chars/tick max under moderate backlog
+  if (diff <= 200) return 3;
+  // Extreme backlog: pace smoothly
+  return Math.min(diff, Math.max(4, Math.ceil(diff / 22)));
 };
 
 const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser }) => {
@@ -6452,7 +6451,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 14);
+        }, 22);
       };
       
       const streamResult = await processStreamingResponse(
@@ -8429,7 +8428,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 14);
+        }, 22);
       };
       
       const streamResult = await processStreamingResponse(
@@ -9237,7 +9236,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       const startSmoothStreamer = () => {
         if (!smoothStreamTimer) {
-          smoothStreamTimer = setInterval(flushSmoothTick, 10);
+          smoothStreamTimer = setInterval(flushSmoothTick, 22);
           smoothStreamTimerRef.current = smoothStreamTimer;
         }
       };
@@ -10283,7 +10282,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             clearInterval(searchTypingTimer);
             searchTypingTimer = null;
           }
-        }, 14);
+        }, 22);
       };
 
       await processStreamingResponse(botResponse, (chunk) => {
@@ -10519,7 +10518,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               clearInterval(searchTypingTimer);
               searchTypingTimer = null;
             }
-          }, 14);
+          }, 22);
         };
 
         await processStreamingResponse(botResponse, (chunk) => {
@@ -11036,7 +11035,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 clearInterval(recallTypingTimer);
                 recallTypingTimer = null;
               }
-            }, 14);
+            }, 22);
           };
 
           await processStreamingResponse(botResponse, (chunk) => {
@@ -11254,7 +11253,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(msgId, initialText + accumulatedRetryText);
             }
-          }, 14);
+          }, 22);
         };
  
         await processStreamingResponse(response, (chunk) => {
@@ -11325,7 +11324,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(placeholderId, accumulatedFullRetryText);
             }
-          }, 14);
+          }, 22);
         };
  
         await processStreamingResponse(response, (chunk) => {
@@ -11439,7 +11438,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(msgId, initialText + accumulatedAutoRetryText);
           }
-        }, 14);
+        }, 22);
       };
  
       await processStreamingResponse(response, (chunk) => {

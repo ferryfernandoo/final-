@@ -622,8 +622,16 @@ uniqueStaticDirs.forEach(dir => {
   if (fs.existsSync(dir)) {
     console.log(`[SERVER] Serving static assets from: ${dir}`);
     app.use(express.static(dir, {
-      maxAge: '1d',
-      etag: false
+      etag: false,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        } else if (filePath.includes('assets')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
     }));
   }
 });

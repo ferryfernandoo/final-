@@ -254,6 +254,7 @@ class AgentService {
     history = [],
     signal,
     onDelta,
+    onReasoning,
     onFilesUpdate,
     onStep,
     onStepUpdate,
@@ -315,6 +316,8 @@ class AgentService {
               const parsed = JSON.parse(eventData);
               if (eventType === 'delta' && onDelta) {
                 onDelta(parsed.content || '');
+              } else if (eventType === 'reasoning' && onReasoning) {
+                onReasoning(parsed.text || parsed.content || parsed.full || '');
               } else if (eventType === 'files_update' && onFilesUpdate) {
                 onFilesUpdate(parsed.files || []);
               } else if (eventType === 'step' && onStep) {
