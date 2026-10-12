@@ -1510,3 +1510,193 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ============================================================================
+   INLINE AGENTIC ACTION PILLS (INTERLEAVED WORKFLOW)
+   ============================================================================ */
+
+.agent-msg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-inline-pill-wrap {
+  margin: 6px 0;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.agent-inline-pill-wrap:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.agent-inline-pill-wrap.is-failed {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.agent-inline-pill-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 12px;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.agent-inline-pill-btn:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.agent-inline-pill-btn.is-open {
+  background: #f1f5f9;
+}
+
+.agent-pill-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-pill-icon-tag {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  flex-shrink: 0;
+}
+
+.agent-pill-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-pill-btn-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.agent-pill-status {
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.agent-pill-status.is-success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.agent-pill-status.is-fail {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.agent-pill-chevron {
+  font-size: 10px;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.agent-inline-pill-drawer {
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 10px 14px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.agent-pill-drawer-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+}
+
+.agent-pill-meta-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.agent-pill-meta-value {
+  color: #0f172a;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-pill-drawer-content pre {
+  margin: 0;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: 'Fira Code', monospace;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.agent-pill-drawer-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agent-pill-action-btn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.agent-pill-action-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+

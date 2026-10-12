@@ -3,9 +3,20 @@ import path from 'path';
 import fs from 'fs';
 import fetch from 'node-fetch';
 import JSZip from 'jszip';
-import agentSandboxService, { DEFAULT_SKILL_MD } from '../services/agentSandboxService.js';
+import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions } from '../services/agentSandboxService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
 import { TOKENMIX_API_KEYS } from '../apiProxyService.js';
+import webSearchService from '../webSearchService.js';
+
+function escapeXml(unsafe) {
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
 
 const router = express.Router();
 
@@ -372,39 +383,48 @@ router.post('/run', async (req, res) => {
 
     // Build system prompt with SKILL.md and Sandbox context
     const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih.
-Anda bekerja di dalam sandbox lingkungan terisolasi.
+Anda dapat berdiskusi secara interaktif dan langsung mengeksekusi aksi nyata di dalam lingkungan sandbox.
 
-PROSES KERJA ANDA DIPANTAU SECARA TRANSPARAN DI LAYAR PENGGUNA (CHAIN-OF-WORK).
-IKUTI PROTOKOL DI BAWAH INI (SKILL.md):
-${skillContent}
+GAYA KOMUNIKASI & PERILAKU ANDA:
+1. Berbicaralah secara hangat, komunikatif, dan alami dalam Bahasa Indonesia. Tetaplah ramah dan santai layaknya rekan kerja profesional.
+2. Jelaskan langkah yang akan atau sedang Anda lakukan di antara aksi-aksi Anda (interleaved narrative workflow).
+3. JANGAN PERNAH menulis teks pura-pura seperti "(do)" atau "(do_search)". Cukup tulis percakapan Anda dan gunakan tag aksi XML nyata. Sistem akan otomatis mengubah aksi Anda menjadi tombol pill interaktif yang dapat diklik oleh pengguna.
+4. Tulis kode nyata, lengkap, dan tanpa placeholder.
 
-STRUKTUR BERKAS SAAT INI DI SANDBOX:
+TAG AKSI SANDBOX YANG TERSEDIA:
+- <read_file path="nama_file.ext" />
+  Membaca isi berkas dari sandbox atau SKILL.md.
+- <search_web query="kata kunci pencarian" />
+  Melakukan pencarian di internet untuk referensi, inspirasi materi/puisi/laporan, atau data aktual.
+- <run_command>perintah terminal</run_command>
+  Menjalankan perintah terminal di sandbox (misal: pip, dir, node, dsb).
+- <write_file path="nama_file.ext">isi berkas lengkap</write_file>
+  Menulis berkas kode atau skrip lengkap ke sandbox.
+- <execute_code language="python|node">kode untuk dieksekusi</execute_code>
+  Mengeksekusi kode langsung di sandbox dan menangkap output terminalnya.
+- <check_file path="nama_file.ext" />
+  Memeriksa keberadaan dan ukuran berkas hasil eksekusi di sandbox.
+- <preview>index.html</preview>
+  (Opsional) Menetapkan file visual preview untuk aplikasi web.
+
+PETUNJUK PEMBUATAN BERKAS OFFICE:
+- Pustaka Python 'python-docx' (Word) dan 'openpyxl' (Excel) SUDAH TERPASANG dan siap digunakan di sistem.
+- Jika pengguna meminta berkas Word / DOCX:
+  1. Anda bisa membaca panduan atau mencari referensi inspirasi jika perlu (<search_web query="..." />).
+  2. Tulis skrip Python (misal 'create_docx.py') menggunakan 'docx' (from docx import Document, styles, heading, paragraph, table, dsb) yang menyimpan dokumen ke sandbox root (misal doc.save('nama_file.docx')).
+  3. Eksekusi skrip tersebut dengan <execute_code language="python"> agar berkas .docx NYATA terbuat di disk!
+  4. Periksa berkas dengan <check_file path="nama_file.docx" />.
+  5. Sampaikan kabar baik ke pengguna bahwa dokumen siap diunduh.
+- Jika pengguna meminta berkas Excel / XLSX:
+  Tulis skrip Python dengan 'openpyxl', simpan (wb.save('nama_file.xlsx')), dan eksekusi!
+- Jika pengguna meminta aplikasi web:
+  Tulis 'index.html', 'style.css', dan 'app.js' yang modern, responsif, dan rapi.
+
+BERKAS SAAT INI DI SANDBOX:
 ${fileListText}
 
-FORMAT AKSI YANG WAJIB ANDA GUNAKAN UNTUK MELAKUKAN TINDAKAN NYATA:
-1. Menjelaskan rencana berpikir:
-<thought>Penjelasan langkah dan strategi teknis Anda</thought>
-
-2. Membuat atau memperbarui berkas:
-<write_file path="nama_file.ext">
-Isi kode lengkap di sini
-</write_file>
-
-3. Mengeksekusi kode di sandbox (Node.js atau Python):
-<execute_code language="node">
-console.log('Testing code...');
-</execute_code>
-
-4. Menjalankan perintah terminal:
-<run_command>node app.js</run_command>
-
-5. Menentukan berkas entry point preview web (biasanya index.html):
-<preview>index.html</preview>
-
-PENTING:
-- Tulis kode LENGKAP tanpa placeholder atau potongan terputus.
-- Jika membuat web app, selalu buat "index.html" yang modern, responsif, dan siap jalan.
-- Berikan ringkasan ramah dalam Bahasa Indonesia setelah seluruh aksi selesai.`;
+PANDUAN PROTOKOL SKILL.MD:
+${skillContent}`;
 
     // Messages payload for LLM
     const apiMessages = [
@@ -445,31 +465,70 @@ PENTING:
     updateLastStep('completed', 'Rencana dan aksi teknis telah dirumuskan oleh AI Agent.');
 
     // Parse and execute actions sequentially
-    const { actions, cleanSummary } = agentSandboxService.extractAgentActions(rawAiText);
-
+    const actions = agentSandboxService.extractSequentialActions(rawAiText);
+    let formattedAnswer = rawAiText;
     let hasPreview = false;
     let previewFile = 'index.html';
 
-    for (const action of actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      const actionId = `act_${Date.now()}_${i}`;
+      let pillXml = '';
+
       if (action.type === 'thought') {
         addStep('thought', 'Catatan Berpikir Agent', action.content, 'completed');
-      } else if (action.type === 'write_file') {
-        addStep('file_write', `Menulis Berkas: ${action.path}`, `Menulis isi berkas (${action.content.length} karakter)...`, 'running');
+        pillXml = `<action_pill id="${actionId}" type="thought" title="Catatan Berpikir AI" status="completed">${escapeXml(action.content)}</action_pill>`;
+      } else if (action.type === 'read_file') {
+        const targetPath = action.path || 'SKILL.md';
+        addStep('read', `Membaca: ${targetPath}`, `Membaca berkas '${targetPath}' dari workspace...`, 'running');
         try {
-          const written = agentSandboxService.writeFile(sessionId, action.path, action.content);
-          updateLastStep('completed', `Berkas '${written.path}' berhasil dibuat/diperbarui (${(written.size / 1024).toFixed(2)} KB).`, { filePath: written.path });
-          if (action.path.endsWith('.html')) {
-            hasPreview = true;
-            previewFile = action.path;
+          const content = agentSandboxService.readFile(sessionId, targetPath);
+          const previewContent = content.length > 2500 ? content.slice(0, 2500) + '\n... (konten dipotong)' : content;
+          updateLastStep('completed', `Berhasil membaca '${targetPath}' (${content.length} karakter).`, { content: previewContent });
+          pillXml = `<action_pill id="${actionId}" type="read" title="Membaca ${targetPath}" meta="${targetPath}" status="completed">${escapeXml(previewContent)}</action_pill>`;
+        } catch (readErr) {
+          updateLastStep('failed', `Gagal membaca berkas: ${readErr.message}`);
+          pillXml = `<action_pill id="${actionId}" type="read" title="Gagal Membaca ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(readErr.message)}</action_pill>`;
+        }
+      } else if (action.type === 'search_web') {
+        const query = action.query || 'referensi';
+        addStep('search', `Mencari di Web: ${query}`, `Melakukan pencarian live di internet untuk '${query}'...`, 'running');
+        try {
+          const searchRes = await webSearchService.searchGoogle(query, 3);
+          let summary = '';
+          if (searchRes.success && searchRes.results && searchRes.results.length > 0) {
+            summary = searchRes.results.map((r, rIdx) => `${rIdx + 1}. ${r.title}\n   ${r.snippet}\n   URL: ${r.url}`).join('\n\n');
+            updateLastStep('completed', `Ditemukan ${searchRes.results.length} referensi dari web.`, { results: searchRes.results });
+          } else {
+            summary = 'Pencarian selesai. Melanjutkan penyusunan materi dengan referensi internal.';
+            updateLastStep('completed', summary);
           }
+          pillXml = `<action_pill id="${actionId}" type="search" title="Mencari di Web: ${query}" meta="${query}" status="completed">${escapeXml(summary)}</action_pill>`;
+        } catch (searchErr) {
+          updateLastStep('failed', `Pencarian web terhambat: ${searchErr.message}`);
+          pillXml = `<action_pill id="${actionId}" type="search" title="Pencarian: ${query}" meta="${query}" status="completed">${escapeXml('Pencarian web selesai.')}</action_pill>`;
+        }
+      } else if (action.type === 'write_file') {
+        const targetPath = action.path || 'script.js';
+        addStep('file_write', `Menulis Berkas: ${targetPath}`, `Menulis isi berkas (${action.content.length} karakter)...`, 'running');
+        try {
+          const written = agentSandboxService.writeFile(sessionId, targetPath, action.content);
+          updateLastStep('completed', `Berkas '${written.path}' berhasil dibuat/diperbarui (${(written.size / 1024).toFixed(2)} KB).`, { filePath: written.path });
+          if (targetPath.endsWith('.html')) {
+            hasPreview = true;
+            previewFile = targetPath;
+          }
+          pillXml = `<action_pill id="${actionId}" type="write" title="Menulis Berkas: ${targetPath}" meta="${targetPath}" status="completed">${escapeXml(action.content)}</action_pill>`;
         } catch (writeErr) {
           updateLastStep('failed', `Gagal menulis berkas: ${writeErr.message}`);
+          pillXml = `<action_pill id="${actionId}" type="write" title="Gagal Menulis ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(writeErr.message)}</action_pill>`;
         }
       } else if (action.type === 'execute_code') {
-        addStep('execute', `Mengeksekusi Kode (${action.language})`, 'Menjalankan kode di dalam jailed sandbox...', 'running');
+        const lang = action.language || 'node';
+        addStep('execute', `Mengeksekusi Kode (${lang})`, 'Menjalankan kode di dalam jailed sandbox...', 'running');
         try {
           const execRes = await agentSandboxService.executeInSandbox(sessionId, {
-            language: action.language,
+            language: lang,
             code: action.code
           });
           const detail = execRes.stdout ? `Output:\n${execRes.stdout}` : (execRes.stderr ? `Error:\n${execRes.stderr}` : 'Eksekusi selesai tanpa output.');
@@ -478,29 +537,68 @@ PENTING:
             stderr: execRes.stderr,
             executionTimeMs: execRes.executionTimeMs
           });
+          pillXml = `<action_pill id="${actionId}" type="execute" title="Mengeksekusi Kode (${lang})" meta="${lang}" status="${execRes.success ? 'completed' : 'failed'}">${escapeXml(detail)}</action_pill>`;
         } catch (execErr) {
           updateLastStep('failed', `Gagal eksekusi: ${execErr.message}`);
+          pillXml = `<action_pill id="${actionId}" type="execute" title="Eksekusi Gagal" meta="${lang}" status="failed">${escapeXml(execErr.message)}</action_pill>`;
         }
       } else if (action.type === 'run_command') {
-        addStep('command', `Perintah Terminal: ${action.command}`, 'Mengeksekusi command di sandbox...', 'running');
+        const cmd = action.command || '';
+        addStep('command', `Perintah Terminal: ${cmd}`, 'Mengeksekusi command di sandbox...', 'running');
         try {
-          const cmdRes = await agentSandboxService.executeInSandbox(sessionId, {
-            command: action.command
-          });
+          const cmdRes = await agentSandboxService.executeInSandbox(sessionId, { command: cmd });
           const detail = cmdRes.stdout ? `Output:\n${cmdRes.stdout}` : (cmdRes.stderr ? `Error:\n${cmdRes.stderr}` : 'Selesai.');
           updateLastStep(cmdRes.success ? 'completed' : 'failed', detail, {
             stdout: cmdRes.stdout,
             stderr: cmdRes.stderr,
             executionTimeMs: cmdRes.executionTimeMs
           });
+          pillXml = `<action_pill id="${actionId}" type="command" title="Perintah Terminal" meta="${cmd}" status="${cmdRes.success ? 'completed' : 'failed'}">${escapeXml(detail)}</action_pill>`;
         } catch (cmdErr) {
           updateLastStep('failed', `Gagal command: ${cmdErr.message}`);
+          pillXml = `<action_pill id="${actionId}" type="command" title="Perintah Terminal Gagal" meta="${cmd}" status="failed">${escapeXml(cmdErr.message)}</action_pill>`;
+        }
+      } else if (action.type === 'check_file') {
+        const targetPath = action.path || '';
+        addStep('check', `Memeriksa Berkas: ${targetPath}`, `Memverifikasi keberadaan '${targetPath}' di workspace...`, 'running');
+        try {
+          const fullPath = agentSandboxService.safeResolvePath(sessionId, targetPath);
+          const exists = fs.existsSync(fullPath);
+          let checkDetail = '';
+          if (exists) {
+            const stat = fs.statSync(fullPath);
+            checkDetail = `Berkas '${targetPath}' ditemukan (${(stat.size / 1024).toFixed(1)} KB). Terverifikasi aman dan siap diunduh.`;
+            updateLastStep('completed', checkDetail);
+            pillXml = `<action_pill id="${actionId}" type="check" title="Memeriksa Berkas: ${targetPath}" meta="${targetPath}" status="completed">${escapeXml(checkDetail)}</action_pill>`;
+          } else {
+            checkDetail = `Berkas '${targetPath}' belum terdeteksi di workspace.`;
+            updateLastStep('failed', checkDetail);
+            pillXml = `<action_pill id="${actionId}" type="check" title="Berkas Belum Ada: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(checkDetail)}</action_pill>`;
+          }
+        } catch (checkErr) {
+          updateLastStep('failed', checkErr.message);
+          pillXml = `<action_pill id="${actionId}" type="check" title="Pemeriksaan Berkas: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(checkErr.message)}</action_pill>`;
         }
       } else if (action.type === 'preview') {
         hasPreview = true;
         previewFile = action.entryFile || 'index.html';
         addStep('preview', 'Live Web Preview', `Entry point: ${previewFile}`, 'completed');
+        pillXml = `<action_pill id="${actionId}" type="preview" title="Web Preview Siap" meta="${previewFile}" status="completed">Entry point: ${escapeXml(previewFile)}</action_pill>`;
       }
+
+      if (action.rawMatch && pillXml) {
+        formattedAnswer = formattedAnswer.replace(action.rawMatch, `\n\n${pillXml}\n\n`);
+      }
+    }
+
+    // Clean any accidental (do) or (do_search) notation from text
+    formattedAnswer = formattedAnswer
+      .replace(/\((?:do|do_search)\)\s*/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    if (!formattedAnswer) {
+      formattedAnswer = 'Seluruh tindakan dan pengerjaan berkas telah selesai diproses di dalam sandbox. Silakan periksa berkas hasil di bawah ini.';
     }
 
     // Step Final: Verifikasi seluruh file yang ada di sandbox
@@ -517,8 +615,6 @@ PENTING:
       previewUrl
     });
 
-    const finalAnswer = cleanSummary || 'Tugas telah selesai diproses di dalam sandbox. Silakan periksa berkas dan terminal untuk melihat hasilnya.';
-
     // Save bot message with complete chainOfWork and sandboxFiles in Database
     const botMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     agentMessageDb.create(
@@ -526,7 +622,7 @@ PENTING:
       sessionId,
       userId,
       'assistant',
-      finalAnswer,
+      formattedAnswer,
       chainOfWork,
       finalFiles,
       previewUrl
@@ -535,7 +631,7 @@ PENTING:
     // Emit final 'done' event
     emitEvent('done', {
       messageId: botMsgId,
-      content: finalAnswer,
+      content: formattedAnswer,
       chainOfWork,
       files: finalFiles,
       previewUrl

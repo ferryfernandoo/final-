@@ -4,6 +4,152 @@ import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
 import './AgentChat.css';
 
+function unescapeXml(safe) {
+  if (!safe) return '';
+  return String(safe)
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+function getPillConfig(type) {
+  switch (type) {
+    case 'read':
+      return { icon: 'fa-solid fa-book-open', color: '#0284c7', bg: '#e0f2fe', label: 'Berkas Dibaca' };
+    case 'search':
+      return { icon: 'fa-solid fa-magnifying-glass', color: '#d97706', bg: '#fef3c7', label: 'Kueri Pencarian' };
+    case 'command':
+      return { icon: 'fa-solid fa-terminal', color: '#475569', bg: '#f1f5f9', label: 'Perintah Terminal' };
+    case 'write':
+      return { icon: 'fa-solid fa-file-pen', color: '#059669', bg: '#d1fae5', label: 'Berkas Ditulis' };
+    case 'execute':
+      return { icon: 'fa-solid fa-bolt', color: '#ea580c', bg: '#ffedd5', label: 'Bahasa Eksekusi' };
+    case 'check':
+      return { icon: 'fa-solid fa-circle-check', color: '#16a34a', bg: '#dcfce7', label: 'Pemeriksaan Berkas' };
+    case 'thought':
+      return { icon: 'fa-solid fa-lightbulb', color: '#eab308', bg: '#fef9c3', label: 'Catatan Rencana' };
+    case 'preview':
+      return { icon: 'fa-solid fa-eye', color: '#7c3aed', bg: '#f3e8ff', label: 'Visual Preview' };
+    default:
+      return { icon: 'fa-solid fa-gear', color: '#64748b', bg: '#f1f5f9', label: 'Tindakan Sistem' };
+  }
+}
+
+function InlineActionPill({ id, type, title, meta, status = 'completed', detail, onSelectFile, onOpenDrawer }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const config = getPillConfig(type);
+  const rawDetail = unescapeXml(detail);
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(rawDetail || meta || '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className={`agent-inline-pill-wrap is-${status}`}>
+      <button
+        type="button"
+        className={`agent-inline-pill-btn ${isExpanded ? 'is-open' : ''}`}
+        onClick={() => setIsExpanded(!isExpanded)}
+        title="Klik untuk melihat detail aksi"
+      >
+        <div className="agent-pill-btn-left">
+          <span className="agent-pill-icon-tag" style={{ color: config.color, background: config.bg }}>
+            <i className={config.icon} />
+          </span>
+          <span className="agent-pill-title">{title}</span>
+        </div>
+        <div className="agent-pill-btn-right">
+          {status === 'completed' ? (
+            <span className="agent-pill-status is-success">
+              <i className="fa-solid fa-check" /> Selesai
+            </span>
+          ) : (
+            <span className="agent-pill-status is-fail">
+              <i className="fa-solid fa-xmark" /> Gagal
+            </span>
+          )}
+          <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'} agent-pill-chevron`} />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="agent-inline-pill-drawer">
+          {meta && (
+            <div className="agent-pill-drawer-meta">
+              <span className="agent-pill-meta-label">{config.label}:</span>
+              <span className="agent-pill-meta-value">{meta}</span>
+            </div>
+          )}
+          <div className="agent-pill-drawer-content">
+            <pre>{rawDetail || '(Tidak ada detail output tambahan)'}</pre>
+          </div>
+          <div className="agent-pill-drawer-footer">
+            <button type="button" className="agent-pill-action-btn" onClick={handleCopy}>
+              <i className={copied ? "fa-solid fa-check" : "fa-solid fa-copy"} />
+              <span>{copied ? 'Tersalin' : 'Salin Detail'}</span>
+            </button>
+            {type === 'write' && meta && (
+              <button
+                type="button"
+                className="agent-pill-action-btn"
+                onClick={() => {
+                  onSelectFile?.(meta);
+                  onOpenDrawer?.('files');
+                }}
+              >
+                <i className="fa-solid fa-code" />
+                <span>Buka di Editor</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function parseContentWithPills(content) {
+  if (!content) return [];
+  const pillRegex = /<action_pill\s+id="([^"]*)"\s+type="([^"]*)"\s+title="([^"]*)"(?:\s+meta="([^"]*)")?(?:\s+status="([^"]*)")?>([\s\S]*?)<\/action_pill>/gi;
+  const segments = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pillRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({
+        type: 'text',
+        content: content.slice(lastIndex, match.index)
+      });
+    }
+    segments.push({
+      type: 'pill',
+      id: match[1],
+      pillType: match[2],
+      title: match[3],
+      meta: match[4] || '',
+      status: match[5] || 'completed',
+      detail: match[6]
+    });
+    lastIndex = pillRegex.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    segments.push({
+      type: 'text',
+      content: content.slice(lastIndex)
+    });
+  }
+
+  return segments;
+}
+
 export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, onLogout }) {
   // Sessions & Active Conversation
   const [sessions, setSessions] = useState([]);
@@ -248,6 +394,19 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   const getFileIcon = (ext) => {
     switch (ext?.toLowerCase()) {
+      case 'doc':
+      case 'docx': return { icon: 'fa-solid fa-file-word', color: '#2b579a' };
+      case 'xls':
+      case 'xlsx':
+      case 'csv': return { icon: 'fa-solid fa-file-excel', color: '#107c41' };
+      case 'ppt':
+      case 'pptx': return { icon: 'fa-solid fa-file-powerpoint', color: '#d24726' };
+      case 'pdf': return { icon: 'fa-solid fa-file-pdf', color: '#dc2626' };
+      case 'zip':
+      case 'rar':
+      case '7z':
+      case 'tar':
+      case 'gz': return { icon: 'fa-solid fa-file-zipper', color: '#7c3aed' };
       case 'html': return { icon: 'fa-brands fa-html5', color: '#e34f26' };
       case 'css': return { icon: 'fa-brands fa-css3-alt', color: '#1572b6' };
       case 'js':
@@ -608,9 +767,40 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 })()}
 
                 <div className="agent-msg-bubble">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {msg.content}
-                  </ReactMarkdown>
+                  {msg.role === 'user' ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <div className="agent-msg-body">
+                      {parseContentWithPills(msg.content).map((segment, sIdx) => {
+                        if (segment.type === 'pill') {
+                          return (
+                            <InlineActionPill
+                              key={segment.id || `pill_${sIdx}`}
+                              id={segment.id}
+                              type={segment.pillType}
+                              title={segment.title}
+                              meta={segment.meta}
+                              status={segment.status}
+                              detail={segment.detail}
+                              onSelectFile={handleSelectFile}
+                              onOpenDrawer={(tab) => {
+                                setActiveDrawerTab(tab);
+                                setIsDrawerOpen(true);
+                              }}
+                            />
+                          );
+                        }
+                        if (!segment.content.trim()) return null;
+                        return (
+                          <ReactMarkdown key={`text_${sIdx}`} remarkPlugins={[remarkGfm]}>
+                            {segment.content}
+                          </ReactMarkdown>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Interactive Downloadable File Deliverables */}
                   {msg.role === 'assistant' && (() => {

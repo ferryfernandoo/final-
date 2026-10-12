@@ -15,37 +15,44 @@ if (!fs.existsSync(SANDBOX_ROOT)) {
 }
 
 // Default standard SKILL.md template to guide the agent
-export const DEFAULT_SKILL_MD = `# ⚡ DEEPERNOVA AGENTIC CODING PROTOCOL (SKILL.md)
-Role: Senior Autonomous Full-Stack Engineer & Code Sandbox Architect
-Version: 2.5
-Target: Production-Ready, Verified, Bug-Free Code
+export const DEFAULT_SKILL_MD = `# ⚡ DEEPERNOVA AGENTIC CODING & WORKFLOW PROTOCOL (SKILL.md)
+Role: Senior Autonomous AI Agent, Software Engineer & Document Creator
+Language: Indonesian (Warm, Conversational, Professional)
 
 ---
 
-## 🎯 PROTOKOL KERJA OTONOM (Langkah Demi Langkah)
-Agar tindakan Anda terarah, terukur, dan tidak hilang arah:
-1. **Analisis Masalah (Thought & Plan)**: Pahami apa yang diminta user sebelum menyentuh file.
-2. **Periksa Struktur Workspace**: Amati berkas yang sudah ada di sandbox.
-3. **Penyusunan Kode (Write File)**: Tulis berkas kode secara utuh dan terstruktur (HTML, CSS, JS/Node, Python). Jangan tinggalkan placeholder atau snippet setengah jadi.
-4. **Eksekusi & Verifikasi (Run Code / Terminal)**: Uji kode di sandbox. Pastikan stdout tidak menghasilkan error atau syntax exception.
-5. **Live Preview**: Jika proyek berupa aplikasi web, jadikan 'index.html' sebagai entry point agar dapat dirender live di layar browser pengguna.
-6. **Transparansi Chain-of-Work**: Laporkan setiap fase pengerjaan secara jujur dan transparan ke pengguna.
+## 🎯 PRINSIP KOMUNIKASI & EKSEKUSI AGENTIC
+1. Berbicaralah secara hangat, komunikatif, dan alami dalam Bahasa Indonesia.
+2. Jelaskan langkah Anda secara bersahabat di antara aksi-aksi Anda (interleaved workflow).
+3. JANGAN PERNAH menulis teks pura-pura seperti "(do)" atau "(do_search)". Gunakan tag aksi XML yang nyata.
+4. Sistem akan otomatis menampilkan aksi Anda sebagai tombol pill interaktif yang dapat diklik pengguna untuk melihat detail (file, pencarian, kode, log terminal).
+5. Tulis kode nyata, lengkap, dan tanpa placeholder.
 
 ---
 
-## 🛠 TOOLS TERSEDIA
-- \`<thought>...\</thought>\`: Catatan berpikir dan strategi teknis Anda.
-- \`<write_file path="nama_file.ext">isi kode\</write_file>\`: Membuat atau memperbarui berkas di sandbox.
-- \`<execute_code language="node|python">kode untuk dijalankan\</execute_code>\`: Menjalankan kode di sandbox dan menangkap output terminal.
-- \`<run_command>perintah terminal\</run_command>\`: Menjalankan command shell aman di folder workspace.
-- \`<preview>nama_file.html\</preview>\`: Menetapkan berkas preview visual web.
+## 🛠 DAFTAR AKSI (TOOLS) TERSEDIA:
+- \`<read_file path="nama_file.ext" />\`
+  Membaca isi berkas dari sandbox atau panduan SKILL.md.
+- \`<search_web query="kata kunci pencarian" />\`
+  Mencari referensi, inspirasi materi/puisi/laporan, atau data aktual di internet.
+- \`<run_command>perintah terminal</run_command>\`
+  Menjalankan perintah terminal di workspace sandbox.
+- \`<write_file path="nama_file.ext">isi berkas</write_file>\`
+  Membuat atau memperbarui berkas kode/skrip secara utuh.
+- \`<execute_code language="python|node">kode</execute_code>\`
+  Mengeksekusi kode langsung di sandbox dan menangkap stdout/stderr.
+- \`<check_file path="nama_file.ext" />\`
+  Memverifikasi bahwa berkas hasil pengerjaan benar-benar sudah ada di disk.
+- \`<preview>index.html</preview>\`
+  Menetapkan live web preview (khusus proyek aplikasi web).
 
 ---
 
-## 🔒 ATURAN KEAMANAN SANDBOX
-- Semua berkas terkunci di dalam direktori workspace sesi ini.
-- Dilarang keras mencoba mengakses direktori sistem di luar workspace.
-- Utamakan performa, UI modern responsif, dan kode bersih yang mudah dipahami.
+## 📄 PEMBUATAN BERKAS OFFICE (.DOCX, .XLSX):
+- Python 3 di sandbox sudah terpasang pustaka 'python-docx' dan 'openpyxl'.
+- Untuk dokumen Word (.docx): Tulis skrip Python dengan 'python-docx' (heading, format paragraf, tabel, bullet points), simpan dengan doc.save("nama_file.docx"), lalu eksekusi dengan <execute_code language="python">!
+- Untuk spreadsheet Excel (.xlsx): Tulis skrip Python dengan 'openpyxl', simpan dengan wb.save("nama_file.xlsx"), lalu eksekusi!
+- Selalu periksa berkas output dengan <check_file path="nama_file.docx" /> sebelum memberikan tautan unduhan ke pengguna.
 `;
 
 /**
@@ -248,71 +255,85 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
 }
 
 /**
- * Parse agent tool tags from upstream model response
+ * Parse agent tool tags sequentially from model response
  */
-export function extractAgentActions(text) {
+export function extractSequentialActions(text) {
+  if (!text) return [];
   const actions = [];
   const writtenPaths = new Set();
 
-  // 1. Extract thought
-  const thoughtRegex = /<thought>([\s\S]*?)<\/thought>/gi;
+  // Unified tag regex matching paired or self-closing action tags
+  const tagRegex = /<(thought|read_file|read|search_web|search|run_command|command|terminal|write_file|file|execute_code|run_code|check_file|verify_file|preview)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|search_web|search|check_file|verify_file)\s+([^>]*?)\/?>/gi;
+
   let match;
-  while ((match = thoughtRegex.exec(text)) !== null) {
-    actions.push({
-      type: 'thought',
-      content: match[1].trim()
-    });
+  while ((match = tagRegex.exec(text)) !== null) {
+    const rawMatch = match[0];
+    const index = match.index;
+
+    if (match[1]) {
+      // Paired tag: <tag attr>body</tag>
+      const tagName = match[1].toLowerCase();
+      const attrStr = match[2] || '';
+      const body = (match[3] || '').trim();
+
+      const getAttr = (name) => {
+        const m = attrStr.match(new RegExp(`${name}=["']([^"']+)["']|${name}=([^\\s>]+)`, 'i'));
+        return m ? (m[1] || m[2] || '') : '';
+      };
+
+      if (tagName === 'thought') {
+        actions.push({ type: 'thought', content: body, rawMatch, index });
+      } else if (tagName === 'read_file' || tagName === 'read') {
+        const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
+        actions.push({ type: 'read_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'search_web' || tagName === 'search') {
+        const query = getAttr('query') || getAttr('q') || body;
+        actions.push({ type: 'search_web', query, rawMatch, index });
+      } else if (tagName === 'run_command' || tagName === 'command' || tagName === 'terminal') {
+        actions.push({ type: 'run_command', command: body, rawMatch, index });
+      } else if (tagName === 'write_file' || tagName === 'file') {
+        const filePath = getAttr('path') || getAttr('file') || getAttr('name');
+        actions.push({ type: 'write_file', path: filePath, content: body, rawMatch, index });
+        if (filePath) writtenPaths.add(filePath.toLowerCase());
+      } else if (tagName === 'execute_code' || tagName === 'run_code') {
+        const language = getAttr('language') || getAttr('lang') || 'node';
+        actions.push({ type: 'execute_code', language, code: body, rawMatch, index });
+      } else if (tagName === 'check_file' || tagName === 'verify_file') {
+        const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
+        actions.push({ type: 'check_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'preview') {
+        actions.push({ type: 'preview', entryFile: body || 'index.html', rawMatch, index });
+      }
+    } else if (match[4]) {
+      // Self-closing tag: <tag attr />
+      const tagName = match[4].toLowerCase();
+      const attrStr = match[5] || '';
+
+      const getAttr = (name) => {
+        const m = attrStr.match(new RegExp(`${name}=["']([^"']+)["']|${name}=([^\\s>]+)`, 'i'));
+        return m ? (m[1] || m[2] || '') : '';
+      };
+
+      if (tagName === 'read_file' || tagName === 'read') {
+        const filePath = getAttr('path') || getAttr('file');
+        actions.push({ type: 'read_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'search_web' || tagName === 'search') {
+        const query = getAttr('query') || getAttr('q');
+        actions.push({ type: 'search_web', query, rawMatch, index });
+      } else if (tagName === 'check_file' || tagName === 'verify_file') {
+        const filePath = getAttr('path') || getAttr('file');
+        actions.push({ type: 'check_file', path: filePath, rawMatch, index });
+      }
+    }
   }
 
-  // 2. Extract write_file & file tags (flexible attributes and quotes)
-  const writeFileRegex = /<(?:write_file|file)\s+(?:path|file|name)=["']?([^"'>\s]+)["']?[^>]*>([\s\S]*?)<\/(?:write_file|file)>/gi;
-  while ((match = writeFileRegex.exec(text)) !== null) {
-    const filePath = match[1].trim().replace(/^['"]|['"]$/g, '');
-    actions.push({
-      type: 'write_file',
-      path: filePath,
-      content: match[2].trim()
-    });
-    writtenPaths.add(filePath.toLowerCase());
-  }
-
-  // 3. Extract execute_code
-  const execCodeRegex = /<execute_code(?:\s+language=["']?([^"'>\s]+)["']?)?[^>]*>([\s\S]*?)<\/execute_code>/gi;
-  while ((match = execCodeRegex.exec(text)) !== null) {
-    actions.push({
-      type: 'execute_code',
-      language: match[1] || 'node',
-      code: match[2].trim()
-    });
-  }
-
-  // 4. Extract run_command
-  const runCommandRegex = /<run_command>([\s\S]*?)<\/run_command>/gi;
-  while ((match = runCommandRegex.exec(text)) !== null) {
-    actions.push({
-      type: 'run_command',
-      command: match[1].trim()
-    });
-  }
-
-  // 5. Extract preview
-  const previewRegex = /<preview>([\s\S]*?)<\/preview>/gi;
-  while ((match = previewRegex.exec(text)) !== null) {
-    actions.push({
-      type: 'preview',
-      entryFile: match[1].trim()
-    });
-  }
-
-  // 6. Intelligent Fallback: Code blocks with filename headers
-  // e.g. ```html:index.html or ```python filename="script.py" or first line <!-- index.html -->
+  // Fallback: Markdown code blocks if model didn't use XML tags for writing files
   const codeBlockRegex = /```([a-zA-Z0-9_-]+)?(?::|\s+(?:file|filename|path)=["']?([^\s"'>\n]+)["']?)?\n([\s\S]*?)```/g;
   while ((match = codeBlockRegex.exec(text)) !== null) {
     const lang = (match[1] || '').toLowerCase();
     let detectedPath = match[2] || '';
     const codeContent = match[3] || '';
 
-    // If no explicit path in header, check first line for comment like // index.html or <!-- index.html --> or # main.py
     if (!detectedPath) {
       const firstLine = (codeContent.trim().split('\n')[0] || '').trim();
       const commentFileMatch = firstLine.match(/^(?:\/{2}|<!--|#|\/\*)\s*(?:file(?:name)?:\s*)?([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)\s*(?:-->|\*\/)?$/i);
@@ -321,7 +342,6 @@ export function extractAgentActions(text) {
       }
     }
 
-    // Infer filename if user asked for a file and model omitted XML tags
     if (!detectedPath && !writtenPaths.size && codeContent.trim().length > 30) {
       if (lang === 'html' || codeContent.includes('<!DOCTYPE') || codeContent.includes('<html')) {
         detectedPath = 'index.html';
@@ -340,19 +360,34 @@ export function extractAgentActions(text) {
       actions.push({
         type: 'write_file',
         path: detectedPath,
-        content: codeContent.trim()
+        content: codeContent.trim(),
+        rawMatch: match[0],
+        index: match.index
       });
       writtenPaths.add(detectedPath.toLowerCase());
     }
   }
 
-  // Clean the text from XML tags for human friendly reading
+  // Sort chronologically by occurrence in text
+  actions.sort((a, b) => a.index - b.index);
+  return actions;
+}
+
+/**
+ * Backward compatibility wrapper
+ */
+export function extractAgentActions(text) {
+  const actions = extractSequentialActions(text);
   const cleanSummary = text
     .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
     .replace(/<(?:write_file|file)[\s\S]*?<\/(?:write_file|file)>/gi, '')
     .replace(/<execute_code[\s\S]*?<\/execute_code>/gi, '')
     .replace(/<run_command>[\s\S]*?<\/run_command>/gi, '')
     .replace(/<preview>[\s\S]*?<\/preview>/gi, '')
+    .replace(/<read_file[^>]*>(?:[\s\S]*?<\/read_file>)?/gi, '')
+    .replace(/<search_web[^>]*>(?:[\s\S]*?<\/search_web>)?/gi, '')
+    .replace(/<check_file[^>]*>(?:[\s\S]*?<\/check_file>)?/gi, '')
+    .replace(/\((?:do|do_search)\)\s*/gi, '')
     .trim();
 
   return { actions, cleanSummary };
@@ -366,6 +401,7 @@ export default {
   deleteFile,
   listFiles,
   executeInSandbox,
+  extractSequentialActions,
   extractAgentActions,
   DEFAULT_SKILL_MD
 };
