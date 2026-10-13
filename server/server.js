@@ -5424,42 +5424,32 @@ function cleanSearchText(str) {
 
 async function handleUnifiedSearch(req, res) {
   try {
-    let q = req.query?.q || req.body?.query || req.body?.q;
+    const rawQ = req.query?.q || req.body?.query || req.body?.q;
     const limit = parseInt(req.query?.limit || req.body?.limit || '8', 10);
-    if (!q) {
+    if (!rawQ || typeof rawQ !== 'string') {
       return res.status(400).json({ success: false, error: 'Query parameter q is required' });
     }
 
-    // 🕒 Auto-inject current date for latest/recent search inquiries if missing
-    const recentRegex = /\b(terbaru|terkini|teranyar|hari ini|saat ini|sekarang|update|berita|kabar|info(?:rmasi)? terbaru|harga terbaru|latest|recent|today|current|breaking news)\b/i;
-    if (recentRegex.test(q)) {
-      const now = new Date();
-      const year = now.getFullYear();
-      const months = [
-        'januari', 'februari', 'maret', 'april', 'mei', 'juni',
-        'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
-        'january', 'february', 'march', 'may', 'june', 'july', 'august', 'october', 'december'
-      ];
-      const qLower = q.toLowerCase();
-      const hasDateOrYear = qLower.includes(String(year)) || months.some(m => qLower.includes(m));
-      if (!hasDateOrYear) {
-        const day = now.getDate();
-        const monthsId = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-        q = `${q.trim()} ${day} ${monthsId[now.getMonth()]} ${year}`;
-      }
+    const cleanRawQ = rawQ.trim();
+    // Candidates to query:
+    // 1) The clean original query (best for BM25 match against existing articles)
+    // 2) Stripped query if it had an injected date
+    const strippedQ = cleanRawQ.replace(/\b\d{1,2}\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|\w+)\s+\d{4}\b/gi, '').trim();
+    const queryCandidates = [cleanRawQ];
+    if (strippedQ && strippedQ !== cleanRawQ && !queryCandidates.includes(strippedQ)) {
+      queryCandidates.push(strippedQ);
     }
 
-    console.log(`[SEARCH] Querying Deepernova Search Engine for: "${q}" (limit: ${limit})`);
+    console.log(`[SEARCH] Querying Deepernova Search Engine for: "${cleanRawQ}" (candidates: ${queryCandidates.length}, limit: ${limit})`);
 
     let searchData = null;
     let imagesData = null;
     let engineUsed = 'deepernova_bm25';
 
-    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API
+    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API on Port 4000
     const searchApiBases = [
       'http://127.0.0.1:4000/api/v1',
-      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`,
-      'https://challenge-roles-cincinnati-indicator.trycloudflare.com/api/v1'
+      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`
     ].filter(Boolean);
 
     const searchHeaders = {
@@ -5467,97 +5457,105 @@ async function handleUnifiedSearch(req, res) {
       'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
     };
 
-    for (const searchBase of searchApiBases) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+    for (const targetQuery of queryCandidates) {
+      if (searchData && searchData.results && searchData.results.length > 0) break;
 
-        const [searchResp, imagesResp] = await Promise.allSettled([
-          fetch(`${searchBase}/search?q=${encodeURIComponent(q)}&limit=${limit}&crawl=${req.query?.crawl !== undefined ? req.query.crawl : '0'}`, {
-            headers: searchHeaders,
-            signal: controller.signal
-          }),
-          fetch(`${searchBase}/images?q=${encodeURIComponent(q)}&limit=8`, {
-            headers: searchHeaders,
-            signal: controller.signal
-          })
-        ]);
-        clearTimeout(timeoutId);
+      for (const searchBase of searchApiBases) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 35000);
 
-        if (searchResp.status === 'fulfilled' && searchResp.value.ok) {
-          const ct = searchResp.value.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            const data = await searchResp.value.json();
-            if (data.results && data.results.length > 0) {
-              searchData = data;
-              engineUsed = `deepernova_bm25 (${searchBase})`;
-              console.log(`[SEARCH] ✓ Deepernova search responded with ${searchData.results.length} results from ${searchBase}`);
+          const [searchResp, imagesResp] = await Promise.allSettled([
+            fetch(`${searchBase}/search?q=${encodeURIComponent(targetQuery)}&limit=${limit}`, {
+              headers: searchHeaders,
+              signal: controller.signal
+            }),
+            fetch(`${searchBase}/images?q=${encodeURIComponent(targetQuery)}&limit=8`, {
+              headers: searchHeaders,
+              signal: controller.signal
+            })
+          ]);
+          clearTimeout(timeoutId);
+
+          if (searchResp.status === 'fulfilled' && searchResp.value.ok) {
+            const ct = searchResp.value.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              const data = await searchResp.value.json();
+              if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+                searchData = data;
+                engineUsed = `deepernova_bm25 (${searchBase})`;
+                console.log(`[SEARCH] ✓ Deepernova search responded with ${searchData.results.length} results for "${targetQuery}" from ${searchBase}`);
+                break;
+              }
             }
           }
-        }
 
-        if (imagesResp.status === 'fulfilled' && imagesResp.value.ok) {
-          const ct = imagesResp.value.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            imagesData = await imagesResp.value.json();
+          if (imagesResp.status === 'fulfilled' && imagesResp.value && imagesResp.value.ok) {
+            const ct = imagesResp.value.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              imagesData = await imagesResp.value.json();
+            }
           }
+        } catch (dnErr) {
+          console.warn(`[SEARCH] Deepernova error on ${searchBase} for "${targetQuery}":`, dnErr.message);
         }
-
-        if (searchData && searchData.results && searchData.results.length > 0) {
-          break; // Succeeded with DeeperNova Search
-        }
-      } catch (dnErr) {
-        console.warn(`[SEARCH] Deepernova error on ${searchBase}:`, dnErr.message);
       }
     }
 
-    // If still no results
-    if (!searchData) {
-      return res.status(502).json({
-        success: false,
-        error: 'Search engine is currently unreachable'
+    // 2. Format into standardized schema matching ChatBot.jsx & DocumentEditor.jsx
+    if (searchData && searchData.results && searchData.results.length > 0) {
+      const organicResults = (searchData.results || []).map((item, idx) => {
+        let domain = item.domain || '';
+        if (!domain && item.url) {
+          try { domain = new URL(item.url).hostname.replace('www.', ''); } catch (e) {}
+        }
+        return {
+          title: cleanSearchText(item.title) || 'Untitled',
+          link: item.url || '',
+          url: item.url || '',
+          snippet: cleanSearchText(item.snippet) || cleanSearchText(item.description) || '',
+          domain: domain,
+          thumbnail: item.lead_image_url || item.logo_url || item.image || null,
+          position: idx + 1,
+          date: item.formatted_date || item.date || null
+        };
       });
+
+      const rawImages = imagesData?.images || imagesData?.results || [];
+      const inlineImages = rawImages.map(img => ({
+        thumbnail: img.image || img.imageUrl,
+        link: img.url || img.pageUrl || img.imageUrl,
+        title: img.title || img.pageTitle || cleanRawQ,
+        source: img.url || img.pageUrl || img.imageUrl,
+        sourceDomain: ''
+      }));
+
+      const responsePayload = {
+        organic_results: organicResults,
+        inline_images: inlineImages,
+        search_information: {
+          query: cleanRawQ,
+          total_results: searchData.total_results || organicResults.length,
+          time_taken_ms: searchData.duration_ms || 0
+        },
+        engine: engineUsed
+      };
+
+      console.log(`[SEARCH] ✓ Returning ${organicResults.length} organic results and ${inlineImages.length} images for: "${cleanRawQ}"`);
+      return res.json({ success: true, data: responsePayload });
     }
 
-    // 3. Format into standardized schema matching ChatBot.jsx & DocumentEditor.jsx
-    const organicResults = (searchData.results || []).map((item, idx) => {
-      let domain = item.domain || '';
-      if (!domain && item.url) {
-        try { domain = new URL(item.url).hostname.replace('www.', ''); } catch (e) {}
+    // 3. Resilient Fallback: If no results found, return empty array with 200 rather than 502 error
+    console.warn(`[SEARCH] No organic results found for query: "${cleanRawQ}"`);
+    return res.json({
+      success: true,
+      data: {
+        organic_results: [],
+        inline_images: [],
+        search_information: { query: cleanRawQ, total_results: 0, time_taken_ms: 0 },
+        engine: 'none'
       }
-      return {
-        title: cleanSearchText(item.title) || 'Untitled',
-        link: item.url || '',
-        url: item.url || '',
-        snippet: cleanSearchText(item.snippet) || '',
-        domain: domain,
-        thumbnail: item.image || item.lead_image_url || item.logo_url || null,
-        position: idx + 1
-      };
     });
-
-    const rawImages = imagesData?.images || imagesData?.results || [];
-    const inlineImages = rawImages.map(img => ({
-      thumbnail: img.image || img.imageUrl,
-      link: img.url || img.pageUrl || img.imageUrl,
-      title: img.title || img.pageTitle || q,
-      source: img.url || img.pageUrl || img.imageUrl,
-      sourceDomain: ''
-    }));
-
-    const responsePayload = {
-      organic_results: organicResults,
-      inline_images: inlineImages,
-      search_information: {
-        query: q,
-        total_results: searchData.total_results || organicResults.length,
-        time_taken_ms: searchData.duration_ms || 0
-      },
-      engine: engineUsed
-    };
-
-    console.log(`[SEARCH] ✓ Returning ${organicResults.length} organic results and ${inlineImages.length} images for: "${q}"`);
-    return res.json({ success: true, data: responsePayload });
   } catch (error) {
     console.error('[SEARCH] Internal server error:', error);
     return res.status(500).json({ success: false, error: error.message });

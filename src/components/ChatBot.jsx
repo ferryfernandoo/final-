@@ -381,57 +381,34 @@ const renderHighlightedCode = (highlightedHtml) => {
 const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
   const MAX_VISIBLE = 4;
   const [offset, setOffset] = React.useState(0);
-  const userInteractedRef = React.useRef(false);
 
-  const hasMoreBubble = sources.length > MAX_VISIBLE;
-  const totalItems = hasMoreBubble ? sources.length + 1 : sources.length;
+  const safeSources = Array.isArray(sources) ? sources.filter(Boolean) : [];
+  const hasMoreBubble = safeSources.length > MAX_VISIBLE;
+  const totalItems = hasMoreBubble ? safeSources.length + 1 : safeSources.length;
   const maxOffset = Math.max(0, totalItems - MAX_VISIBLE);
 
-  // Generate unique signature of sources content so every step (1, 2, 3, etc.) re-triggers animation
+  // Generate unique signature of sources content so every step re-triggers animation
   const sourcesKey = React.useMemo(() => {
-    return sources.map(s => s.link || s.title || s.domain || '').join('|');
-  }, [sources]);
+    return safeSources.map(s => s.link || s.title || s.domain || '').join('|');
+  }, [safeSources]);
 
-  // Auto-slide to the right end on load, unless the user interacts
   React.useEffect(() => {
-    userInteractedRef.current = false;
     setOffset(0);
+  }, [sourcesKey]);
 
-    if (sources.length <= MAX_VISIBLE) return;
-
-    const interval = setInterval(() => {
-      if (userInteractedRef.current) {
-        clearInterval(interval);
-        return;
-      }
-
-      setOffset(prev => {
-        if (prev < maxOffset) {
-          return prev + 1;
-        } else {
-          clearInterval(interval);
-          return prev;
-        }
-      });
-    }, 550); // Snappy slide to the end every 550ms
-
-    return () => clearInterval(interval);
-  }, [sourcesKey, maxOffset, sources.length]);
+  if (safeSources.length === 0) return null;
 
   const handlePrev = (e) => {
     e.stopPropagation();
-    userInteractedRef.current = true; // Stop auto-sliding
     setOffset(prev => Math.max(prev - 1, 0));
   };
 
   const handleNext = (e) => {
     e.stopPropagation();
-    userInteractedRef.current = true; // Stop auto-sliding
     setOffset(prev => Math.min(prev + 1, maxOffset));
   };
 
   const handleDotClick = (idx) => {
-    userInteractedRef.current = true; // Stop auto-sliding
     setOffset(idx);
   };
 
@@ -439,10 +416,15 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
     <div className="source-bubbles-section">
       <div className="search-sources-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <i className="fa-solid fa-circle-nodes"></i>
-          <span>{language === 'id' ? 'Sumber:' : 'Sources:'}</span>
+          <i className="fa-solid fa-circle-nodes" style={{ color: '#4f46e5' }}></i>
+          <span style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary, #4b5563)' }}>
+            {language === 'id' ? 'Sumber Web:' : 'Web Sources:'}
+          </span>
+          <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 500 }}>
+            ({safeSources.length})
+          </span>
         </div>
-        {sources.length > 0 && onShowAll && (
+        {safeSources.length > 0 && onShowAll && (
           <button 
             className="show-all-sources-btn"
             onClick={onShowAll}
@@ -450,7 +432,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
               background: 'none',
               border: 'none',
               color: '#4f46e5',
-              fontSize: '11px',
+              fontSize: '11.5px',
               fontWeight: '600',
               cursor: 'pointer',
               display: 'flex',
@@ -466,7 +448,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
         )}
       </div>
 
-      <div className="source-bubbles-carousel-container" style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+      <div className="source-bubbles-carousel-container" style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', minHeight: '68px' }}>
         {/* Left Arrow Button */}
         {offset > 0 && (
           <button 
@@ -498,7 +480,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
         )}
 
         {/* Viewport: clips overflow */}
-        <div className="source-bubbles-viewport" style={{ overflow: 'hidden', width: '100%', maxWidth: '254px' }}>
+        <div className="source-bubbles-viewport" style={{ overflow: 'hidden', width: '100%', maxWidth: '264px' }}>
           <div
             className="source-bubbles-track"
             style={{
@@ -508,29 +490,43 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
               transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
-            {sources.map((source, i) => (
-              <a
-                key={i}
-                href={source.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={source.title || source.domain}
-                className="source-bubble"
-                style={{
-                  animation: offset === 0 ? `bubble-pop-in 0.38s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.05}s both` : 'none'
-                }}
-              >
-                <img
-                  src={`https://www.google.com/s2/favicons?sz=64&domain=${source.domain}`}
-                  onError={(e) => { e.target.src = 'https://img.icons8.com/ios-glyphs/30/1e3a8a/globe.png'; }}
-                  className="source-bubble-favicon"
-                  alt={source.domain}
-                />
-                <span className="source-bubble-label">
-                  {source.domain?.replace('www.', '').split('.')[0]}
-                </span>
-              </a>
-            ))}
+            {safeSources.map((source, i) => {
+              const rawDomain = source.domain || (source.link ? (() => { try { return new URL(source.link).hostname; } catch(e) { return ''; } })() : '');
+              const cleanDomain = rawDomain.replace(/^www\./, '');
+              const shortLabel = cleanDomain ? (cleanDomain.split('.')[0] || cleanDomain) : 'Web';
+              const faviconUrl = source.thumbnail || (cleanDomain ? `https://www.google.com/s2/favicons?sz=64&domain=${cleanDomain}` : 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png');
+
+              return (
+                <a
+                  key={`bubble_${i}_${source.link || i}`}
+                  href={source.link || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${source.title || cleanDomain}\n${source.snippet || ''}`}
+                  className="source-bubble"
+                  style={{
+                    animation: `bubble-pop-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.06}s both`
+                  }}
+                >
+                  <img
+                    src={faviconUrl}
+                    onError={(e) => {
+                      if (!e.target.dataset.triedDuck && cleanDomain) {
+                        e.target.dataset.triedDuck = 'true';
+                        e.target.src = `https://icons.duckduckgo.com/ip3/${cleanDomain}.ico`;
+                      } else {
+                        e.target.src = 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png';
+                      }
+                    }}
+                    className="source-bubble-favicon"
+                    alt={cleanDomain || 'source'}
+                  />
+                  <span className="source-bubble-label">
+                    {shortLabel}
+                  </span>
+                </a>
+              );
+            })}
 
             {hasMoreBubble && onShowAll && (
               <div 
@@ -540,7 +536,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
                 style={{ cursor: 'pointer' }}
               >
                 <div className="source-bubble-more-circle">
-                  +{sources.length - MAX_VISIBLE}
+                  +{safeSources.length - MAX_VISIBLE}
                 </div>
                 <span className="source-bubble-label" style={{ color: '#4f46e5', fontWeight: '700' }}>
                   {language === 'id' ? 'Lainnya' : 'More'}
@@ -557,7 +553,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
             className="carousel-nav-btn next-btn"
             style={{
               position: 'absolute',
-              left: `${254 - 12}px`,
+              left: `${264 - 12}px`,
               zIndex: 10,
               width: '24px',
               height: '24px',
@@ -582,7 +578,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
       </div>
 
       {/* Dot progress indicator */}
-      {sources.length > MAX_VISIBLE && (
+      {safeSources.length > MAX_VISIBLE && (
         <div className="source-bubble-dots" style={{ display: 'flex', gap: '5px', justifyContent: 'center', marginTop: '4px' }}>
           {Array.from({ length: maxOffset + 1 }).map((_, i) => (
             <span 
@@ -10593,6 +10589,29 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         displayedSearchText = finalResponseText;
       }
 
+      // Guarantee: If sources is empty but text contains markdown links, parse them into sources so bubbles definitely show!
+      if ((!sources || sources.length === 0) && finalResponseText) {
+        const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g;
+        let match;
+        const seenLinks = new Set();
+        while ((match = linkRegex.exec(finalResponseText)) !== null) {
+          const title = match[1];
+          const link = match[2];
+          if (!seenLinks.has(link)) {
+            seenLinks.add(link);
+            let domain = '';
+            try { domain = new URL(link).hostname; } catch(e) { domain = link; }
+            sources.push({
+              title,
+              link,
+              snippet: title,
+              domain: domain || 'Web',
+              thumbnail: null
+            });
+          }
+        }
+      }
+
       startSearchTypingAnimation();
 
       // Wait for typing animation to catch up completely with smooth, fluid pace
@@ -10616,6 +10635,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // Finalize: save and clean up
       const cleanedFinalText = replaceCitationsWithLinks(cleanResponseText(finalResponseText));
+      const finalizedSources = (sources && sources.length > 0) ? sources : [];
       setMessages((prev) => {
         const updated = prev.map((msg) =>
           msg.id === messageId
@@ -10630,7 +10650,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 isRecallingMemory: false,
                 isImageGenerating: false,
                 isReasoning: false,
-                isReasoningComplete: !!(searchReasoningText || msg.reasoningText)
+                isReasoningComplete: !!(searchReasoningText || msg.reasoningText),
+                searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : finalizedSources,
+                searchSteps: (msg.searchSteps && msg.searchSteps.length > 0) ? msg.searchSteps : (updatedSteps || [])
               }
             : msg
         );
@@ -12370,29 +12392,36 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   {/* Render multi-step search steps sequentially */}
                   {message.searchSteps && message.searchSteps.length > 0 ? (
                     <div className="multi-step-search-container" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-                      {message.searchSteps.map((step, sIdx) => (
-                        <div key={`step_${sIdx}_${step.query}`} className="search-step-block" style={{ animation: 'float-source-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}>
-                          {step.isSearching ? (
-                            <div className="search-simple-indicator">
-                              <span className="search-simple-spinner"></span>
-                              <span className="search-simple-text">
-                                {userLanguage === 'id' ? `Mencari "${step.query}"...` : `Searching for "${step.query}"...`}
-                              </span>
-                            </div>
-                          ) : (
-                            ((step.sources && step.sources.length > 0) || (message.searchSources && message.searchSources.length > 0)) && (
-                              <div className="search-sources-section" style={{ marginTop: '4px', animation: 'float-source-in 0.35s ease both' }}>
-                                <SourceBubbleCarousel
-                                  key={`carousel_${sIdx}_${step.query}_${((step.sources && step.sources.length > 0) ? step.sources : message.searchSources).length}`}
-                                  sources={(step.sources && step.sources.length > 0) ? step.sources : message.searchSources}
-                                  language={userLanguage}
-                                  onShowAll={() => setActiveSearchSources({ query: step.query || message.searchQuery, sources: (step.sources && step.sources.length > 0) ? step.sources : message.searchSources })}
-                                />
+                      {message.searchSteps.map((step, sIdx) => {
+                        const stepSources = (step.sources && step.sources.length > 0)
+                          ? step.sources
+                          : (message.searchSources && message.searchSources.length > 0)
+                            ? message.searchSources
+                            : [];
+                        return (
+                          <div key={`step_${sIdx}_${step.query}`} className="search-step-block" style={{ animation: 'float-source-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}>
+                            {step.isSearching ? (
+                              <div className="search-simple-indicator">
+                                <span className="search-simple-spinner"></span>
+                                <span className="search-simple-text">
+                                  {userLanguage === 'id' ? `Mencari "${step.query}"...` : `Searching for "${step.query}"...`}
+                                </span>
                               </div>
-                            )
-                          )}
-                        </div>
-                      ))}
+                            ) : (
+                              stepSources.length > 0 && (
+                                <div className="search-sources-section" style={{ marginTop: '4px', animation: 'float-source-in 0.35s ease both' }}>
+                                  <SourceBubbleCarousel
+                                    key={`carousel_${sIdx}_${step.query}_${stepSources.length}`}
+                                    sources={stepSources}
+                                    language={userLanguage}
+                                    onShowAll={() => setActiveSearchSources({ query: step.query || message.searchQuery, sources: stepSources })}
+                                  />
+                                </div>
+                              )
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     // Fallback to legacy single search rendering

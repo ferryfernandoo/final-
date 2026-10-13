@@ -231,6 +231,12 @@ if (typeof window !== 'undefined') {
  * Helper to perform direct frontend search and map results into standard format
  */
 async function performDirectSearch(query, limit, includeImages) {
+  // If page is loaded over HTTPS, direct HTTP fetch to localhost:4000 is blocked by Mixed Content policy.
+  // In that case, let the backend proxy handle it safely over HTTPS.
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    return null;
+  }
+
   const searchHeaders = {
     'Authorization': `Bearer ${DEEPERNOVA_PUBLIC_GUEST_KEY}`,
     'X-API-Key': DEEPERNOVA_PUBLIC_GUEST_KEY,
@@ -238,7 +244,7 @@ async function performDirectSearch(query, limit, includeImages) {
   };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
 
   const searchUrl = new URL(`${DEEPERNOVA_SEARCH_API_URL}/search`);
   searchUrl.searchParams.append('q', query);
@@ -284,9 +290,9 @@ async function performDirectSearch(query, limit, includeImages) {
         title: cleanSearchText(item.title) || 'Untitled',
         link: item.url || '',
         url: item.url || '',
-        snippet: cleanSearchText(item.snippet) || '',
+        snippet: cleanSearchText(item.snippet) || cleanSearchText(item.description) || '',
         domain: domain,
-        thumbnail: item.lead_image_url || item.logo_url || null,
+        thumbnail: item.lead_image_url || item.logo_url || item.image || null,
         position: idx + 1,
         date: item.formatted_date || item.formattedDate || item.date || null,
         publishedAt: item.published_at || item.publishedAt || item.crawledAt || null
@@ -340,44 +346,58 @@ export async function executeWebSearch(query, options = {}) {
 
   console.log(`[ClientSearchService] Executing search for: "${effectiveQuery}" (orig: "${query}", isGuest: ${isGuest}, limit: ${limit})`);
 
-  // 1. Primary: Direct Front-End Hit to Deepernova Search Engine (Sub-20ms BM25, CORS enabled)
+  // 1. Primary: Direct Front-End Hit to Deepernova Search Engine (Sub-20ms BM25 on HTTP localhost)
   try {
     const directResult = await performDirectSearch(effectiveQuery, limit, includeImages);
     if (directResult && directResult.success && directResult.data?.organic_results?.length > 0) {
       console.log('[ClientSearchService] 🚀 Direct Front-End Hit Success to Deepernova Search Engine');
       return directResult;
     }
+    // Also try direct without date suffix if direct with date returned 0 results
+    if (effectiveQuery !== query) {
+      const directCleanResult = await performDirectSearch(query, limit, includeImages);
+      if (directCleanResult && directCleanResult.success && directCleanResult.data?.organic_results?.length > 0) {
+        console.log('[ClientSearchService] 🚀 Direct Front-End Hit Success (clean query) to Deepernova Search Engine');
+        return directCleanResult;
+      }
+    }
   } catch (directErr) {
     console.warn('[ClientSearchService] Direct hit failed or blocked, falling back to proxy:', directErr.message);
   }
 
-  // 2. Backend Search Proxy Fallback
+  // 2. Backend Search Proxy Fallback (Works on HTTPS tunnels & production)
   try {
-    const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`;
+    const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`;
     console.log('[ClientSearchService] Fetching search via backend proxy:', backendProxyUrl);
     const response = await fetch(backendProxyUrl, {
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      throw new Error(`Search API returned status ${response.status}`);
-    }
-
-    const searchData = await response.json();
-    return searchData;
-  } catch (proxyErr) {
-    console.warn('[ClientSearchService] Backend proxy search failed, attempting direct front-end hit fallback:', proxyErr.message);
-    
-    // Resilient fallback: Try direct client search if proxy failed (e.g. backend server offline)
-    try {
-      const fallbackResult = await performDirectSearch(effectiveQuery, limit, includeImages);
-      if (fallbackResult) {
-        return fallbackResult;
+    if (response.ok) {
+      const searchData = await response.json();
+      if (searchData && searchData.success && searchData.data?.organic_results?.length > 0) {
+        return searchData;
       }
-    } catch (fallbackErr) {
-      console.error('[ClientSearchService] Direct fallback also failed:', fallbackErr);
     }
 
+    // Try effective query if clean query didn't return results
+    if (effectiveQuery !== query) {
+      const altProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`;
+      const altResp = await fetch(altProxyUrl, { credentials: 'include' });
+      if (altResp.ok) {
+        const altData = await altResp.json();
+        if (altData && altData.success && altData.data?.organic_results?.length > 0) {
+          return altData;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      data: { organic_results: [], inline_images: [] }
+    };
+  } catch (proxyErr) {
+    console.warn('[ClientSearchService] Backend proxy search failed:', proxyErr.message);
     return {
       success: false,
       error: proxyErr.message,
