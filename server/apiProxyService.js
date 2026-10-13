@@ -13,15 +13,38 @@ import { apiKeyManager } from './apiKeyManager.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
 
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
 
-const RAW_PROXY_KEYS = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-export const TOKENMIX_API_KEYS = Array.from(new Set([
-  ...RAW_PROXY_KEYS,
-  process.env.TOKENMIX_API_KEY,
-  process.env.TOKENMIX_SECONDARY_API_KEY,
-  process.env.TOKENMIX_FALLBACK_API_KEY
-].filter(Boolean).map(sanitizeTokenKey)));
+export const HARDCODED_TOKENMIX_KEYS = [
+  'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
+  'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
+  'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
+  'sk-tm-XdNatQm0mzIzifTrrKCfmeQMZ3CpFxL212QAp8wQYIelbrNX',
+  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
+  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
+  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
+];
+
+export function getEffectiveTokenMixKeys() {
+  const raw = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+  return Array.from(new Set([
+    ...raw,
+    process.env.TOKENMIX_API_KEY,
+    process.env.TOKENMIX_SECONDARY_API_KEY,
+    process.env.TOKENMIX_FALLBACK_API_KEY,
+    ...HARDCODED_TOKENMIX_KEYS
+  ].filter(Boolean).map(sanitizeTokenKey)));
+}
+
+export const TOKENMIX_API_KEYS = getEffectiveTokenMixKeys();
 export const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 let activeProxyKeyIndex = 0;
 

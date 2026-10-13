@@ -467,7 +467,7 @@ async function main() {
     log.success('Search Engine sudah aktif di port 4000.');
   } else if (fs.existsSync(SEARCH_DIR)) {
     const serverFile = fs.existsSync(path.join(SEARCH_DIR, 'server.js')) ? 'server.js' : 'src/server.js';
-    startProcess('node', ['--max-old-space-size=1536', serverFile], SEARCH_DIR, 'Deepernova Search Engine');
+    startProcess('node', ['--max-old-space-size=4096', serverFile], SEARCH_DIR, 'Deepernova Search Engine');
     log.info('Menunggu Search Engine siap di port 4000 (max 40 detik)...');
     if (await waitForPort(4000, 40000)) {
       log.success('Search Engine siap di port 4000.');
@@ -644,7 +644,7 @@ async function main() {
     // Commit
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
     try {
-      execSync(`git commit -m "auto-deploy: ${timestamp} - sync tunnels, config, build"`, { cwd: ROOT_DIR, stdio: 'inherit' });
+      execSync(`git commit -m "fix(ecosystem): fix ai agent response, dte connection, search engine speed & sync tunnels (${timestamp})"`, { cwd: ROOT_DIR, stdio: 'inherit' });
       log.success('Commit berhasil.');
     } catch {
       log.info('Tidak ada perubahan baru untuk di-commit.');

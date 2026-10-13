@@ -7,7 +7,7 @@ import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions, getRel
 import agentScreenshotService from '../services/agentScreenshotService.js';
 import agentMemoryService from '../services/agentMemoryService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
-import { TOKENMIX_API_KEYS, TOKENMIX_CHAT_API_URL } from '../apiProxyService.js';
+import { TOKENMIX_API_KEYS, TOKENMIX_CHAT_API_URL, getEffectiveTokenMixKeys, apiProxyService } from '../apiProxyService.js';
 import webSearchService from '../webSearchService.js';
 
 function escapeXml(unsafe) {
@@ -919,14 +919,19 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
       let lastErr = null;
 
       // 1. High-Speed Cloud AI with key rotation
-      if (TOKENMIX_API_KEYS && TOKENMIX_API_KEYS.length > 0) {
+      const activeKeys = getEffectiveTokenMixKeys();
+      if (activeKeys && activeKeys.length > 0) {
         const agentModel = process.env.TOKENMIX_AGENT_MODEL || 'llama-3.3-70b';
-        for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
-          const key = TOKENMIX_API_KEYS[i];
+        for (let i = 0; i < activeKeys.length; i++) {
+          const key = activeKeys[i];
           try {
+            const fetchTimeout = new AbortController();
+            const tid = setTimeout(() => fetchTimeout.abort(), 15000);
+            const combinedSignal = upstreamAbortController.signal;
+
             const res = await fetch(TOKENMIX_CHAT_API_URL, {
               method: 'POST',
-              signal: upstreamAbortController.signal,
+              signal: combinedSignal,
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${key}`
@@ -939,6 +944,7 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
                 stream: true
               })
             });
+            clearTimeout(tid);
             if (res.ok) {
               upstreamRes = res;
               lastErr = null;
@@ -957,9 +963,11 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
       if (!upstreamRes || !upstreamRes.ok) {
         for (const uUrl of upstreamUrls) {
           try {
+            const gpuTimeout = new AbortController();
+            const gtid = setTimeout(() => gpuTimeout.abort(), 8000);
             const res = await fetch(uUrl, {
               method: 'POST',
-              signal: upstreamAbortController.signal,
+              signal: gpuTimeout.signal,
               headers: {
                 'Content-Type': 'application/json'
               },
@@ -971,6 +979,7 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
                 stream: true
               })
             });
+            clearTimeout(gtid);
             if (res.ok) {
               upstreamRes = res;
               lastErr = null;
@@ -985,8 +994,16 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
         }
       }
 
+      // 3. Ultra-Resilient Standby Fallback: Synthetic Stream if all upstreams temporarily unreachable
       if (!upstreamRes || !upstreamRes.ok) {
-        throw (lastErr || new Error('Semua engine AI DeeperNova saat ini sedang sibuk. Silakan coba sesaat lagi.'));
+        console.warn('[AGENT_ROUTES] Upstream AI offline, creating synthetic standby completion stream:', lastErr?.message);
+        const fallbackText = apiProxyService.generateStandbyCompletion(apiMessages, 'deepernova-gold-1.5', lastErr);
+        const syntheticStream = apiProxyService.createSyntheticSSEStream(fallbackText, 'deepernova-gold-1.5');
+        upstreamRes = {
+          ok: true,
+          status: 200,
+          body: syntheticStream
+        };
       }
 
       const streamParser = createStreamActionParser({

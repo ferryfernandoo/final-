@@ -38,19 +38,11 @@
       ]
     },
     {
-      "source": "/((?!assets/).*)",
+      "source": "/(index.html)?",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate, max-age=0, s-maxage=0"
-        },
-        {
-          "key": "Pragma",
-          "value": "no-cache"
-        },
-        {
-          "key": "Expires",
-          "value": "0"
+          "value": "no-cache, no-store, must-revalidate, max-age=0"
         }
       ]
     },
@@ -106,27 +98,23 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/api/:path*"
+      "destination": "https://forest-gives-printer-social.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/auth/:path*"
+      "destination": "https://forest-gives-printer-social.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/v1/:path*"
-    },
-    {
-      "source": "/chat/:path*",
-      "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/chat/:path*"
+      "destination": "https://forest-gives-printer-social.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/download/:path*"
+      "destination": "https://forest-gives-printer-social.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://conversion-unified-rat-fellowship.trycloudflare.com/watermarked/:path*"
+      "destination": "https://forest-gives-printer-social.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
