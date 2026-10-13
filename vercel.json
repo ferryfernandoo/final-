@@ -98,23 +98,23 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://cancel-usage-finite-bool.trycloudflare.com/api/:path*"
+      "destination": "https://corp-surrounded-composer-overall.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://cancel-usage-finite-bool.trycloudflare.com/auth/:path*"
+      "destination": "https://corp-surrounded-composer-overall.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://cancel-usage-finite-bool.trycloudflare.com/v1/:path*"
+      "destination": "https://corp-surrounded-composer-overall.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://cancel-usage-finite-bool.trycloudflare.com/download/:path*"
+      "destination": "https://corp-surrounded-composer-overall.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://cancel-usage-finite-bool.trycloudflare.com/watermarked/:path*"
+      "destination": "https://corp-surrounded-composer-overall.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",

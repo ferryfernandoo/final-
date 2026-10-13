@@ -92,16 +92,26 @@ function sleep(ms) {
 }
 
 /**
- * Start a process in a new CMD window.
+ * Start a process in background with optional log output.
  * Path is quoted to handle spaces (e.g. "F:\order dte\server").
  */
-function startProcess(command, args, cwd, name) {
+function startProcess(command, args, cwd, name, logFile = null) {
   log.info(`Menjalankan ${name}...`);
   try {
+    let stdioConfig = 'ignore';
+    if (logFile) {
+      try {
+        const fullLogPath = path.isAbsolute(logFile) ? logFile : path.join(ROOT_DIR, logFile);
+        const fd = fs.openSync(fullLogPath, 'a');
+        stdioConfig = ['ignore', fd, fd];
+      } catch {
+        stdioConfig = 'ignore';
+      }
+    }
     const child = spawn(command, args, {
       cwd,
       detached: true,
-      stdio: 'ignore',
+      stdio: stdioConfig,
       shell: true
     });
     child.unref();
@@ -269,8 +279,8 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     }
     if (dteUrl) {
       apiConfigContent = apiConfigContent.replace(
-        /: 'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
-        `: '${dteUrl}');`
+        /export const ORDER_DTE_URL =\s*[\s\S]*?'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
+        `export const ORDER_DTE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ORDER_DTE_URL) ||\n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:5173'\n    : '${dteUrl}');`
       );
     }
     if (searchEngineUrl) {
@@ -440,9 +450,15 @@ async function main() {
   try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
   await sleep(1000);
 
-  // Pastikan C:\deepernova-data siap
+  // Pastikan C:\deepernova-data dan D:\deepernova-data siap
   if (!fs.existsSync('C:\\deepernova-data')) {
     try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch {}
+  }
+  if (!fs.existsSync('D:\\deepernova-data')) {
+    try { fs.mkdirSync('D:\\deepernova-data', { recursive: true }); } catch {}
+  }
+  if (!fs.existsSync('D:\\deepernova-data\\temp')) {
+    try { fs.mkdirSync('D:\\deepernova-data\\temp', { recursive: true }); } catch {}
   }
 
   // ── Step 0.5: DeeperNova AI Server (Port 8000) ───
@@ -450,9 +466,9 @@ async function main() {
   if (await checkPortOpen(8000)) {
     log.success('AI Server sudah aktif di port 8000.');
   } else if (fs.existsSync(AI_SERVER_DIR)) {
-    startProcess('python', ['start_api_server.py'], AI_SERVER_DIR, 'Deepernova AI Server');
-    log.info('Menunggu AI Server siap di port 8000 (max 40 detik)...');
-    if (await waitForPort(8000, 40000)) {
+    startProcess('python', ['start_api_server.py'], AI_SERVER_DIR, 'Deepernova AI Server', 'ai-server.log');
+    log.info('Menunggu AI Server siap di port 8000 (max 50 detik)...');
+    if (await waitForPort(8000, 50000)) {
       log.success('AI Server siap di port 8000.');
     } else {
       log.warn('AI Server belum merespons port 8000, proses lanjut di background...');
@@ -467,7 +483,7 @@ async function main() {
     log.success('Search Engine sudah aktif di port 4000.');
   } else if (fs.existsSync(SEARCH_DIR)) {
     const serverFile = fs.existsSync(path.join(SEARCH_DIR, 'server.js')) ? 'server.js' : 'src/server.js';
-    startProcess('node', ['--max-old-space-size=4096', serverFile], SEARCH_DIR, 'Deepernova Search Engine');
+    startProcess('node', ['--env-file=.env', '--max-old-space-size=4096', serverFile], SEARCH_DIR, 'Deepernova Search Engine', 'search-server.log');
     log.info('Menunggu Search Engine siap di port 4000 (max 40 detik)...');
     if (await waitForPort(4000, 40000)) {
       log.success('Search Engine siap di port 4000.');
@@ -483,7 +499,7 @@ async function main() {
   if (await checkPortOpen(3001)) {
     log.success('Backend Server sudah aktif di port 3001.');
   } else {
-    startProcess('node', ['server/server.js'], ROOT_DIR, 'Deepernova Backend Server');
+    startProcess('node', ['server/server.js'], ROOT_DIR, 'Deepernova Backend Server', 'server.log');
     log.info('Menunggu Backend Server siap di port 3001 (max 20 detik)...');
     if (await waitForPort(3001, 20000)) {
       log.success('Backend Server siap di port 3001.');
@@ -497,7 +513,7 @@ async function main() {
   if (await checkPortOpen(5174)) {
     log.success('Frontend Vite sudah aktif di port 5174.');
   } else {
-    startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend');
+    startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
     log.info('Menunggu Frontend siap di port 5174 (max 15 detik)...');
     if (await waitForPort(5174, 15000)) {
       log.success('Frontend Vite siap di port 5174.');
@@ -512,7 +528,7 @@ async function main() {
     if (await checkPortOpen(5000)) {
       log.success('DTE Backend sudah aktif di port 5000.');
     } else {
-      startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend');
+      startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend', 'dte-backend.log');
       log.info('Menunggu DTE Backend siap di port 5000 (max 15 detik)...');
       if (await waitForPort(5000, 15000)) {
         log.success('DTE Backend siap di port 5000.');
@@ -531,7 +547,7 @@ async function main() {
     if (await checkPortOpen(5173)) {
       log.success('DTE Frontend sudah aktif di port 5173.');
     } else {
-      startProcess('npm', ['run', 'dev'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend');
+      startProcess('npm', ['run', 'dev'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend', 'dte-frontend.log');
       log.info('Menunggu DTE Frontend siap di port 5173 (max 15 detik)...');
       if (await waitForPort(5173, 15000)) {
         log.success('DTE Frontend siap di port 5173.');
