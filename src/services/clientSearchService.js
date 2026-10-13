@@ -32,150 +32,19 @@ function cleanSearchText(str) {
 }
 
 /**
- * Otomatis menambahkan tanggal/bulan/tahun sekarang jika query atau prompt user
- * menanyakan informasi terbaru / berita terkini / hari ini.
- * Contoh: "berita terbaru AI" -> "berita terbaru AI 20 September 2026"
+ * Query passthrough - tidak ada modifikasi tanggal atau regex aneh.
+ * Query pencarian 100% murni mengikuti apa yang ditentukan oleh AI.
  */
 export function enrichQueryWithDateIfRecent(query, userPrompt = '', language = 'id') {
-  if (!query || typeof query !== 'string') return query || '';
-
-  const combined = `${userPrompt || ''} ${query}`.toLowerCase();
-
-  const recentPatterns = [
-    /\b(terbaru|terkini|teranyar|hari ini|saat ini|sekarang|update|berita|kabar|info(?:rmasi)? terbaru|harga terbaru)\b/i,
-    /\b(latest|recent|today|current|now|breaking news|news)\b/i
-  ];
-
-  const isAskingRecent = recentPatterns.some(pattern => pattern.test(combined));
-  if (!isAskingRecent) return query.trim();
-
-  const now = new Date();
-  const day = now.getDate();
-  const year = now.getFullYear();
-
-  const monthsId = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
-  const monthsEn = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const monthId = monthsId[now.getMonth()];
-  const monthEn = monthsEn[now.getMonth()];
-
-  const qLower = query.toLowerCase();
-  // Cegah duplikasi jika tahun atau nama bulan sudah tertulis di query
-  if (
-    qLower.includes(String(year)) ||
-    qLower.includes(monthId.toLowerCase()) ||
-    qLower.includes(monthEn.toLowerCase())
-  ) {
-    return query.trim();
-  }
-
-  const dateSuffix = language === 'en'
-    ? `${day} ${monthEn} ${year}`
-    : `${day} ${monthId} ${year}`;
-
-  return `${query.trim()} ${dateSuffix}`;
+  return (query || '').trim();
 }
 
 /**
- * Detect upfront if a user prompt requires web search before invoking the LLM stream.
- * Prevents the AI from hallucinating / answering 'ngawur' first before searching.
- * Returns { shouldSearch: true, searchQuery: string } or null.
+ * Deteksi regex di awal ditiadakan.
+ * Keputusan apakah perlu searching atau tidak sepenuhnya ditentukan oleh AI (LLM).
  */
 export function detectUpfrontSearchIntent(promptText, language = 'id') {
-  if (!promptText || typeof promptText !== 'string') return null;
-  const trimmed = promptText.trim();
-  if (trimmed.length < 3) return null;
-
-  const lower = trimmed.toLowerCase();
-
-  // 1. HARD EXCLUSIONS: Casual greetings, pleasantries, small talk
-  const isGreetingOnly = /^(halo|hai|hi|hey|hei|pagi|siang|sore|malam|assalamualaikum|tes|test|yo|woi|bro|sis)(\s+(ai|deepernova|admin|semua|kawan|bro|sis|gan))?[.!?~]*$/i.test(trimmed);
-  if (isGreetingOnly) return null;
-
-  const isCasualSmallTalk = /^(apa kabar|lagi apa|lagi ngapain|siapa kamu|kamu siapa|kamu bot|kamu ai|bisa apa aja|fitur kamu|kamu buatan siapa|siapa pembuatmu|terima kasih|makasih|thanks|thank you|ok|oke|sip|siap)(\s+(bro|sis|gan|min|kawan|ai|deepernova|nih|ya|dong))?[.!?~]*$/i.test(trimmed) ||
-    /\b(apa kabar|kabar baik)\b/i.test(lower);
-  if (isCasualSmallTalk) return null;
-
-  // 2. EXCLUSION: Coding, programming, debugging, math, creative writing (unless explicitly instructed to search web)
-  const hasExplicitWebDirective = /\b(cari\s+di\s+(internet|google|web)|cariin|coba\s+cari|tolong\s+cari|search\s+on\s+web|search\s+online|googling|browsing|cek\s+(di\s+)?(internet|google|web))\b/i.test(lower);
-
-  if (!hasExplicitWebDirective) {
-    // Code / programming queries
-    const isCodeQuery = /\b(buatkan|tulis|bikin|contoh)?\s*(fungsi|function|kode|script|kodingan|program|syntax|algoritma|query sql|component react|css|html)\b/i.test(lower) ||
-      /\b(kenapa error|cara fix error|debug|perbaiki kode|bug pada|exception in|undefined is not)\b/i.test(lower);
-    if (isCodeQuery) return null;
-
-    // Math / calculation queries
-    const isMathQuery = /\b(hitung|berapakah hasil|pecahkan persamaan|rumus|integral|turunan|limit)\b/i.test(lower);
-    if (isMathQuery) return null;
-
-    // Creative writing
-    const isCreativeQuery = /\b(buatkan|tuliskan|bikin|ciptakan)\s+(puisi|cerita|pantun|cerpen|novel|lirik lagu|dongeng)\b/i.test(lower);
-    if (isCreativeQuery) return null;
-
-    // Platform identity
-    const isPlatformQuery = /\b(apa itu deepernova|fitur deepernova|siapa ferry fernando|ceo deepernova)\b/i.test(lower);
-    if (isPlatformQuery) return null;
-  }
-
-  // 3. POSITIVE DETECTION: Clear search intent
-  let matched = false;
-
-  // Group A: Explicit search directives
-  if (hasExplicitWebDirective || /^(cari|search|googling|browsing)\s+/i.test(lower)) {
-    matched = true;
-  }
-
-  // Group B: Breaking news & current events
-  if (!matched && /\b(berita\s+terbaru|berita\s+terkini|berita\s+hari\s+ini|kabar\s+terbaru|kabar\s+terkini|info\s+terkini|update\s+terbaru|breaking\s+news|peristiwa\s+terkini|isu\s+terkini|berita\s+viral)\b/i.test(lower)) {
-    matched = true;
-  }
-
-  // Group C: News mentions with topic (e.g., "berita persib", "berita gempa", "kabar duka")
-  if (!matched && /\b(berita|kabar|headline)\s+[a-z0-9]/i.test(lower) && !/\b(apa kabar|kabar baik|bikin berita|buat berita)\b/i.test(lower)) {
-    matched = true;
-  }
-
-  // Group D: Real-time prices & financial rates
-  if (!matched && /\b(harga\s+emas|harga\s+btc|harga\s+bitcoin|kurs\s+dollar|kurs\s+usd|kurs\s+rupiah|harga\s+bbm|ihsg|harga\s+saham)\b/i.test(lower)) {
-    matched = true;
-  }
-
-  // Group E: Weather & Natural disasters
-  if (!matched && /\b(cuaca\s+(hari\s+ini|besok|sekarang|di)|prakiraan\s+cuaca|suhu\s+udara|gempa\s+(hari\s+ini|terkini|barusan|bumi)|info\s+banjir|tsunami)\b/i.test(lower)) {
-    matched = true;
-  }
-
-  // Group F: Sports / Schedules / Match results
-  if (!matched && /\b(jadwal\s+(pertandingan|bola|siaran|tayang)|skor\s+(pertandingan|bola|akhir)|hasil\s+pertandingan|klasemen\s+(sementara|liga)|siapa\s+(juara|pemenang)\s+(piala dunia|liga|euro|ucl|champions|pemilu|pilpres))\b/i.test(lower)) {
-    matched = true;
-  }
-
-  // Group G: Time-anchored current inquiries ("hari ini", "terkini", "terbaru", "saat ini", year 2025/2026 events)
-  if (!matched && /\b(hari ini|terkini|terbaru|saat ini|teranyar)\b/i.test(lower) && /\b(siapa|apa|berapa|bagaimana|kapan|apakah|update|kejadian|peristiwa|kondisi|status)\b/i.test(lower)) {
-    matched = true;
-  }
-
-  if (!matched) return null;
-
-  // Extract clean search query
-  let cleanQuery = trimmed;
-  // Strip directive prefixes
-  cleanQuery = cleanQuery.replace(/^(tolong\s+)?(coba\s+)?(cariin|carikan|cari\s+di\s+(internet|google|web)|cari\s+info\s+tentang|cari\s+tentang|cari|search\s+for|search\s+on\s+(web|internet|google)|search|googling|browsing|cek\s+di\s+(internet|google|web)|cek\s+web|cek\s+google|cek\s+info\s+tentang|cek)\s*:?\s*/i, '');
-  // Strip conversational suffixes
-  cleanQuery = cleanQuery.replace(/\s+(dong|ya|plis|please|bro|gan|min|sih|kah)\s*[?.!]*$/i, '');
-  cleanQuery = cleanQuery.replace(/[?.!]+$/, '').trim();
-
-  return {
-    shouldSearch: true,
-    searchQuery: cleanQuery || trimmed
-  };
+  return null;
 }
 
 /**
@@ -343,10 +212,10 @@ export async function executeWebSearch(query, options = {}) {
   const language = options.language || 'id';
   const userPrompt = options.userPrompt || '';
 
-  // 🕒 Auto-inject current date for recent/latest searches
-  const effectiveQuery = enrichQueryWithDateIfRecent(query, userPrompt, language);
+  // Query murni sesuai keputusan AI tanpa modifikasi aneh
+  const effectiveQuery = (query || '').trim();
 
-  console.log(`[ClientSearchService] Executing search for: "${effectiveQuery}" (orig: "${query}", isGuest: ${isGuest}, limit: ${limit})`);
+  console.log(`[ClientSearchService] Executing search for: "${effectiveQuery}" (isGuest: ${isGuest}, limit: ${limit})`);
 
   // 1. Primary: Direct Front-End Hit to Deepernova Search Engine (Sub-20ms BM25 on HTTP localhost)
   try {
@@ -354,14 +223,6 @@ export async function executeWebSearch(query, options = {}) {
     if (directResult && directResult.success && directResult.data?.organic_results?.length > 0) {
       console.log('[ClientSearchService] 🚀 Direct Front-End Hit Success to Deepernova Search Engine');
       return directResult;
-    }
-    // Also try direct without date suffix if direct with date returned 0 results
-    if (effectiveQuery !== query) {
-      const directCleanResult = await performDirectSearch(query, limit, includeImages);
-      if (directCleanResult && directCleanResult.success && directCleanResult.data?.organic_results?.length > 0) {
-        console.log('[ClientSearchService] 🚀 Direct Front-End Hit Success (clean query) to Deepernova Search Engine');
-        return directCleanResult;
-      }
     }
   } catch (directErr) {
     console.warn('[ClientSearchService] Direct hit failed or blocked, falling back to proxy:', directErr.message);

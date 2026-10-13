@@ -24,7 +24,7 @@ import GlobalMemorySettings from './GlobalMemorySettings';
 import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, enrichQueryWithDateIfRecent, detectUpfrontSearchIntent } from '../services/clientSearchService';
+import { executeWebSearch } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import './ChatBot.css';
 
@@ -9309,49 +9309,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // ⚡ UPFRONT DEEPERNOVA SEARCH INTENT DETECTION
-    // Eliminates slow LLM double-hop round-trips for news, current info, search directives!
-    const upfrontSearch = detectUpfrontSearchIntent(cleanUserText || fullMessage, userLanguage);
-    if (upfrontSearch && upfrontSearch.shouldSearch && imagesToPass.length === 0) {
-      const finalSearchQuery = enrichQueryWithDateIfRecent(upfrontSearch.searchQuery, cleanUserText || fullMessage, userLanguage);
-      console.log(`[ChatBot] ⚡ Upfront search intent detected: "${upfrontSearch.searchQuery}" -> enriched: "${finalSearchQuery}" for message ${placeholderId}`);
-
-      triggeredSearchRequestsRef.current.add(placeholderId);
-
-      // Immediately mark the bot message as searching with initial step block
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === placeholderId
-            ? {
-                ...msg,
-                text: '',
-                isStreaming: false,
-                isSearching: true,
-                searchQuery: finalSearchQuery,
-                searchResults: null,
-                searchSources: [],
-                searchSteps: [{
-                  query: finalSearchQuery,
-                  isSearching: true,
-                  sources: [],
-                  images: []
-                }]
-              }
-            : msg
-        )
-      );
-
-      // Directly execute DeeperNova Search and conversational synthesis
-      executeSearchAndSynthesize({
-        messageId: placeholderId,
-        searchQuery: finalSearchQuery,
-        userPrompt: cleanUserText || fullMessage,
-        baseHistory: updatedConversationHistory
-      });
-      return;
-    }
-    // Keep the visual payload available for the model, but do not force a UI decision.
-    // The assistant should decide naturally whether to read an image or edit it.
+    // Keputusan pencarian web sepenuhnya ditentukan oleh AI (LLM).
+    // Tidak ada match query regex aneh di awal. Jika AI membutuhkan data web/real-time,
+    // AI secara otonom akan mengeluarkan tag [SEARCH_REQUEST: kata kunci].
     if (imagesToPass.length > 0 && !isReasoningImage) {
       setReasoningImages(imagesToPass);
       setReasoningPrompt(inputValue);
@@ -11006,10 +10966,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         ? currentConversationHistoryRef.current
         : (Array.isArray(messages) ? messages : []);
       const lastUserMsg = [...historyPool].reverse().find(m => m && (m.sender === 'user' || m.role === 'user'));
-      const userPrompt = currentTurnText || (lastUserMsg ? (lastUserMsg.text || lastUserMsg.content || '') : '') || searchQuery;
-      const finalSearchQuery = enrichQueryWithDateIfRecent(searchQuery, userPrompt, userLanguage);
+      const finalSearchQuery = searchQuery.trim();
 
-      console.log(`[ChatBot] 🔍 Fallback SEARCH_REQUEST detected from model: "${searchQuery}" -> enriched: "${finalSearchQuery}" (userPrompt: "${userPrompt}") for message ${messageId}`);
+      console.log(`[ChatBot] 🔍 AI-determined SEARCH_REQUEST: "${finalSearchQuery}" (userPrompt: "${userPrompt}") for message ${messageId}`);
       
       // 1) IMMEDIATELY WIPE any preamble or streaming text! NEVER show hallucinated text before search!
       currentStreamingTextRef.current = '';
