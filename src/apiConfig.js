@@ -58,4 +58,4 @@ export const SEARCH_ENGINE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:4000'
-    : 'https://oldest-justify-comparative-manufactured.trycloudflare.com');
+    : 'https://vernon-clear-officials-absent.trycloudflare.com');

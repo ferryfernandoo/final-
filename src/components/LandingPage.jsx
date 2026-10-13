@@ -3,7 +3,8 @@ import { SEARCH_ENGINE_URL } from '../apiConfig';
 import './LandingPage.css';
 
 const openSearch = (q) => {
-  const url = q ? `${SEARCH_ENGINE_URL}?q=${encodeURIComponent(q)}` : SEARCH_ENGINE_URL;
+  const base = SEARCH_ENGINE_URL || 'https://vernon-clear-officials-absent.trycloudflare.com';
+  const url = q ? `${base}?q=${encodeURIComponent(q)}` : base;
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
@@ -155,14 +156,19 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               </article>
 
               {/* Search Engine */}
-              <article className="lp-card lp-product">
+              <article 
+                className="lp-card lp-product is-clickable"
+                onClick={() => openSearch()}
+              >
                 <div className="lp-product-icon green"><i className="fa-solid fa-magnifying-glass" /></div>
                 <h3>Search Engine</h3>
                 <p>Mesin pencari web mandiri dengan data real-time dan ringkasan AI.</p>
                 <form
                   className="lp-search"
+                  onClick={(e) => e.stopPropagation()}
                   onSubmit={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const q = e.currentTarget.elements.namedItem('q')?.value?.trim();
                     openSearch(q);
                   }}
@@ -170,6 +176,9 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                   <input type="text" name="q" placeholder="Cari sesuatu..." autoComplete="off" aria-label="Kata kunci pencarian" />
                   <button type="submit" aria-label="Cari"><i className="fa-solid fa-arrow-right" /></button>
                 </form>
+                <span className="lp-link" style={{ marginTop: '12px' }}>
+                  Buka Search Engine <i className="fa-solid fa-arrow-right" />
+                </span>
               </article>
 
               {/* Developer API */}
