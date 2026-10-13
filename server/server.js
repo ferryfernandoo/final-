@@ -3603,9 +3603,147 @@ function cleanTextForEdgeTts(raw) {
     .trim();
 }
 
+function resolveEdgeVoice(cleanText, voice) {
+  const isIndonesian = /[a-z]/i.test(cleanText) && (
+    /yang|untuk|dengan|ini|adalah|dari|ke|di|apa|siapa|bagaimana|dan|tidak|bisa|akan|sudah|terima|mohon|halo|hai|selamat|saya|kamu|anda/i.test(cleanText)
+  );
+
+  if (isIndonesian) {
+    return (voice === 'alloy' || voice === 'echo' || voice === 'onyx' || voice === 'ardi') ? 'id-ID-ArdiNeural' : 'id-ID-GadisNeural';
+  } else {
+    return (voice === 'alloy' || voice === 'echo' || voice === 'onyx' || voice === 'guy') ? 'en-US-GuyNeural' : 'en-US-AvaNeural';
+  }
+}
+
+// 🎙️ High-Speed Streaming TTS Endpoint (Instant Playback via Chunked HTTP Audio Stream)
+app.get('/api/tts/stream', async (req, res) => {
+  try {
+    const { text, input, voice = 'nova' } = req.query;
+    const inputText = (text || input || '').trim();
+    if (!inputText) {
+      return res.status(400).send('Text is required for TTS stream');
+    }
+
+    let cleanText = cleanTextForEdgeTts(inputText);
+    if (!cleanText) {
+      return res.status(400).send('No readable text for TTS stream');
+    }
+
+    const maxChars = 450;
+    if (cleanText.length > maxChars) {
+      const slice = cleanText.substring(0, maxChars);
+      const boundary = Math.max(
+        slice.lastIndexOf('. '),
+        slice.lastIndexOf('.\n'),
+        slice.lastIndexOf('! '),
+        slice.lastIndexOf('? ')
+      );
+      cleanText = (boundary > 120 ? slice.substring(0, boundary + 1) : slice).trim();
+    }
+
+    const selectedEdgeVoice = resolveEdgeVoice(cleanText, voice);
+    console.log(`[TTS STREAM] ⚡ Real-time stream starting (${cleanText.length} chars, voice: ${selectedEdgeVoice}): "${cleanText.slice(0, 50)}"`);
+
+    const edgeTts = new MsEdgeTTS();
+    await edgeTts.setMetadata(selectedEdgeVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    const { audioStream } = await edgeTts.toStream(cleanText);
+
+    res.writeHead(200, {
+      'Content-Type': 'audio/mpeg',
+      'Transfer-Encoding': 'chunked',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'X-Content-Type-Options': 'nosniff'
+    });
+
+    req.on('close', () => {
+      try {
+        if (audioStream && !audioStream.destroyed) {
+          audioStream.destroy();
+        }
+      } catch (_) {}
+    });
+
+    audioStream.on('error', (err) => {
+      console.warn('[TTS STREAM] audioStream error:', err.message);
+      if (!res.headersSent) {
+        res.status(500).send('Streaming error');
+      } else {
+        res.end();
+      }
+    });
+
+    audioStream.pipe(res);
+  } catch (err) {
+    console.error('[TTS STREAM EXCEPTION]', err);
+    if (!res.headersSent) {
+      res.status(500).send('TTS streaming failed: ' + err.message);
+    } else {
+      res.end();
+    }
+  }
+});
+
+app.post('/api/tts/stream', express.json(), async (req, res) => {
+  try {
+    const { input, text, voice = 'nova' } = req.body;
+    const inputText = (input || text || '').trim();
+    if (!inputText) {
+      return res.status(400).json({ error: 'Text/input is required for TTS' });
+    }
+
+    let cleanText = cleanTextForEdgeTts(inputText);
+    if (!cleanText) {
+      return res.status(400).json({ error: 'No readable speech text' });
+    }
+
+    const maxChars = 450;
+    if (cleanText.length > maxChars) {
+      const slice = cleanText.substring(0, maxChars);
+      const boundary = Math.max(
+        slice.lastIndexOf('. '),
+        slice.lastIndexOf('.\n'),
+        slice.lastIndexOf('! '),
+        slice.lastIndexOf('? ')
+      );
+      cleanText = (boundary > 120 ? slice.substring(0, boundary + 1) : slice).trim();
+    }
+
+    const selectedEdgeVoice = resolveEdgeVoice(cleanText, voice);
+    const edgeTts = new MsEdgeTTS();
+    await edgeTts.setMetadata(selectedEdgeVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    const { audioStream } = await edgeTts.toStream(cleanText);
+
+    res.writeHead(200, {
+      'Content-Type': 'audio/mpeg',
+      'Transfer-Encoding': 'chunked',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    req.on('close', () => {
+      try {
+        if (audioStream && !audioStream.destroyed) audioStream.destroy();
+      } catch (_) {}
+    });
+
+    audioStream.on('error', (err) => {
+      if (!res.headersSent) res.status(500).send('Error');
+      else res.end();
+    });
+
+    audioStream.pipe(res);
+  } catch (err) {
+    if (!res.headersSent) res.status(500).send(err.message);
+    else res.end();
+  }
+});
+
 app.post('/api/tts', express.json(), async (req, res) => {
   try {
-    const { input, text, voice = 'nova', model = 'tts-1' } = req.body;
+    const { input, text, voice = 'nova', model = 'tts-1', stream = false } = req.body;
     const inputText = (input || text || '').trim();
     if (!inputText) {
       return res.status(400).json({ error: 'Text/input is required for TTS' });
@@ -3635,20 +3773,19 @@ app.post('/api/tts', express.json(), async (req, res) => {
 
     // 1. Primary Engine: msedge-tts (High Fidelity Neural Audio, ~300ms latency, 0 API cost)
     try {
+      const selectedEdgeVoice = resolveEdgeVoice(cleanText, voice);
       const edgeTts = new MsEdgeTTS();
-      const isIndonesian = /[a-z]/i.test(cleanText) && (
-        /yang|untuk|dengan|ini|adalah|dari|ke|di|apa|siapa|bagaimana|dan|tidak|bisa|akan|sudah|terima|mohon|halo|hai|selamat|saya|kamu|anda/i.test(cleanText)
-      );
-
-      let selectedEdgeVoice = 'id-ID-GadisNeural';
-      if (isIndonesian) {
-        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx' || voice === 'ardi') ? 'id-ID-ArdiNeural' : 'id-ID-GadisNeural';
-      } else {
-        selectedEdgeVoice = (voice === 'alloy' || voice === 'echo' || voice === 'onyx' || voice === 'guy') ? 'en-US-GuyNeural' : 'en-US-AvaNeural';
-      }
-
       await edgeTts.setMetadata(selectedEdgeVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
       const { audioStream } = await edgeTts.toStream(cleanText);
+
+      if (stream || req.query.stream === 'true') {
+        res.writeHead(200, {
+          'Content-Type': 'audio/mpeg',
+          'Transfer-Encoding': 'chunked',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+        });
+        return audioStream.pipe(res);
+      }
 
       const chunks = [];
       await new Promise((resolve, reject) => {

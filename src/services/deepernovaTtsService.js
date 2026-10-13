@@ -183,6 +183,102 @@ class DeepernovaTtsService {
   }
 
   /**
+   * High-Speed Instant Streaming Speech Playback
+   * Connects to HTTP chunked streaming endpoint /api/tts/stream
+   * Playback starts immediately as soon as the first audio packets arrive (~200-300ms)
+   * Automatically falls back to Web Speech synthesis if offline or network failure occurs.
+   * @param {string} text - Text to speak
+   * @param {string|null} voice - Optional voice override
+   * @param {Function} onStarted - Callback when audio playback actually starts
+   * @param {Function} onEnded - Callback when playback finishes
+   * @param {Function} onError - Callback on error
+   */
+  speakStream(text, voice = null, onStarted = null, onEnded = null, onError = null) {
+    const cleaned = this.cleanText(text);
+    if (!cleaned) {
+      if (onEnded) onEnded();
+      return;
+    }
+
+    this.unlockAudio();
+    this.stop();
+    this.lastSpokenText = cleaned;
+
+    const selectedVoice = voice || this.selectVoiceForLanguage(cleaned);
+    const maxChars = 450;
+    let speechText = cleaned;
+    if (speechText.length > maxChars) {
+      const slice = speechText.substring(0, maxChars);
+      const boundary = Math.max(
+        slice.lastIndexOf('. '),
+        slice.lastIndexOf('.\n'),
+        slice.lastIndexOf('! '),
+        slice.lastIndexOf('? ')
+      );
+      speechText = (boundary > 120 ? slice.substring(0, boundary + 1) : slice).trim();
+    }
+
+    console.log('[DEEPERNOVA_TTS] ⚡ Initiating streaming speech playback for:', speechText.substring(0, 50));
+
+    try {
+      const streamUrl = `${API_BASE_URL}/api/tts/stream?text=${encodeURIComponent(speechText)}&voice=${encodeURIComponent(selectedVoice)}&_t=${Date.now()}`;
+      const audio = new Audio(streamUrl);
+      this.currentAudio = audio;
+      this.isPlaying = true;
+
+      let startedFired = false;
+      const fireStarted = () => {
+        if (!startedFired) {
+          startedFired = true;
+          if (onStarted) onStarted();
+        }
+      };
+
+      const cleanup = () => {
+        this.isPlaying = false;
+        if (this.currentAudio === audio) {
+          this.currentAudio = null;
+        }
+      };
+
+      audio.onplay = () => {
+        fireStarted();
+      };
+
+      audio.onplaying = () => {
+        fireStarted();
+      };
+
+      audio.onended = () => {
+        cleanup();
+        if (onEnded) onEnded();
+      };
+
+      audio.onerror = (e) => {
+        console.warn('[DEEPERNOVA_TTS] Stream audio error, falling back to Web Speech:', e);
+        cleanup();
+        this.speakWebSpeech(cleaned, selectedVoice, onEnded);
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          fireStarted();
+        }).catch((err) => {
+          if (err.name === 'AbortError') return;
+          console.warn('[DEEPERNOVA_TTS] Stream play blocked or interrupted:', err.message);
+          cleanup();
+          this.speakWebSpeech(cleaned, selectedVoice, onEnded);
+        });
+      }
+    } catch (err) {
+      console.warn('[DEEPERNOVA_TTS] Failed to initialize stream audio, falling back to Web Speech:', err);
+      this.isPlaying = false;
+      this.speakWebSpeech(cleaned, selectedVoice, onEnded);
+    }
+  }
+
+  /**
    * Play audio blob with automatic error recovery
    * @param {Blob} audioBlob - Audio blob to play
    * @param {Function} onEnded - Callback when audio finishes
@@ -328,6 +424,10 @@ class DeepernovaTtsService {
 
       if (this.currentAudio) {
         this.currentAudio.pause();
+        try {
+          this.currentAudio.removeAttribute('src');
+          this.currentAudio.load();
+        } catch (_) {}
         this.currentAudio.currentTime = 0;
         this.currentAudio = null;
       }

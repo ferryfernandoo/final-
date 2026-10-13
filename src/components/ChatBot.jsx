@@ -392,23 +392,60 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
     return safeSources.map(s => s.link || s.title || s.domain || '').join('|');
   }, [safeSources]);
 
+  const userInteractedRef = React.useRef(false);
+  const isHoveredRef = React.useRef(false);
+
   React.useEffect(() => {
     setOffset(0);
-  }, [sourcesKey]);
+    userInteractedRef.current = false;
+    isHoveredRef.current = false;
+
+    if (maxOffset <= 0) return;
+
+    let intervalId = null;
+    // Initial pause of 600ms so user sees the initial results, then auto-slide 1 dot at a time
+    const startTimeout = setTimeout(() => {
+      intervalId = setInterval(() => {
+        if (userInteractedRef.current) {
+          if (intervalId) clearInterval(intervalId);
+          return;
+        }
+        if (isHoveredRef.current) {
+          return; // pause when user is hovering
+        }
+        setOffset(prev => {
+          if (prev < maxOffset) {
+            return prev + 1;
+          } else {
+            if (intervalId) clearInterval(intervalId);
+            return prev;
+          }
+        });
+      }, 700);
+    }, 600);
+
+    return () => {
+      clearTimeout(startTimeout);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [sourcesKey, maxOffset]);
 
   if (safeSources.length === 0) return null;
 
   const handlePrev = (e) => {
     e.stopPropagation();
+    userInteractedRef.current = true;
     setOffset(prev => Math.max(prev - 1, 0));
   };
 
   const handleNext = (e) => {
     e.stopPropagation();
+    userInteractedRef.current = true;
     setOffset(prev => Math.min(prev + 1, maxOffset));
   };
 
   const handleDotClick = (idx) => {
+    userInteractedRef.current = true;
     setOffset(idx);
   };
 
@@ -448,7 +485,13 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
         )}
       </div>
 
-      <div className="source-bubbles-carousel-container" style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', minHeight: '68px' }}>
+      <div 
+        className="source-bubbles-carousel-container" 
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', minHeight: '68px' }}
+        onMouseEnter={() => { isHoveredRef.current = true; }}
+        onMouseLeave={() => { isHoveredRef.current = false; }}
+        onTouchStart={() => { userInteractedRef.current = true; }}
+      >
         {/* Left Arrow Button */}
         {offset > 0 && (
           <button 
@@ -6642,18 +6685,29 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return;
       }
 
-      // Generate and play TTS (optimal neural voice selection on server, with web speech fallback)
-      const audioBlob = await deepernovaTtsService.textToSpeech(textForSpeech);
-      
+      // High-Speed Streaming TTS: starts speaking instantly via audio stream (~200-300ms)
       playingMessageIdRef.current = message.id;
       setPlayingMessageId(message.id);
-      setTtsLoading(null);
 
       const onDone = () => {
         if (playingMessageIdRef.current === message.id) playingMessageIdRef.current = null;
         setPlayingMessageId(prev => (prev === message.id ? null : prev));
+        setTtsLoading(null);
       };
-      deepernovaTtsService.play(audioBlob, onDone, onDone, textForSpeech);
+
+      const onStarted = () => {
+        setTtsLoading(null);
+      };
+
+      deepernovaTtsService.speakStream(
+        textForSpeech,
+        null,
+        onStarted,
+        onDone,
+        () => {
+          onDone();
+        }
+      );
     } catch (error) {
       if (error?.name === 'AbortError') return;
       console.error('[ChatBot] TTS Error:', error);
