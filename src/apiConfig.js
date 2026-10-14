@@ -1,5 +1,5 @@
 // Cloudflare Tunnel backend URL (live proxy target)
-export const CLOUDFLARE_BACKEND_URL = 'https://corp-surrounded-composer-overall.trycloudflare.com';
+export const CLOUDFLARE_BACKEND_URL = 'https://rec-long-scholar-timber.trycloudflare.com';
 export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
 
 const getApiBaseUrl = () => {
@@ -44,18 +44,18 @@ export const API_BASE_URL = getApiBaseUrl();
 // Direct DeeperNova AI Public Endpoint (Cloudflare Tunnel to GPU Engine)
 export const DEEPERNOVA_AI_PUBLIC_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DEEPERNOVA_PUBLIC_API_URL) ||
-  'https://keno-graduated-some-call.trycloudflare.com';
+  'https://memory-medline-excellence-concerned.trycloudflare.com';
 
 // Order DTE Portal URL (Local Vite Port 5173 or Public Cloudflare Tunnel)
 export const ORDER_DTE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ORDER_DTE_URL) ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5173'
-    : 'https://advisor-template-drinks-modification.trycloudflare.com');
+    : 'https://customized-influences-programs-incorporate.trycloudflare.com');
 
 // Deepernova Search Engine URL (Local Port 4000 or Public Cloudflare Tunnel)
 export const SEARCH_ENGINE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:4000'
-    : 'https://vernon-clear-officials-absent.trycloudflare.com');
+    : 'https://qty-appropriate-limited-shaped.trycloudflare.com');
