@@ -252,6 +252,7 @@ class AgentService {
     prompt,
     model = 'deepernova-gold-1.5',
     history = [],
+    effort = 'high',
     signal,
     onDelta,
     onReasoning,
@@ -274,7 +275,8 @@ class AgentService {
           sessionId,
           prompt,
           model,
-          history
+          history,
+          effort
         })
       });
 

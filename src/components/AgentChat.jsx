@@ -315,6 +315,22 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const [fileContent, setFileContent] = useState('');
   const [isFileSaving, setIsFileSaving] = useState(false);
 
+  // AI Agent Effort Level ('low' | 'medium' | 'high' - Pantang Menyerah)
+  const [agentEffort, setAgentEffort] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_agent_effort') || 'high';
+    } catch {
+      return 'high';
+    }
+  });
+
+  const handleSetEffort = (lvl) => {
+    setAgentEffort(lvl);
+    try {
+      localStorage.setItem('deepernova_agent_effort', lvl);
+    } catch {}
+  };
+
   // Terminal State
   const [terminalLogs, setTerminalLogs] = useState('> Deepernova AI Agent Sandbox Terminal initialized.\n> Workspace jailed in isolated session.\n');
   const [terminalInput, setTerminalInput] = useState('');
@@ -726,6 +742,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         prompt: textToSend,
         model: 'deepernova-gold-1.5',
         history: messages,
+        effort: agentEffort,
         signal: abortController.signal,
         onDelta: (chunk) => {
           targetContent += chunk;
@@ -1065,6 +1082,22 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <span className="agent-header-brand-title">Deepernova AI</span>
               <span className="agent-header-brand-badge">Agent</span>
             </div>
+
+            {/* Quick Effort Badge Chip */}
+            <button
+              type="button"
+              className={`agent-header-effort-chip is-${agentEffort}`}
+              onClick={() => {
+                const nextEffort = agentEffort === 'high' ? 'low' : (agentEffort === 'low' ? 'medium' : 'high');
+                handleSetEffort(nextEffort);
+              }}
+              title="Klik untuk mengubah tingkat usaha AI Agent (Rendah / Sedang / Tinggi - Pantang Menyerah)"
+            >
+              <i className={agentEffort === 'high' ? "fa-solid fa-fire" : (agentEffort === 'low' ? "fa-solid fa-bolt" : "fa-solid fa-scale-balanced")} />
+              <span>
+                {agentEffort === 'high' ? 'Pantang Menyerah' : (agentEffort === 'low' ? 'Usaha Cepat' : 'Usaha Sedang')}
+              </span>
+            </button>
           </div>
 
           <div className="agent-header-right" ref={menuDropdownRef}>
@@ -1082,6 +1115,56 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
               {showMenuDropdown && (
                 <div className="agent-menu-dropdown">
+                  {/* Tingkat Usaha AI Agent Section */}
+                  <div className="agent-menu-dropdown-header">
+                    <span>Tingkat Usaha AI Agent</span>
+                  </div>
+                  <div className="agent-effort-selector-group">
+                    <button
+                      type="button"
+                      className={`agent-effort-btn ${agentEffort === 'low' ? 'is-active' : ''}`}
+                      onClick={() => handleSetEffort('low')}
+                    >
+                      <div className="agent-effort-btn-header">
+                        <span className="agent-effort-btn-title">
+                          <i className="fa-solid fa-bolt" style={{ color: '#0284c7' }} /> Usaha Rendah
+                        </span>
+                        {agentEffort === 'low' && <span className="agent-effort-check">✓ Aktif</span>}
+                      </div>
+                      <span className="agent-effort-btn-desc">1-3 iterasi · Eksekusi cepat & hemat token</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`agent-effort-btn ${agentEffort === 'medium' ? 'is-active' : ''}`}
+                      onClick={() => handleSetEffort('medium')}
+                    >
+                      <div className="agent-effort-btn-header">
+                        <span className="agent-effort-btn-title">
+                          <i className="fa-solid fa-scale-balanced" style={{ color: '#64748b' }} /> Usaha Sedang
+                        </span>
+                        {agentEffort === 'medium' && <span className="agent-effort-check">✓ Aktif</span>}
+                      </div>
+                      <span className="agent-effort-btn-desc">Hingga 6 iterasi · Standar seimbang & teliti</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`agent-effort-btn ${agentEffort === 'high' ? 'is-active' : ''}`}
+                      onClick={() => handleSetEffort('high')}
+                    >
+                      <div className="agent-effort-btn-header">
+                        <span className="agent-effort-btn-title">
+                          <i className="fa-solid fa-fire" style={{ color: '#ea580c' }} /> Pantang Menyerah
+                        </span>
+                        {agentEffort === 'high' && <span className="agent-effort-check">✓ Aktif</span>}
+                      </div>
+                      <span className="agent-effort-btn-desc">Hingga 10+ iterasi · Pantang menyerah, analisa eror & perbaiki sampai berhasil</span>
+                    </button>
+                  </div>
+
+                  <div className="agent-menu-divider" />
+
                   <div className="agent-menu-dropdown-header">
                     <span>Menu Alat & Workspace</span>
                   </div>

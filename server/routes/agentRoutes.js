@@ -699,7 +699,7 @@ function createStreamActionParser(callbacks) {
 }
 
 router.post('/run', async (req, res) => {
-  const { sessionId, prompt, model = 'deepernova-gold-1.5', history = [] } = req.body;
+  const { sessionId, prompt, model = 'deepernova-gold-1.5', history = [], effort = 'high' } = req.body;
   const userId = getUserId(req);
 
   if (!sessionId || !prompt) {
@@ -792,15 +792,6 @@ router.post('/run', async (req, res) => {
 
     updateLastStep('completed', `Workspace sandbox siap (${existingFiles.length} berkas terdeteksi).`);
 
-    // Step 2: Intelligent Skill Suggestion & Dynamic On-Demand Catalog Matching
-    const suggestedSkill = agentSkillService.suggestSkill(prompt);
-    if (suggestedSkill) {
-      addStep('skill', `Mendeteksi Keahlian: ${suggestedSkill.title}`, `Mempersiapkan modul spesialis '${suggestedSkill.id}' (${suggestedSkill.category}) untuk eksekusi presisi...`, 'completed');
-    } else {
-      addStep('skill', 'Katalog Keahlian Siap', 'Memuat katalog keahlian profesional on-demand (Frontend, DOCX, PPTX, XLSX, Cybersecurity, Matplotlib, REST API)...', 'completed');
-    }
-
-    // Step 3: Intelligent Upfront Search with Deepernova Search Engine (Sub-second BM25 Indexer)
     const promptLower = (prompt || '').toLowerCase();
     const isSearchIntent = /\b(cari|search|googling|berita|news|hari ini|terbaru|terkini|siapa|apa itu|apakah|harga|saham|kurs|presiden|pemilu|update|cuaca|jadwal|skor|hasil|peringkat|info|informasi|peristiwa|kejadian|gemini|claude|deepseek|ai agent|investasi|ekonomi|politik)\b/i.test(promptLower);
 
@@ -818,6 +809,131 @@ router.post('/run', async (req, res) => {
       } catch (err) {
         updateLastStep('completed', 'Pencarian Deepernova Search selesai.');
       }
+    }
+
+    // Step 2: Intelligent Skill Suggestion & Dynamic On-Demand Catalog Matching
+    const wantsDocx = /\b(docx|word|dokumen|laporan|surat|makalah|paper|proposal)\b/i.test(promptLower);
+    const wantsPptx = /\b(pptx|powerpoint|slide|presentasi|deck|pitch)\b/i.test(promptLower);
+    const wantsXlsx = /\b(xlsx|excel|spreadsheet|tabel\s*excel|keuangan|financial|budget|cashflow|laba|rugi)\b/i.test(promptLower);
+
+    let documentQualityBlueprint = '';
+    if (wantsDocx) {
+      documentQualityBlueprint += `
+================================================================================
+📄 STANDAR MUTLAK DOKUMEN WORD (.DOCX) EKSEKUTIF KELAS DUNIA (MCKINSEY / BCG STANDARD):
+Dokumen .docx TIDAK BOLEH tampil polos atau standar! Dokumen WAJIB diformat dengan python-docx menggunakan estetika konsultan papan atas:
+1. MARGIN HALAMAN: 1.0 inch (top, bottom, left, right).
+2. TIPOGRAFI & WARNA:
+   - Font Family: 'Calibri' atau 'Segoe UI'.
+   - Judul Dokumen: 22pt Bold, warna RGBColor(15, 23, 42) (#0F172A - Slate 900).
+   - Subtitle / Meta: 11pt Italic, warna RGBColor(100, 116, 139) (#64748B - Muted Slate).
+3. EXECUTIVE CALLOUT BOX (WAJIB ADA):
+   Gunakan tabel 1x1 dengan latar '#F8FAFC' dan border kiri tebal oranye '#EA580C' (sz="36") via parse_xml:
+   callout = doc.add_table(rows=1, cols=1)
+   c_cell = callout.rows[0].cells[0]
+   c_cell.width = Inches(6.5)
+   c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:shd {nsdecls("w")} w:fill="F8FAFC"/>'))
+   c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:tcBorders {nsdecls("w")}><w:left w:val="single" w:sz="36" w:space="0" w:color="EA580C"/><w:top w:val="none"/><w:right w:val="none"/><w:bottom w:val="none"/></w:tcBorders>'))
+   Di dalamnya ada judul 'RINGKASAN EKSEKUTIF' (Bold, Oranye #EA580C, 10.5pt) dan ringkasan isi (Slate #334155, 10pt).
+4. HEADING 1: 15pt Bold, RGBColor(15, 23, 42).
+5. TABEL EKSEKUTIF ZEBRA-STRIPED (WAJIB INDIKATOR & ANGKA JELAS):
+   - Header Baris: Latar '#0F172A' (Slate gelap), teks Putih Tebal 9.5pt.
+   - Baris Data Alternatif: Genap '#FFFFFF', Ganjil '#F8FAFC'.
+   - ATURAN ANTI-CRASH: Selalu gunakan 'for r_idx, row in enumerate(data): row_cells = tbl.add_row().cells' (DILARANG table.rows.index(row)!).
+6. KESIMPULAN & REKOMENDASI STRATEGIS: Bullet points dengan label tebal.
+================================================================================
+`;
+    }
+
+    if (wantsPptx) {
+      documentQualityBlueprint += `
+================================================================================
+📊 STANDAR MUTLAK PRESENTASI POWERPOINT (.PPTX) 16:9 C-LEVEL DECK (GOLDMAN SACHS / BCG):
+Slide .pptx DILARANG format 4:3 kuno dan DILARANG polos teks hitam di atas putih! Slide WAJIB spektakuler:
+1. RASIO WIDESCREEN 16:9 MANDATORI:
+   prs = Presentation()
+   prs.slide_width = Inches(13.333)
+   prs.slide_height = Inches(7.5)
+   blank_layout = prs.slide_layouts[6]
+2. PALET WARNA:
+   - Primary Dark: RGBColor(15, 23, 42) (#0F172A)
+   - Brand Accent: RGBColor(234, 88, 12) (#EA580C)
+   - Slide BG Light: RGBColor(248, 250, 252) (#F8FAFC)
+   - Card BG: RGBColor(255, 255, 255) (#FFFFFF)
+   - Border: RGBColor(226, 232, 240) (#E2E8F0)
+3. STRUKTUR MINIMAL 3-4 SLIDE:
+   - SLIDE 1: Cover Slide Mewah (Latar gelap #0F172A, garis strip vertikal oranye #EA580C, judul 36pt Putih Tebal, subjudul abu-abu terang #94A3B8, metadata).
+   - SLIDE 2: 3-Card KPI Scorecard (Latar #F8FAFC, 3 kartu rounded rectangle #FFFFFF dengan border tipis #E2E8F0, angka metrik raksasa 38pt bold, badge chip status, deskripsi singkat).
+   - SLIDE 3: Analisis Komparatif / Tabel Eksekutif atau 2-Kolom Pilar Strategi.
+   - SLIDE 4: Rekomendasi & Actionable Roadmap.
+4. ATURAN ANTI-COLLISION & ANTI-OVERLAP:
+   - Selalu atur 'tf.word_wrap = True' pada semua shape text_frame.
+   - Hitung posisi kartu dinamis 'left = start_x + i * (card_w + card_gap)' agar tidak saling tumpang tindih.
+================================================================================
+`;
+    }
+
+    if (wantsXlsx) {
+      documentQualityBlueprint += `
+================================================================================
+📈 STANDAR MUTLAK SPREADSHEET EXCEL (.XLSX) INSTITUSI CFO & INVESTMENT BANKING:
+File .xlsx DILARANG angka polos mentah tanpa format dan DILARANG kolom terpotong (###)!
+1. FONT & HEADER:
+   - Font: 'Segoe UI' konsisten.
+   - Header Baris: Latar '#0F172A' (Slate 900) dengan font Putih Tebal 11pt.
+   - Header Total / Summary: Latar '#EA580C' (Oranye) dengan teks Putih Tebal.
+2. KPI SUMMARY CARDS DI BAGIAN ATAS:
+   - 4 Card KPI (B3:C4, E3:F4, H3:I4, K3:L4) dengan background '#FFF7ED', label oranye '#EA580C' 9pt bold, dan angka besar 14pt bold.
+3. FORMAT ANGKA & MATA UANG WAJIB DI SETIAP SEL NUMERIK:
+   - Mata uang: ws.cell().number_format = '"Rp " #,##0' atau '#,##0'.
+   - Persentase: ws.cell().number_format = '0.0%'.
+4. FORMULA DINAMIS EXCEL ASLI:
+   - Gunakan '=SUM(...)', '=AVERAGE(...)', rumus margin '=(N7-C7)/C7', dsb (DILARANG hardcoded hasil hitungan manual!).
+5. ATURAN ANTI-TEKS TERPOTONG (###) & TAMPILAN:
+   - Gridlines WAJIB aktif: ws.views.sheetView[0].showGridLines = True
+   - Freeze Panes aktif: ws.freeze_panes = "A7"
+   - LOOP AUTO-FIT LEBAR KOLOM WAJIB DI AKHIR SKRIP:
+     for col in ws.columns:
+         max_len = 0
+         col_letter = get_column_letter(col[0].column)
+         for cell in col:
+             if cell.value:
+                 val_str = str(cell.value)
+                 if len(val_str) > max_len:
+                     max_len = len(val_str)
+         ws.column_dimensions[col_letter].width = max(max_len + 4, 13)
+================================================================================
+`;
+    }
+
+    // Configure Effort & Max Steps
+    let MAX_AGENT_STEPS = 6;
+    let effortInstruction = '';
+    if (effort === 'low') {
+      MAX_AGENT_STEPS = 3;
+      effortInstruction = `\n[TINGKAT USAHA AI AGENT: RENDAH / QUICK MODE (MAKSIMAL 3 ITERASI)]\nFokus pada eksekusi cepat, langsung to the point, dan hemat token.\n`;
+    } else if (effort === 'high') {
+      MAX_AGENT_STEPS = 10;
+      effortInstruction = `\n[TINGKAT USAHA AI AGENT: TINGGI / PERSISTENT EXECUTIVE EFFORT (PANTANG MENYERAH - MAKSIMAL 10+ ITERASI)]
+Target Anda adalah keberhasilan 100% tuntas!
+JIKA TERJADI KENDALA TEKNIS APAPUN (syntax error, missing module/library, runtime exception, stderr, exit code != 0, atau target berkas belum terbentuk):
+1. ANDA DILARANG MENYERAH, BERHENTI, ATAU HANYA MEMINTA MAAF!
+2. Lakukan Root Cause Analysis secara mendalam pada tag <thought>...</thought>.
+3. Jika modul Python kurang (misal python-docx, python-pptx, openpyxl, matplotlib, reportlab), install langsung via <run_command>pip install nama_modul</run_command>.
+4. Tulis ulang skrip perbaikan secara utuh dengan <write_file path="generate.py">...</write_file> (tanpa tanda triple backtick di dalam tag!).
+5. Jalankan kembali dengan <run_command>python generate.py</run_command>.
+6. Verifikasi keberadaan dan integritas berkas di disk dengan <check_file path="..." />.
+7. Terus pantang menyerah sampai hasil terbukti sempurna dan tanpa error!\n`;
+    } else {
+      MAX_AGENT_STEPS = 6;
+      effortInstruction = `\n[TINGKAT USAHA AI AGENT: SEDANG / BALANCED MODE (MAKSIMAL 6 ITERASI)]\nSelesaikan tugas dengan terukur, teliti, dan pastikan hasil akhir terverifikasi.\n`;
+    }
+
+    const suggestedSkill = agentSkillService.suggestSkill(prompt);
+    if (suggestedSkill) {
+      addStep('skill', `Mendeteksi Keahlian: ${suggestedSkill.title}`, `Mempersiapkan modul spesialis '${suggestedSkill.id}' (${suggestedSkill.category}) untuk eksekusi presisi...`, 'completed');
+    } else {
+      addStep('skill', 'Katalog Keahlian Siap', 'Memuat katalog keahlian profesional on-demand (Frontend, DOCX, PPTX, XLSX, Cybersecurity, Matplotlib, REST API)...', 'completed');
     }
 
     // Build system prompt with Dynamic Skill Catalog & Sandbox context (Autonomous Agent Orchestrator Standard)
@@ -866,6 +982,8 @@ SIKLUS ORKESTRASI MULTI-STEP RE-ACT & AUTONOMOUS RETRY LOOP:
 - AUTONOMOUS SELF-HEALING (PERBAIKAN MANDIRI):
   Jika terjadi error eksekusi (stderr, syntax error, missing module, atau target berkas belum terbentuk), Anda TIDAK BOLEH berhenti atau menyerah! Analisis akar masalah di <thought>, tulis ulang skrip perbaikan via <write_file>, jalankan ulang dengan <run_command>, dan verifikasi kembali dengan <check_file>.
 
+${effortInstruction}
+${documentQualityBlueprint}
 ${compactCatalog}
 ${skillSuggestionNote}
 
@@ -933,7 +1051,6 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
     ].filter(Boolean);
 
-    const MAX_AGENT_STEPS = 6;
     let stepIteration = 0;
     let continueAutonomousLoop = true;
     let isSelfHealingActive = false;
@@ -1149,9 +1266,6 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
         const currentFiles = agentSandboxService.listFiles(sessionId);
         const unmetGoals = [];
         const isCreationIntent = /\b(buat|bikin|create|generate|rancang|susun|tulis|tambahkan|edit|ubah|ganti)\b/i.test(promptLower);
-        const wantsPptx = /\b(pptx|powerpoint|slide|presentasi)\b/i.test(promptLower);
-        const wantsDocx = /\b(docx|word|dokumen|laporan|surat|makalah|paper)\b/i.test(promptLower);
-        const wantsXlsx = /\b(xlsx|excel|spreadsheet|tabel\s*excel|keuangan)\b/i.test(promptLower);
         const wantsPdf = /\b(pdf|invoice|laporan\s*pdf)\b/i.test(promptLower);
         const wantsHtml = /\b(html|web|dashboard|landing\s*page|website)\b/i.test(promptLower);
 
@@ -1177,19 +1291,24 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           isSelfHealingActive = true;
           addStep('healing', `Mendeteksi Kendala & Memulai Perbaikan Mandiri (Percobaan #${stepIteration})`, `Menganalisis penyebab kegagalan dan merancang kode perbaikan baru...`, 'running');
 
+          const effortModeTag = effort === 'high' 
+            ? '🔥 MODE PANTANG MENYERAH (MAX EFFORT)' 
+            : (effort === 'low' ? '⚡ MODE CEPAT (LOW EFFORT)' : '⚖️ MODE STANDAR SEIMBANG');
+
           followUpInstruction = `${obsFormatted}\n\n` +
-            `🚨 [AUTONOMOUS SELF-HEALING & PERBAIKAN MANDIRI AKTIF (Iterasi #${stepIteration}/${MAX_AGENT_STEPS})]:\n` +
+            `🚨 [AUTONOMOUS SELF-HEALING & PERBAIKAN MANDIRI AKTIF - ${effortModeTag} (Iterasi #${stepIteration}/${MAX_AGENT_STEPS})]:\n` +
             `Perhatian: Target pengerjaan belum tuntas atau terjadi kendala teknis pada langkah sebelumnya:\n` +
             (hasErrorInTurn ? `- Error atau kegagalan eksekusi terdeteksi dalam output observasi di atas.\n` : '') +
             (unmetGoals.length > 0 ? `- Berkas yang diminta pengguna belum terbentuk di sandbox: ${unmetGoals.join(', ')}.\n` : '') +
             `\n` +
-            `INSTRUKSI WAJIB BAGI AI AGENT (JANGAN BERHENTI ATAU HANYA MEMINTA MAAF!):\n` +
-            `1. Analisis akar penyebab error (root cause) secara kritis di dalam <thought>...</thought>.\n` +
+            `INSTRUKSI WAJIB BAGI AI AGENT (${effort === 'high' ? 'PANTANG MENYERAH! JANGAN PERNAH BERHENTI ATAU HANYA MEMINTA MAAF!' : 'JANGAN BERHENTI ATAU HANYA MEMINTA MAAF!'}):\n` +
+            `1. Analisis akar penyebab error (root cause traceback) secara kritis di dalam <thought>...</thought>.\n` +
             `2. Jika ragu dengan sintaks pustaka atau template berkas, baca skill yang tepat menggunakan <read_skill name="..." />.\n` +
-            `3. Tulis ulang berkas skrip dengan <write_file path="..."> berisi kode perbaikan lengkap (DILARANG tanda triple backtick di dalam write_file!).\n` +
-            `4. Jalankan kembali dengan <run_command>python ...</run_command>.\n` +
-            `5. Verifikasi hasil berkas dengan <check_file path="..." />.\n` +
-            `Lakukan langkah perbaikan mandiri sekarang juga!`;
+            `3. Jika modul library belum terpasang (misal python-docx, openpyxl, python-pptx, matplotlib), jalankan <run_command>pip install nama_modul</run_command>.\n` +
+            `4. Tulis ulang berkas skrip dengan <write_file path="..."> berisi kode perbaikan lengkap (DILARANG tanda triple backtick di dalam write_file!).\n` +
+            `5. Jalankan kembali dengan <run_command>python ...</run_command>.\n` +
+            `6. Verifikasi hasil berkas dengan <check_file path="..." />.\n` +
+            `Lakukan langkah perbaikan mandiri sekarang juga hingga BERHASIL tuntas!`;
         } else {
           followUpInstruction = `${obsFormatted}\n\n` +
             `[INSTRUKSI MULTI-STEP RE-ACT]:\n` +
@@ -1239,10 +1358,6 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
     const hasPptx = finalFiles.some(f => f.ext === 'pptx');
     const hasDocx = finalFiles.some(f => f.ext === 'docx');
     const hasXlsx = finalFiles.some(f => f.ext === 'xlsx');
-
-    const wantsPptx = /\b(pptx|powerpoint|slide|presentasi)\b/i.test(promptLower);
-    const wantsDocx = /\b(docx|word|dokumen|laporan|surat|makalah|paper)\b/i.test(promptLower);
-    const wantsXlsx = /\b(xlsx|excel|spreadsheet|tabel\s*excel|keuangan)\b/i.test(promptLower);
 
     const pyFiles = finalFiles.filter(f => f.ext === 'py' && f.name !== 'SKILL.md');
 

@@ -21,38 +21,45 @@ export function formatExecutionStepTitle(step) {
   const type = step.type || '';
   const title = (step.title || '').trim();
   const meta = (step.meta || '').trim();
-  let cmd = (step.command || meta || title).trim();
-  if (cmd.length > 55) {
-    cmd = cmd.slice(0, 52) + '...';
-  }
+  const dur = step.duration || '2s';
 
   switch (type) {
     case 'thought':
-      return `Thought for ${step.duration || '1s'}`;
+      return `Berpikir selama ${step.duration || '1s'}`;
     case 'command':
-      return `Ran ${cmd}`;
-    case 'read':
-    case 'check':
-      return `Explored ${meta || title || '1 file'}`;
-    case 'search':
-      if (/^deepernova/i.test(title)) return title;
-      return `Searched Deepernova for "${meta || title}"`;
+    case 'terminal':
+      return `Perintah terminal dieksekusi · ${dur}`;
     case 'write':
-      return `Created ${meta || title}`;
+    case 'file_write':
+    case 'file':
+      return `Membuat berkas ${meta || title || 'berkas'} · ${step.duration || '1s'}`;
     case 'execute':
-      return `Executed ${meta || 'code'}`;
+    case 'execute_code':
+    case 'run_code':
+      return `Eksekusi kode sandbox · ${dur}`;
+    case 'read':
+    case 'read_file':
+      return `Membaca berkas ${meta || 'berkas'} · ${step.duration || '1s'}`;
+    case 'check':
+    case 'verify_file':
+      return `Memverifikasi berkas ${meta || 'berkas'} · ${step.duration || '1s'}`;
+    case 'search':
+    case 'search_web':
+      return `Pencarian Deepernova Search · ${step.duration || '1s'}`;
     case 'screenshot':
+      return `Tangkapan layar web preview · ${step.duration || '1s'}`;
     case 'preview':
-      return `Previewed live web capture`;
+      return `Pratinjau web interaktif · ${step.duration || '1s'}`;
     case 'skill':
-      return `Mastered Skill: ${meta || title}`;
+    case 'read_skill':
+    case 'search_skill':
+      return `Panduan Keahlian: ${meta || title} · ${step.duration || '1s'}`;
     case 'healing':
-      return `Self-Healing Recovery: ${title}`;
+      return `Perbaikan Mandiri (Self-Healing) · ${dur}`;
     default:
-      if (/^(ran|thought|explored|searched|deepernova|created|executed|verified|mastered|self-healing)\b/i.test(title)) {
-        return title;
-      }
-      return title || 'Executed task action';
+      if (/terminal/i.test(title)) return `Perintah terminal dieksekusi · ${dur}`;
+      if (/berkas|file/i.test(title)) return `Membuat berkas ${meta || title} · ${step.duration || '1s'}`;
+      return `${title || 'Aksi dieksekusi'} · ${dur}`;
   }
 }
 
@@ -68,7 +75,7 @@ export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '',
     steps.push({
       id: 'step_thought',
       type: 'thought',
-      title: 'Thought',
+      title: 'Catatan Berpikir AI',
       duration: '1s',
       detail: reasoning.trim(),
       status: 'completed'
@@ -153,22 +160,21 @@ export default function AgentExecutionTree({
   };
 
   const headerTitle = isStreaming
-    ? `Working for ${formatDurationText(elapsedSec)}`
-    : `Worked for ${duration || formatDurationText(elapsedSec)}`;
+    ? `Menjalankan tugas · ${formatDurationText(elapsedSec)}`
+    : `Selesai diproses · ${duration || formatDurationText(elapsedSec)}`;
 
-  const handleCopy = (e, step) => {
+  const handleCopyText = (e, text, idKey) => {
     e.stopPropagation();
-    const textToCopy = step.detail || step.command || step.meta || '';
-    if (textToCopy) {
-      navigator.clipboard?.writeText(textToCopy);
-      setCopiedId(step.id);
+    if (text) {
+      navigator.clipboard?.writeText(text);
+      setCopiedId(idKey);
       setTimeout(() => setCopiedId(null), 2000);
     }
   };
 
   return (
     <div className="agent-execution-tree">
-      {/* 1. Collapsible Root Summary ("Worked for 2m ▾") */}
+      {/* 1. Collapsible Root Summary ("Menjalankan tugas · 2s ▾") */}
       <div 
         className="agent-tree-summary-row" 
         onClick={() => setIsTreeOpen(!isTreeOpen)}
@@ -197,55 +203,141 @@ export default function AgentExecutionTree({
             const isExpanded = activeStepId === stepId;
             const formattedTitle = formatExecutionStepTitle(step);
             const rawDetail = step.detail ? String(step.detail).trim() : '';
+            const isCommandOrExec = ['command', 'terminal', 'execute', 'execute_code', 'run_code'].includes(step.type);
+            const isWriteOrFile = ['write', 'file_write', 'file'].includes(step.type);
+            const isFailed = step.status === 'failed' || /error|failed|gagal/i.test(rawDetail);
+
+            const inputContent = step.command || (isWriteOrFile ? rawDetail : (step.meta || ''));
+            const outputContent = isCommandOrExec ? (rawDetail || '(Proses selesai tanpa error tambahan)') : (rawDetail || 'Selesai');
 
             return (
               <div key={stepId} className="agent-tree-node">
                 <div 
                   className={`agent-tree-node-row ${isExpanded ? 'is-open' : ''}`}
                   onClick={() => setActiveStepId(isExpanded ? null : stepId)}
-                  title="Klik untuk memeriksa output atau kode aksi ini"
+                  title="Klik untuk memeriksa input dan output aksi ini"
                 >
                   <span className="agent-tree-node-title">{formattedTitle}</span>
                   <span className="agent-tree-node-chevron">{isExpanded ? '▾' : '›'}</span>
                 </div>
 
-                {/* Expanded Output / Code Drawer */}
+                {/* Expanded Input / Output Drawer */}
                 {isExpanded && (
                   <div className="agent-tree-node-drawer">
-                    {step.meta && (
-                      <div className="agent-tree-drawer-meta">
-                        <span className="drawer-meta-key">Target:</span>
-                        <span className="drawer-meta-val">{step.meta}</span>
+                    {/* CASE 1: Terminal Command or Code Execution -> Distinct Input & Output Boxes */}
+                    {isCommandOrExec ? (
+                      <div className="agent-tree-io-grid">
+                        {/* INPUT BOX */}
+                        <div className="agent-tree-io-card is-input">
+                          <div className="agent-tree-io-header">
+                            <span className="agent-tree-io-badge input-badge">
+                              <i className="fa-solid fa-terminal" /> Input Terminal / Perintah
+                            </span>
+                            <button
+                              type="button"
+                              className="agent-tree-io-copy-btn"
+                              onClick={(e) => handleCopyText(e, inputContent, `${stepId}_in`)}
+                              title="Salin perintah terminal"
+                            >
+                              <i className={copiedId === `${stepId}_in` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                              <span>{copiedId === `${stepId}_in` ? 'Tersalin' : 'Salin'}</span>
+                            </button>
+                          </div>
+                          <pre className="agent-tree-drawer-code is-terminal-input">
+                            $ {inputContent || '(perintah internal)'}
+                          </pre>
+                        </div>
+
+                        {/* OUTPUT BOX */}
+                        <div className="agent-tree-io-card is-output">
+                          <div className="agent-tree-io-header">
+                            <span className={`agent-tree-io-badge ${isFailed ? 'failed-badge' : 'output-badge'}`}>
+                              <i className={isFailed ? "fa-solid fa-triangle-exclamation" : "fa-solid fa-circle-check"} />
+                              {isFailed ? ' Output Terminal (Eror)' : ' Output Terminal (Berhasil)'}
+                            </span>
+                            <button
+                              type="button"
+                              className="agent-tree-io-copy-btn"
+                              onClick={(e) => handleCopyText(e, outputContent, `${stepId}_out`)}
+                              title="Salin luaran terminal"
+                            >
+                              <i className={copiedId === `${stepId}_out` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                              <span>{copiedId === `${stepId}_out` ? 'Tersalin' : 'Salin'}</span>
+                            </button>
+                          </div>
+                          <pre className={`agent-tree-drawer-code is-terminal-output ${isFailed ? 'has-error' : ''}`}>
+                            {outputContent}
+                          </pre>
+                        </div>
+                      </div>
+                    ) : isWriteOrFile ? (
+                      /* CASE 2: File Creation -> Code / File Content & Status Box */
+                      <div className="agent-tree-io-grid">
+                        <div className="agent-tree-io-card is-input">
+                          <div className="agent-tree-io-header">
+                            <span className="agent-tree-io-badge file-badge">
+                              <i className="fa-solid fa-file-lines" /> Isi Berkas: {step.meta || 'berkas'}
+                            </span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                type="button"
+                                className="agent-tree-io-copy-btn"
+                                onClick={(e) => handleCopyText(e, inputContent, `${stepId}_code`)}
+                                title="Salin isi berkas"
+                              >
+                                <i className={copiedId === `${stepId}_code` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                                <span>{copiedId === `${stepId}_code` ? 'Tersalin' : 'Salin'}</span>
+                              </button>
+                              {step.meta && (
+                                <button
+                                  type="button"
+                                  className="agent-tree-io-editor-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelectFile?.(step.meta);
+                                    onOpenDrawer?.('files');
+                                  }}
+                                  title="Buka file ini di Editor"
+                                >
+                                  <i className="fa-solid fa-code" />
+                                  <span>Editor</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <pre className="agent-tree-drawer-code is-file-content">
+                            {inputContent || '(Berkas kosong)'}
+                          </pre>
+                        </div>
+                        <div className="agent-tree-io-status-bar">
+                          <i className="fa-solid fa-circle-check" style={{ color: '#10b981' }} />
+                          <span>Berkas <strong>{step.meta || 'file'}</strong> tersimpan sukses di workspace sandbox.</span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* CASE 3: General / Thought / Exploration */
+                      <div className="agent-tree-io-grid">
+                        {step.meta && (
+                          <div className="agent-tree-drawer-meta">
+                            <span className="drawer-meta-key">Target:</span>
+                            <span className="drawer-meta-val">{step.meta}</span>
+                          </div>
+                        )}
+                        <pre className="agent-tree-drawer-code">
+                          {rawDetail || step.command || '(Selesai tanpa luaran tambahan)'}
+                        </pre>
+                        <div className="agent-tree-drawer-actions">
+                          <button 
+                            type="button" 
+                            className="agent-tree-copy-btn"
+                            onClick={(e) => handleCopyText(e, rawDetail || step.command || step.meta, `${stepId}_gen`)}
+                          >
+                            <i className={copiedId === `${stepId}_gen` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                            <span>{copiedId === `${stepId}_gen` ? 'Tersalin' : 'Salin'}</span>
+                          </button>
+                        </div>
                       </div>
                     )}
-                    <pre className="agent-tree-drawer-code">
-                      {rawDetail || step.command || '(Aksi selesai tanpa luaran konsol tambahan)'}
-                    </pre>
-                    <div className="agent-tree-drawer-actions">
-                      <button 
-                        type="button" 
-                        className="agent-tree-copy-btn"
-                        onClick={(e) => handleCopy(e, step)}
-                      >
-                        <i className={copiedId === step.id ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-                        <span>{copiedId === step.id ? 'Tersalin' : 'Salin'}</span>
-                      </button>
-
-                      {step.type === 'write' && step.meta && (
-                        <button
-                          type="button"
-                          className="agent-tree-editor-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectFile?.(step.meta);
-                            onOpenDrawer?.('files');
-                          }}
-                        >
-                          <i className="fa-solid fa-code" />
-                          <span>Buka di Editor</span>
-                        </button>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
@@ -256,3 +348,4 @@ export default function AgentExecutionTree({
     </div>
   );
 }
+
