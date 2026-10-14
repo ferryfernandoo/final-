@@ -9623,7 +9623,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // This must happen FIRST so the search flow can take over
       // and the normal cleanup doesn't interfere.
       // ============================================================
-      const hasSearchFlag = /\[SEARCH_REQUEST:\s*(.+?)\]/.test(fullText);
+      const hasSearchFlag = /\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]/i.test(fullText) || /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullText);
       if (hasSearchFlag) {
         // Trigger search immediately — this will handle its own cleanup
         triggerWebSearchIfNeeded(placeholderId, fullText);
@@ -10948,7 +10948,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const triggerWebSearchIfNeeded = (messageId, text) => {
     if (!text) return;
     let searchQuery = null;
-    const searchRequestMatch = text.match(/\[SEARCH_REQUEST:\s*(.+?)\]/);
+    const searchRequestMatch = text.match(/\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]/i) || text.match(/<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i);
     if (searchRequestMatch && searchRequestMatch[1]) {
       searchQuery = searchRequestMatch[1].trim();
     } else {
@@ -10966,7 +10966,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         ? currentConversationHistoryRef.current
         : (Array.isArray(messages) ? messages : []);
       const lastUserMsg = [...historyPool].reverse().find(m => m && (m.sender === 'user' || m.role === 'user'));
-      const finalSearchQuery = searchQuery.trim();
+      const userPrompt = currentTurnText || (lastUserMsg ? (lastUserMsg.text || lastUserMsg.content || '') : '') || searchQuery;
+      const finalSearchQuery = searchQuery.replace(/^["']|["']$/g, '').trim();
 
       console.log(`[ChatBot] 🔍 AI-determined SEARCH_REQUEST: "${finalSearchQuery}" (userPrompt: "${userPrompt}") for message ${messageId}`);
       
