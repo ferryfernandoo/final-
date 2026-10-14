@@ -16,7 +16,7 @@ export const API_BASE_URL =
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:4000/api/v1'
-    : 'https://aware-troops-admissions-rational.trycloudflare.com/api/v1');
+    : 'https://adapter-isp-eleven-lips.trycloudflare.com/api/v1');
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 
