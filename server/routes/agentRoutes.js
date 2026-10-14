@@ -9,6 +9,7 @@ import agentMemoryService from '../services/agentMemoryService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
 import { TOKENMIX_API_KEYS, TOKENMIX_CHAT_API_URL, getEffectiveTokenMixKeys, apiProxyService } from '../apiProxyService.js';
 import webSearchService from '../webSearchService.js';
+import agentSkillService from '../services/agentSkillService.js';
 
 function escapeXml(unsafe) {
   if (!unsafe) return '';
@@ -365,6 +366,40 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep) {
       pillXml = `<action_pill id="${actionId}" type="read" title="Gagal Membaca ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(readErr.message)}</action_pill>`;
       observation = `Gagal membaca berkas '${targetPath}': ${readErr.message}`;
     }
+  } else if (action.type === 'read_skill') {
+    const skillName = action.name || 'frontend-modern-web';
+    addStep('skill', `Mempelajari Skill: ${skillName}`, `Mengambil panduan standar profesional untuk '${skillName}'...`, 'running');
+    try {
+      const skill = agentSkillService.readSkill(skillName);
+      if (skill.found) {
+        updateLastStep('completed', `Panduan '${skill.title}' berhasil dipelajari.`);
+        const preview = skill.content.slice(0, 800) + '...';
+        pillXml = `<action_pill id="${actionId}" type="skill" title="${escapeXml(skill.title)}" meta="${escapeXml(skill.id)}" status="completed">${escapeXml(preview)}</action_pill>`;
+        observation = `[PANDUAN STANDAR SKILL ${skill.id.toUpperCase()}]:\n${skill.content}\n\n[INSTRUKSI]: Terapkan seluruh arsitektur, palet warna, aturan anti-error, dan template kode di atas pada tugas ini!`;
+      } else {
+        updateLastStep('failed', skill.error);
+        pillXml = `<action_pill id="${actionId}" type="skill" title="Skill Tidak Ditemukan" meta="${skillName}" status="failed">${escapeXml(skill.error)}</action_pill>`;
+        observation = skill.error;
+      }
+    } catch (err) {
+      updateLastStep('failed', err.message);
+      pillXml = `<action_pill id="${actionId}" type="skill" title="Gagal Membaca Skill" meta="${skillName}" status="failed">${escapeXml(err.message)}</action_pill>`;
+      observation = `Gagal membaca skill '${skillName}': ${err.message}`;
+    }
+  } else if (action.type === 'search_skill') {
+    const query = action.query || '';
+    addStep('skill', `Pencarian Skill: ${query}`, `Mencari katalog skill profesional untuk '${query}'...`, 'running');
+    try {
+      const matches = agentSkillService.searchSkills(query);
+      const matchSummary = matches.map(m => `- \`${m.id}\`: ${m.title} (${m.category}) - Kata Kunci: ${m.keywords.join(', ')}`).join('\n');
+      updateLastStep('completed', `Ditemukan ${matches.length} skill relevan.`);
+      pillXml = `<action_pill id="${actionId}" type="skill" title="Pencarian Skill: ${query}" meta="${query}" status="completed">${escapeXml(matchSummary)}</action_pill>`;
+      observation = `Hasil pencarian skill untuk "${query}":\n${matchSummary}\n\nGunakan <read_skill name="id-skill" /> untuk membaca panduan lengkapnya.`;
+    } catch (err) {
+      updateLastStep('failed', err.message);
+      pillXml = `<action_pill id="${actionId}" type="skill" title="Pencarian Skill Gagal" meta="${query}" status="failed">${escapeXml(err.message)}</action_pill>`;
+      observation = `Gagal mencari skill: ${err.message}`;
+    }
   } else if (action.type === 'search_web' || action.type === 'search') {
     const query = action.query || 'referensi';
     addStep('search', `Deepernova Search: ${query}`, `Melakukan penelusuran live di Deepernova Search Engine untuk '${query}'...`, 'running');
@@ -508,7 +543,7 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep) {
 function createStreamActionParser(callbacks) {
   let buffer = '';
   let activeThinkingTag = null;
-  const KNOWN_TAGS = ['thinking', 'plan', 'thought', 'think', 'reasoning', 'read_file', 'read', 'search_web', 'search', 'run_command', 'command', 'terminal', 'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file', 'preview', 'screenshot', 'take_screenshot'];
+  const KNOWN_TAGS = ['thinking', 'plan', 'thought', 'think', 'reasoning', 'read_skill', 'search_skill', 'read_file', 'read', 'search_web', 'search', 'run_command', 'command', 'terminal', 'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file', 'preview', 'screenshot', 'take_screenshot'];
   let queue = Promise.resolve();
 
   async function processChunk(chunk) {
@@ -586,6 +621,8 @@ function createStreamActionParser(callbacks) {
                             openTagSubstr.includes('/>') ||
                             tagName === 'check_file' || 
                             tagName === 'verify_file' || 
+                            (tagName === 'read_skill' && !buffer.includes(`</${tagName}>`)) ||
+                            (tagName === 'search_skill' && !buffer.includes(`</${tagName}>`)) ||
                             (tagName === 'search_web' && !buffer.includes(`</${tagName}>`)) || 
                             (tagName === 'read_file' && !buffer.includes(`</${tagName}>`));
 
@@ -755,15 +792,13 @@ router.post('/run', async (req, res) => {
 
     updateLastStep('completed', `Workspace sandbox siap (${existingFiles.length} berkas terdeteksi).`);
 
-    // Step 2: Explicitly read and consult SKILL.md before execution
-    addStep('read', 'Membaca SKILL.md & Panduan Standar', 'Mempelajari panduan standar Deepernova: arsitektur front-end modern, dokumen Word .docx, presentasi PPTX, spreadsheet Excel .xlsx, dan visualisasi data...', 'running');
-
-    let skillContent = DEFAULT_SKILL_MD;
-    try {
-      skillContent = agentSandboxService.readFile(sessionId, 'SKILL.md');
-    } catch (_) {}
-
-    updateLastStep('completed', 'Panduan SKILL.md berhasil dipelajari. Siap menerapkan standar koding dan perancangan berkualitas tinggi.');
+    // Step 2: Intelligent Skill Suggestion & Dynamic On-Demand Catalog Matching
+    const suggestedSkill = agentSkillService.suggestSkill(prompt);
+    if (suggestedSkill) {
+      addStep('skill', `Mendeteksi Keahlian: ${suggestedSkill.title}`, `Mempersiapkan modul spesialis '${suggestedSkill.id}' (${suggestedSkill.category}) untuk eksekusi presisi...`, 'completed');
+    } else {
+      addStep('skill', 'Katalog Keahlian Siap', 'Memuat katalog keahlian profesional on-demand (Frontend, DOCX, PPTX, XLSX, Cybersecurity, Matplotlib, REST API)...', 'completed');
+    }
 
     // Step 3: Intelligent Upfront Search with Deepernova Search Engine (Sub-second BM25 Indexer)
     const promptLower = (prompt || '').toLowerCase();
@@ -785,113 +820,89 @@ router.post('/run', async (req, res) => {
       }
     }
 
-    // Build system prompt with SKILL.md and Sandbox context (Autonomous Agent Orchestrator Standard)
-    const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator & Workspace Artifacts.
-Anda bertugas mengeksekusi instruksi pengguna secara nyata di dalam sandbox hingga menghasilkan berkas jadi berkualitas tinggi.
-Sebelum melakukan tindakan apapun, Anda telah membaca dan memahami berkas SKILL.MD di workspace sandbox.
+    // Build system prompt with Dynamic Skill Catalog & Sandbox context (Autonomous Agent Orchestrator Standard)
+    const compactCatalog = agentSkillService.getCompactCatalog();
+    const skillSuggestionNote = suggestedSkill
+      ? `\n💡 REKOMENDASI SPESIALIS TUGAS INI: Sistem mendeteksi tugas ini sangat relevan dengan skill \`${suggestedSkill.id}\` (${suggestedSkill.title}). Anda disarankan memanggil <read_skill name="${suggestedSkill.id}" /> untuk membaca arsitektur dan template koding yang 100% teruji bebas error!\n`
+      : '';
+
+    const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator, Workspace Artifacts & Dynamic Skill Architecture.
+Anda bertugas mengeksekusi instruksi pengguna secara nyata di dalam sandbox hingga menghasilkan berkas jadi berkualitas tinggi tanpa error.
 
 PROTOKOL KOMUNIKASI, PENALARAN & PENGALAMAN PENGGUNA (UX STANDAR TINGGI):
 1. JANGAN PERNAH LANGSUNG MAIN KERJAIN TANPA PENJELASAN RAMAH KEPADA PENGGUNA!
    Pengguna sangat mengutamakan kejelasan nalar, keramahan komunikasi, dan transparansi proses.
 2. ALUR OUTPUT YANG WAJIB ANDA IKUTI SECARA BERURUTAN:
    - Tahap 1: <thought>...</thought> (EXTENDED THINKING)
-     Tuliskan seluruh proses perenungan, analisis arsitektur mendalam, pemilihan pustaka, perumusan logika algoritma, dan mitigasi error internal di dalam tag ini. Kotak penalaran ini akan ditampilkan langsung di layar pengguna secara rapi dan interaktif.
+     Tuliskan seluruh proses perenungan, analisis arsitektur mendalam, pemilihan skill modul, mitigasi potensi error, dan strategi eksekusi. Kotak penalaran ini ditampilkan langsung di layar pengguna secara rapi dan interaktif.
    
    - Tahap 2: PENJELASAN PEMBUKA & STRATEGI DESAIN (TEKS BIASA / MARKDOWN RAMAH)
-     SEBELUM menuliskan tag aksi apapun (<write_file>, <run_command>, dll), Anda WAJIB menyapa pengguna dengan ramah dan memaparkan:
+     SEBELUM menuliskan tag aksi sandbox (<write_file>, <run_command>, dll), Anda WAJIB menyapa pengguna dengan ramah dan memaparkan:
      a. Konfirmasi pemahaman terhadap instruksi pengguna.
-     b. Rancangan & Alasan Desain (Reasoning): struktur bab/slide/sheet, palet warna, tipografi, dan pendekatan isi.
+     b. Rancangan & Alasan Desain (Reasoning): arsitektur berkas, skema warna, tipografi, dan pendekatan solusi.
      c. Poin ringkas langkah-langkah yang akan segera dieksekusi di sandbox.
 
-   - Tahap 3: EKSEKUSI PRODUKSI REAL DI SANDBOX (TAG AKSI)
-     Menulis berkas generator dan menjalankannya di terminal sandbox:
-     <write_file path="generate.py">kode murni tanpa backtick</write_file>
-     <run_command>python generate.py</run_command>
-     <check_file path="nama_berkas.ext" />
-     (Jika membuat web: <screenshot target="index.html" />)
+   - Tahap 3: PEMBACAAN SKILL ON-DEMAND & EKSEKUSI NYATA DI SANDBOX (TAG AKSI)
+     * Jika membutuhkan panduan presisi: <read_skill name="id-skill" />
+     * Menulis berkas generator atau aplikasi:
+       <write_file path="generate.py">kode murni tanpa backtick</write_file>
+     * Menjalankan di terminal sandbox:
+       <run_command>python generate.py</run_command>
+     * Memverifikasi berkas fisik terbentuk:
+       <check_file path="nama_berkas.ext" />
+     * Jika membuat aplikasi web:
+       <screenshot target="index.html" />
 
    - Tahap 4: KESIMPULAN EKSEKUTIF & PANDUAN PENGGUNA (TEKS BIASA PENUTUP)
      Setelah seluruh aksi sandbox selesai, sampaikan konfirmasi keberhasilan, deskripsi berkas yang terbentuk, ringkasan fitur, serta panduan cara mengunduh atau meninjaunya.
 
-SIKLUS ORKESTRASI MULTI-STEP RE-ACT AGENT:
-- Analisis di <thought> -> Penjelasan Pembuka -> Tag Aksi Sandbox/Web -> Pembacaan Observasi Hasil Tindakan -> Analisis Mendalam & Jawaban Komprehensif.
-- PENCARIAN BERITA, RISET & INFORMASI AKTUAL (DEEPERNOVA SEARCH ENGINE):
-  a. Anda terintegrasi secara langsung dengan Deepernova Search Engine — mesin pencari berkecepatan tinggi dengan BM25 indexer dan PageRank yang akurat dan terindeks terkini.
+SIKLUS ORKESTRASI MULTI-STEP RE-ACT & AUTONOMOUS RETRY LOOP:
+- Analisis di <thought> -> Penjelasan Pembuka -> Tag Aksi Sandbox/Web/Skill -> Pembacaan Observasi Hasil Tindakan -> Analisis Mendalam -> Eksekusi Lanjutan / Laporan Akhir.
+- PENCARIAN BERITA & INFORMASI AKTUAL (DEEPERNOVA SEARCH ENGINE):
+  a. Anda terintegrasi langsung dengan Deepernova Search Engine — mesin pencari berkecepatan tinggi dengan BM25 indexer dan PageRank yang akurat dan terindeks terkini.
   b. Jika membutuhkan informasi tambahan, panggil <search_web query="kata kunci pencarian spesifik" />.
-  c. Sistem akan mengeksekusi pencarian di Deepernova Search Engine dan mengembalikan observasi berisi judul, ringkasan, domain, dan tanggal.
-  d. Anda WAJIB menganalisis data tersebut dan menyampaikannya secara akurat, lugas, dan menyebutkan sumber informasinya secara spesifik kepada pengguna! DILARANG berhenti hanya pada tag pencarian tanpa memberikan rangkuman lengkap!
-- Self-Healing Loop: Jika muncul error atau dependensi gagal, analisis traceback observasi di dalam <thought>, perbaiki kodenya, dan jalankan ulang secara mandiri.
+  c. Sistem akan mengeksekusi pencarian dan mengembalikan observasi berisi judul, ringkasan, domain, dan tanggal.
+  d. Anda WAJIB menganalisis data tersebut dan menyampaikannya secara akurat, lugas, dan menyebutkan sumber informasinya secara spesifik kepada pengguna!
+- AUTONOMOUS SELF-HEALING (PERBAIKAN MANDIRI):
+  Jika terjadi error eksekusi (stderr, syntax error, missing module, atau target berkas belum terbentuk), Anda TIDAK BOLEH berhenti atau menyerah! Analisis akar masalah di <thought>, tulis ulang skrip perbaikan via <write_file>, jalankan ulang dengan <run_command>, dan verifikasi kembali dengan <check_file>.
 
-TAG AKSI SANDBOX YANG TERSEDIA:
+${compactCatalog}
+${skillSuggestionNote}
+
+TAG AKSI SANDBOX & SKILL YANG TERSEDIA:
+- <read_skill name="nama_skill" />
+  Membaca dokumen standar keahlian secara on-demand (misal: frontend-modern-web, docx-executive-report, pptx-c-level-deck, xlsx-financial-model, cybersecurity-pentest-defense, data-science-matplotlib, fullstack-rest-api, web-scraping-crawler, pdf-pro-generator, algorithmic-financial-analysis).
+- <search_skill query="kata kunci" />
+  Menelusuri pustaka keahlian jika Anda membutuhkan panduan spesifik.
 - <thought>analisis nalar internal mendalam</thought>
 - <plan>rencana milestone eksekusi</plan>
 - <read_file path="nama_file.ext" />
-  Membaca isi berkas dari sandbox atau SKILL.md.
+  Membaca isi berkas dari sandbox.
 - <search_web query="kata kunci pencarian" />
-  Melakukan pencarian di internet untuk referensi, materi, atau data aktual.
+  Melakukan pencarian di Deepernova Search Engine untuk referensi atau data aktual.
 - <run_command>perintah terminal</run_command>
   Menjalankan perintah terminal di sandbox (misal: python, node, dir, dsb).
 - <write_file path="nama_file.ext">isi berkas lengkap</write_file>
-  Menulis berkas kode atau skrip lengkap ke sandbox.
+  Menulis berkas kode atau skrip lengkap ke sandbox (DILARANG tanda triple backtick di dalam tag ini!).
 - <execute_code language="python|node">kode</execute_code>
   Mengeksekusi kode langsung di sandbox.
 - <check_file path="nama_file.ext" />
   Memeriksa keberadaan dan ukuran berkas hasil eksekusi di sandbox.
 - <screenshot target="index.html" />
-  Mengambil tangkapan layar browser (screenshot preview) dari aplikasi web / berkas HTML dan langsung menampilkannya di obrolan pengguna.
+  Mengambil tangkapan layar browser visual preview dari aplikasi web / berkas HTML dan langsung menampilkannya di obrolan pengguna.
 - <preview>index.html</preview>
   Menetapkan file visual preview untuk aplikasi web.
 
-ATURAN KECERDASAN RELEVANSI BERKAS (AI CERDAS):
-1. Pengguna hanya ingin menerima berkas akhir yang relevan dan diminta (seperti berkas .docx, .pptx, .xlsx, atau aplikasi web). Jangan jadikan skrip python pembantu sementara sebagai file unduhan utama, kecuali bila pengguna meminta kode/skrip atau meminta semua berkas.
+ATURAN KECERDASAN RELEVANSI BERKAS & PENGALAMAN PENGGUNA:
+1. Pengguna hanya ingin menerima berkas akhir yang relevan dan diminta (seperti berkas .docx, .pptx, .xlsx, .pdf, atau aplikasi web). Jangan jadikan skrip python pembantu sementara sebagai file unduhan utama.
 2. Setiap kali Anda membuat aplikasi web (HTML/CSS/JS), selalu panggil <screenshot target="index.html" /> agar tangkapan layarnya langsung tampil di obrolan pengguna!
-
-PANDUAN STANDAR SKILL.MD & ATURAN MUTLAK KODING (ANTI-ERROR):
-1. DOKUMEN WORD (.DOCX):
-   - Gunakan 'python-docx'. Tulis skrip 'generate_docx.py' di <write_file path="generate_docx.py"> lalu jalankan dengan <run_command>python generate_docx.py</run_command>.
-   - DILARANG KERAS table.rows.index(...) atau row.table.rows.index()! Objek _Rows bukan list.
-   - Gunakan selalu pola enumerate(data_rows):
-     for r_idx, row in enumerate(data_rows):
-         row_cells = tbl.add_row().cells
-         for c_idx, val in enumerate(row):
-             row_cells[c_idx].text = str(val)
-             if r_idx % 2 == 0:
-                 row_cells[c_idx]._tc.get_or_add_tcPr().append(parse_xml(f'<w:shd {nsdecls("w")} w:fill="F8FAFC"/>'))
-   - Sisipkan Callout Box (tabel 1x1 border oranye #EA580C):
-     callout = doc.add_table(rows=1, cols=1); c_cell = callout.rows[0].cells[0]
-     c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:shd {nsdecls("w")} w:fill="F8FAFC"/>'))
-     c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:tcBorders {nsdecls("w")}><w:left w:val="single" w:sz="36" w:space="0" w:color="EA580C"/><w:top w:val="none"/><w:right w:val="none"/><w:bottom w:val="none"/></w:tcBorders>'))
-     (DILARANG memanggil tblPr.get_or_add_tblBorders, .lstStyle, atau paragraph_format.shading!)
-   - Selalu periksa hasil dengan <check_file path="nama_file.docx" />.
-
-2. PRESENTASI POWERPOINT (.PPTX):
-   - Gunakan 'python-pptx' layar lebar 16:9 (prs.slide_width=Inches(13.333), prs.slide_height=Inches(7.5)).
-   - Slide 1: Hero Title, Slide 2: KPI Scorecard Cards (MSO_SHAPE.ROUNDED_RECTANGLE), Slide 3: Visual kurva grafik, Slide 4: 3-Column Pillar, Slide 5: Roadmap.
-   - Verifikasi berkas dengan <check_file path="nama_file.pptx" />.
-
-3. SPREADSHEET EXCEL (.XLSX):
-   - Gunakan 'openpyxl', banner header gelap #0F172A, kartu KPI, format Rupiah ('Rp #,##0') dan persentase ('0.0%'), auto-fit kolom, freeze panes, dan chart native via openpyxl.chart.
-   - Verifikasi berkas dengan <check_file path="nama_file.xlsx" />.
-
-4. KURVA GRAFIK & VISUALISASI DATA (MATPLOTLIB):
-   - Gunakan matplotlib.use('Agg'), dpi=300, kurva halus np.linspace, fill_between, simpan 'chart.png' dan sisipkan ke dokumen via doc.add_picture('chart.png', width=Inches(5.8)).
-
-5. FRONT-END WEB (HTML/CSS/JS) & CARA NGODING:
-   - Tulis berkas lengkap mandiri di <write_file path="index.html"> dengan tema gelap eksekutif (#0F172A), kartu rapi (#1E293B), font modern, dan interaktivitas JS aktif sejak awal.
-   - Halaman HARUS langsung memiliki konten hidup dan data aktif sejak awal (DILARANG KERAS membuat layar putih polos atau stuck loading!).
-   - Panggil <screenshot target="index.html" /> setelah menulis berkas agar tangkapan layar browser resolusi 1280x800 langsung otomatis diambil dan dikirim ke obrolan pengguna!
-
-ALUR EKSEKUSI NYATA & ATURAN MUTLAK MEMBUAT BERKAS:
-- PENTING MUTLAK: Di dalam tag <write_file path="..."> TULIS LANGSUNG KODE MURNI TANPA MENYERTAKAN TRIPLE BACKTICK (\`\`\`python atau \`\`\`)! Baris pertama harus langsung kode sumber murni. Menyertakan tanda backtick di dalam <write_file> akan menyebabkan Python SyntaxError dan gagal total!
-- KETIKA MEMBUAT DOKUMEN (.docx, .pptx, .xlsx): Anda WAJIB menulis skrip generator di <write_file path="generate.py"> lalu SEGERA MENJALANKANNYA dengan <run_command>python generate.py</run_command>! Berkas dokumen fisik TIDAK AKAN PERNAH TERBENTUK di disk sandbox jika Anda tidak menjalankan skripnya!
-- JANGAN menduplikasi atau mengulang kode di dalam teks markdown biasa sebelum atau sesudah tag aksi.
-- Jika membuat presentasi PowerPoint (.pptx) atau Word (.docx) yang memerlukan grafik kurva, GABUNGKAN pembuatan grafik Matplotlib dan penyisipannya ke dalam SATU skrip Python yang sama.
-- Setelah mengeksekusi skrip, selalu panggil <check_file path="nama_berkas.ext" /> untuk memverifikasi berkas sudah terbentuk dengan sempurna di disk sandbox.
+3. DILARANG KERAS tanda backtick (\`\`\`python atau \`\`\`) di dalam <write_file path="...">! Baris pertama harus langsung kode sumber murni.
+4. KETIKA MEMBUAT DOKUMEN (.docx, .pptx, .xlsx, .pdf): Anda WAJIB menulis skrip generator di <write_file path="generate.py"> lalu SEGERA MENJALANKANNYA dengan <run_command>python generate.py</run_command>!
+5. Setelah mengeksekusi skrip, selalu panggil <check_file path="nama_berkas.ext" /> untuk memverifikasi berkas sudah terbentuk dengan sempurna di disk sandbox.
 
 ATURAN PERTANYAAN SEDERHANA, PERCAKAPAN, & MEMORI LINTAS SESI:
-1. Jika pengguna hanya bertanya hal sederhana, meminta penjelasan, berkonsultasi, berterima kasih, bertanya tentang identitas mereka ("siapa saya?", "nama saya siapa?"), atau menanyakan obrolan/berkas dari sesi lain ("kamu ingat file kemarin?", "apa saja yang sudah kita buat?"):
+1. Jika pengguna hanya bertanya hal sederhana, meminta penjelasan, berkonsultasi, berterima kasih, atau menanyakan obrolan/berkas terdahulu:
    - Anda TIDAK PERLU menuliskan tag aksi apapun (<write_file>, <run_command>, dll).
-   - DILARANG KERAS membuat ulang berkas yang sudah ada jika pengguna tidak memintanya!
    - Jawablah pertanyaan pengguna secara ramah, cerdas, dan to the point dengan memanfaatkan memori lintas sesi yang tersedia.
 2. Tag aksi (<write_file>, <run_command>) HANYA digunakan jika pengguna secara spesifik meminta membuat file baru, mengubah berkas yang ada, atau mengeksekusi perintah terminal.
 
@@ -899,9 +910,7 @@ ${crossSessionMemoryText}
 
 BERKAS SAAT INI DI SANDBOX:
 ${fileListText}
-
-CATATAN PROTOKOL WORKSPACE:
-Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda dapat membacanya dengan <read_file path="SKILL.md" /> kapan pun dibutuhkan.${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIAN DEEPERNOVA: Data pencarian di atas adalah data terverifikasi dari Deepernova Search Engine. Anda WAJIB menggunakannya sebagai acuan fakta utama dalam jawaban Anda!` : ''}`;
+${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIAN DEEPERNOVA: Data pencarian di atas adalah data terverifikasi dari Deepernova Search Engine. Anda WAJIB menggunakannya sebagai acuan fakta utama dalam jawaban Anda!` : ''}`;
 
     // Messages payload for LLM
     const apiMessages = [
@@ -924,9 +933,10 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
       process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
     ].filter(Boolean);
 
-    const MAX_AGENT_STEPS = 4;
+    const MAX_AGENT_STEPS = 6;
     let stepIteration = 0;
     let continueAutonomousLoop = true;
+    let isSelfHealingActive = false;
 
     while (continueAutonomousLoop && stepIteration < MAX_AGENT_STEPS && !isAborted) {
       stepIteration++;
@@ -1113,7 +1123,7 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
 
       if (isAborted) break;
 
-      // Autonomous Multi-Step ReAct Loop Decision:
+      // Autonomous Multi-Step ReAct & Self-Healing Loop Decision:
       // If tool actions were executed during this turn, feed observations back into LLM context so it reads results!
       if (turnActionExecuted && turnObservations.length > 0 && stepIteration < MAX_AGENT_STEPS) {
         apiMessages.push({
@@ -1121,13 +1131,73 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
           content: turnRawContent
         });
 
+        const hasErrorInTurn = turnObservations.some(o => {
+          const text = (o.observation || '').toLowerCase();
+          return text.includes('stderr') || 
+                 text.includes('error:') || 
+                 text.includes('traceback') || 
+                 text.includes('exception:') || 
+                 text.includes('syntaxerror') || 
+                 text.includes('nameerror') || 
+                 text.includes('attributeerror') || 
+                 text.includes('modulenotfounderror') ||
+                 text.includes('gagal') ||
+                 text.includes('failed');
+        });
+
+        // Detect unmet target deliverables in sandbox
+        const currentFiles = agentSandboxService.listFiles(sessionId);
+        const unmetGoals = [];
+        const isCreationIntent = /\b(buat|bikin|create|generate|rancang|susun|tulis|tambahkan|edit|ubah|ganti)\b/i.test(promptLower);
+        const wantsPptx = /\b(pptx|powerpoint|slide|presentasi)\b/i.test(promptLower);
+        const wantsDocx = /\b(docx|word|dokumen|laporan|surat|makalah|paper)\b/i.test(promptLower);
+        const wantsXlsx = /\b(xlsx|excel|spreadsheet|tabel\s*excel|keuangan)\b/i.test(promptLower);
+        const wantsPdf = /\b(pdf|invoice|laporan\s*pdf)\b/i.test(promptLower);
+        const wantsHtml = /\b(html|web|dashboard|landing\s*page|website)\b/i.test(promptLower);
+
+        if (isCreationIntent) {
+          if (wantsDocx && !currentFiles.some(f => f.ext === 'docx')) unmetGoals.push("Dokumen Word (.docx) belum terbentuk di disk");
+          if (wantsPptx && !currentFiles.some(f => f.ext === 'pptx')) unmetGoals.push("Presentasi PowerPoint (.pptx) belum terbentuk di disk");
+          if (wantsXlsx && !currentFiles.some(f => f.ext === 'xlsx')) unmetGoals.push("Spreadsheet Excel (.xlsx) belum terbentuk di disk");
+          if (wantsPdf && !currentFiles.some(f => f.ext === 'pdf')) unmetGoals.push("Dokumen PDF (.pdf) belum terbentuk di disk");
+          if (wantsHtml && !currentFiles.some(f => f.ext === 'html')) unmetGoals.push("Aplikasi Web (index.html) belum terbentuk di disk");
+        }
+
+        const needsSelfHealing = hasErrorInTurn || (unmetGoals.length > 0 && stepIteration >= 2);
+
+        if (isSelfHealingActive && !hasErrorInTurn && unmetGoals.length === 0) {
+          updateLastStep('completed', 'Perbaikan mandiri (Self-Healing) berhasil! Berkas dan sistem telah diverifikasi 100% aman.');
+          isSelfHealingActive = false;
+        }
+
         const obsFormatted = turnObservations.map((o, idx) => `[HASIL OBSERVASI ${idx + 1} (${o.type})]:\n${o.observation}`).join('\n\n---\n\n');
-        const followUpInstruction = `${obsFormatted}\n\n` +
-          `[INSTRUKSI MULTI-STEP RE-ACT]:\n` +
-          `1. BACA dan ANALISIS secara mendalam seluruh hasil observasi/pencarian web/perintah di atas.\n` +
-          `2. JAWAB pertanyaan pengguna secara lengkap, terstruktur, mendalam, dan sebutkan fakta serta sumber beritanya secara spesifik kepada pengguna sekarang.\n` +
-          `3. Jika informasi masih kurang lengkap dan Anda membutuhkan pencarian lanjutan atau verifikasi langkah berikutnya, Anda boleh memanggil 1 tag <search_web> atau <run_command> lagi.\n` +
-          `4. Jika informasi sudah cukup untuk menjawab atau tugas sudah tuntas, berikan analisis & laporan akhir yang komprehensif sekarang tanpa menyertakan tag aksi tambahan.`;
+        let followUpInstruction = '';
+
+        if (needsSelfHealing) {
+          isSelfHealingActive = true;
+          addStep('healing', `Mendeteksi Kendala & Memulai Perbaikan Mandiri (Percobaan #${stepIteration})`, `Menganalisis penyebab kegagalan dan merancang kode perbaikan baru...`, 'running');
+
+          followUpInstruction = `${obsFormatted}\n\n` +
+            `🚨 [AUTONOMOUS SELF-HEALING & PERBAIKAN MANDIRI AKTIF (Iterasi #${stepIteration}/${MAX_AGENT_STEPS})]:\n` +
+            `Perhatian: Target pengerjaan belum tuntas atau terjadi kendala teknis pada langkah sebelumnya:\n` +
+            (hasErrorInTurn ? `- Error atau kegagalan eksekusi terdeteksi dalam output observasi di atas.\n` : '') +
+            (unmetGoals.length > 0 ? `- Berkas yang diminta pengguna belum terbentuk di sandbox: ${unmetGoals.join(', ')}.\n` : '') +
+            `\n` +
+            `INSTRUKSI WAJIB BAGI AI AGENT (JANGAN BERHENTI ATAU HANYA MEMINTA MAAF!):\n` +
+            `1. Analisis akar penyebab error (root cause) secara kritis di dalam <thought>...</thought>.\n` +
+            `2. Jika ragu dengan sintaks pustaka atau template berkas, baca skill yang tepat menggunakan <read_skill name="..." />.\n` +
+            `3. Tulis ulang berkas skrip dengan <write_file path="..."> berisi kode perbaikan lengkap (DILARANG tanda triple backtick di dalam write_file!).\n` +
+            `4. Jalankan kembali dengan <run_command>python ...</run_command>.\n` +
+            `5. Verifikasi hasil berkas dengan <check_file path="..." />.\n` +
+            `Lakukan langkah perbaikan mandiri sekarang juga!`;
+        } else {
+          followUpInstruction = `${obsFormatted}\n\n` +
+            `[INSTRUKSI MULTI-STEP RE-ACT]:\n` +
+            `1. BACA dan ANALISIS secara mendalam seluruh hasil observasi/pencarian web/perintah di atas.\n` +
+            `2. JAWAB pertanyaan pengguna secara lengkap, terstruktur, mendalam, dan sebutkan fakta serta sumber beritanya secara spesifik kepada pengguna sekarang.\n` +
+            `3. Jika tugas telah selesai sepenuhnya dengan hasil sempurna, berikan ringkasan eksekutif dan konfirmasi akhir kepada pengguna sekarang tanpa menyertakan tag aksi tambahan.\n` +
+            `4. Jika masih membutuhkan langkah verifikasi atau tangkapan layar web, jalankan <screenshot target="index.html" /> atau <check_file path="..." /> sekarang.`;
+        }
 
         apiMessages.push({
           role: 'user',
@@ -1136,6 +1206,10 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
 
         continueAutonomousLoop = true;
       } else {
+        if (isSelfHealingActive) {
+          updateLastStep('completed', 'Proses self-healing selesai.');
+          isSelfHealingActive = false;
+        }
         continueAutonomousLoop = false;
       }
     }

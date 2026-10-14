@@ -44,8 +44,12 @@ export function formatExecutionStepTitle(step) {
     case 'screenshot':
     case 'preview':
       return `Previewed live web capture`;
+    case 'skill':
+      return `Mastered Skill: ${meta || title}`;
+    case 'healing':
+      return `Self-Healing Recovery: ${title}`;
     default:
-      if (/^(ran|thought|explored|searched|deepernova|created|executed|verified)\b/i.test(title)) {
+      if (/^(ran|thought|explored|searched|deepernova|created|executed|verified|mastered|self-healing)\b/i.test(title)) {
         return title;
       }
       return title || 'Executed task action';

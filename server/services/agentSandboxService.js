@@ -1100,7 +1100,7 @@ export function extractSequentialActions(text) {
   const writtenPaths = new Set();
 
   // Unified tag regex matching paired or self-closing action tags
-  const tagRegex = /<(thought|read_file|read|search_web|search|run_command|command|terminal|write_file|file|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|search_web|search|check_file|verify_file|screenshot|take_screenshot)\s+([^>]*?)\/?>/gi;
+  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|check_file|verify_file|screenshot|take_screenshot)\s+([^>]*?)\/?>/gi;
 
   let match;
   while ((match = tagRegex.exec(text)) !== null) {
@@ -1120,6 +1120,12 @@ export function extractSequentialActions(text) {
 
       if (tagName === 'thought') {
         actions.push({ type: 'thought', content: body, rawMatch, index });
+      } else if (tagName === 'read_skill') {
+        const skillName = getAttr('name') || getAttr('skill') || body.split('\n')[0].trim();
+        actions.push({ type: 'read_skill', name: skillName, rawMatch, index });
+      } else if (tagName === 'search_skill') {
+        const query = getAttr('query') || getAttr('q') || body;
+        actions.push({ type: 'search_skill', query, rawMatch, index });
       } else if (tagName === 'read_file' || tagName === 'read') {
         const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
         actions.push({ type: 'read_file', path: filePath, rawMatch, index });
@@ -1180,7 +1186,13 @@ export function extractSequentialActions(text) {
         return m ? (m[1] || m[2] || '') : '';
       };
 
-      if (tagName === 'read_file' || tagName === 'read') {
+      if (tagName === 'read_skill') {
+        const skillName = getAttr('name') || getAttr('skill');
+        actions.push({ type: 'read_skill', name: skillName, rawMatch, index });
+      } else if (tagName === 'search_skill') {
+        const query = getAttr('query') || getAttr('q');
+        actions.push({ type: 'search_skill', query, rawMatch, index });
+      } else if (tagName === 'read_file' || tagName === 'read') {
         const filePath = getAttr('path') || getAttr('file');
         actions.push({ type: 'read_file', path: filePath, rawMatch, index });
       } else if (tagName === 'search_web' || tagName === 'search') {

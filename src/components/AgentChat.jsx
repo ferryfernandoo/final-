@@ -35,6 +35,10 @@ function getPillConfig(type) {
       return { icon: 'fa-solid fa-camera-retro', color: '#e11d48', bg: '#ffe4e6', label: 'Tangkapan Layar' };
     case 'preview':
       return { icon: 'fa-solid fa-eye', color: '#7c3aed', bg: '#f3e8ff', label: 'Visual Preview' };
+    case 'skill':
+      return { icon: 'fa-solid fa-graduation-cap', color: '#ea580c', bg: '#ffedd5', label: 'Skill Standar' };
+    case 'healing':
+      return { icon: 'fa-solid fa-shield-halved', color: '#dc2626', bg: '#fee2e2', label: 'Perbaikan Mandiri' };
     default:
       return { icon: 'fa-solid fa-gear', color: '#64748b', bg: '#f1f5f9', label: 'Tindakan Sistem' };
   }
