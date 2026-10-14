@@ -392,6 +392,17 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   }, [showMenuDropdown]);
 
   useEffect(() => {
+    if (!isDrawerOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsDrawerOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDrawerOpen]);
+
+  useEffect(() => {
     return () => {
       if (smoothStreamTimerRef.current) {
         clearInterval(smoothStreamTimerRef.current);
@@ -1699,241 +1710,315 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         </div>
       </main>
 
-      {/* ===== INTERACTIVE SANDBOX DRAWER ===== */}
+      {/* ===== INTERACTIVE SANDBOX DRAWER & BACKDROP ===== */}
       {isDrawerOpen && (
-        <aside className="agent-sandbox-drawer">
-          <div className="agent-drawer-header">
-            <div className="agent-drawer-tabs">
-              <button
-                className={`agent-drawer-tab ${activeDrawerTab === 'files' ? 'is-active' : ''}`}
-                onClick={() => setActiveDrawerTab('files')}
-              >
-                <i className="fa-solid fa-folder" /> Berkas ({sandboxFiles.length})
-              </button>
-              <button
-                className={`agent-drawer-tab ${activeDrawerTab === 'terminal' ? 'is-active' : ''}`}
-                onClick={() => setActiveDrawerTab('terminal')}
-              >
-                <i className="fa-solid fa-terminal" /> Terminal
-              </button>
-              <button
-                className={`agent-drawer-tab ${activeDrawerTab === 'preview' ? 'is-active' : ''}`}
-                onClick={() => setActiveDrawerTab('preview')}
-              >
-                <i className="fa-solid fa-globe" /> Preview
-              </button>
-              <button
-                className={`agent-drawer-tab ${activeDrawerTab === 'skill' ? 'is-active' : ''}`}
-                onClick={() => setActiveDrawerTab('skill')}
-              >
-                <i className="fa-solid fa-book" /> SKILL.md
-              </button>
+        <>
+          <div 
+            className="agent-drawer-backdrop" 
+            onClick={() => setIsDrawerOpen(false)}
+            aria-label="Tutup panel berkas"
+          />
+          <aside className="agent-sandbox-drawer" role="dialog" aria-modal="true">
+            {/* Top Bar with Title, File Count, and Dedicated Close Button */}
+            <div className="agent-drawer-header">
+              <div className="agent-drawer-header-top">
+                <div className="agent-drawer-title-group">
+                  {activeDrawerTab === 'files' && selectedFile && (
+                    <button
+                      type="button"
+                      className="agent-drawer-back-btn"
+                      onClick={() => setSelectedFile(null)}
+                      title="Kembali ke daftar berkas"
+                    >
+                      <i className="fa-solid fa-arrow-left" />
+                      <span>Berkas</span>
+                    </button>
+                  )}
+                  <div className="agent-drawer-heading">
+                    <span className="agent-drawer-title">
+                      <i className="fa-solid fa-folder-tree" style={{ color: '#ea580c', marginRight: 8 }} />
+                      Sandbox Workspace
+                    </span>
+                    <span className="agent-drawer-badge">{sandboxFiles.length} berkas</span>
+                  </div>
+                </div>
+
+                <button 
+                  type="button"
+                  className="agent-drawer-close" 
+                  onClick={() => setIsDrawerOpen(false)} 
+                  title="Tutup Panel (Esc)"
+                  aria-label="Tutup Panel"
+                >
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+
+              {/* Responsive Scrollable Tabs */}
+              <div className="agent-drawer-tabs-wrapper">
+                <div className="agent-drawer-tabs">
+                  <button
+                    type="button"
+                    className={`agent-drawer-tab ${activeDrawerTab === 'files' ? 'is-active' : ''}`}
+                    onClick={() => setActiveDrawerTab('files')}
+                  >
+                    <i className="fa-solid fa-folder" /> Berkas ({sandboxFiles.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`agent-drawer-tab ${activeDrawerTab === 'terminal' ? 'is-active' : ''}`}
+                    onClick={() => setActiveDrawerTab('terminal')}
+                  >
+                    <i className="fa-solid fa-terminal" /> Terminal
+                  </button>
+                  <button
+                    type="button"
+                    className={`agent-drawer-tab ${activeDrawerTab === 'preview' ? 'is-active' : ''}`}
+                    onClick={() => setActiveDrawerTab('preview')}
+                  >
+                    <i className="fa-solid fa-globe" /> Live Preview
+                  </button>
+                  <button
+                    type="button"
+                    className={`agent-drawer-tab ${activeDrawerTab === 'skill' ? 'is-active' : ''}`}
+                    onClick={() => setActiveDrawerTab('skill')}
+                  >
+                    <i className="fa-solid fa-book" /> SKILL.md
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <button className="agent-drawer-close" onClick={() => setIsDrawerOpen(false)} title="Tutup Panel">
-              ✕
-            </button>
-          </div>
+            <div className="agent-drawer-body">
+              {/* Tab 1: Files */}
+              {activeDrawerTab === 'files' && (
+                <div className={`agent-files-layout ${selectedFile ? 'has-selected-file' : 'no-selected-file'}`}>
+                  {/* File Tree / List */}
+                  <div className="agent-files-tree">
+                    <div className="agent-files-tree-header">
+                      <span className="agent-files-tree-title">
+                        Daftar Berkas ({sandboxFiles.length})
+                      </span>
+                      {sandboxFiles.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleDownloadAllZip}
+                          className="agent-zip-download-btn"
+                          title="Unduh seluruh project sebagai ZIP"
+                        >
+                          <i className="fa-solid fa-file-zipper" /> .ZIP Semua
+                        </button>
+                      )}
+                    </div>
+                    <div className="agent-files-tree-list">
+                      {sandboxFiles.map(file => {
+                        const iconData = getFileIcon(file.ext);
+                        return (
+                          <div
+                            key={file.path}
+                            className={`agent-tree-item ${selectedFile === file.path ? 'is-selected' : ''}`}
+                            onClick={() => handleSelectFile(file.path)}
+                            title={file.path}
+                          >
+                            <span className="agent-tree-item-name">
+                              <i className={iconData.icon} style={{ color: iconData.color, marginRight: 8, fontSize: 14 }} />
+                              {file.name}
+                            </span>
+                            <i className="fa-solid fa-chevron-right agent-tree-item-arrow" />
+                          </div>
+                        );
+                      })}
+                      {sandboxFiles.length === 0 && (
+                        <div className="agent-files-empty">
+                          <i className="fa-solid fa-folder-open" style={{ fontSize: 26, opacity: 0.35, marginBottom: 8 }} />
+                          <div>Belum ada berkas di sandbox ini</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          <div className="agent-drawer-body">
-            {/* Tab 1: Files */}
-            {activeDrawerTab === 'files' && (
-              <div className="agent-files-layout">
-                <div className="agent-files-tree">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px', borderBottom: '1px solid rgba(0,0,0,0.06)', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                      Workspace ({sandboxFiles.length})
-                    </span>
-                    {sandboxFiles.length > 0 && (
+                  {/* File Editor View */}
+                  <div className="agent-file-editor">
+                    {selectedFile ? (
+                      <>
+                        <div className="agent-editor-bar">
+                          <div className="agent-editor-bar-left">
+                            <button
+                              type="button"
+                              className="agent-editor-mobile-back"
+                              onClick={() => setSelectedFile(null)}
+                              title="Kembali ke daftar berkas"
+                            >
+                              <i className="fa-solid fa-arrow-left" />
+                              <span>Berkas</span>
+                            </button>
+                            <span className="agent-editor-filename" title={selectedFile}>
+                              <i className={(getFileIcon(selectedFile.split('.').pop()) || {}).icon || 'fa-solid fa-file-code'} style={{ color: (getFileIcon(selectedFile.split('.').pop()) || {}).color || '#ea580c', marginRight: 6 }} />
+                              {selectedFile}
+                            </span>
+                          </div>
+                          <div className="agent-editor-actions">
+                            <button
+                              type="button"
+                              onClick={handleSaveCurrentFile}
+                              disabled={isFileSaving}
+                              className="agent-editor-btn is-save"
+                            >
+                              <i className={isFileSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"} />
+                              <span>{isFileSaving ? 'Menyimpan...' : 'Simpan'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleDownloadFile}
+                              className="agent-editor-btn is-download"
+                              title="Unduh berkas ini"
+                            >
+                              <i className="fa-solid fa-download" />
+                              <span>Unduh</span>
+                            </button>
+                            {selectedFile.endsWith('.html') && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPreviewUrl(`/api/agent/preview/${currentSessionId}/${selectedFile}`);
+                                  setActiveDrawerTab('preview');
+                                }}
+                                className="agent-editor-btn is-preview"
+                                title="Lihat di Web Preview"
+                              >
+                                <i className="fa-solid fa-eye" />
+                                <span>Preview</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="agent-editor-textarea-wrap">
+                          <textarea
+                            className="agent-editor-textarea"
+                            value={fileContent}
+                            onChange={(e) => setFileContent(e.target.value)}
+                            spellCheck={false}
+                            placeholder="Isi berkas kosong..."
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="agent-editor-placeholder">
+                        <i className="fa-solid fa-code" style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }} />
+                        <div style={{ fontWeight: 600 }}>Pilih berkas untuk melihat atau mengedit</div>
+                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Klik salah satu berkas dari daftar di atas</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Terminal */}
+              {activeDrawerTab === 'terminal' && (
+                <div className="agent-terminal-view">
+                  <div className="agent-terminal-logs">
+                    {terminalLogs || '$ Sandbox terminal siap.'}
+                  </div>
+                  <form className="agent-terminal-prompt-bar" onSubmit={handleRunTerminalCommand}>
+                    <span className="agent-term-prompt-sym">$</span>
+                    <input
+                      type="text"
+                      className="agent-term-input"
+                      placeholder="Ketik perintah shell (misal: ls, node app.js)..."
+                      value={terminalInput}
+                      onChange={(e) => setTerminalInput(e.target.value)}
+                      disabled={isTermExecuting}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isTermExecuting || !terminalInput.trim()}
+                      className="agent-term-run-btn"
+                    >
+                      {isTermExecuting ? <i className="fa-solid fa-spinner fa-spin" /> : 'Jalankan'}
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* Tab 3: Web Preview */}
+              {activeDrawerTab === 'preview' && (
+                <div className="agent-preview-view">
+                  <div className="agent-preview-toolbar">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewKey(Date.now())}
+                      className="agent-preview-tool-btn"
+                      title="Muat Ulang Preview"
+                    >
+                      <i className="fa-solid fa-rotate-right" />
+                    </button>
+                    <div className="agent-preview-url" title={previewUrl || 'about:blank'}>
+                      {previewUrl || 'about:blank'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewViewport(prev => prev === 'desktop' ? 'mobile' : 'desktop')}
+                      className="agent-preview-tool-btn"
+                      title="Ubah Mode Layar (Desktop/Mobile)"
+                    >
+                      <i className={`fa-solid fa-${previewViewport === 'desktop' ? 'mobile-screen' : 'desktop'}`} />
+                    </button>
+                    {previewUrl && (
                       <button
-                        onClick={handleDownloadAllZip}
-                        style={{
-                          background: 'rgba(234, 88, 12, 0.1)',
-                          border: 'none',
-                          color: '#ea580c',
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}
-                        title="Unduh seluruh project sebagai ZIP"
+                        type="button"
+                        onClick={() => window.open(previewUrl, '_blank')}
+                        className="agent-preview-tool-btn"
+                        title="Buka di Tab Baru"
                       >
-                        <i className="fa-solid fa-file-zipper" /> .ZIP
+                        <i className="fa-solid fa-arrow-up-right-from-square" />
                       </button>
                     )}
                   </div>
-                  {sandboxFiles.map(file => (
-                    <div
-                      key={file.path}
-                      className={`agent-tree-item ${selectedFile === file.path ? 'is-selected' : ''}`}
-                      onClick={() => handleSelectFile(file.path)}
-                      title={file.path}
-                    >
-                      <span>
-                        <i className={`fa-solid fa-${file.ext === 'html' ? 'code' : file.ext === 'py' ? 'file-lines' : 'file'}`} style={{ marginRight: 6, opacity: 0.7 }} />
-                        {file.name}
-                      </span>
-                    </div>
-                  ))}
-                  {sandboxFiles.length === 0 && (
-                    <div style={{ fontSize: 11.5, color: '#64748b', padding: 8 }}>Belum ada berkas</div>
-                  )}
-                </div>
 
-                <div className="agent-file-editor">
-                  {selectedFile ? (
-                    <>
-                      <div className="agent-editor-bar">
-                        <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{selectedFile}</span>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            onClick={handleSaveCurrentFile}
-                            disabled={isFileSaving}
-                            style={{
-                              background: '#2563eb', color: 'white', border: 'none',
-                              padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11
-                            }}
-                          >
-                            {isFileSaving ? 'Menyimpan...' : 'Simpan'}
-                          </button>
-                          <button
-                            onClick={handleDownloadFile}
-                            style={{
-                              background: 'rgba(255,255,255,0.08)', color: 'white', border: 'none',
-                              padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11
-                            }}
-                          >
-                            Unduh
-                          </button>
-                        </div>
-                      </div>
-                      <textarea
-                        className="agent-editor-textarea"
-                        value={fileContent}
-                        onChange={(e) => setFileContent(e.target.value)}
-                        spellCheck={false}
-                      />
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b', fontSize: 13 }}>
-                      Pilih berkas di sebelah kiri untuk melihat atau mengedit
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Terminal */}
-            {activeDrawerTab === 'terminal' && (
-              <div className="agent-terminal-view">
-                <div className="agent-terminal-logs">
-                  {terminalLogs}
-                </div>
-                <form className="agent-terminal-prompt-bar" onSubmit={handleRunTerminalCommand}>
-                  <span style={{ color: '#10b981' }}>$</span>
-                  <input
-                    type="text"
-                    placeholder="Ketik perintah shell (misal: node index.js atau ls)..."
-                    value={terminalInput}
-                    onChange={(e) => setTerminalInput(e.target.value)}
-                    disabled={isTermExecuting}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isTermExecuting || !terminalInput.trim()}
-                    style={{ background: '#10b981', color: '#000', border: 'none', borderRadius: 4, padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
-                  >
-                    {isTermExecuting ? '...' : 'Jalankan'}
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* Tab 3: Web Preview */}
-            {activeDrawerTab === 'preview' && (
-              <div className="agent-preview-view">
-                <div className="agent-preview-toolbar">
-                  <button
-                    onClick={() => setPreviewKey(Date.now())}
-                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12 }}
-                    title="Reload Preview"
-                  >
-                    <i className="fa-solid fa-rotate-right" />
-                  </button>
-                  <div className="agent-preview-url">
-                    {previewUrl || 'about:blank'}
+                  <div className="agent-preview-frame-container">
+                    <iframe
+                      key={previewKey}
+                      src={previewUrl || 'about:blank'}
+                      className={`agent-preview-iframe ${previewViewport === 'mobile' ? 'is-mobile-frame' : 'is-desktop-frame'}`}
+                      title="Sandbox Live Web Preview"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
+                    />
                   </div>
-                  <button
-                    onClick={() => setPreviewViewport(prev => prev === 'desktop' ? 'mobile' : 'desktop')}
-                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12 }}
-                    title="Toggle Ukuran Layar"
-                  >
-                    <i className={`fa-solid fa-${previewViewport === 'desktop' ? 'mobile-screen' : 'desktop'}`} />
-                  </button>
-                  {previewUrl && (
+                </div>
+              )}
+
+              {/* Tab 4: SKILL.md */}
+              {activeDrawerTab === 'skill' && (
+                <div className="agent-skill-view">
+                  <div className="agent-skill-header">
+                    <span className="agent-skill-title">
+                      <i className="fa-solid fa-book-bookmark" style={{ color: '#10b981', marginRight: 6 }} />
+                      Protokol Panduan Agent (SKILL.md)
+                    </span>
                     <button
-                      onClick={() => window.open(previewUrl, '_blank')}
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12 }}
-                      title="Buka di Tab Baru"
+                      type="button"
+                      onClick={handleSaveSkill}
+                      disabled={isSkillSaving}
+                      className="agent-skill-save-btn"
                     >
-                      <i className="fa-solid fa-arrow-up-right-from-square" />
+                      <i className={isSkillSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-check"} />
+                      <span>{isSkillSaving ? 'Menyimpan...' : 'Simpan'}</span>
                     </button>
-                  )}
+                  </div>
+                  <div className="agent-skill-textarea-wrap">
+                    <textarea
+                      className="agent-skill-textarea"
+                      value={skillContent}
+                      onChange={(e) => setSkillContent(e.target.value)}
+                      spellCheck={false}
+                      placeholder="Tulis aturan protokol agen di sini..."
+                    />
+                  </div>
                 </div>
-
-                <div style={{
-                  flex: 1,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  background: '#0f172a',
-                  padding: previewViewport === 'mobile' ? '14px 0' : 0
-                }}>
-                  <iframe
-                    key={previewKey}
-                    src={previewUrl || 'about:blank'}
-                    className="agent-preview-iframe"
-                    title="Sandbox Live Web Preview"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
-                    style={{
-                      width: previewViewport === 'mobile' ? '375px' : '100%',
-                      height: '100%',
-                      borderRadius: previewViewport === 'mobile' ? '12px' : '0',
-                      boxShadow: previewViewport === 'mobile' ? '0 0 30px rgba(0,0,0,0.5)' : 'none'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Tab 4: SKILL.md */}
-            {activeDrawerTab === 'skill' && (
-              <div className="agent-skill-view">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontWeight: 700, color: '#f1f5f9', fontSize: 13 }}>Protokol Panduan Agent (SKILL.md)</span>
-                  <button
-                    onClick={handleSaveSkill}
-                    disabled={isSkillSaving}
-                    style={{
-                      background: '#10b981', color: 'black', fontWeight: 700, border: 'none',
-                      borderRadius: 4, padding: '5px 12px', fontSize: 11.5, cursor: 'pointer'
-                    }}
-                  >
-                    {isSkillSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
-                  </button>
-                </div>
-                <textarea
-                  value={skillContent}
-                  onChange={(e) => setSkillContent(e.target.value)}
-                  spellCheck={false}
-                />
-              </div>
-            )}
-          </div>
-        </aside>
+              )}
+            </div>
+          </aside>
+        </>
       )}
     </div>
   );
