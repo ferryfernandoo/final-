@@ -632,47 +632,55 @@ async function main() {
   updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl);
 
   // ── Step 8: Build Frontend ───
-  log.title('🔨 STEP 8: Build Frontend');
-  log.info('Membangun bundle frontend (npm run build)...');
-  try {
-    execSync('npm run build', { cwd: ROOT_DIR, stdio: 'inherit' });
-    log.success('Frontend build selesai.');
-  } catch (err) {
-    log.error(`Build gagal: ${err.message}`);
-    log.warn('Melanjutkan ke git push meskipun build gagal...');
+  if (!process.argv.includes('--skip-build') && !process.argv.includes('--quick')) {
+    log.title('🔨 STEP 8: Build Frontend');
+    log.info('Membangun bundle frontend (npm run build)...');
+    try {
+      execSync('npm run build', { cwd: ROOT_DIR, stdio: 'inherit' });
+      log.success('Frontend build selesai.');
+    } catch (err) {
+      log.error(`Build gagal: ${err.message}`);
+      log.warn('Melanjutkan ke git push meskipun build gagal...');
+    }
+  } else {
+    log.info('Melewati Step 8 (Build Frontend) via parameter...');
   }
 
   // ── Step 9: Git Commit & Push ───
-  log.title('🚀 STEP 9: Git Push ke GitHub');
-  log.info('Menyinkronkan ke GitHub & Vercel...');
-  try {
-    // Pastikan git user config ada
+  if (!process.argv.includes('--skip-push') && !process.argv.includes('--quick')) {
+    log.title('🚀 STEP 9: Git Push ke GitHub');
+    log.info('Menyinkronkan ke GitHub & Vercel...');
     try {
-      execSync('git config user.email', { cwd: ROOT_DIR, stdio: 'pipe' });
-    } catch {
-      execSync('git config user.email "deploy@deepernova.ai"', { cwd: ROOT_DIR, stdio: 'inherit' });
-      execSync('git config user.name "Deepernova Auto Deploy"', { cwd: ROOT_DIR, stdio: 'inherit' });
+      // Pastikan git user config ada
+      try {
+        execSync('git config user.email', { cwd: ROOT_DIR, stdio: 'pipe' });
+      } catch {
+        execSync('git config user.email "deploy@deepernova.ai"', { cwd: ROOT_DIR, stdio: 'inherit' });
+        execSync('git config user.name "Deepernova Auto Deploy"', { cwd: ROOT_DIR, stdio: 'inherit' });
+      }
+
+      // Stage all files
+      execSync('git add -A', { cwd: ROOT_DIR, stdio: 'inherit' });
+
+      // Commit
+      const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
+      try {
+        execSync(`git commit -m "fix(ecosystem): fix ai agent response, dte connection, search engine speed & sync tunnels (${timestamp})"`, { cwd: ROOT_DIR, stdio: 'inherit' });
+        log.success('Commit berhasil.');
+      } catch {
+        log.info('Tidak ada perubahan baru untuk di-commit.');
+      }
+
+      // Push
+      log.info('Melakukan git push origin main...');
+      execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
+      log.success('✅ Push ke GitHub berhasil! Vercel auto-deploy aktif.');
+    } catch (err) {
+      log.warn(`Git push gagal: ${err.message || ''}`);
+      log.warn('Pastikan remote origin benar dan ada koneksi internet.');
     }
-
-    // Stage all files
-    execSync('git add -A', { cwd: ROOT_DIR, stdio: 'inherit' });
-
-    // Commit
-    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
-    try {
-      execSync(`git commit -m "fix(ecosystem): fix ai agent response, dte connection, search engine speed & sync tunnels (${timestamp})"`, { cwd: ROOT_DIR, stdio: 'inherit' });
-      log.success('Commit berhasil.');
-    } catch {
-      log.info('Tidak ada perubahan baru untuk di-commit.');
-    }
-
-    // Push
-    log.info('Melakukan git push origin main...');
-    execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
-    log.success('✅ Push ke GitHub berhasil! Vercel auto-deploy aktif.');
-  } catch (err) {
-    log.warn(`Git push gagal: ${err.message || ''}`);
-    log.warn('Pastikan remote origin benar dan ada koneksi internet.');
+  } else {
+    log.info('Melewati Step 9 (Git Push) via parameter...');
   }
 
   // ── SELESAI ───
