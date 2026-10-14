@@ -21,7 +21,10 @@ export function formatExecutionStepTitle(step) {
   const type = step.type || '';
   const title = (step.title || '').trim();
   const meta = (step.meta || '').trim();
-  const cmd = (step.command || meta || title).trim();
+  let cmd = (step.command || meta || title).trim();
+  if (cmd.length > 55) {
+    cmd = cmd.slice(0, 52) + '...';
+  }
 
   switch (type) {
     case 'thought':

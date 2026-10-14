@@ -59,7 +59,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   // Auto-scroll controller: never fights user when user scrolls up
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const userIsReadingAboveRef = useRef(false);
+  const userScrolledUpRef = useRef(false);
+  const touchStartYRef = useRef(0);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   const abortControllerRef = useRef(null);
@@ -93,18 +94,54 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   }, []);
 
   const scrollToBottom = (smooth = true) => {
+    userScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
   };
 
-  // Scroll handler on container to detect if user is reading above
+  // Wheel detection: deltaY < 0 means user is actively scrolling up
+  const handleWheel = (e) => {
+    if (e.deltaY < 0) {
+      userScrolledUpRef.current = true;
+      setShowScrollBottomBtn(true);
+    } else if (e.deltaY > 0) {
+      const el = messagesContainerRef.current;
+      if (el) {
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        if (dist <= 30) {
+          userScrolledUpRef.current = false;
+          setShowScrollBottomBtn(false);
+        }
+      }
+    }
+  };
+
+  // Touch gestures for mobile: dragging downwards means viewing earlier content above
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      touchStartYRef.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches && e.touches[0]) {
+      const currentY = e.touches[0].clientY;
+      if (currentY > touchStartYRef.current + 8) {
+        userScrolledUpRef.current = true;
+        setShowScrollBottomBtn(true);
+      }
+    }
+  };
+
+  // Scroll handler on container to detect if user has scrolled away from bottom
   const handleContainerScroll = (e) => {
     const el = e.currentTarget;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom > 80) {
-      userIsReadingAboveRef.current = true;
+    if (distanceFromBottom > 70) {
+      userScrolledUpRef.current = true;
       setShowScrollBottomBtn(true);
-    } else {
-      userIsReadingAboveRef.current = false;
+    } else if (distanceFromBottom <= 25) {
+      userScrolledUpRef.current = false;
       setShowScrollBottomBtn(false);
     }
   };
@@ -233,11 +270,16 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
     setMessages(prev => [...prev, userMsg, initialBotMsg]);
 
-    // FLOW: Bubble ask user naik ke paling atas untuk menyisakan ruangan di bawahnya
+    // FLOW: Bubble ask user naik jadi paling atas dan sisakan ruangan bawahnya untuk ai generating
+    userScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
+
     setTimeout(() => {
-      const el = document.getElementById(userMsgId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const userEl = document.getElementById(userMsgId);
+      if (userEl && messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        const targetTop = userEl.offsetTop - 24;
+        container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
       }
     }, 40);
 
@@ -354,11 +396,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           return m;
         }));
 
-        // FLOW: If user has NOT scrolled up, smoothly follow bottom!
+        // FLOW: If user has NOT scrolled up, follow bottom as content generates past viewport!
         // If user scrolled up, DO NOT fight the user!
-        if (!userIsReadingAboveRef.current && messagesContainerRef.current) {
+        if (!userScrolledUpRef.current && messagesContainerRef.current) {
           const el = messagesContainerRef.current;
-          if (el.scrollHeight > el.clientHeight) {
+          const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+          if (dist > 0 && el.scrollHeight > el.clientHeight) {
             el.scrollTop = el.scrollHeight;
           }
         }
@@ -413,8 +456,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             return m;
           }));
           setActiveChainOfWork(prev => [...prev, step]);
-          if (!userIsReadingAboveRef.current && messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          if (!userScrolledUpRef.current && messagesContainerRef.current) {
+            const el = messagesContainerRef.current;
+            if (el.scrollHeight > el.clientHeight) {
+              el.scrollTop = el.scrollHeight;
+            }
           }
         },
         onStepUpdate: (updatedStep) => {
@@ -821,6 +867,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           className="agent-messages-container" 
           ref={messagesContainerRef}
           onScroll={handleContainerScroll}
+          onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
         >
           {messages.length === 0 && (
             <div className="agent-welcome">
@@ -866,7 +915,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               : null);
 
             return (
-              <div key={msg.id} id={msg.id} className="agent-msg-row is-bot">
+              <div 
+                key={msg.id} 
+                id={msg.id} 
+                className={`agent-msg-row is-bot ${msg.isStreaming ? 'is-generating' : ''}`}
+              >
                 {/* 1. Claude/Antigravity Tree: Worked for 2m ▾ */}
                 <AgentExecutionTree 
                   steps={parsedSteps}
@@ -991,9 +1044,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             type="button" 
             className="agent-floating-scroll-bottom"
             onClick={() => {
-              userIsReadingAboveRef.current = false;
+              userScrolledUpRef.current = false;
               setShowScrollBottomBtn(false);
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              if (messagesContainerRef.current) {
+                messagesContainerRef.current.scrollTo({
+                  top: messagesContainerRef.current.scrollHeight,
+                  behavior: 'smooth'
+                });
+              }
             }}
             title="Lompat ke paling bawah"
           >
