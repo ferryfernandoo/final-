@@ -605,10 +605,13 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       setIsExecuting(false);
       setMessages(prev => prev.map(m => {
         if (m.id === botMsgId) {
+          const durSec = m.startTime ? Math.max(1, Math.round((Date.now() - m.startTime) / 1000)) : null;
+          const durFormatted = durSec ? (durSec < 60 ? `${durSec}s` : `${Math.floor(durSec / 60)}m ${durSec % 60}s`) : null;
           return {
             ...m,
             id: payload?.messageId || m.id,
             isStreaming: false,
+            duration: m.duration || durFormatted,
             content: payload?.content || targetContent || m.content,
             reasoning: payload?.reasoning || targetReasoning || m.reasoning || '',
             chainOfWork: payload?.chainOfWork || m.chainOfWork,
@@ -813,9 +816,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           setIsExecuting(false);
           setMessages(prev => prev.map(m => {
             if (m.id === botMsgId) {
+              const durSec = m.startTime ? Math.max(1, Math.round((Date.now() - m.startTime) / 1000)) : null;
+              const durFormatted = durSec ? (durSec < 60 ? `${durSec}s` : `${Math.floor(durSec / 60)}m ${durSec % 60}s`) : null;
               return {
                 ...m,
                 isStreaming: false,
+                duration: m.duration || durFormatted,
                 content: (m.content ? m.content + '\n\n' : '') + `⚠️ Kendala eksekusi agent: ${errPayload.error || 'Terjadi kesalahan tidak terduga.'}`
               };
             }
@@ -843,9 +849,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     setIsExecuting(false);
     setMessages(prev => prev.map(m => {
       if (m.isStreaming) {
+        const durSec = m.startTime ? Math.max(1, Math.round((Date.now() - m.startTime) / 1000)) : null;
+        const durFormatted = durSec ? (durSec < 60 ? `${durSec}s` : `${Math.floor(durSec / 60)}m ${durSec % 60}s`) : null;
         return {
           ...m,
           isStreaming: false,
+          duration: m.duration || durFormatted,
           content: (m.content || '') + '\n\n*(Proses dihentikan oleh pengguna)*'
         };
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 /**
  * Helper to unescape XML entities in detail strings
@@ -134,10 +134,12 @@ export default function AgentExecutionTree({
   onSelectFile,
   onOpenDrawer
 }) {
-  const [isTreeOpen, setIsTreeOpen] = useState(true);
+  // Closed by default when AI is done or loaded from history, open while streaming
+  const [isTreeOpen, setIsTreeOpen] = useState(Boolean(isStreaming));
   const [activeStepId, setActiveStepId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [elapsedSec, setElapsedSec] = useState(1);
+  const prevStreamingRef = useRef(isStreaming);
 
   useEffect(() => {
     if (!isStreaming || !startTime) return;
@@ -147,6 +149,17 @@ export default function AgentExecutionTree({
     }, 1000);
     return () => clearInterval(timer);
   }, [isStreaming, startTime]);
+
+  // When AI finishes answering (isStreaming transitions from true to false),
+  // automatically collapse into closed state!
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming) {
+      setIsTreeOpen(false);
+    } else if (!prevStreamingRef.current && isStreaming) {
+      setIsTreeOpen(true);
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming]);
 
   if (!steps || (steps.length === 0 && !isStreaming)) {
     return null;
@@ -159,9 +172,12 @@ export default function AgentExecutionTree({
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
   };
 
-  const headerTitle = isStreaming
-    ? `Menjalankan tugas · ${formatDurationText(elapsedSec)}`
-    : `Selesai diproses · ${duration || formatDurationText(elapsedSec)}`;
+  const durText = duration || (elapsedSec ? formatDurationText(elapsedSec) : null);
+
+  // Label changes to 'Lihat langkah...' when closed, and 'Sembunyikan langkah' when open
+  const mainLabel = isStreaming
+    ? 'Menjalankan tugas'
+    : (isTreeOpen ? 'Sembunyikan langkah' : 'Lihat langkah...');
 
   const handleCopyText = (e, text, idKey) => {
     e.stopPropagation();
@@ -173,12 +189,12 @@ export default function AgentExecutionTree({
   };
 
   return (
-    <div className="agent-execution-tree">
-      {/* 1. Collapsible Root Summary ("Menjalankan tugas · 2s ▾") */}
+    <div className={`agent-execution-tree ${isTreeOpen ? 'is-open' : 'is-collapsed'}`}>
+      {/* 1. Collapsible Root Summary ("Lihat langkah... · 2s ›") */}
       <div 
         className="agent-tree-summary-row" 
         onClick={() => setIsTreeOpen(!isTreeOpen)}
-        title="Klik untuk menyembunyikan atau menampilkan rincian aksi agent"
+        title={isTreeOpen ? "Klik untuk menyembunyikan rincian langkah" : "Klik untuk melihat rincian langkah eksekusi"}
       >
         <div className="agent-tree-summary-left">
           {isStreaming ? (
@@ -188,7 +204,8 @@ export default function AgentExecutionTree({
           ) : (
             <span className="agent-tree-done-icon">✓</span>
           )}
-          <span className="agent-tree-summary-text">{headerTitle}</span>
+          <span className="agent-tree-summary-text">{mainLabel}</span>
+          {durText && <span className="agent-tree-summary-time">· {durText}</span>}
         </div>
         <span className="agent-tree-summary-chevron">
           {isTreeOpen ? '▾' : '›'}
