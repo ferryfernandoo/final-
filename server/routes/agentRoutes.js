@@ -1161,7 +1161,6 @@ Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda
     let finalFiles = agentSandboxService.listFiles(sessionId);
 
     // Safety Net: If target document was requested but not generated yet, auto-execute generator scripts
-    const promptLower = (prompt || '').toLowerCase();
     const isCreationIntent = /\b(buat|bikin|create|generate|rancang|susun|tulis|tambahkan|edit|ubah|ganti)\b/i.test(promptLower);
     const hasPptx = finalFiles.some(f => f.ext === 'pptx');
     const hasDocx = finalFiles.some(f => f.ext === 'docx');
