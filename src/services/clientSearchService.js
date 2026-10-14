@@ -102,9 +102,9 @@ if (typeof window !== 'undefined') {
  * Helper to perform direct frontend search and map results into standard format
  */
 async function performDirectSearch(query, limit, includeImages) {
-  // If page is loaded over HTTPS, direct HTTP fetch to localhost:4000 is blocked by Mixed Content policy.
-  // In that case, let the backend proxy handle it safely over HTTPS.
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+  // Only block direct fetch if page is loaded over HTTPS and target search API is an insecure HTTP URL.
+  // When DEEPERNOVA_SEARCH_API_URL is already HTTPS (e.g. Cloudflare tunnel), direct hit works flawlessly!
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && DEEPERNOVA_SEARCH_API_URL.startsWith('http:')) {
     return null;
   }
 
