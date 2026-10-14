@@ -35,7 +35,8 @@ export function formatExecutionStepTitle(step) {
     case 'check':
       return `Explored ${meta || title || '1 file'}`;
     case 'search':
-      return `Searched web for "${meta || title}"`;
+      if (/^deepernova/i.test(title)) return title;
+      return `Searched Deepernova for "${meta || title}"`;
     case 'write':
       return `Created ${meta || title}`;
     case 'execute':
@@ -44,7 +45,7 @@ export function formatExecutionStepTitle(step) {
     case 'preview':
       return `Previewed live web capture`;
     default:
-      if (/^(ran|thought|explored|searched|created|executed|verified)\b/i.test(title)) {
+      if (/^(ran|thought|explored|searched|deepernova|created|executed|verified)\b/i.test(title)) {
         return title;
       }
       return title || 'Executed task action';

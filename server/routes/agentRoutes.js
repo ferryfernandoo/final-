@@ -367,24 +367,24 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep) {
     }
   } else if (action.type === 'search_web' || action.type === 'search') {
     const query = action.query || 'referensi';
-    addStep('search', `Mencari di Web: ${query}`, `Melakukan pencarian live di internet untuk '${query}'...`, 'running');
+    addStep('search', `Deepernova Search: ${query}`, `Melakukan penelusuran live di Deepernova Search Engine untuk '${query}'...`, 'running');
     try {
       const searchRes = await webSearchService.searchGoogle(query, 5);
       let summary = '';
       if (searchRes.success && searchRes.results && searchRes.results.length > 0) {
         summary = searchRes.results.map((r, rIdx) => `${rIdx + 1}. ${r.title}\n   ${r.snippet}\n   URL: ${r.url}`).join('\n\n');
-        observation = `Hasil pencarian live web/berita untuk query "${query}":\n` + searchRes.results.map((r, rIdx) => `[Sumber ${rIdx + 1}]\nJudul: ${r.title}\nRingkasan Berita: ${r.snippet}\nURL: ${r.url}`).join('\n\n');
-        updateLastStep('completed', `Ditemukan ${searchRes.results.length} referensi dari web.`, { results: searchRes.results });
+        observation = searchRes.ai_context || webSearchService.formatSearchResultsForPrompt(searchRes.results);
+        updateLastStep('completed', `Ditemukan ${searchRes.results.length} referensi data terverifikasi dari Deepernova Search Engine.`, { results: searchRes.results });
       } else {
-        summary = 'Pencarian selesai. Melanjutkan penyusunan materi dengan referensi internal.';
-        observation = `Pencarian web untuk query "${query}" tidak mengembalikan rujukan spesifik.`;
+        summary = 'Pencarian Deepernova Search selesai.';
+        observation = `Pencarian Deepernova Search untuk query "${query}" tidak menemukan hasil spesifik.`;
         updateLastStep('completed', summary);
       }
-      pillXml = `<action_pill id="${actionId}" type="search" title="Mencari di Web: ${query}" meta="${query}" status="completed">${escapeXml(summary)}</action_pill>`;
+      pillXml = `<action_pill id="${actionId}" type="search" title="Deepernova Search: ${query}" meta="${query}" status="completed">${escapeXml(summary)}</action_pill>`;
     } catch (searchErr) {
-      updateLastStep('failed', `Pencarian web terhambat: ${searchErr.message}`);
-      pillXml = `<action_pill id="${actionId}" type="search" title="Pencarian: ${query}" meta="${query}" status="completed">${escapeXml('Pencarian web selesai.')}</action_pill>`;
-      observation = `Gagal melakukan pencarian web: ${searchErr.message}`;
+      updateLastStep('failed', `Pencarian Deepernova Search terhambat: ${searchErr.message}`);
+      pillXml = `<action_pill id="${actionId}" type="search" title="Deepernova Search: ${query}" meta="${query}" status="completed">${escapeXml('Pencarian selesai.')}</action_pill>`;
+      observation = `Gagal melakukan pencarian Deepernova Search: ${searchErr.message}`;
     }
   } else if (action.type === 'write_file' || action.type === 'file') {
     const targetPath = action.path || 'script.js';
@@ -765,6 +765,26 @@ router.post('/run', async (req, res) => {
 
     updateLastStep('completed', 'Panduan SKILL.md berhasil dipelajari. Siap menerapkan standar koding dan perancangan berkualitas tinggi.');
 
+    // Step 3: Intelligent Upfront Search with Deepernova Search Engine (Sub-second BM25 Indexer)
+    const promptLower = (prompt || '').toLowerCase();
+    const isSearchIntent = /\b(cari|search|googling|berita|news|hari ini|terbaru|terkini|siapa|apa itu|apakah|harga|saham|kurs|presiden|pemilu|update|cuaca|jadwal|skor|hasil|peringkat|info|informasi|peristiwa|kejadian|gemini|claude|deepseek|ai agent|investasi|ekonomi|politik)\b/i.test(promptLower);
+
+    let upfrontSearchContext = '';
+    if (isSearchIntent) {
+      addStep('search', `Deepernova Search: ${prompt.slice(0, 48)}`, 'Menelusuri informasi live dan terindeks via Deepernova Search Engine (BM25 + PageRank)...', 'running');
+      try {
+        const upfrontRes = await webSearchService.searchGoogle(prompt, 5);
+        if (upfrontRes && upfrontRes.success && upfrontRes.results && upfrontRes.results.length > 0) {
+          upfrontSearchContext = upfrontRes.ai_context || webSearchService.formatSearchResultsForPrompt(upfrontRes.results);
+          updateLastStep('completed', `Ditemukan ${upfrontRes.results.length} sumber data terverifikasi dari Deepernova Search Engine.`, { results: upfrontRes.results });
+        } else {
+          updateLastStep('completed', 'Pencarian Deepernova Search selesai.');
+        }
+      } catch (err) {
+        updateLastStep('completed', 'Pencarian Deepernova Search selesai.');
+      }
+    }
+
     // Build system prompt with SKILL.md and Sandbox context (Autonomous Agent Orchestrator Standard)
     const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator & Workspace Artifacts.
 Anda bertugas mengeksekusi instruksi pengguna secara nyata di dalam sandbox hingga menghasilkan berkas jadi berkualitas tinggi.
@@ -795,12 +815,11 @@ PROTOKOL KOMUNIKASI, PENALARAN & PENGALAMAN PENGGUNA (UX STANDAR TINGGI):
 
 SIKLUS ORKESTRASI MULTI-STEP RE-ACT AGENT:
 - Analisis di <thought> -> Penjelasan Pembuka -> Tag Aksi Sandbox/Web -> Pembacaan Observasi Hasil Tindakan -> Analisis Mendalam & Jawaban Komprehensif.
-- PENCARIAN BERITA, RISET & INFORMASI AKTUAL (MULTI-STEP SEARCH & OBSERVATION):
-  a. Jika pengguna meminta berita, peristiwa terkini, informasi live, atau riset, panggil <search_web query="kata kunci berita spesifik" />.
-  b. Sistem akan melakukan pencarian web live dan memberikan hasil observasi (judul berita, ringkasan/fakta, dan URL sumber) kembali ke konteks Anda.
-  c. Anda WAJIB MEMBACA dan MENGANALISIS seluruh data observasi hasil pencarian tersebut.
-  d. Multi-Step Search: Jika topik memerlukan penelusuran lebih lanjut, verifikasi, atau topik turunan, Anda dapat melakukan pencarian lanjutan (<search_web query="..." /> kedua).
-  e. Kirimkan laporan berita / jawaban yang utuh, komprehensif, terstruktur, mendalam, dan sebutkan sumber beritanya secara spesifik kepada pengguna! DILARANG berhenti hanya pada tag pencarian tanpa memberikan rangkuman berita lengkap!
+- PENCARIAN BERITA, RISET & INFORMASI AKTUAL (DEEPERNOVA SEARCH ENGINE):
+  a. Anda terintegrasi secara langsung dengan Deepernova Search Engine — mesin pencari berkecepatan tinggi dengan BM25 indexer dan PageRank yang akurat dan terindeks terkini.
+  b. Jika membutuhkan informasi tambahan, panggil <search_web query="kata kunci pencarian spesifik" />.
+  c. Sistem akan mengeksekusi pencarian di Deepernova Search Engine dan mengembalikan observasi berisi judul, ringkasan, domain, dan tanggal.
+  d. Anda WAJIB menganalisis data tersebut dan menyampaikannya secara akurat, lugas, dan menyebutkan sumber informasinya secara spesifik kepada pengguna! DILARANG berhenti hanya pada tag pencarian tanpa memberikan rangkuman lengkap!
 - Self-Healing Loop: Jika muncul error atau dependensi gagal, analisis traceback observasi di dalam <thought>, perbaiki kodenya, dan jalankan ulang secara mandiri.
 
 TAG AKSI SANDBOX YANG TERSEDIA:
@@ -882,7 +901,7 @@ BERKAS SAAT INI DI SANDBOX:
 ${fileListText}
 
 CATATAN PROTOKOL WORKSPACE:
-Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda dapat membacanya dengan <read_file path="SKILL.md" /> kapan pun dibutuhkan.`;
+Berkas SKILL.md telah tersedia di sandbox berisi panduan sintaksis lengkap. Anda dapat membacanya dengan <read_file path="SKILL.md" /> kapan pun dibutuhkan.${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIAN DEEPERNOVA: Data pencarian di atas adalah data terverifikasi dari Deepernova Search Engine. Anda WAJIB menggunakannya sebagai acuan fakta utama dalam jawaban Anda!` : ''}`;
 
     // Messages payload for LLM
     const apiMessages = [

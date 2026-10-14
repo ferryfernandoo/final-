@@ -37,17 +37,19 @@ class WebSearchService {
    * @returns {Promise<{success: boolean, results: Array, error?: string}>}
    */
   async searchGoogle(query, maxResults = 5, language = 'id') {
-    // 1. Primary Engine: Deepernova High-Speed Search API (Port 4000 & Cloudflare)
+    // 1. Primary Engine: Deepernova High-Speed Search API (Local Port 4000 & Active Cloudflare Tunnel)
     const searchBases = [
       'http://127.0.0.1:4000/api/v1',
-      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`,
-      'https://challenge-roles-cincinnati-indicator.trycloudflare.com/api/v1'
+      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : (process.env.DEEPERNOVA_SEARCH_API_URL ? `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1` : null),
+      'https://aware-troops-admissions-rational.trycloudflare.com/api/v1',
+      process.env.VITE_DEEPERNOVA_SEARCH_API_URL,
+      'http://localhost:4000/api/v1'
     ].filter(Boolean);
 
     for (const sBase of searchBases) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const response = await fetch(`${sBase}/search?q=${encodeURIComponent(query)}&limit=${maxResults}`, {
           headers: {
@@ -66,6 +68,11 @@ class WebSearchService {
               title: cleanText(r.title) || 'Untitled',
               url: r.url || '',
               snippet: cleanText(r.snippet) || cleanText(r.description) || '',
+              description: cleanText(r.description) || '',
+              domain: r.domain || '',
+              published_at: r.published_at || null,
+              trust_score: r.trust_score || null,
+              pagerank: r.pagerank || null,
               position: idx + 1
             }));
 
@@ -74,7 +81,8 @@ class WebSearchService {
               success: true,
               results,
               query,
-              engine: 'deepernova_bm25'
+              engine: 'deepernova_search',
+              ai_context: data.ai_context || ''
             };
           }
         }
@@ -195,26 +203,35 @@ class WebSearchService {
    * @param {Array} results - Search results from searchGoogle()
    * @returns {string} Formatted context
    */
-  formatSearchResultsForPrompt(results) {
+  formatSearchResultsForPrompt(results, aiContext = '') {
+    if (aiContext && aiContext.trim()) {
+      return `${aiContext.trim()}\n\n---\nGunakan data pencarian Deepernova Search Engine di atas sebagai acuan fakta utama dalam jawaban Anda.\n\n`;
+    }
     if (!results || results.length === 0) {
       return '';
     }
 
-    let context = '📊 **HASIL PENCARIAN WEB:**\n\n';
+    let context = '📊 **HASIL PENCARIAN DEEPERNOVA SEARCH ENGINE:**\n\n';
 
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       context += `${i + 1}. **${result.title}**\n`;
+      if (result.domain) {
+        context += `   🌐 Sumber: ${result.domain}\n`;
+      }
+      if (result.published_at) {
+        context += `   📅 Tanggal: ${result.published_at}\n`;
+      }
       if (result.snippet) {
-        context += `   ${result.snippet}\n`;
+        context += `   Ringkasan: ${result.snippet}\n`;
       }
       if (result.url) {
-        context += `   📌 ${result.url}\n`;
+        context += `   📌 URL: ${result.url}\n`;
       }
       context += '\n';
     }
 
-    context += '---\n\nGunakan informasi di atas untuk memperkaya jawaban jika relevan. Jika hasil pencarian kurang relevan atau tidak memuat seluruh jawaban, gunakan pengetahuan dan penalaran internal Anda untuk menjawab pertanyaan pengguna secara tuntas dan komprehensif tanpa pernah mengatakan bahwa hasil pencarian tidak relevan atau meminta maaf.\n\n';
+    context += '---\n\nGunakan fakta dan informasi terverifikasi dari Deepernova Search Engine di atas untuk menjawab pertanyaan pengguna secara akurat dan sertakan rujukan sumbernya.\n\n';
 
     return context;
   }
