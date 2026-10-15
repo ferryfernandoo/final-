@@ -1,0 +1,117 @@
+{
+  "title": "Simulator Bisnis, HPP Resep & Proyeksi ROI Multi-Skenario",
+  "subtitle": "Kalkulator Interaktif Margin Produk, Simulasi Kenaikan Volume & Analisis Pareto Kontribusi Laba",
+  "accent": "emerald",
+  "kpis": [
+    {
+      "label": "Total Omzet Bulanan",
+      "value": "Rp142,5 Juta",
+      "delta": "+12,8% vs Target",
+      "positive": true
+    },
+    {
+      "label": "Rata-rata Food Cost",
+      "value": "34,2%",
+      "delta": "Aman di Bawah 35%",
+      "positive": true
+    },
+    {
+      "label": "Laba Bersih Operasional",
+      "value": "Rp48,2 Juta",
+      "delta": "Margin Bersih 33,8%",
+      "positive": true
+    },
+    {
+      "label": "Estimasi Balik Modal",
+      "value": "4,1 Bulan",
+      "delta": "ROI Tahunan 292%",
+      "positive": true
+    }
+  ],
+  "chart_labels": [
+    "Bln-1",
+    "Bln-2",
+    "Bln-3",
+    "Bln-4",
+    "Bln-5",
+    "Bln-6"
+  ],
+  "chart_series": [
+    {
+      "label": "Laba Bersih Kumulatif (Juta Rp)",
+      "data": [
+        38,
+        82,
+        129,
+        178,
+        230,
+        285
+      ],
+      "color": "#059669"
+    },
+    {
+      "label": "Modal Investasi Awal (Juta Rp)",
+      "data": [
+        160,
+        160,
+        160,
+        160,
+        160,
+        160
+      ],
+      "color": "#94A3B8"
+    }
+  ],
+  "pareto_labels": [
+    "Bebek Goreng Rempah",
+    "Bebek Bakar Madu",
+    "Telur Asin Vakum",
+    "Minuman Jeruk",
+    "Paket Katering"
+  ],
+  "pareto_values": [
+    38,
+    29,
+    15,
+    11,
+    7
+  ],
+  "records": [
+    {
+      "id": 1,
+      "lini": "Menu 1 - Bebek Goreng Rempah",
+      "pic": "Dapur Utama",
+      "target": 1200,
+      "aktual": 1450,
+      "efisiensi": 92.0,
+      "status": "Melampaui"
+    },
+    {
+      "id": 2,
+      "lini": "Menu 2 - Bebek Bakar Madu",
+      "pic": "Dapur Utama",
+      "target": 1000,
+      "aktual": 1180,
+      "efisiensi": 89.5,
+      "status": "Melampaui"
+    },
+    {
+      "id": 3,
+      "lini": "Menu 3 - Telur Asin Masir",
+      "pic": "Unit Olahan",
+      "target": 2200,
+      "aktual": 2400,
+      "efisiensi": 94.0,
+      "status": "Tercapai"
+    },
+    {
+      "id": 4,
+      "lini": "Menu 4 - Es Jeruk Peras",
+      "pic": "Bar Minuman",
+      "target": 2000,
+      "aktual": 2150,
+      "efisiensi": 95.0,
+      "status": "Tercapai"
+    }
+  ]
+}

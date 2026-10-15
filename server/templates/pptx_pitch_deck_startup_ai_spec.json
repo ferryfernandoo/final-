@@ -1,0 +1,154 @@
+{
+  "theme": "tech",
+  "footer": "DeepernNova Industrial AI — Pitch Deck 2026",
+  "slides": [
+    {
+      "type": "cover",
+      "kicker": "DEEPERNNOVA INDUSTRIAL AI & IOT",
+      "title": "Inspeksi Visi Komputer & Telemetri ESP32 untuk Pabrik Zero-Defect",
+      "subtitle": "Memangkas Produk Cacat 64% dan Downtime 28% dengan Biaya 1/5 Sistem Impor",
+      "meta": "Founder: Ferry  •  Tangerang, Oktober 2026"
+    },
+    {
+      "type": "kpi",
+      "kicker": "MASALAH & DAMPAK NYATA DI LINI PRODUKSI",
+      "title": "Validasi Lapangan Membuktikan Balik Modal Hanya dalam 3,2 Bulan",
+      "cards": [
+        {
+          "label": "Penurunan Reject",
+          "value": "-64%",
+          "sub": "Dari 1,42% Turun ke 0,51%"
+        },
+        {
+          "label": "Biaya Per Lini",
+          "value": "Rp60 Jt",
+          "sub": "80% Lebih Hemat dari Impor"
+        },
+        {
+          "label": "Payback Period",
+          "value": "3,2 Bln",
+          "sub": "Hemat Rp18,5 Juta/Bulan/Lini"
+        }
+      ],
+      "bullets": [
+        [
+          "Masalah Industri",
+          "Inspeksi manual mata manusia mengalami kelelahan setelah 2 jam kerja terus-menerus."
+        ],
+        [
+          "Solusi DeepernNova",
+          "Node ESP32-S3 + sensor optik lokal memproses 5 unit/detik secara real-time tanpa jeda."
+        ]
+      ]
+    },
+    {
+      "type": "split_image",
+      "kicker": "ARSITEKTUR PRODUK EDGE-AI",
+      "title": "Integrasi Plug-and-Play ke Konveyor Eksisting Tanpa Ganti PLC",
+      "image_mode": "right",
+      "diagram": {
+        "title": "Arsitektur DeepernNova Edge",
+        "subtitle": "Sensor -> ESP32/Edge AI -> Pneumatik -> Cloud Dashboard",
+        "steps": [
+          {
+            "code": "01",
+            "title": "Kamera & Laser",
+            "desc": "Akuisisi citra & dimensi 0,2 detik per unit"
+          },
+          {
+            "code": "02",
+            "title": "Inferensi Edge",
+            "desc": "Model ringan terkuantisasi berjalan tanpa internet"
+          },
+          {
+            "code": "03",
+            "title": "Trigger Modbus",
+            "desc": "Sinyal instan ke katup ejektor pneumatik"
+          },
+          {
+            "code": "04",
+            "title": "Analitik Cpk",
+            "desc": "Laporan Six Sigma otomatis ke HP manajer"
+          }
+        ]
+      },
+      "bullets": [
+        [
+          "Instalasi Cepat",
+          "Pemasangan selesai dalam 1 shift akhir pekan tanpa membongkar rangka konveyor."
+        ],
+        [
+          "Tahan Offline",
+          "Seluruh keputusan lulus/tolak berjalan 100% di perangkat lokal (nol latensi cloud)."
+        ],
+        [
+          "Standar Industri",
+          "Mendukung protokol Modbus RTU CRC-16 dan ekspor laporan Excel/PDF otomatis."
+        ]
+      ]
+    },
+    {
+      "type": "chart_slide",
+      "kicker": "PROYEKSI PERTUMBUHAN & SKALABILITAS",
+      "title": "Target Ekspansi ke 45 Lini Pabrik Manufaktur hingga Kuartal II 2027",
+      "curve": {
+        "kind": "fan_forecast",
+        "title": "Proyeksi Lini Terpasang & Rentang Probabilitas Pendapatan (Juta Rp)",
+        "hist_labels": [
+          "Q1-25",
+          "Q2-25",
+          "Q3-25",
+          "Q4-25",
+          "Q1-26",
+          "Q2-26"
+        ],
+        "hist_values": [
+          120,
+          180,
+          260,
+          390,
+          540,
+          720
+        ],
+        "forecast_labels": [
+          "Q3-26",
+          "Q4-26",
+          "Q1-27",
+          "Q2-27"
+        ],
+        "forecast_median": [
+          960,
+          1280,
+          1650,
+          2100
+        ],
+        "forecast_spread": [
+          80,
+          140,
+          220,
+          310
+        ]
+      },
+      "insight_title": "Model Bisnis B2B",
+      "bullets": [
+        [
+          "Perangkat Keras",
+          "Biaya instalasi awal Rp60 juta per lini dengan margin kotor 48%."
+        ],
+        [
+          "Langganan SaaS",
+          "Pendapatan berulang Rp2,5 juta/bulan/lini untuk pembaruan model AI & audit Cpk."
+        ],
+        [
+          "Pasar Sasaran",
+          "Ribuan pabrik komponen otomotif, kemasan, dan F&B di koridor Tangerang–Bekasi."
+        ]
+      ]
+    },
+    {
+      "type": "outro",
+      "title": "Membawa Presisi Industri 4.0 ke Setiap Lini Pabrik Indonesia.",
+      "subtitle": "DeepernNova  •  Kemitraan & Implementasi Pilot Project 2026"
+    }
+  ]
+}

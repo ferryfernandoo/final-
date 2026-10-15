@@ -1,0 +1,81 @@
+{
+  "theme": "mono",
+  "style": "classic",
+  "lang": "id",
+  "header": false,
+  "footer": false,
+  "page": {
+    "margin_cm": 2.3
+  },
+  "meta": {
+    "title": "Perjanjian Kerja Sama Pasokan (MoU/PKS)",
+    "author": "Bagian Hukum & Kemitraan"
+  },
+  "blocks": [
+    {
+      "t": "letterhead",
+      "name": "PERJANJIAN KERJA SAMA PASOKAN BERKALA (PKS)",
+      "lines": [
+        "Nomor: 042/PKS-B2B/BW-MPN/X/2026"
+      ]
+    },
+    {
+      "t": "p",
+      "text": "Pada hari ini, **Kamis tanggal lima belas bulan Oktober tahun dua ribu dua puluh enam (15-10-2026)**, bertempat di Kebumen, yang bertanda tangan di bawah ini:",
+      "align": "justify"
+    },
+    {
+      "t": "kv",
+      "widths": [
+        24,
+        76
+      ],
+      "rows": [
+        [
+          "1. PIHAK PERTAMA",
+          "**Ferry**, Pemilik **Bebek Waliqoh**, berkedudukan di Kebumen, Jawa Tengah, selanjutnya disebut sebagai **PEMASOK**."
+        ],
+        [
+          "2. PIHAK KEDUA",
+          "**[ISI: Nama Direktur Mitra]**, Direktur **PT Mitra Pangan Nusantara**, berkedudukan di Semarang, selanjutnya disebut sebagai **PEMBELI**."
+        ]
+      ]
+    },
+    {
+      "t": "h2",
+      "text": "Pasal 1 — Ruang Lingkup & Spesifikasi Komoditas"
+    },
+    {
+      "t": "p",
+      "text": "PIHAK PERTAMA sepakat memasok Telur Bebek Segar Grade-A (bobot 68–75 gram/butir, cangkang utuh dan bersih) sebanyak **5.000 (lima ribu) butir per minggu** kepada PIHAK KEDUA selama jangka waktu 12 (dua belas) bulan sejak tanggal penandatanganan perjanjian ini.",
+      "align": "justify"
+    },
+    {
+      "t": "h2",
+      "text": "Pasal 2 — Harga, Jadwal Pengiriman & Pembayaran"
+    },
+    {
+      "t": "numbers",
+      "items": [
+        "Harga disepakati sebesar **Rp2.950 (dua ribu sembilan ratus lima puluh rupiah) per butir** franco gudang PIHAK KEDUA.",
+        "Pengiriman dilakukan 2 (dua) kali setiap minggu pada hari **Senin dan Kamis** masing-masing sebanyak 2.500 butir.",
+        "Pembayaran tagihan dilakukan oleh PIHAK KEDUA secara transfer bank paling lambat **14 (empat belas) hari kalender** setelah Berita Acara Serah Terima (BAST) dan Invoice diterima."
+      ]
+    },
+    {
+      "t": "h2",
+      "text": "Pasal 3 — Jaminan Mutu & Penggantian"
+    },
+    {
+      "t": "p",
+      "text": "Apabila pada saat pemeriksaan bersama di gudang ditemukan telur retak atau tidak sesuai spesifikasi, PIHAK PERTAMA wajib mengganti sejumlah 100% butir yang cacat pada jadwal pengiriman berikutnya.",
+      "align": "justify"
+    },
+    {
+      "t": "signature",
+      "closing": "Demikian Perjanjian ini dibuat dalam rangkap 2 (dua) bermeterai cukup dan memiliki kekuatan hukum yang sama.",
+      "name": "PIHAK PERTAMA: Ferry (Bebek Waliqoh)          |          PIHAK KEDUA: [ISI: Nama Pejabat Mitra]",
+      "title": "Ditandatangani di Kebumen, 15 Oktober 2026"
+    }
+  ]
+}

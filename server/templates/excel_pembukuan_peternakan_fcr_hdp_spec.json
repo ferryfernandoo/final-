@@ -1,0 +1,192 @@
+{
+  "theme": "green",
+  "include_macro_sheet": false,
+  "macros": false,
+  "sheets": [
+    {
+      "name": "Pembukuan_Kandang_HDP_FCR",
+      "title": "MODEL PRODUKSI PETERNAKAN BEBEK PETELUR — HDP, FCR & LABA BERSIH",
+      "subtitle": "Populasi Aktif: 1.000 Ekor | Harga Pakan Ransum Mandiri: Rp6.536/kg | Harga Jual Telur: Rp2.950/Butir",
+      "master_cols": 8,
+      "freeze_panes": "A11",
+      "kpis": [
+        {
+          "label": "Total Produksi (4 Mgg)",
+          "value": "=C15",
+          "format": "#,##0\" Butir\"",
+          "sub": "Populasi 1.000 Ekor"
+        },
+        {
+          "label": "Rata-rata HDP (%)",
+          "value": "=D15",
+          "format": "0.0%",
+          "sub": "Standar Bagus ≥ 80%"
+        },
+        {
+          "label": "Total Biaya Pakan",
+          "value": "=F15",
+          "format": "\"Rp\"#,##0",
+          "sub": "Ransum Mandiri Rp6.536/kg"
+        },
+        {
+          "label": "Laba Operasional",
+          "value": "=H15",
+          "format": "\"Rp\"#,##0",
+          "sub": "Margin Bersih Kandang"
+        }
+      ],
+      "tables": [
+        {
+          "id": "tbl_ternak",
+          "section_title": "1. Rekapitulasi Mingguan Produksi Telur, Konsumsi Pakan, HDP & Laba Kotor",
+          "headers": [
+            "Minggu Ke",
+            "Populasi-Hari (Ekor×7)",
+            "Telur Panen (Butir)",
+            "HDP (%)",
+            "Pakan Habis (kg)",
+            "Biaya Pakan (Rp)",
+            "Omzet Telur (Rp)",
+            "Laba Kotor (Rp)"
+          ],
+          "formats": [
+            "@",
+            "#,##0",
+            "#,##0",
+            "0.0%",
+            "#,##0",
+            "\"Rp\"#,##0",
+            "\"Rp\"#,##0",
+            "\"Rp\"#,##0"
+          ],
+          "align": [
+            "left",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right"
+          ],
+          "rows": [
+            [
+              "Minggu 1",
+              7000,
+              5670,
+              "=C{row}/B{row}",
+              1120,
+              "=E{row}*6536",
+              "=C{row}*2950",
+              "=G{row}-F{row}"
+            ],
+            [
+              "Minggu 2",
+              7000,
+              5845,
+              "=C{row}/B{row}",
+              1120,
+              "=E{row}*6536",
+              "=C{row}*2950",
+              "=G{row}-F{row}"
+            ],
+            [
+              "Minggu 3",
+              6993,
+              5950,
+              "=C{row}/B{row}",
+              1118,
+              "=E{row}*6536",
+              "=C{row}*2950",
+              "=G{row}-F{row}"
+            ],
+            [
+              "Minggu 4",
+              6993,
+              6020,
+              "=C{row}/B{row}",
+              1118,
+              "=E{row}*6536",
+              "=C{row}*2950",
+              "=G{row}-F{row}"
+            ]
+          ],
+          "totals": [
+            "Total / Rata-rata",
+            "SUM",
+            "SUM",
+            "=C{row}/B{row}",
+            "SUM",
+            "SUM",
+            "SUM",
+            "SUM"
+          ],
+          "conditional_formats": [
+            {
+              "col": 4,
+              "type": "databar",
+              "min": 0
+            }
+          ]
+        }
+      ],
+      "curves": [
+        {
+          "kind": "spline_band",
+          "title": "Kurva Kenaikan Produksi Telur Mingguan (Butir)",
+          "labels": [
+            "Minggu 1",
+            "Minggu 2",
+            "Minggu 3",
+            "Minggu 4"
+          ],
+          "series": [
+            {
+              "name": "Panen Telur (Butir)",
+              "values": [
+                5670,
+                5845,
+                5950,
+                6020
+              ],
+              "band": 80
+            }
+          ],
+          "target": 5600,
+          "anchor": "A17",
+          "display_width_px": 550
+        },
+        {
+          "kind": "waterfall",
+          "title": "Jembatan Laba Bersih Bulanan Kandang (Ribu Rp)",
+          "labels": [
+            "Omzet Telur",
+            "Telur Afkir+",
+            "Pakan-",
+            "Tenaga Kerja-",
+            "Vitamin/Listrik-",
+            "Laba Bersih"
+          ],
+          "values": [
+            69281,
+            1450,
+            -29255,
+            -4500,
+            -1850,
+            35126
+          ],
+          "is_total": [
+            true,
+            false,
+            false,
+            false,
+            false,
+            true
+          ],
+          "anchor": "E17",
+          "display_width_px": 550
+        }
+      ]
+    }
+  ]
+}

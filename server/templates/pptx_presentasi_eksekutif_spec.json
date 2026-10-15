@@ -1,0 +1,100 @@
+{
+  "theme": "navy",
+  "footer": "Evaluasi Kinerja Operasional Q3 2026",
+  "slides": [
+    {
+      "type": "cover",
+      "kicker": "LAPORAN EKSEKUTIF DIREKSI",
+      "title": "Otomasi Lini Meningkatkan Output 8,4% dan Kualitas Six Sigma",
+      "subtitle": "Evaluasi Kinerja Produksi Triwulan III 2026 & Rencana Investasi Sensor Q4",
+      "meta": "Disusun oleh: Ferry — Manajer Operasional  |  15 Oktober 2026"
+    },
+    {
+      "type": "kpi",
+      "kicker": "RINGKASAN CAPAIAN KUANTITATIF",
+      "title": "Seluruh Target Produksi dan Kapabilitas Proses Melampaui Standar",
+      "cards": [
+        { "label": "Total Output Q3", "value": "16.960", "sub": "+4,7% di Atas Target 16.200" },
+        { "label": "Rata-rata OEE", "value": "88,0%", "sub": "Naik +5,4% dibanding Q2" },
+        { "label": "Kapabilitas Cpk", "value": "1,48", "sub": "Lulus Six Sigma (≥1,33)" }
+      ],
+      "bullets": [
+        ["Penggerak Utama", "Lini 2 dan Lini 4 mencatat rekor output tertinggi pasca jadwal perawatan malam."],
+        ["Efisiensi Finansial", "Penurunan jam henti dan produk cacat menghemat Rp49,0 juta pada Q3."]
+      ]
+    },
+    {
+      "type": "chart_slide",
+      "kicker": "ANALISIS TREN & STABILITAS",
+      "title": "Kurva Output Mingguan Menanjak Konsisten dengan Deviasi Rendah",
+      "curve": {
+        "kind": "spline_band",
+        "title": "Kurva Interpolasi Spline Output Mingguan & Pita ±1σ",
+        "labels": ["M-1", "M-2", "M-3", "M-4", "M-5", "M-6", "M-7", "M-8"],
+        "series": [
+          { "name": "Realisasi Aktual (Unit)", "values": [1950, 2020, 2080, 2140, 2190, 2230, 2290, 2340], "band": 45 }
+        ],
+        "target": 2025
+      },
+      "insight_title": "Sorotan Kurva Tren",
+      "bullets": [
+        ["Titik Balik M-3", "Output menembus batas 2.080 unit/minggu setelah kalibrasi sensor optik."],
+        ["Rentang Stabil", "Deviasi mingguan terjaga ketat di kisaran ±45 unit sepanjang paruh kedua."],
+        ["Kesiapan Q4", "Trajektori saat ini mendukung peningkatan target Q4 sebesar 8%."]
+      ]
+    },
+    {
+      "type": "split_image",
+      "kicker": "ARSITEKTUR OTOMASI KUALITAS",
+      "title": "Inspeksi Optik Real-Time Memangkas Produk Cacat Hingga 64%",
+      "image_mode": "right",
+      "diagram": {
+        "title": "Arsitektur Kendali Mutu Lini",
+        "subtitle": "Integrasi Sensor -> Filter -> Statistik Cpk -> ERP",
+        "steps": [
+          { "code": "01", "title": "Sensor Optik", "desc": "Pemindaian presisi 0,2 detik per unit" },
+          { "code": "02", "title": "Filter Aktif", "desc": "Ejeksi otomatis unit di luar LSL/USL" },
+          { "code": "03", "title": "Analitik Cpk", "desc": "Kalkulasi kapabilitas proses per shift" },
+          { "code": "04", "title": "Sinkron ERP", "desc": "Pelaporan stok & kualitas real-time" }
+        ]
+      },
+      "bullets": [
+        ["Respon Instan", "Peringatan dini aktif otomatis bila rata-rata bergeser mendekati ambang USL."],
+        ["Zero Defect", "Nol retur pelanggan tercatat selama 90 hari berturut-turut."],
+        ["Standarisasi", "Desain modular memudahkan pemasangan di Lini 1 dan Lini 3."]
+      ]
+    },
+    {
+      "type": "chart_slide",
+      "kicker": "EVALUASI FAKTOR DOWNTIME",
+      "title": "Dua Faktor Dominan Menyumbang 70% Total Jam Henti Mesin",
+      "curve": {
+        "kind": "pareto_80_20",
+        "title": "Analisis Pareto 80/20 Penyebab Jam Henti (Downtime)",
+        "labels": ["Setup Mesin", "Bahan Baku", "Sensor Kotor", "Listrik", "Operator", "Lainnya"],
+        "values": [145, 92, 48, 25, 18, 12]
+      },
+      "insight_title": "Fokus Perbaikan 80/20",
+      "bullets": [
+        ["Standarisasi SMED", "Percepatan setup mesin ditargetkan memangkas 60 jam henti di Q4."],
+        ["Buffer Bahan Baku", "Stok penyangga 3 hari disiapkan untuk mencegah keterlambatan pasokan."],
+        ["Pembersihan Rutin", "Jadwal pembersihan optik setiap pergantian shift wajib dijalankan."]
+      ]
+    },
+    {
+      "type": "timeline",
+      "kicker": "PETA JALAN EKSEKUSI Q4 2026",
+      "title": "Rencana Implementasi Tiga Tahap dengan Balik Modal 3,2 Bulan",
+      "steps": [
+        { "phase": "OKTOBER 2026", "title": "Persetujuan & Pengadaan", "desc": "Finalisasi anggaran Rp120 juta dan pengadaan 2 paket sensor optik Lini 1 & 3." },
+        { "phase": "NOVEMBER 2026", "title": "Instalasi Shift Akhir Pekan", "desc": "Pemasangan perangkat keras dan integrasi perangkat lunak tanpa henti produksi." },
+        { "phase": "DESEMBER 2026", "title": "Audit Cpk & Evaluasi", "desc": "Verifikasi kenaikan OEE ke 90% dan indeks Cpk ≥ 1,45 di seluruh lini." }
+      ]
+    },
+    {
+      "type": "outro",
+      "title": "Presisi di Setiap Lini Menghasilkan Pertumbuhan yang Berkelanjutan.",
+      "subtitle": "Terima Kasih  |  Sesi Diskusi & Persetujuan Direksi"
+    }
+  ]
+}

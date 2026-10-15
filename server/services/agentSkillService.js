@@ -505,7 +505,18 @@ PERINGATAN SANGAT PENTING: Anda TIDAK DIPERBOLEHKAN MENGARANG SINTAKS ATAU MEMBU
 Karena model AI bertugas mengeksekusi instruksi standar industri secara presisi:
 1. ANDA WAJIB BERPEGANG TEGUH 100% PADA SELURUH ATURAN, ARSITEKTUR, DAN TEMPLATE KODE DALAM BUKU SKILL INI!
 2. JANGAN MENGABAIKAN STANDAR KUALITAS (warna, margin, formula dinamis, pola anti-error, komponen).
-3. Jalankan instruksi di bawah ini langkah demi langkah dengan teliti dan setia:
+3. DILARANG KERAS MEMBUAT DOKUMEN / SLIDE POLOS TANPA ESTETIKA:
+   - DILARANG 'prs.slide_layouts[0]' atau 'prs.slide_layouts[1]' mentah teks hitam putih tanpa background tema gelap, tanpa card KPI, tanpa layout bands 16:9 widescreen!
+   - DILARANG membuat file Word polos tanpa callout box ber-border oranye, tanpa header McKinsey, dan tanpa tabel zebra-striped!
+   - DILARANG membuat file Excel polos tanpa banner gelap, tanpa kartu KPI, tanpa format angka (Rp/#,##0), dan tanpa formula dinamis!
+4. MESIN OTOMASI KITS SIAP PAKAI DI WORKSPACE SANDBOX (JALUR PALING CEPAT & TERBAIK):
+   - Presentasi PPTX 16:9 Widescreen: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/pptx_kit.py spec.json nama_file.pptx</run_command>.
+   - Dokumen Word DOCX Eksekutif: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/word_kit.py spec.json nama_file.docx</run_command>.
+   - Spreadsheet Excel XLSX Ber-rumus: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/excel_kit.py spec.json nama_file.xlsx</run_command>.
+   - Dokumen PDF Siap Cetak: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/pdf_kit.py spec.json nama_file.pdf</run_command>.
+   - Grafik Kurva 300-DPI: Impor viz_kit atau gunakan blok curve/chart di spec.json.
+   - Pustaka kits ini sudah aktif di PYTHONPATH dan siap dijalankan langsung di terminal sandbox.
+5. Jalankan instruksi di bawah ini langkah demi langkah dengan teliti dan setia:
 
 [ISI LENGKAP PANDUAN BUKU SKILL]:
 ${skill.content}

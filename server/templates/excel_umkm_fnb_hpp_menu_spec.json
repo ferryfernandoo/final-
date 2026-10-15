@@ -1,0 +1,155 @@
+{
+  "theme": "warm",
+  "include_macro_sheet": false,
+  "macros": false,
+  "sheets": [
+    {
+      "name": "Kalkulator_HPP_Menu_FNB",
+      "title": "KALKULATOR HPP RESEP, FOOD COST (%) & REKAYASA MENU KULINER F&B",
+      "subtitle": "Analisis Margin Kontribusi per Porsi, Klasifikasi Menu Engineering & Proyeksi Laba Bulanan",
+      "master_cols": 8,
+      "freeze_panes": "A11",
+      "kpis": [
+        {
+          "label": "Total Porsi Terjual",
+          "value": "=E15",
+          "format": "#,##0\" Porsi\"",
+          "sub": "Rekapitulasi Bulanan"
+        },
+        {
+          "label": "Rata-rata Food Cost",
+          "value": "=D15",
+          "format": "0.0%",
+          "sub": "Batas Ideal ≤ 35%"
+        },
+        {
+          "label": "Total Omzet Kotor",
+          "value": "=F15",
+          "format": "\"Rp\"#,##0",
+          "sub": "Sebelum Pajak PB1"
+        },
+        {
+          "label": "Total Margin Kotor",
+          "value": "=G15",
+          "format": "\"Rp\"#,##0",
+          "sub": "Omzet Dikurangi HPP"
+        }
+      ],
+      "tables": [
+        {
+          "id": "tbl_fnb",
+          "section_title": "1. Analisis HPP per Porsi, Food Cost (%) & Klasifikasi Menu",
+          "headers": [
+            "Nama Menu Kuliner",
+            "HPP Bahan+Kemasan (Rp)",
+            "Harga Jual (Rp)",
+            "Food Cost (%)",
+            "Qty Terjual",
+            "Total Omzet (Rp)",
+            "Laba Kotor (Rp)",
+            "Status Menu"
+          ],
+          "formats": [
+            "@",
+            "\"Rp\"#,##0",
+            "\"Rp\"#,##0",
+            "0.0%",
+            "#,##0",
+            "\"Rp\"#,##0",
+            "\"Rp\"#,##0",
+            "@"
+          ],
+          "align": [
+            "left",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right",
+            "center"
+          ],
+          "rows": [
+            [
+              "Paket Bebek Goreng Rempah",
+              14500,
+              38000,
+              "=B{row}/C{row}",
+              1450,
+              "=C{row}*E{row}",
+              "=(C{row}-B{row})*E{row}",
+              "=IF(D{row}<=0.38,\"MELAMPAUI\",\"PERHATIAN\")"
+            ],
+            [
+              "Paket Bebek Bakar Madu",
+              15200,
+              40000,
+              "=B{row}/C{row}",
+              1180,
+              "=C{row}*E{row}",
+              "=(C{row}-B{row})*E{row}",
+              "=IF(D{row}<=0.38,\"MELAMPAUI\",\"PERHATIAN\")"
+            ],
+            [
+              "Telur Asin Masir Spesial",
+              3100,
+              7500,
+              "=B{row}/C{row}",
+              2400,
+              "=C{row}*E{row}",
+              "=(C{row}-B{row})*E{row}",
+              "=IF(D{row}<=0.42,\"TERCAPAI\",\"PERHATIAN\")"
+            ],
+            [
+              "Es Jeruk Murni Peras",
+              2200,
+              10000,
+              "=B{row}/C{row}",
+              2150,
+              "=C{row}*E{row}",
+              "=(C{row}-B{row})*E{row}",
+              "=IF(D{row}<=0.35,\"MELAMPAUI\",\"PERHATIAN\")"
+            ]
+          ],
+          "totals": [
+            "Total / Rata-rata",
+            "AVERAGE",
+            "AVERAGE",
+            "=SUM(B{first}:B{last})/SUM(C{first}:C{last})",
+            "SUM",
+            "SUM",
+            "SUM",
+            "TERCAPAI"
+          ],
+          "conditional_formats": [
+            {
+              "col": 7,
+              "type": "databar",
+              "min": 0
+            }
+          ]
+        }
+      ],
+      "curves": [
+        {
+          "kind": "pareto_80_20",
+          "title": "Kontribusi Laba Kotor per Menu (Pareto 80/20)",
+          "labels": [
+            "Bebek Goreng",
+            "Bebek Bakar",
+            "Es Jeruk",
+            "Telur Asin"
+          ],
+          "values": [
+            34075,
+            29264,
+            16770,
+            10560
+          ],
+          "anchor": "A17",
+          "display_width_px": 600
+        }
+      ]
+    }
+  ]
+}

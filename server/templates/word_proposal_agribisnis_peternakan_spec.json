@@ -1,0 +1,208 @@
+{
+  "theme": "green",
+  "style": "modern",
+  "lang": "id",
+  "meta": {
+    "title": "Proposal Kemitraan Pasokan Telur Bebek & Pakan Terpadu 2026",
+    "author": "Bebek Waliqoh — Kebumen"
+  },
+  "header": {
+    "left": "Proposal Kemitraan Agribisnis Unggas",
+    "right": "Bebek Waliqoh"
+  },
+  "cover": {
+    "label": "PROPOSAL KEMITRAAN AGRIBISNIS B2B",
+    "title": "Pasokan Telur Bebek Segar Terstandar & Optimasi Ransum Pakan Mandiri",
+    "subtitle": "Kemitraan Rantai Pasok Berkelanjutan — Kapasitas 5.000 Butir/Minggu",
+    "lines": [
+      "Diajukan oleh: **Ferry** (Founder Bebek Waliqoh)",
+      "Lokasi Kandang: Kebumen, Jawa Tengah",
+      "Tanggal: 15 Oktober 2026"
+    ]
+  },
+  "blocks": [
+    {
+      "t": "h1",
+      "text": "1. Ringkasan Eksekutif & Penawaran Utama"
+    },
+    {
+      "t": "p",
+      "text": "Bebek Waliqoh mengajukan kerja sama kontrak pasokan rutin **5.000 butir telur bebek segar grade-A per minggu** (berat 68–75 gram/butir) selama 12 bulan. Dengan sistem pencampuran pakan mandiri berprotein 18,2%, indeks **Hen Day Production (HDP) terjaga di 84,5%** dan **FCR 2,52**, sehingga harga kontrak tetap stabil sepanjang tahun."
+    },
+    {
+      "t": "kpi_row",
+      "cards": [
+        {
+          "label": "Kapasitas Pasok",
+          "value": "5.000 Butir/Mgg",
+          "sub": "260.000 Butir/Tahun"
+        },
+        {
+          "label": "Rata-rata HDP",
+          "value": "84,5%",
+          "sub": "Populasi 1.000 Ekor"
+        },
+        {
+          "label": "Konversi FCR",
+          "value": "2,52",
+          "sub": "Ransum Mandiri PK 18,2%"
+        },
+        {
+          "label": "Harga Kontrak",
+          "value": "Rp2.950/Butir",
+          "sub": "Jaminan Ganti Retak 100%"
+        }
+      ]
+    },
+    {
+      "t": "h1",
+      "text": "2. Formulasi Ransum Pakan Mandiri & Efisiensi HPP"
+    },
+    {
+      "t": "table",
+      "header": [
+        "Bahan Baku Ransum",
+        "Porsi (%)",
+        "Protein Kasar (%)",
+        "Harga/kg (Rp)",
+        "Biaya per 100 kg (Rp)"
+      ],
+      "rows": [
+        [
+          "Jagung Giling Kering (KA 14%)",
+          "44%",
+          "8,6%",
+          "Rp5.800",
+          "Rp255.200"
+        ],
+        [
+          "Bekatul / Dedak Padi Halus",
+          "24%",
+          "11,2%",
+          "Rp3.600",
+          "Rp86.400"
+        ],
+        [
+          "Konsentrat Petelur & Tepung Ikan",
+          "28%",
+          "38,0%",
+          "Rp10.500",
+          "Rp294.000"
+        ],
+        [
+          "Grit Kulit Kerang & Premix Mineral",
+          "4%",
+          "0,0%",
+          "Rp4.500",
+          "Rp18.000"
+        ],
+        [
+          "Total / Rata-rata Ransum Jadi",
+          "100%",
+          "17,11%",
+          "Rp6.536/kg",
+          "Rp653.600"
+        ]
+      ],
+      "widths": [
+        3.5,
+        1.5,
+        1.8,
+        1.8,
+        2.2
+      ],
+      "align": [
+        "left",
+        "right",
+        "right",
+        "right",
+        "right"
+      ],
+      "boldLastRow": true,
+      "caption": "Tabel 1. Komposisi ransum mandiri dengan biaya Rp6.536/kg (hemat 16% dibanding pakan pabrikan penuh)."
+    },
+    {
+      "t": "curve",
+      "kind": "spline_band",
+      "title": "Kurva Produksi Harian (HDP %) & Pita Stabilitas Kandang",
+      "labels": [
+        "Mgg-1",
+        "Mgg-2",
+        "Mgg-3",
+        "Mgg-4",
+        "Mgg-5",
+        "Mgg-6",
+        "Mgg-7",
+        "Mgg-8"
+      ],
+      "series": [
+        {
+          "name": "Realisasi HDP (%)",
+          "values": [
+            76.5,
+            79.2,
+            81.8,
+            83.5,
+            84.8,
+            85.4,
+            85.1,
+            86.0
+          ],
+          "band": 1.8
+        }
+      ],
+      "target": 80.0,
+      "target_label": "Standar Minimum HDP (80%)",
+      "width_cm": 14.0,
+      "caption": "Gambar 1. Kurva HDP mingguan pasca penerapan ransum mandiri PK 18,1%."
+    },
+    {
+      "t": "h1",
+      "text": "3. Alur Biosekuriti Kandang & Pengiriman Terjadwal"
+    },
+    {
+      "t": "image",
+      "placement": "split-left",
+      "diagram_spec": {
+        "title": "Alur Mutu & Biosekuriti",
+        "subtitle": "Pakan -> Kandang -> Sortasi -> Pengiriman",
+        "steps": [
+          {
+            "code": "01",
+            "title": "Mixing Pakan",
+            "desc": "Formulasi presisi PK 18% & bebas jamur"
+          },
+          {
+            "code": "02",
+            "title": "Panen Pagi",
+            "desc": "Pengumpulan pukul 05.30 & sanitasi kering"
+          },
+          {
+            "code": "03",
+            "title": "Candling & Sortir",
+            "desc": "Seleksi berat >68g & bebas retak rambut"
+          },
+          {
+            "code": "04",
+            "title": "Kirim Egg-Tray",
+            "desc": "Pengiriman 2x seminggu dengan armada tertutup"
+          }
+        ]
+      },
+      "side_title": "Jaminan Kualitas (SLA) Mitra",
+      "side_text": "Setiap pengiriman disertai kartu batch tanggal panen dan hasil uji timbang rata-rata.",
+      "side_bullets": [
+        "Pengiriman rutin setiap **Senin & Kamis pukul 08.00 WIB**.",
+        "Penggantian **100% di pengiriman berikutnya** bila ditemukan telur retak.",
+        "Harga dikunci selama 6 bulan pertama kontrak."
+      ],
+      "caption": "Gambar 2. Standar biosekuriti dan rantai pasok."
+    },
+    {
+      "t": "signature",
+      "closing": "Hormat kami,",
+      "name": "Ferry",
+      "title": "Pemilik Bebek Waliqoh — Kebumen"
+    }
+  ]
+}

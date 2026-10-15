@@ -264,7 +264,35 @@ router.post('/upload', (req, res) => {
 // POST /api/agent/execute - Run code or terminal command in sandbox
 router.post('/execute', async (req, res) => {
   try {
-    const { sessionId, language, code, command, timeoutMs } = req.body;
+    const { sessionId, language, code, command, timeoutMs, task, userId } = req.body;
+    
+    // Support high-level async task execution (from ChatBot.jsx or background workers)
+    if (task && !code && !command) {
+      const actualSessionId = sessionId || `agent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const actualUserId = userId || getUserId(req);
+      agentSessionDb.create(actualSessionId, actualUserId, task.slice(0, 45));
+      
+      // Initialize sandbox with kits and evaluated skill
+      agentSandboxService.getSandboxDir(actualSessionId);
+      const skillEval = agentSkillService.evaluateSkillRequirement(task);
+      const targetSkill = skillEval.requiresSkill ? skillEval.selectedSkill : null;
+      if (targetSkill) {
+        agentSandboxService.writeFile(actualSessionId, 'SKILL.md', targetSkill.content || '');
+      }
+
+      // Check existing/target deliverables in sandbox
+      const files = agentSandboxService.listFiles(actualSessionId);
+      const docFile = files.find(f => ['docx', 'pptx', 'xlsx', 'pdf'].includes(f.ext));
+      
+      return res.json({
+        success: true,
+        sessionId: actualSessionId,
+        fileName: docFile ? docFile.name : null,
+        downloadUrl: docFile ? `/api/agent/download/${actualSessionId}/${encodeURIComponent(docFile.name)}` : null,
+        files: files
+      });
+    }
+
     if (!sessionId) {
       return res.status(400).json({ success: false, error: 'sessionId diperlukan' });
     }
@@ -278,6 +306,30 @@ router.post('/execute', async (req, res) => {
   } catch (err) {
     console.error('[AGENT_ROUTES] Error executing code:', err);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/agent/download/:sessionId/:fileName - Direct download generated deliverable from sandbox
+router.get('/download/:sessionId/:fileName', (req, res) => {
+  try {
+    const { sessionId, fileName } = req.params;
+    const filePath = agentSandboxService.safeResolvePath(sessionId, fileName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File tidak ditemukan di sandbox' });
+    }
+    const ext = path.extname(fileName).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (ext === '.docx') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    else if (ext === '.xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    else if (ext === '.pptx') contentType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    else if (ext === '.pdf') contentType = 'application/pdf';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('[AGENT_ROUTES] Download error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -836,28 +888,36 @@ router.post('/run', async (req, res) => {
     let documentQualityBlueprint = '';
     if (wantsDocx) {
       documentQualityBlueprint += `
-================================================================================
+===============================================================================
 📄 STANDAR MUTLAK DOKUMEN WORD (.DOCX) EKSEKUTIF KELAS DUNIA (MCKINSEY / BCG STANDARD):
-Dokumen .docx TIDAK BOLEH tampil polos atau standar! Dokumen WAJIB diformat dengan python-docx menggunakan estetika konsultan papan atas:
+Dokumen .docx TIDAK BOLEH tampil polos atau standar!
+JALUR PALING CEPAT & TERBAIK (MESIN OTOMASI KITS):
+Workspace Anda memiliki 'kits/word_kit.py'. Cukup buat file 'spec.json' lalu jalankan:
+<write_file path="spec.json">{
+  "theme": "navy",
+  "style": "modern",
+  "cover": {
+    "label": "LAPORAN EKSEKUTIF",
+    "title": "Judul Laporan Lengkap",
+    "subtitle": "Subjudul dan Ruang Lingkup",
+    "lines": ["Penyusun: Deepernova AI Agent", "Tanggal: 2026", "Status: Final"]
+  },
+  "blocks": [
+    { "t": "h1", "text": "1. Ringkasan Eksekutif & KPI Kunci" },
+    { "t": "p", "text": "Penjelasan komprehensif mendalam..." },
+    { "t": "kpi_row", "cards": [{ "label": "Metrik 1", "value": "100%", "sub": "+5% Growth" }, { "label": "Metrik 2", "value": "Rp 50M", "sub": "Target Tercapai" }] },
+    { "t": "callout", "title": "Poin Strategis Utama", "text": "Keputusan penting..." },
+    { "t": "table", "header": ["Kategori", "Target", "Realisasi", "Status"], "rows": [["Item A", "100", "120", "Selesai"]], "align": ["left", "right", "right", "center"] }
+  ]
+}</write_file>
+<run_command>python kits/word_kit.py spec.json nama_dokumen.docx</run_command>
+<check_file path="nama_dokumen.docx" />
+
+JIKA MEMBUAT SKRIP PYTHON MANUAL (generate.py):
 1. MARGIN HALAMAN: 1.0 inch (top, bottom, left, right).
-2. TIPOGRAFI & WARNA:
-   - Font Family: 'Calibri' atau 'Segoe UI'.
-   - Judul Dokumen: 22pt Bold, warna RGBColor(15, 23, 42) (#0F172A - Slate 900).
-   - Subtitle / Meta: 11pt Italic, warna RGBColor(100, 116, 139) (#64748B - Muted Slate).
-3. EXECUTIVE CALLOUT BOX (WAJIB ADA):
-   Gunakan tabel 1x1 dengan latar '#F8FAFC' dan border kiri tebal oranye '#EA580C' (sz="36") via parse_xml:
-   callout = doc.add_table(rows=1, cols=1)
-   c_cell = callout.rows[0].cells[0]
-   c_cell.width = Inches(6.5)
-   c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:shd {nsdecls("w")} w:fill="F8FAFC"/>'))
-   c_cell._tc.get_or_add_tcPr().append(parse_xml(f'<w:tcBorders {nsdecls("w")}><w:left w:val="single" w:sz="36" w:space="0" w:color="EA580C"/><w:top w:val="none"/><w:right w:val="none"/><w:bottom w:val="none"/></w:tcBorders>'))
-   Di dalamnya ada judul 'RINGKASAN EKSEKUTIF' (Bold, Oranye #EA580C, 10.5pt) dan ringkasan isi (Slate #334155, 10pt).
-4. HEADING 1: 15pt Bold, RGBColor(15, 23, 42).
-5. TABEL EKSEKUTIF ZEBRA-STRIPED (WAJIB INDIKATOR & ANGKA JELAS):
-   - Header Baris: Latar '#0F172A' (Slate gelap), teks Putih Tebal 9.5pt.
-   - Baris Data Alternatif: Genap '#FFFFFF', Ganjil '#F8FAFC'.
-   - ATURAN ANTI-CRASH: Selalu gunakan 'for r_idx, row in enumerate(data): row_cells = tbl.add_row().cells' (DILARANG table.rows.index(row)!).
-6. KESIMPULAN & REKOMENDASI STRATEGIS: Bullet points dengan label tebal.
+2. TIPOGRAFI & WARNA: Font 'Calibri'/'Segoe UI', Judul 22pt Bold RGBColor(15, 23, 42).
+3. CALLOUT BOX (WAJIB): Tabel 1x1 background '#F8FAFC' dengan border kiri oranye tebal '#EA580C'.
+4. TABEL ZEBRA-STRIPED: Header '#0F172A' teks putih, baris data bergantian '#FFFFFF' dan '#F8FAFC'.
 ================================================================================
 `;
     }
@@ -866,26 +926,69 @@ Dokumen .docx TIDAK BOLEH tampil polos atau standar! Dokumen WAJIB diformat deng
       documentQualityBlueprint += `
 ================================================================================
 📊 STANDAR MUTLAK PRESENTASI POWERPOINT (.PPTX) 16:9 C-LEVEL DECK (GOLDMAN SACHS / BCG):
-Slide .pptx DILARANG format 4:3 kuno dan DILARANG polos teks hitam di atas putih! Slide WAJIB spektakuler:
-1. RASIO WIDESCREEN 16:9 MANDATORI:
-   prs = Presentation()
-   prs.slide_width = Inches(13.333)
-   prs.slide_height = Inches(7.5)
-   blank_layout = prs.slide_layouts[6]
-2. PALET WARNA:
-   - Primary Dark: RGBColor(15, 23, 42) (#0F172A)
-   - Brand Accent: RGBColor(234, 88, 12) (#EA580C)
-   - Slide BG Light: RGBColor(248, 250, 252) (#F8FAFC)
-   - Card BG: RGBColor(255, 255, 255) (#FFFFFF)
-   - Border: RGBColor(226, 232, 240) (#E2E8F0)
-3. STRUKTUR MINIMAL 3-4 SLIDE:
-   - SLIDE 1: Cover Slide Mewah (Latar gelap #0F172A, garis strip vertikal oranye #EA580C, judul 36pt Putih Tebal, subjudul abu-abu terang #94A3B8, metadata).
-   - SLIDE 2: 3-Card KPI Scorecard (Latar #F8FAFC, 3 kartu rounded rectangle #FFFFFF dengan border tipis #E2E8F0, angka metrik raksasa 38pt bold, badge chip status, deskripsi singkat).
-   - SLIDE 3: Analisis Komparatif / Tabel Eksekutif atau 2-Kolom Pilar Strategi.
-   - SLIDE 4: Rekomendasi & Actionable Roadmap.
-4. ATURAN ANTI-COLLISION & ANTI-OVERLAP:
-   - Selalu atur 'tf.word_wrap = True' pada semua shape text_frame.
-   - Hitung posisi kartu dinamis 'left = start_x + i * (card_w + card_gap)' agar tidak saling tumpang tindih.
+Slide .pptx DILARANG format 4:3 kuno dan DILARANG KERAS teks hitam di atas putih polos (DILARANG prs.slide_layouts[0] atau slide_layouts[1] mentah)!
+
+JALUR PALING CEPAT & TERBAIK (MESIN OTOMASI KITS):
+Workspace Anda memiliki 'kits/pptx_kit.py'. Cukup buat file 'spec.json' lalu jalankan:
+<write_file path="spec.json">{
+  "theme": "navy",
+  "footer": "Judul Presentasi Eksekutif 2026",
+  "slides": [
+    {
+      "type": "cover",
+      "kicker": "PRESENTASI STRATEGIS EKSEKUTIF",
+      "title": "Judul Aksi Utama yang Menarik & Berbobot",
+      "subtitle": "Penjelasan Mendalam Mengenai Topik & Implementasi Modern",
+      "meta": "Disusun oleh: Deepernova AI Agent | 2026"
+    },
+    {
+      "type": "kpi",
+      "kicker": "RINGKASAN METRIK & CAPAIAN",
+      "title": "Indikator Utama Menunjukkan Peningkatan Signifikan",
+      "cards": [
+        { "label": "Produksi", "value": "94.8%", "sub": "+12% dari Target" },
+        { "label": "Efisiensi", "value": "88.2%", "sub": "Optimalisasi Biaya" },
+        { "label": "Kualitas", "value": "Zero Defect", "sub": "Standar Internasional" }
+      ],
+      "bullets": [
+        ["Faktor Utama", "Implementasi teknologi modern meningkatkan produktivitas secara terukur."],
+        ["Dampak Positif", "Efisiensi biaya operasional dan kualitas produk terjaga konsisten."]
+      ]
+    },
+    {
+      "type": "pillars",
+      "kicker": "PILAR STRATEGI",
+      "title": "Tiga Pilar Implementasi Berkelanjutan",
+      "columns": [
+        { "title": "Pilar 1 — Teknologi", "bullets": [["Otomasi", "Penerapan sistem terintegrasi."], ["Pemantauan", "Kontrol data real-time."]] },
+        { "title": "Pilar 2 — Manajemen", "bullets": [["SOP Ketat", "Prosedur operasional baku."], ["Pelatihan", "Peningkatan kapasitas tim."]] },
+        { "title": "Pilar 3 — Kualitas", "bullets": [["Kendali Mutu", "Audit kualitas berkala."], ["Standarisasi", "Sertifikasi mutu industri."]] }
+      ]
+    },
+    {
+      "type": "timeline",
+      "kicker": "PETA JALAN EKSEKUSI",
+      "title": "Roadmap Penerapan Bertahap Menuju Skala Penuh",
+      "steps": [
+        { "phase": "FASE 1", "title": "Inisiasi & Analisis", "desc": "Pengumpulan data dan penyiapan infrastruktur dasar." },
+        { "phase": "FASE 2", "title": "Implementasi & Integrasi", "desc": "Penerapan sistem di lapangan dan pelatihan personel." },
+        { "phase": "FASE 3", "title": "Evaluasi & Skalabilitas", "desc": "Optimalisasi berkelanjutan dan ekspansi menyeluruh." }
+      ]
+    },
+    {
+      "type": "outro",
+      "title": "Komitmen Kualitas Menghasilkan Keberlanjutan Jangka Panjang.",
+      "subtitle": "Terima Kasih | Sesi Tanya Jawab & Diskusi"
+    }
+  ]
+}</write_file>
+<run_command>python kits/pptx_kit.py spec.json nama_file.pptx</run_command>
+<check_file path="nama_file.pptx" />
+
+JIKA MEMBUAT SKRIP PYTHON MANUAL:
+1. RASIO WIDESCREEN 16:9 MANDATORI: prs.slide_width = Inches(13.333), prs.slide_height = Inches(7.5).
+2. DILARANG slide_layouts[0] polos! Gunakan layout kosong (slide_layouts[6]) dan bentuk elemen card, background gelap pada cover (#0F172A), teks oranye/putih (#EA580C/#FFFFFF).
+3. Minimal 4 slide lengkap dengan cover, KPI card, pilar/analisis, dan outro.
 ================================================================================
 `;
     }
@@ -895,30 +998,47 @@ Slide .pptx DILARANG format 4:3 kuno dan DILARANG polos teks hitam di atas putih
 ================================================================================
 📈 STANDAR MUTLAK SPREADSHEET EXCEL (.XLSX) INSTITUSI CFO & INVESTMENT BANKING:
 File .xlsx DILARANG angka polos mentah tanpa format dan DILARANG kolom terpotong (###)!
-1. FONT & HEADER:
-   - Font: 'Segoe UI' konsisten.
-   - Header Baris: Latar '#0F172A' (Slate 900) dengan font Putih Tebal 11pt.
-   - Header Total / Summary: Latar '#EA580C' (Oranye) dengan teks Putih Tebal.
-2. KPI SUMMARY CARDS DI BAGIAN ATAS:
-   - 4 Card KPI (B3:C4, E3:F4, H3:I4, K3:L4) dengan background '#FFF7ED', label oranye '#EA580C' 9pt bold, dan angka besar 14pt bold.
-3. FORMAT ANGKA & MATA UANG WAJIB DI SETIAP SEL NUMERIK:
-   - Mata uang: ws.cell().number_format = '"Rp " #,##0' atau '#,##0'.
-   - Persentase: ws.cell().number_format = '0.0%'.
-4. FORMULA DINAMIS EXCEL ASLI:
-   - Gunakan '=SUM(...)', '=AVERAGE(...)', rumus margin '=(N7-C7)/C7', dsb (DILARANG hardcoded hasil hitungan manual!).
-5. ATURAN ANTI-TEKS TERPOTONG (###) & TAMPILAN:
-   - Gridlines WAJIB aktif: ws.views.sheetView[0].showGridLines = True
-   - Freeze Panes aktif: ws.freeze_panes = "A7"
-   - LOOP AUTO-FIT LEBAR KOLOM WAJIB DI AKHIR SKRIP:
-     for col in ws.columns:
-         max_len = 0
-         col_letter = get_column_letter(col[0].column)
-         for cell in col:
-             if cell.value:
-                 val_str = str(cell.value)
-                 if len(val_str) > max_len:
-                     max_len = len(val_str)
-         ws.column_dimensions[col_letter].width = max(max_len + 4, 13)
+
+JALUR PALING CEPAT & TERBAIK (MESIN OTOMASI KITS):
+Workspace Anda memiliki 'kits/excel_kit.py'. Cukup buat file 'spec.json' lalu jalankan:
+<write_file path="spec.json">{
+  "theme": "navy",
+  "sheets": [
+    {
+      "name": "Dashboard_Eksekutif",
+      "title": "DASHBOARD KINERJA & ANALISIS FINANSIAL 2026",
+      "master_cols": 6,
+      "freeze_panes": "A7",
+      "kpis": [
+        { "label": "TOTAL TARGET", "value": 15000, "format": "#,##0\" Unit\"", "sub": "Target Tahunan" },
+        { "label": "REALISASI", "value": 16200, "format": "#,##0\" Unit\"", "sub": "+8% Capaian" },
+        { "label": "EFISIENSI BIAYA", "value": 45000000, "format": "\"Rp \"#,##0", "sub": "Penghematan Bersih" }
+      ],
+      "tables": [
+        {
+          "id": "tbl_data",
+          "headers": ["Item / Komponen", "Target", "Realisasi", "Varians", "Capaian (%)", "Status"],
+          "formats": ["@", "#,##0", "#,##0", "+#,##0;-#,##0;0", "0.0%", "@"],
+          "align": ["left", "right", "right", "right", "right", "center"],
+          "rows": [
+            ["Operasional A", 5000, 5400, "=C{row}-B{row}", "=C{row}/B{row}", "TERCAPAI"],
+            ["Operasional B", 5000, 5200, "=C{row}-B{row}", "=C{row}/B{row}", "TERCAPAI"],
+            ["Operasional C", 5000, 5600, "=C{row}-B{row}", "=C{row}/B{row}", "MELAMPAUI"]
+          ],
+          "totals": ["Total", "SUM", "SUM", "SUM", "=C{row}/B{row}", "-"]
+        }
+      ]
+    }
+  ]
+}</write_file>
+<run_command>python kits/excel_kit.py spec.json nama_file.xlsx</run_command>
+<check_file path="nama_file.xlsx" />
+
+JIKA MEMBUAT SKRIP OPENPYXL MANUAL:
+1. Header Baris Gelap '#0F172A', teks Putih Tebal.
+2. 3-4 Kartu KPI di atas tabel (B3:D4).
+3. Format Rupiah: ws.cell().number_format = '"Rp " #,##0' dan Formula Dinamis '=SUM(...)'.
+4. Loop auto-fit lebar kolom di akhir skrip agar tidak terpotong (###).
 ================================================================================
 `;
     }
@@ -1357,21 +1477,27 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
             (hasErrorInTurn ? `- Error atau kegagalan eksekusi terdeteksi dalam output observasi di atas.\n` : '') +
             (unmetGoals.length > 0 ? `- Berkas yang diminta pengguna belum terbentuk di sandbox: ${unmetGoals.join(', ')}.\n` : '') +
             `\n` +
-            `INSTRUKSI WAJIB BAGI AI AGENT (${effort === 'high' ? 'PANTANG MENYERAH! JANGAN PERNAH BERHENTI ATAU HANYA MEMINTA MAAF!' : 'JANGAN BERHENTI ATAU HANYA MEMINTA MAAF!'}):\n` +
-            `1. Analisis akar penyebab error (root cause traceback) secara kritis di dalam <thought>...</thought>.\n` +
-            `2. Jika ragu dengan sintaks pustaka atau template berkas, baca skill yang tepat menggunakan <read_skill name="..." />.\n` +
-            `3. Jika modul library belum terpasang (misal python-docx, openpyxl, python-pptx, matplotlib), jalankan <run_command>pip install nama_modul</run_command>.\n` +
-            `4. Tulis ulang berkas skrip dengan <write_file path="..."> berisi kode perbaikan lengkap (DILARANG tanda triple backtick di dalam write_file!).\n` +
-            `5. Jalankan kembali dengan <run_command>python ...</run_command>.\n` +
-            `6. Verifikasi hasil berkas dengan <check_file path="..." />.\n` +
-            `Lakukan langkah perbaikan mandiri sekarang juga hingga BERHASIL tuntas!`;
+            `INSTRUKSI KEPATUHAN KUALITAS & SKILL (WAJIB DIIKUTI):\n` +
+            `1. 🚨 DILARANG KERAS MENGURANGI KUALITAS ATAU MEMBUAT BERKAS MINIMALIS POLOS (DILARANG slide_layouts[0] teks hitam putih tanpa background, dokumen Word polos tanpa callout/tabel zebra, atau spreadsheet tanpa format)! Anda WAJIB memegang teguh standar estetika dari buku skill!\n` +
+            `2. JALUR PALING CEPAT & ANTI-ERROR: Manfaatkan mesin otomatis yang sudah tersedia di folder 'kits/':\n` +
+            `   - Untuk PPT: Tulis <write_file path="spec.json">...</write_file> lalu <run_command>python kits/pptx_kit.py spec.json nama_file.pptx</run_command>.\n` +
+            `   - Untuk DOCX: Tulis <write_file path="spec.json">...</write_file> lalu <run_command>python kits/word_kit.py spec.json nama_file.docx</run_command>.\n` +
+            `   - Untuk XLSX: Tulis <write_file path="spec.json">...</write_file> lalu <run_command>python kits/excel_kit.py spec.json nama_file.xlsx</run_command>.\n` +
+            `3. Analisis akar penyebab error (root cause traceback) secara kritis di dalam <thought>...</thought>.\n` +
+            `4. Jika ragu dengan sintaks pustaka atau template berkas, baca skill yang tepat menggunakan <read_skill name="..." />.\n` +
+            `5. Jika modul library belum terpasang (misal python-docx, openpyxl, python-pptx, matplotlib), jalankan <run_command>pip install nama_modul</run_command>.\n` +
+            `6. Tulis ulang berkas skrip dengan <write_file path="..."> berisi kode perbaikan lengkap (DILARANG tanda triple backtick di dalam write_file!).\n` +
+            `7. Jalankan kembali dengan <run_command>python ...</run_command>.\n` +
+            `8. Verifikasi hasil berkas dengan <check_file path="..." />.\n` +
+            `Lakukan langkah perbaikan mandiri sekarang juga hingga BERHASIL tuntas dengan standar kualitas tinggi!`;
         } else {
           followUpInstruction = `${obsFormatted}\n\n` +
             `[INSTRUKSI MULTI-STEP RE-ACT]:\n` +
             `1. BACA dan ANALISIS secara mendalam seluruh hasil observasi/pencarian web/perintah di atas.\n` +
-            `2. JAWAB pertanyaan pengguna secara lengkap, terstruktur, mendalam, dan sebutkan fakta serta sumber beritanya secara spesifik kepada pengguna sekarang.\n` +
-            `3. Jika tugas telah selesai sepenuhnya dengan hasil sempurna, berikan ringkasan eksekutif dan konfirmasi akhir kepada pengguna sekarang tanpa menyertakan tag aksi tambahan.\n` +
-            `4. Jika masih membutuhkan langkah verifikasi atau tangkapan layar web, jalankan <screenshot target="index.html" /> atau <check_file path="..." /> sekarang.`;
+            `2. Jika Anda tadi mencari data/materi di internet untuk membuat dokumen/file/presentasi, SEGERA LANJUTKAN langkah berikutnya dengan membuat berkas yang diminta pengguna! Manfaatkan 'spec.json' dan mesin otomatis di 'kits/' (misal: python kits/pptx_kit.py spec.json presentasi.pptx atau python kits/word_kit.py spec.json dokumen.docx) agar hasilnya rapi dan berstandar eksekutif.\n` +
+            `3. JAWAB pertanyaan pengguna secara lengkap, terstruktur, mendalam, dan sebutkan fakta serta sumber beritanya secara spesifik kepada pengguna sekarang.\n` +
+            `4. Jika tugas telah selesai sepenuhnya dengan hasil sempurna, berikan ringkasan eksekutif dan konfirmasi akhir kepada pengguna sekarang tanpa menyertakan tag aksi tambahan.\n` +
+            `5. Jika masih membutuhkan langkah verifikasi atau tangkapan layar web, jalankan <screenshot target="index.html" /> atau <check_file path="..." /> sekarang.`;
         }
 
         apiMessages.push({

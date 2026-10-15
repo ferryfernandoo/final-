@@ -1,0 +1,102 @@
+{
+  "theme": "navy",
+  "style": "compact",
+  "lang": "id",
+  "header": false,
+  "footer": false,
+  "page": {
+    "margin_cm": 1.8
+  },
+  "meta": {
+    "title": "CV ATS Profesional — Ferry",
+    "author": "Ferry"
+  },
+  "blocks": [
+    {
+      "t": "title",
+      "text": "FERRY",
+      "subtitle": "Production & Automation Specialist  |  Industrial AI & Operations Builder"
+    },
+    {
+      "t": "p",
+      "text": "Tangerang, Banten  |  ferry@email.com  |  0812-0000-0000  |  [linkedin.com/in/ferry](https://linkedin.com/in/ferry)  |  [github.com/ferry](https://github.com/ferry)",
+      "size": 20,
+      "color": "555555"
+    },
+    {
+      "t": "sectionhead",
+      "text": "Profil Profesional"
+    },
+    {
+      "t": "p",
+      "text": "Praktisi operasional manufaktur dan pengembang sistem otomasi industri dengan pengalaman langsung mengelola lini produksi berkapasitas tinggi, analisis kapabilitas Six Sigma (Cp/Cpk), pemrograman mikrokontroler ESP32/IoT, serta pengembangan perangkat lunak analitik dan AI terapan."
+    },
+    {
+      "t": "sectionhead",
+      "text": "Pengalaman Kerja & Proyek Terukur"
+    },
+    {
+      "t": "lr",
+      "left": "Production Operator & Line Improvement Lead",
+      "right": "2022 – Sekarang",
+      "sub": "PT Manufaktur Presisi Indonesia — Tangerang, Banten"
+    },
+    {
+      "t": "bullets",
+      "items": [
+        "Mengoperasikan dan mengawasi lini produksi harian berkapasitas **4.000+ unit/shift** dengan tingkat capaian rata-rata **104,7%** terhadap target kuartalan.",
+        "Menurunkan waktu henti mesin (*downtime*) sebesar **18%** dan meningkatkan indeks kapabilitas proses ke **Cpk 1,48** melalui standarisasi kalibrasi sensor serta pemindahan jadwal perawatan preventif.",
+        "Membangun sistem pelaporan otomatis berbasis Excel VBA Macro dan Python yang memangkas waktu rekapitulasi laporan shift dari 45 menit menjadi **3 menit**."
+      ]
+    },
+    {
+      "t": "lr",
+      "left": "Founder & System Architect",
+      "right": "2024 – Sekarang",
+      "sub": "DeepernNova (Teknologi Otomasi & AI) & Bebek Waliqoh (Agribisnis Terpadu)"
+    },
+    {
+      "t": "bullets",
+      "items": [
+        "Merancang purwarupa telemetri industri berbasis **ESP32 & protokol Modbus RTU CRC-16** dengan pemfilteran sinyal EMA untuk pemantauan suhu dan kualitas lini secara *real-time*.",
+        "Mengelola unit agribisnis unggas petelur berpopulasi **1.000 ekor** dengan formulasi ransum pakan mandiri (PK 18,1%) yang menghemat biaya pakan **16%** dan menjaga HDP stabil di **84,5%**."
+      ]
+    },
+    {
+      "t": "sectionhead",
+      "text": "Pendidikan"
+    },
+    {
+      "t": "lr",
+      "left": "Sarjana (S1) Teknik Informatika",
+      "right": "Sedang Berjalan",
+      "sub": "Program Kelas Karyawan — Fokus Rekayasa Perangkat Lunak, Embedded Systems & AI"
+    },
+    {
+      "t": "sectionhead",
+      "text": "Kompetensi Teknis & Operasional"
+    },
+    {
+      "t": "kv",
+      "lines": true,
+      "widths": [
+        26,
+        74
+      ],
+      "rows": [
+        [
+          "Rekayasa & Koding",
+          "Python (Pandas, NumPy, SciPy, OpenPyXL, SQLite), C/C++ (ESP32, Arduino, Modbus), JavaScript/Node.js, HTML/Tailwind, SQL"
+        ],
+        [
+          "Manufaktur & Mutu",
+          "Overall Equipment Effectiveness (OEE), Six Sigma (Cp/Cpk), Analisis Pareto 80/20, FMEA (RPN), SOP ISO 9001 & K3 LOTO"
+        ],
+        [
+          "Pemodelan & AI",
+          "Fine-Tuning LLM (LoRA/QLoRA, Kurasi JSONL), Sistem Pendukung Keputusan (TOPSIS), Excel Financial & VBA Macro Modeling"
+        ]
+      ]
+    }
+  ]
+}

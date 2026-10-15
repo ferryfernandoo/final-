@@ -1,0 +1,113 @@
+{
+  "theme": "navy",
+  "include_macro_sheet": true,
+  "macros": ["AutoFormatReport", "ExportDashboardPDF", "HighlightAnomalies", "CustomUDFs"],
+  "sheets": [
+    {
+      "name": "Dashboard_Eksekutif",
+      "title": "DASHBOARD KINERJA PRODUKSI, FINANSIAL & SIX SIGMA — Q3 2026",
+      "subtitle": "Model Terintegrasi: KPI Otomatis, Rumus Lintas-Sheet, Grafik Native & Kurva Ilmiah 300-DPI",
+      "master_cols": 8,
+      "freeze_panes": "A11",
+      "kpis": [
+        { "label": "Total Target Q3", "value": "=B15", "format": "#,##0\" Unit\"", "sub": "Target Kuartal: 16.200 Unit" },
+        { "label": "Total Realisasi Q3", "value": "=C15", "format": "#,##0\" Unit\"", "sub": "+4,7% Melampaui Target" },
+        { "label": "Rata-rata Capaian", "value": "=E15", "format": "0.0%", "sub": "Standar Minimum 100%" },
+        { "label": "Efisiensi Biaya", "value": "=G15", "format": "\"Rp\"#,##0", "sub": "Total Penghematan Bersih" }
+      ],
+      "tables": [
+        {
+          "id": "tbl_utama",
+          "section_title": "1. Matriks Realisasi Produksi, Efisiensi OEE & Penghematan Biaya per Lini",
+          "headers": ["Unit / Lini Produksi", "Target (Unit)", "Realisasi (Unit)", "Varians (Unit)", "Capaian (%)", "OEE (%)", "Penghematan (Rp)", "Status"],
+          "formats": ["@", "#,##0", "#,##0", "+#,##0;-#,##0;0", "0.0%", "0.0%", "\"Rp\"#,##0", "@"],
+          "align": ["left", "right", "right", "right", "right", "right", "right", "center"],
+          "rows": [
+            ["Lini 1 - Stamping", 4000, 4120, "=C{row}-B{row}", "=C{row}/B{row}", 0.865, 11500000, "=IF(E{row}>=1.05,\"MELAMPAUI\",IF(E{row}>=1,\"TERCAPAI\",\"PERHATIAN\"))"],
+            ["Lini 2 - Assembly", 4000, 4350, "=C{row}-B{row}", "=C{row}/B{row}", 0.912, 18500000, "=IF(E{row}>=1.05,\"MELAMPAUI\",IF(E{row}>=1,\"TERCAPAI\",\"PERHATIAN\"))"],
+            ["Lini 3 - Packaging", 4000, 3980, "=C{row}-B{row}", "=C{row}/B{row}", 0.845, 4200000, "=IF(E{row}>=1.05,\"MELAMPAUI\",IF(E{row}>=1,\"TERCAPAI\",\"PERHATIAN\"))"],
+            ["Lini 4 - QC & Finishing", 4200, 4510, "=C{row}-B{row}", "=C{row}/B{row}", 0.898, 14800000, "=IF(E{row}>=1.05,\"MELAMPAUI\",IF(E{row}>=1,\"TERCAPAI\",\"PERHATIAN\"))"]
+          ],
+          "totals": ["Total / Rata-rata", "SUM", "SUM", "SUM", "=C{row}/B{row}", "AVERAGE", "SUM", "=IF(E{row}>=1,\"TERCAPAI\",\"PERHATIAN\")"],
+          "conditional_formats": [
+            { "col": 5, "type": "databar", "min": 0 },
+            { "col": 6, "type": "colorscale" }
+          ],
+          "dropdowns": [
+            { "col": 8, "options": ["MELAMPAUI", "TERCAPAI", "PERHATIAN", "KRITIS"] }
+          ]
+        }
+      ],
+      "curves": [
+        {
+          "kind": "spline_band",
+          "title": "Kurva Spline Output Mingguan & Pita Deviasi (±1σ)",
+          "labels": ["M-1", "M-2", "M-3", "M-4", "M-5", "M-6", "M-7", "M-8"],
+          "series": [
+            { "name": "Realisasi Aktual (Unit)", "values": [1950, 2020, 2080, 2140, 2190, 2230, 2290, 2340], "band": 45 }
+          ],
+          "target": 2025,
+          "target_label": "Target Mingguan (2.025)",
+          "anchor": "A17",
+          "display_width_px": 560
+        },
+        {
+          "kind": "pareto_80_20",
+          "title": "Analisis Pareto 80/20 Faktor Jam Henti (Downtime)",
+          "labels": ["Setup Mesin", "Bahan Baku", "Sensor Kotor", "Listrik", "Operator", "Lainnya"],
+          "values": [145, 92, 48, 25, 18, 12],
+          "anchor": "E17",
+          "display_width_px": 560
+        }
+      ],
+      "notes": [
+        "Sumber Data: Log Telemetri Produksi & Laporan QC Triwulan III 2026.",
+        "Seluruh nilai Varians, Capaian (%), Total, dan KPI dihitung dinamis dengan rumus Excel.",
+        "Lihat tab 'Analisis_Kurva_SixSigma' untuk kurva distribusi normal Cpk, S-Curve, dan Waterfall."
+      ]
+    },
+    {
+      "name": "Analisis_Kurva_SixSigma",
+      "title": "ANALISIS STATISTIK SIX SIGMA, PROGRES S-CURVE & JEMBATAN FINANSIAL",
+      "subtitle": "Evaluasi Kapabilitas Proses (Cp/Cpk), Kurva-S Otomasi, dan Jembatan Varians Laba Operasional",
+      "master_cols": 7,
+      "tables": [
+        {
+          "id": "tbl_qc",
+          "section_title": "Parameter Spesifikasi & Statistik Kualitas per Lini",
+          "headers": ["Parameter Lini", "Batas Bawah (LSL)", "Target", "Batas Atas (USL)", "Rata-rata (Mean)", "Standar Deviasi (SD)", "Indeks Cpk (Rumus)"],
+          "formats": ["@", "0.00", "0.00", "0.00", "0.00", "0.00", "0.00"],
+          "align": ["left", "right", "right", "right", "right", "right", "right"],
+          "rows": [
+            ["Dimensi Stamping (mm)", 95.50, 100.00, 104.50, 100.15, 0.98, "=MIN((D{row}-E{row})/(3*F{row}),(E{row}-B{row})/(3*F{row}))"],
+            ["Torsi Assembly (Nm)", 45.00, 50.00, 55.00, 50.10, 1.02, "=MIN((D{row}-E{row})/(3*F{row}),(E{row}-B{row})/(3*F{row}))"],
+            ["Berat Kemasan (gram)", 495.00, 500.00, 505.00, 500.20, 1.15, "=MIN((D{row}-E{row})/(3*F{row}),(E{row}-B{row})/(3*F{row}))"]
+          ],
+          "totals": ["Rata-rata Kapabilitas", "", "", "", "", "", "AVERAGE"]
+        }
+      ],
+      "curves": [
+        {
+          "kind": "six_sigma_bell",
+          "title": "Kurva Lonceng Six Sigma & Distribusi Dimensi (Cp / Cpk)",
+          "mean": 100.15,
+          "std": 0.98,
+          "lsl": 95.5,
+          "usl": 104.5,
+          "target": 100.0,
+          "anchor": "A11",
+          "display_width_px": 560
+        },
+        {
+          "kind": "waterfall",
+          "title": "Waterfall Jembatan Pertumbuhan Laba Operasional (Juta Rp)",
+          "labels": ["Laba Q2", "Volume+", "Efisiensi+", "Bahan Baku-", "Perawatan-", "Laba Q3"],
+          "values": [420, 95, 68, -42, -18, 523],
+          "is_total": [true, false, false, false, false, true],
+          "anchor": "E11",
+          "display_width_px": 560
+        }
+      ]
+    }
+  ]
+}

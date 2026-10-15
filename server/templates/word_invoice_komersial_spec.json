@@ -1,0 +1,124 @@
+{
+  "theme": "green",
+  "style": "modern",
+  "lang": "id",
+  "header": false,
+  "footer": false,
+  "page": {
+    "margin_cm": 2.0
+  },
+  "meta": {
+    "title": "Invoice Tagihan INV-2026-108",
+    "author": "Bebek Waliqoh"
+  },
+  "blocks": [
+    {
+      "t": "title",
+      "text": "INVOICE TAGIHAN KOMERSIAL",
+      "subtitle": "Bebek Waliqoh Agribisnis  |  Kebumen, Jawa Tengah  |  Telp: 0812-0000-0000"
+    },
+    {
+      "t": "kv",
+      "lines": true,
+      "widths": [
+        26,
+        74
+      ],
+      "rows": [
+        [
+          "Nomor Invoice",
+          "**INV/BW/2026/X/108**"
+        ],
+        [
+          "Tanggal Terbit",
+          "15 Oktober 2026"
+        ],
+        [
+          "Jatuh Tempo",
+          "**29 Oktober 2026** (Termin Net 14 Hari)"
+        ],
+        [
+          "Ditagihkan Kepada",
+          "**PT Mitra Pangan Nusantara** — Gudang Distribusi Utama, Semarang"
+        ]
+      ]
+    },
+    {
+      "t": "spacer",
+      "size": 120
+    },
+    {
+      "t": "table",
+      "header": [
+        "No",
+        "Deskripsi Barang / Spesifikasi Batch",
+        "Kuantitas",
+        "Harga Satuan",
+        "Subtotal (Rp)"
+      ],
+      "rows": [
+        [
+          "1",
+          "Telur Bebek Segar Grade-A (68–74g) — Batch Minggu I",
+          "5.000 Butir",
+          "Rp2.950",
+          "Rp14.750.000"
+        ],
+        [
+          "2",
+          "Telur Bebek Segar Grade-A (68–74g) — Batch Minggu II",
+          "5.000 Butir",
+          "Rp2.950",
+          "Rp14.750.000"
+        ],
+        [
+          "3",
+          "Telur Asin Masir Matang Vakum (Kemasan Isi 10)",
+          "200 Kotak",
+          "Rp42.000",
+          "Rp8.400.000"
+        ],
+        [
+          "4",
+          "Biaya Pengiriman Armada Tertutup (2 Ritase)",
+          "2 Rit",
+          "Rp350.000",
+          "Rp700.000"
+        ],
+        [
+          "",
+          "**TOTAL TAGIHAN BERSIH**",
+          "",
+          "",
+          "**Rp38.600.000**"
+        ]
+      ],
+      "widths": [
+        0.8,
+        4.8,
+        1.8,
+        1.8,
+        2.2
+      ],
+      "align": [
+        "center",
+        "left",
+        "right",
+        "right",
+        "right"
+      ],
+      "boldLastRow": true
+    },
+    {
+      "t": "callout",
+      "title": "Instruksi Pembayaran Resmi",
+      "text": "Mohon transfer tepat sebesar **Rp38.600.000** ke rekening resmi perusahaan:\n**Bank Mandiri — No. Rek: [ISI: Nomor Rekening] a.n. Bebek Waliqoh**. Cantumkan nomor invoice `INV/BW/2026/X/108` pada berita transfer."
+    },
+    {
+      "t": "signature",
+      "closing": "Hormat kami,",
+      "name": "Ferry",
+      "title": " Bagian Keuangan & Operasional — Bebek Waliqoh"
+    }
+  ]
+}

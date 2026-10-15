@@ -1,0 +1,139 @@
+{
+  "theme": "navy",
+  "style": "modern",
+  "lang": "id",
+  "meta": {
+    "title": "Laporan Eksekutif Produksi & Kendali Mutu Q3 2026",
+    "author": "Ferry — Manajer Operasional"
+  },
+  "header": {
+    "left": "Laporan Eksekutif Produksi & Kendali Mutu Q3 2026",
+    "right": "Dokumen Internal"
+  },
+  "cover": {
+    "label": "LAPORAN EKSEKUTIF OPERASIONAL",
+    "title": "Evaluasi Produksi, Kapabilitas Six Sigma & Otomasi Lini Q3 2026",
+    "subtitle": "Departemen Produksi & Rekayasa Kualitas — Tangerang",
+    "lines": [
+      "Disusun oleh: **Ferry** (Manajer Operasional)",
+      "Tanggal: 15 Oktober 2026",
+      "Status: Terverifikasi — Siap Rapat Direksi"
+    ]
+  },
+  "blocks": [
+    {
+      "t": "h1",
+      "text": "1. Ringkasan Eksekutif & Capaian KPI Utama"
+    },
+    {
+      "t": "p",
+      "text": "Total produksi sepanjang Triwulan III 2026 mencapai **12.450 unit**, melampaui target kuartalan sebesar **3,75%** (12.000 unit) dan tumbuh **8,4%** dibandingkan Triwulan II. Peningkatan tertinggi berasal dari Lini 2 pasca pemindahan jadwal perawatan preventif ke shift malam serta instalasi sensor inspeksi optik."
+    },
+    {
+      "t": "kpi_row",
+      "cards": [
+        { "label": "Total Output Q3", "value": "12.450 Unit", "sub": "+8,4% vs Q2 (Target 12.000)" },
+        { "label": "Efisiensi OEE", "value": "87,4%", "sub": "+5,4% vs Kuartal Lalu" },
+        { "label": "Kapabilitas Cpk", "value": "1,48", "sub": "Six Sigma Kapabel (≥1,33)" },
+        { "label": "Efisiensi Biaya", "value": "Rp42,5 Juta", "sub": "Penghematan Lembur & Scrap" }
+      ]
+    },
+    {
+      "t": "callout",
+      "title": "Keputusan Direksi yang Diminta",
+      "text": "Persetujuan anggaran ekspansi modul sensor optik untuk Lini 1 dan Lini 3 sebesar **Rp120.000.000** sebelum 30 Oktober 2026 dengan estimasi balik modal (*payback period*) 3,2 bulan."
+    },
+    {
+      "t": "h1",
+      "text": "2. Evaluasi Kuantitatif per Lini & Kurva Tren Mingguan"
+    },
+    {
+      "t": "table",
+      "header": ["Lini Produksi", "Target (Unit)", "Realisasi (Unit)", "Capaian (%)", "OEE (%)", "Indeks Cpk"],
+      "rows": [
+        ["Lini 1 — Stamping", "4.000", "4.120", "103,0%", "86,5%", "1,41"],
+        ["Lini 2 — Assembly", "4.000", "4.350", "108,8%", "91,2%", "1,62"],
+        ["Lini 3 — Packaging", "4.000", "3.980", "99,5%", "84,5%", "1,34"],
+        ["Total / Rata-rata", "12.000", "12.450", "103,8%", "87,4%", "1,48"]
+      ],
+      "widths": [3.2, 1.8, 1.8, 1.6, 1.4, 1.4],
+      "align": ["left", "right", "right", "right", "right", "right"],
+      "boldLastRow": true,
+      "caption": "Tabel 1. Perbandingan realisasi produksi, efisiensi OEE, dan kapabilitas proses per lini."
+    },
+    {
+      "t": "curve",
+      "kind": "spline_band",
+      "title": "Kurva Interpolasi Spline Output Mingguan & Pita Deviasi (±1σ)",
+      "subtitle": "Minggu 1 s/d Minggu 8 Triwulan III 2026",
+      "labels": ["M-1", "M-2", "M-3", "M-4", "M-5", "M-6", "M-7", "M-8"],
+      "series": [
+        { "name": "Output Mingguan (Unit)", "values": [1420, 1490, 1510, 1560, 1595, 1610, 1645, 1680], "band": 35 }
+      ],
+      "target": 1500,
+      "target_label": "Target Mingguan (1.500 Unit)",
+      "placement": "center",
+      "width_cm": 14.2,
+      "caption": "Gambar 1. Kurva tren output mingguan menunjukkan kenaikan stabil di atas target sejak Minggu ke-3."
+    },
+    {
+      "t": "h1",
+      "text": "3. Arsitektur Otomasi Sensor & Analisis Kapabilitas Six Sigma"
+    },
+    {
+      "t": "image",
+      "placement": "split-left",
+      "aspect_ratio": "4:3",
+      "rounded_px": 14,
+      "diagram_spec": {
+        "title": "Alur Kendali Mutu Otomatis",
+        "subtitle": "Sensor -> Kontroler -> Audit Six Sigma -> Gudang",
+        "steps": [
+          { "code": "01", "title": "Sensor Optik", "desc": "Inspeksi dimensi real-time 0,2 detik/unit" },
+          { "code": "02", "title": "Filter Aktif", "desc": "Pemisahan otomatis unit di luar LSL/USL" },
+          { "code": "03", "title": "Log Cpk", "desc": "Perhitungan statistik otomatis per shift" },
+          { "code": "04", "title": "Rilis Batch", "desc": "Verifikasi QR & pelaporan dashboard" }
+        ]
+      },
+      "side_title": "Dampak Integrasi Sensor pada Lini 2",
+      "side_text": "Penerapan inspeksi optik terhubung langsung ke kontroler lini sehingga deviasi terdeteksi sebelum melampaui batas toleransi.",
+      "side_bullets": [
+        "Tingkat produk cacat (*reject rate*) turun dari 1,42% menjadi **0,51%**.",
+        "Waktu henti akibat penyetelan ulang turun **28%**.",
+        "Nol komplain kualitas dari pelanggan utama sepanjang Q3."
+      ],
+      "caption": "Gambar 2. Alur kerja kendali mutu otomatis Lini 2."
+    },
+    {
+      "t": "curve",
+      "kind": "six_sigma_bell",
+      "title": "Distribusi Dimensi Produk & Indeks Kapabilitas Six Sigma (Cp / Cpk)",
+      "mean": 100.15,
+      "std": 0.98,
+      "lsl": 95.5,
+      "usl": 104.5,
+      "target": 100.0,
+      "placement": "center",
+      "width_cm": 14.0,
+      "caption": "Gambar 3. Kurva distribusi normal menunjukkan proses berada aman di tengah batas spesifikasi LSL dan USL."
+    },
+    {
+      "t": "h1",
+      "text": "4. Rencana Tindak Lanjut Triwulan IV 2026"
+    },
+    {
+      "t": "numbers",
+      "items": [
+        "**Ekspansi Jadwal Perawatan Malam:** Menerapkan pola perawatan preventif shift malam pada Lini 1 dan Lini 3 mulai 1 November 2026.",
+        "**Replikasi Sensor Optik:** Memasang 2 unit sensor optik baru pada Lini 1 dan Lini 3 dengan anggaran Rp120.000.000.",
+        "**Audit Kapabilitas Bulanan:** Menetapkan target minimum Cpk ≥ 1,40 pada seluruh lini produksi."
+      ]
+    },
+    {
+      "t": "signature",
+      "closing": "Disusun dan diajukan oleh,",
+      "name": "Ferry",
+      "title": "Manajer Operasional & Rekayasa Produksi"
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "theme": "tech",
+  "include_macro_sheet": false,
+  "macros": false,
+  "sheets": [
+    {
+      "name": "Payroll_Lembur_Dan_KPI",
+      "title": "SISTEM PENGGAJIAN (PAYROLL), PERHITUNGAN UPAH LEMBUR (1/173) & INSENTIF KPI",
+      "subtitle": "Otomasi Perhitungan Gaji Pokok, Tunjangan, Tarif Lembur Kemenaker, Potongan BPJS 4% & Take Home Pay",
+      "master_cols": 8,
+      "freeze_panes": "A11",
+      "kpis": [
+        {
+          "label": "Total Gaji Pokok",
+          "value": "=B15",
+          "format": "\"Rp\"#,##0",
+          "sub": "4 Personel Inti"
+        },
+        {
+          "label": "Total Upah Lembur",
+          "value": "=E15",
+          "format": "\"Rp\"#,##0",
+          "sub": "Rumus 1/173 Kemenaker"
+        },
+        {
+          "label": "Rata-rata Skor KPI",
+          "value": "=F15",
+          "format": "0.0",
+          "sub": "Skala 0 - 100"
+        },
+        {
+          "label": "Total Take Home Pay",
+          "value": "=H15",
+          "format": "\"Rp\"#,##0",
+          "sub": "Gaji Bersih Ditransfer"
+        }
+      ],
+      "tables": [
+        {
+          "id": "tbl_payroll",
+          "section_title": "1. Daftar Gaji, Perhitungan Lembur, Skor KPI & Gaji Bersih (Take Home Pay)",
+          "headers": [
+            "Nama & Jabatan",
+            "Gaji Pokok (Rp)",
+            "Tunjangan Tetap (Rp)",
+            "Jam Lembur (Setara)",
+            "Upah Lembur (Rp)",
+            "Skor KPI",
+            "Potongan BPJS 4% (Rp)",
+            "Take Home Pay (Rp)"
+          ],
+          "formats": [
+            "@",
+            "\"Rp\"#,##0",
+            "\"Rp\"#,##0",
+            "0.0",
+            "\"Rp\"#,##0",
+            "0.0",
+            "\"Rp\"#,##0",
+            "\"Rp\"#,##0"
+          ],
+          "align": [
+            "left",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right",
+            "right"
+          ],
+          "rows": [
+            [
+              "Ferry — Koordinator Lini",
+              6500000,
+              1500000,
+              18.5,
+              "=ROUND(((B{row}+C{row})/173)*D{row},0)",
+              94.5,
+              "=ROUND((B{row}+C{row})*0.04,0)",
+              "=B{row}+C{row}+E{row}-G{row}"
+            ],
+            [
+              "Budi Santoso — Leader Assembly",
+              5600000,
+              1100000,
+              22.0,
+              "=ROUND(((B{row}+C{row})/173)*D{row},0)",
+              91.0,
+              "=ROUND((B{row}+C{row})*0.04,0)",
+              "=B{row}+C{row}+E{row}-G{row}"
+            ],
+            [
+              "Siti Rahma — Inspector QC",
+              5400000,
+              1000000,
+              14.0,
+              "=ROUND(((B{row}+C{row})/173)*D{row},0)",
+              93.0,
+              "=ROUND((B{row}+C{row})*0.04,0)",
+              "=B{row}+C{row}+E{row}-G{row}"
+            ],
+            [
+              "Andi Wijaya — Teknisi Otomasi",
+              5800000,
+              1200000,
+              20.0,
+              "=ROUND(((B{row}+C{row})/173)*D{row},0)",
+              92.5,
+              "=ROUND((B{row}+C{row})*0.04,0)",
+              "=B{row}+C{row}+E{row}-G{row}"
+            ]
+          ],
+          "totals": [
+            "Total / Rata-rata",
+            "SUM",
+            "SUM",
+            "SUM",
+            "SUM",
+            "AVERAGE",
+            "SUM",
+            "SUM"
+          ],
+          "conditional_formats": [
+            {
+              "col": 8,
+              "type": "databar",
+              "min": 0
+            }
+          ]
+        }
+      ],
+      "curves": [
+        {
+          "kind": "radar_kpi",
+          "title": "Profil Evaluasi Kompetensi & KPI Tim Operasional",
+          "labels": [
+            "Target Output",
+            "Disiplin K3",
+            "Kualitas Cpk",
+            "Perawatan Mesin",
+            "Kolaborasi",
+            "Inovasi"
+          ],
+          "actual": [
+            94,
+            96,
+            92,
+            89,
+            91,
+            90
+          ],
+          "target": [
+            85,
+            90,
+            85,
+            85,
+            85,
+            80
+          ],
+          "anchor": "A17",
+          "display_width_px": 540
+        }
+      ]
+    }
+  ]
+}

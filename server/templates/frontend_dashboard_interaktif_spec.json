@@ -1,0 +1,24 @@
+{
+  "title": "Executive Operations & Six Sigma Telemetry Hub",
+  "subtitle": "Monitoring Real-Time Lini Produksi, Kurva Spline, Pareto Downtime & Simulasi Kapasitas Q4 2026",
+  "accent": "indigo",
+  "kpis": [
+    { "label": "Total Output Q3", "value": "16.960 Unit", "delta": "+4,7% vs Target (16.200)", "positive": true },
+    { "label": "Efisiensi Lini (OEE)", "value": "88,0%", "delta": "+5,4% vs Kuartal II", "positive": true },
+    { "label": "Kapabilitas Six Sigma", "value": "Cpk 1,48", "delta": "Lulus Standar ≥1,33", "positive": true },
+    { "label": "Penghematan Biaya", "value": "Rp49,0 Juta", "delta": "+14,2% Efisiensi Bersih", "positive": true }
+  ],
+  "chart_labels": ["M-1", "M-2", "M-3", "M-4", "M-5", "M-6", "M-7", "M-8"],
+  "chart_series": [
+    { "label": "Realisasi Aktual (Unit)", "data": [1950, 2020, 2080, 2140, 2190, 2230, 2290, 2340], "color": "#4F46E5" },
+    { "label": "Target Standar (Unit)", "data": [2025, 2025, 2025, 2025, 2025, 2025, 2025, 2025], "color": "#94A3B8" }
+  ],
+  "pareto_labels": ["Setup Mesin", "Bahan Baku", "Sensor Kotor", "Listrik", "Operator"],
+  "pareto_values": [145, 92, 48, 25, 18],
+  "records": [
+    { "id": 1, "lini": "Lini 1 - Stamping", "pic": "Ferry", "target": 4000, "aktual": 4120, "efisiensi": 86.5, "status": "Tercapai" },
+    { "id": 2, "lini": "Lini 2 - Assembly", "pic": "Budi Santoso", "target": 4000, "aktual": 4350, "efisiensi": 91.2, "status": "Melampaui" },
+    { "id": 3, "lini": "Lini 3 - Packaging", "pic": "Siti Rahma", "target": 4000, "aktual": 3980, "efisiensi": 84.5, "status": "Perhatian" },
+    { "id": 4, "lini": "Lini 4 - QC & Finishing", "pic": "Andi Wijaya", "target": 4200, "aktual": 4510, "efisiensi": 89.8, "status": "Melampaui" }
+  ]
+}

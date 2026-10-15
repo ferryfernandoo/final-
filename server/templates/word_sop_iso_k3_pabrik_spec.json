@@ -1,0 +1,138 @@
+{
+  "theme": "tech",
+  "style": "modern",
+  "lang": "id",
+  "meta": {
+    "title": "SOP Kalibrasi Sensor Optik & Keselamatan LOTO Lini Produksi",
+    "author": "Departemen Produksi & K3"
+  },
+  "header": {
+    "left": "SOP-PRD-008: Kalibrasi Sensor & LOTO",
+    "right": "Standar ISO 9001 & ISO 45001"
+  },
+  "blocks": [
+    {
+      "t": "title",
+      "text": "SOP Kalibrasi Sensor Optik & Prosedur LOTO",
+      "subtitle": "Nomor Dokumen: SOP-PRD-008  |  Revisi: 03  |  Berlaku: 15 Oktober 2026"
+    },
+    {
+      "t": "kv",
+      "lines": true,
+      "widths": [
+        28,
+        72
+      ],
+      "rows": [
+        [
+          "Ruang Lingkup",
+          "Seluruh Lini Produksi 1 s/d 4 (Stamping, Assembly, Packaging, QC)"
+        ],
+        [
+          "Penanggung Jawab",
+          "Teknisi Otomasi, Operator Lini, dan Supervisor Shift"
+        ],
+        [
+          "Target Mutu",
+          "Toleransi pembacaan dimensi ≤ ±0,05 mm dan Indeks Kapabilitas Cpk ≥ 1,33"
+        ]
+      ]
+    },
+    {
+      "t": "callout",
+      "kind": "warning",
+      "title": "PERINGATAN KESELAMATAN KERJA (WAJIB LOTO — LOCKOUT/TAGOUT)",
+      "text": "Sebelum menyentuh rumah sensor di atas jalur konveyor, **putar sakelar isolator utama ke posisi OFF, pasang gembok LOTO merah pribadi, dan tempelkan label BAHAYA — SEDANG DIKALIBRASI**. Dilarang melakukan kalibrasi fisik saat motor konveyor berputar."
+    },
+    {
+      "t": "h1",
+      "text": "1. Langkah Prosedur Kalibrasi Standar"
+    },
+    {
+      "t": "numbers",
+      "items": [
+        "**Isolasi Energi (LOTO):** Matikan motor konveyor utama dan pastikan indikator tegangan panel bernilai `0 Volt`.",
+        "**Pembersihan Lensa Optik:** Usap lensa pemancar dan penerima menggunakan kain mikrofiber bebas serat yang dibasahi alkohol isopropil 99%.",
+        "**Uji Blok Kalibrasi Master:** Letakkan blok ukur standar **100,00 mm** tepat di bawah titik fokus laser; pastikan layar HMI menampilkan angka **99,98 mm – 100,02 mm**.",
+        "**Verifikasi Ejektor Reject:** Masukkan 3 sampel uji cacat (`94,00 mm` dan `106,00 mm`); pastikan silinder pneumatik memisahkan ketiganya 100% ke kotak merah dalam waktu **≤ 0,20 detik**.",
+        "**Pelepasan LOTO & Pencatatan:** Lepas gembok LOTO, jalankan lini selama 10 menit awal, dan catat hasil di **Form Log Kalibrasi Shift**."
+      ]
+    },
+    {
+      "t": "h1",
+      "text": "2. Matriks Risiko FMEA (Failure Mode and Effects Analysis)"
+    },
+    {
+      "t": "table",
+      "header": [
+        "Tahap Proses",
+        "Mode Kegagalan",
+        "Dampak",
+        "S",
+        "O",
+        "D",
+        "RPN",
+        "Tindakan Pengendalian Wajib"
+      ],
+      "rows": [
+        [
+          "Pembersihan Lensa",
+          "Debu oli menempel di lensa",
+          "Pembacaan meleset +0,4 mm",
+          "7",
+          "4",
+          "3",
+          "84",
+          "Pembersihan wajib setiap awal shift (8 jam)"
+        ],
+        [
+          "Uji Blok Master",
+          "Blok master aus / jatuh",
+          "Titik nol bergeser",
+          "8",
+          "2",
+          "2",
+          "32",
+          "Sertifikasi ulang blok master setiap 6 bulan"
+        ],
+        [
+          "Ejektor Pneumatik",
+          "Tekanan angin turun < 4 bar",
+          "Unit cacat gagal terdorong",
+          "9",
+          "3",
+          "2",
+          "54",
+          "Pasang sensor tekanan minimum interlock 4,5 bar"
+        ]
+      ],
+      "widths": [
+        2.2,
+        2.4,
+        2.2,
+        0.7,
+        0.7,
+        0.7,
+        0.9,
+        3.0
+      ],
+      "align": [
+        "left",
+        "left",
+        "left",
+        "center",
+        "center",
+        "center",
+        "right",
+        "left"
+      ],
+      "caption": "Tabel 1. Evaluasi FMEA dan pengendalian risiko mutu sensor optik."
+    },
+    {
+      "t": "signature",
+      "closing": "Disahkan oleh,",
+      "name": "Ferry",
+      "title": "Manajer Operasional & K3 Pabrik"
+    }
+  ]
+}

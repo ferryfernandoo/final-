@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 
 // Root path for all user sandboxes
 const SANDBOX_ROOT = path.resolve(__dirname, '..', 'temp-files', 'sandbox');
+const KITS_SOURCE_DIR = path.resolve(__dirname, '..', 'kits');
+const TEMPLATES_SOURCE_DIR = path.resolve(__dirname, '..', 'templates');
 
 if (!fs.existsSync(SANDBOX_ROOT)) {
   fs.mkdirSync(SANDBOX_ROOT, { recursive: true });
@@ -633,6 +635,23 @@ export function getSandboxDir(sessionId) {
       }
     } catch (_) {}
   }
+
+  // Ensure kits/ folder exists in session sandbox for instant Python automation
+  const sessionKitsDir = path.join(dir, 'kits');
+  if (!fs.existsSync(sessionKitsDir) && fs.existsSync(KITS_SOURCE_DIR)) {
+    try {
+      fs.cpSync(KITS_SOURCE_DIR, sessionKitsDir, { recursive: true });
+    } catch (_) {}
+  }
+
+  // Ensure templates/ folder exists in session sandbox
+  const sessionTemplatesDir = path.join(dir, 'templates');
+  if (!fs.existsSync(sessionTemplatesDir) && fs.existsSync(TEMPLATES_SOURCE_DIR)) {
+    try {
+      fs.cpSync(TEMPLATES_SOURCE_DIR, sessionTemplatesDir, { recursive: true });
+    } catch (_) {}
+  }
+
   return dir;
 }
 
@@ -804,7 +823,7 @@ export function listFiles(sessionId) {
     if (!fs.existsSync(currentDir)) return;
     const items = fs.readdirSync(currentDir, { withFileTypes: true });
     for (const item of items) {
-      if (item.name === '.git' || item.name === 'node_modules' || item.name.startsWith('_runner_temp')) continue;
+      if (item.name === '.git' || item.name === 'node_modules' || item.name === 'kits' || item.name === 'templates' || item.name === 'macros' || item.name.startsWith('_runner_temp') || item.name.startsWith('.')) continue;
       const fullPath = path.join(currentDir, item.name);
       const relative = path.relative(sandboxDir, fullPath).replace(/\\/g, '/');
       if (item.isDirectory()) {
@@ -896,7 +915,13 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
           env: {
             ...process.env,
             NODE_ENV: 'sandbox',
-            SANDBOX_SESSION: sessionId
+            SANDBOX_SESSION: sessionId,
+            PYTHONPATH: [
+              path.join(sandboxDir, 'kits'),
+              KITS_SOURCE_DIR,
+              sandboxDir,
+              process.env.PYTHONPATH || ''
+            ].filter(Boolean).join(path.delimiter)
           }
         },
         (error, stdout, stderr) => {
