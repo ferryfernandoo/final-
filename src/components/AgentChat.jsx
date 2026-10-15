@@ -315,6 +315,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const [fileContent, setFileContent] = useState('');
   const [isFileSaving, setIsFileSaving] = useState(false);
 
+  // Zero-Search Skill Architecture: Active Skill State
+  const [activeSkill, setActiveSkill] = useState(null);
+
   // AI Agent Effort Level ('low' | 'medium' | 'high' - Pantang Menyerah)
   const [agentEffort, setAgentEffort] = useState(() => {
     try {
@@ -486,6 +489,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     }
     setCurrentSessionId(sessionId);
     setActiveChainOfWork([]);
+    setActiveSkill(null);
     const msgs = await AgentService.getMessages(sessionId);
     setMessages(msgs);
 
@@ -515,6 +519,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       setCurrentSessionId(newSession.id);
       setMessages([]);
       setActiveChainOfWork([]);
+      setActiveSkill(null);
       const files = await AgentService.getFiles(newSession.id);
       setSandboxFiles(files);
       setPreviewUrl(null);
@@ -553,6 +558,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     setInputValue('');
     setIsExecuting(true);
     setActiveChainOfWork([]);
+    setActiveSkill(null);
 
     const startTimestamp = Date.now();
     const userMsgId = `msg_user_${startTimestamp}`;
@@ -569,6 +575,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       role: 'assistant',
       content: '',
       reasoning: '',
+      activeSkill: null,
       isStreaming: true,
       chainOfWork: [],
       sandboxFiles: [],
@@ -625,6 +632,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             duration: m.duration || durFormatted,
             content: payload?.content || targetContent || m.content,
             reasoning: payload?.reasoning || targetReasoning || m.reasoning || '',
+            activeSkill: payload?.activeSkill || m.activeSkill,
             chainOfWork: payload?.chainOfWork || m.chainOfWork,
             sandboxFiles: payload?.files || m.sandboxFiles,
             allFiles: payload?.allFiles || payload?.files || m.sandboxFiles,
@@ -779,6 +787,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             setPreviewUrl(`/api/agent/preview/${currentSessionId}/${html.path}`);
           }
         },
+        onSkillActive: (skillData) => {
+          setActiveSkill(skillData);
+          setMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, activeSkill: skillData } : m));
+          // Pre-load skill into SKILL.md tab so drawer displays it immediately
+          AgentService.readFile(currentSessionId, 'SKILL.md').then(content => {
+            if (content) setSkillContent(content);
+          }).catch(() => {});
+        },
         onStep: (step) => {
           setMessages(prev => prev.map(m => {
             if (m.id === botMsgId) {
@@ -814,6 +830,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         onDone: (payload) => {
           isStreamDone = true;
           pendingDonePayload = payload;
+          if (payload.activeSkill) {
+            setActiveSkill(payload.activeSkill);
+          }
           if (payload.content) targetContent = payload.content;
           if (payload.reasoning) targetReasoning = payload.reasoning;
           startSmoothTimer();
@@ -1118,6 +1137,23 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 {agentEffort === 'high' ? 'Pantang Menyerah' : (agentEffort === 'low' ? 'Usaha Cepat' : 'Usaha Sedang')}
               </span>
             </button>
+
+            {/* Active Skill Indicator in Header */}
+            {activeSkill && (
+              <button
+                type="button"
+                className={`agent-header-skill-chip ${isExecuting ? 'is-reading' : ''}`}
+                onClick={() => {
+                  setActiveDrawerTab('skill');
+                  setIsDrawerOpen(true);
+                }}
+                title={`Buku Skill Aktif: ${activeSkill.title} (${activeSkill.file}). Klik untuk membuka buku panduan.`}
+              >
+                <i className="fa-solid fa-book-bookmark" />
+                <span className="skill-chip-label">{isExecuting ? 'Membaca Skill:' : 'Skill:'}</span>
+                <span className="skill-chip-name">{activeSkill.title || activeSkill.file}</span>
+              </button>
+            )}
           </div>
 
           <div className="agent-header-right" ref={menuDropdownRef}>
@@ -1329,6 +1365,41 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   )}
                 </div>
                 <div className="agent-msg-content">
+                  {/* Dedicated Active Skill Indicator Banner */}
+                  {isBot && (msg.activeSkill || (isExecuting && msg.isStreaming && activeSkill)) && (() => {
+                    const currentMsgSkill = msg.activeSkill || activeSkill;
+                    return (
+                      <div 
+                        className={`agent-msg-skill-pill ${msg.isStreaming ? 'is-streaming' : ''}`}
+                        onClick={() => {
+                          setActiveDrawerTab('skill');
+                          setIsDrawerOpen(true);
+                        }}
+                        title="Klik untuk membuka dan memeriksa buku panduan skill lengkap di panel SKILL.md"
+                      >
+                        <div className="agent-msg-skill-pill-left">
+                          <span className="agent-skill-icon-wrap">
+                            <i className="fa-solid fa-book-bookmark" />
+                          </span>
+                          <div className="agent-skill-text-group">
+                            <span className="agent-skill-kicker">
+                              {msg.isStreaming ? '⚡ MEMBACA & MEMATUHI PANDUAN SKILL' : '📖 BERPEGANG TEGUH PADA SKILL'}
+                            </span>
+                            <span className="agent-skill-name">
+                              {currentMsgSkill.title}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="agent-msg-skill-pill-right">
+                          <span className="agent-skill-file-tag">{currentMsgSkill.file || currentMsgSkill.id}</span>
+                          <span className="agent-skill-open-action">
+                            Buka Buku <i className="fa-solid fa-arrow-right" />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Unified Claude/Gemini Execution Tree (Collapsible "Worked for 2m ▾", sub-steps, no messy pills) */}
                   {isBot && (steps.length > 0 || msg.isStreaming) && (
                     <AgentExecutionTree

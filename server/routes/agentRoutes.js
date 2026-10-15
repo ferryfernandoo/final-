@@ -343,7 +343,7 @@ router.get('/screenshot/:sessionId', async (req, res) => {
 // ============================================================================
 
 // Helper to execute single sandbox action item and generate action_pill XML
-async function executeActionItem(action, sessionId, addStep, updateLastStep) {
+async function executeActionItem(action, sessionId, addStep, updateLastStep, emitEvent = null) {
   const actionId = `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   let pillXml = '';
   let observation = '';
@@ -367,15 +367,32 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep) {
       observation = `Gagal membaca berkas '${targetPath}': ${readErr.message}`;
     }
   } else if (action.type === 'read_skill') {
-    const skillName = action.name || 'frontend-modern-web';
-    addStep('skill', `Mempelajari Skill: ${skillName}`, `Mengambil panduan standar profesional untuk '${skillName}'...`, 'running');
+    const skillName = action.name || '00-MASTER-AGENTIC-STEPPING-OS';
+    addStep('skill', `Membaca Buku Skill: ${skillName}`, `Membuka buku panduan spesialis '${skillName}' dari perpustakaan skill...`, 'running');
     try {
       const skill = agentSkillService.readSkill(skillName);
       if (skill.found) {
-        updateLastStep('completed', `Panduan '${skill.title}' berhasil dipelajari.`);
-        const preview = skill.content.slice(0, 800) + '...';
-        pillXml = `<action_pill id="${actionId}" type="skill" title="${escapeXml(skill.title)}" meta="${escapeXml(skill.id)}" status="completed">${escapeXml(preview)}</action_pill>`;
-        observation = `[PANDUAN STANDAR SKILL ${skill.id.toUpperCase()}]:\n${skill.content}\n\n[INSTRUKSI]: Terapkan seluruh arsitektur, palet warna, aturan anti-error, dan template kode di atas pada tugas ini!`;
+        updateLastStep('completed', `Buku panduan '${skill.title}' (${skill.file}) berhasil dibaca & dipelajari.`, {
+          skillId: skill.id,
+          skillFile: skill.file,
+          skillTitle: skill.title,
+          category: skill.category
+        });
+        if (typeof emitEvent === 'function') {
+          emitEvent('skill_active', {
+            id: skill.id,
+            file: skill.file,
+            title: skill.title,
+            category: skill.category,
+            summary: skill.summary || ''
+          });
+        }
+        try {
+          agentSandboxService.writeFile(sessionId, 'SKILL.md', skill.content || '');
+        } catch (_wErr) {}
+        const preview = (skill.summary || skill.content.slice(0, 300)) + '...';
+        pillXml = `<action_pill id="${actionId}" type="skill" title="${escapeXml(skill.title)}" meta="${escapeXml(skill.file || skill.id)}" status="completed">${escapeXml(preview)}</action_pill>`;
+        observation = `[BUKU PANDUAN SKILL WAJIB DIIKUTI: ${skill.file} - "${skill.title}"]:\n${skill.content}\n\n[INSTRUKSI MUTLAK]: Anda WAJIB berpegang teguh pada seluruh pedoman, rumus, palet warna, dan aturan anti-error di atas. DILARANG mengarang sendiri!`;
       } else {
         updateLastStep('failed', skill.error);
         pillXml = `<action_pill id="${actionId}" type="skill" title="Skill Tidak Ditemukan" meta="${skillName}" status="failed">${escapeXml(skill.error)}</action_pill>`;
@@ -929,17 +946,55 @@ JIKA TERJADI KENDALA TEKNIS APAPUN (syntax error, missing module/library, runtim
       effortInstruction = `\n[TINGKAT USAHA AI AGENT: SEDANG / BALANCED MODE (MAKSIMAL 6 ITERASI)]\nSelesaikan tugas dengan terukur, teliti, dan pastikan hasil akhir terverifikasi.\n`;
     }
 
-    const suggestedSkill = agentSkillService.suggestSkill(prompt);
-    if (suggestedSkill) {
-      addStep('skill', `Mendeteksi Keahlian: ${suggestedSkill.title}`, `Mempersiapkan modul spesialis '${suggestedSkill.id}' (${suggestedSkill.category}) untuk eksekusi presisi...`, 'completed');
+    // Step 2: Intelligent Skill Requirement Evaluation & Mapping Index
+    const skillEvaluation = agentSkillService.evaluateSkillRequirement(prompt);
+    let activeSkill = null;
+    let strictSkillAdherencePrompt = '';
+
+    if (skillEvaluation.requiresSkill && skillEvaluation.selectedSkill) {
+      activeSkill = skillEvaluation.selectedSkill;
+      addStep(
+        'skill',
+        `Membaca Buku Skill: ${activeSkill.title}`,
+        `Membuka dan menelaah buku panduan '${activeSkill.file}' (${activeSkill.category}) agar eksekusi berpegang teguh pada standar baku profesional...`,
+        'completed',
+        {
+          skillId: activeSkill.id,
+          skillFile: activeSkill.file,
+          skillTitle: activeSkill.title,
+          category: activeSkill.category
+        }
+      );
+
+      // Emit real-time skill event to frontend before stream generation
+      emitEvent('skill_active', {
+        id: activeSkill.id,
+        file: activeSkill.file,
+        title: activeSkill.title,
+        category: activeSkill.category,
+        summary: activeSkill.summary || ''
+      });
+
+      // Synchronize to sandbox's SKILL.md so the session drawer always displays this active skill
+      try {
+        agentSandboxService.writeFile(sessionId, 'SKILL.md', activeSkill.content || '');
+      } catch (_wErr) {}
+
+      // Generate ultra-strict prompt injection
+      strictSkillAdherencePrompt = agentSkillService.getStrictAdherencePrompt(activeSkill);
     } else {
-      addStep('skill', 'Katalog Keahlian Siap', 'Memuat katalog keahlian profesional on-demand (Frontend, DOCX, PPTX, XLSX, Cybersecurity, Matplotlib, REST API)...', 'completed');
+      addStep(
+        'skill',
+        'Mode Percakapan Langsung',
+        'Tidak memerlukan buku panduan khusus. Memproses respons secara langsung...',
+        'completed'
+      );
     }
 
     // Build system prompt with Dynamic Skill Catalog & Sandbox context (Autonomous Agent Orchestrator Standard)
     const compactCatalog = agentSkillService.getCompactCatalog();
-    const skillSuggestionNote = suggestedSkill
-      ? `\n💡 REKOMENDASI SPESIALIS TUGAS INI: Sistem mendeteksi tugas ini sangat relevan dengan skill \`${suggestedSkill.id}\` (${suggestedSkill.title}). Anda disarankan memanggil <read_skill name="${suggestedSkill.id}" /> untuk membaca arsitektur dan template koding yang 100% teruji bebas error!\n`
+    const skillSuggestionNote = activeSkill
+      ? `\n📖 BUKU SKILL AKTIF: Tugas ini dieksekusi dengan standar buku skill \`${activeSkill.file}\` (${activeSkill.title}). Anda WAJIB berpegang teguh pada aturan dan template di dalamnya!\n`
       : '';
 
     const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator, Workspace Artifacts & Dynamic Skill Architecture.
@@ -984,6 +1039,7 @@ SIKLUS ORKESTRASI MULTI-STEP RE-ACT & AUTONOMOUS RETRY LOOP:
 
 ${effortInstruction}
 ${documentQualityBlueprint}
+${strictSkillAdherencePrompt}
 ${compactCatalog}
 ${skillSuggestionNote}
 
@@ -1182,7 +1238,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
               emitEvent('delta', { content: defaultIntro });
             }
 
-            const { pillXml, observation } = await executeActionItem(parsedAction, sessionId, addStep, updateLastStep);
+            const { pillXml, observation } = await executeActionItem(parsedAction, sessionId, addStep, updateLastStep, emitEvent);
             if (pillXml) {
               accumulatedAnswer += `\n\n${pillXml}\n\n`;
               emitEvent('delta', { content: `\n\n${pillXml}\n\n` });
@@ -1469,7 +1525,13 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       files: relevantFiles,
       allFiles: finalFiles,
       previewUrl,
-      screenshotUrl
+      screenshotUrl,
+      activeSkill: activeSkill ? {
+        id: activeSkill.id,
+        file: activeSkill.file,
+        title: activeSkill.title,
+        category: activeSkill.category
+      } : null
     });
 
     // Automatically remember turn in long-term and cross-session memory (Autonomous Agent Standard)

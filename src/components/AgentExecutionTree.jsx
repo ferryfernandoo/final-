@@ -52,8 +52,9 @@ export function formatExecutionStepTitle(step) {
       return `Pratinjau web interaktif · ${step.duration || '1s'}`;
     case 'skill':
     case 'read_skill':
+      return `📖 Membaca Skill: ${meta || title} · ${step.duration || '1s'}`;
     case 'search_skill':
-      return `Panduan Keahlian: ${meta || title} · ${step.duration || '1s'}`;
+      return `🔍 Menelusuri Pustaka Skill: ${meta || title} · ${step.duration || '1s'}`;
     case 'healing':
       return `Perbaikan Mandiri (Self-Healing) · ${dur}`;
     default:
@@ -222,6 +223,7 @@ export default function AgentExecutionTree({
             const rawDetail = step.detail ? String(step.detail).trim() : '';
             const isCommandOrExec = ['command', 'terminal', 'execute', 'execute_code', 'run_code'].includes(step.type);
             const isWriteOrFile = ['write', 'file_write', 'file'].includes(step.type);
+            const isSkill = ['skill', 'read_skill', 'search_skill'].includes(step.type);
             const isFailed = step.status === 'failed' || /error|failed|gagal/i.test(rawDetail);
 
             const inputContent = step.command || (isWriteOrFile ? rawDetail : (step.meta || ''));
@@ -331,8 +333,51 @@ export default function AgentExecutionTree({
                           <span>Berkas <strong>{step.meta || 'file'}</strong> tersimpan sukses di workspace sandbox.</span>
                         </div>
                       </div>
+                    ) : isSkill ? (
+                      /* CASE 3: Skill Book / Guideline Adherence */
+                      <div className="agent-tree-io-grid is-skill-card">
+                        <div className="agent-tree-io-card is-skill">
+                          <div className="agent-tree-io-header">
+                            <span className="agent-tree-io-badge skill-badge">
+                              <i className="fa-solid fa-book-bookmark" /> Buku Panduan Spesialis
+                            </span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                type="button"
+                                className="agent-tree-io-copy-btn"
+                                onClick={(e) => handleCopyText(e, rawDetail, `${stepId}_skill`)}
+                                title="Salin rincian skill"
+                              >
+                                <i className={copiedId === `${stepId}_skill` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                                <span>{copiedId === `${stepId}_skill` ? 'Tersalin' : 'Salin'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="agent-tree-io-editor-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenDrawer?.('skill');
+                                }}
+                                title="Buka buku panduan lengkap di tab SKILL.md"
+                              >
+                                <i className="fa-solid fa-book-open" />
+                                <span>Buka SKILL.md</span>
+                              </button>
+                            </div>
+                          </div>
+                          {step.meta && (
+                            <div className="agent-tree-drawer-meta">
+                              <span className="drawer-meta-key">Berkas Skill:</span>
+                              <span className="drawer-meta-val">{step.meta}</span>
+                            </div>
+                          )}
+                          <pre className="agent-tree-drawer-code is-skill-content">
+                            {rawDetail || 'Buku panduan keahlian berhasil dimuat dan dipatuhi secara ketat.'}
+                          </pre>
+                        </div>
+                      </div>
                     ) : (
-                      /* CASE 3: General / Thought / Exploration */
+                      /* CASE 4: General / Thought / Exploration */
                       <div className="agent-tree-io-grid">
                         {step.meta && (
                           <div className="agent-tree-drawer-meta">

@@ -257,6 +257,7 @@ class AgentService {
     onDelta,
     onReasoning,
     onFilesUpdate,
+    onSkillActive,
     onStep,
     onStepUpdate,
     onDone,
@@ -322,6 +323,8 @@ class AgentService {
                 onReasoning(parsed.text || parsed.content || parsed.full || '');
               } else if (eventType === 'files_update' && onFilesUpdate) {
                 onFilesUpdate(parsed.files || []);
+              } else if (eventType === 'skill_active' && onSkillActive) {
+                onSkillActive(parsed);
               } else if (eventType === 'step' && onStep) {
                 onStep(parsed);
               } else if (eventType === 'step_update' && onStepUpdate) {
