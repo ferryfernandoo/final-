@@ -567,6 +567,87 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep, emi
       pillXml = `<action_pill id="${actionId}" type="check" title="Pemeriksaan Berkas: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(checkErr.message)}</action_pill>`;
       observation = `Gagal memeriksa berkas '${targetPath}': ${checkErr.message}`;
     }
+  } else if (action.type === 'delete_file' || action.type === 'remove_file' || action.type === 'delete') {
+    const targetPath = action.path || '';
+    addStep('file_delete', `Menghapus Berkas: ${targetPath}`, `Menghapus '${targetPath}' dari workspace sandbox...`, 'running');
+    try {
+      const deleted = agentSandboxService.deleteFile(sessionId, targetPath);
+      if (deleted) {
+        updateLastStep('completed', `Berkas '${targetPath}' berhasil dihapus.`);
+        pillXml = `<action_pill id="${actionId}" type="delete" title="Menghapus Berkas: ${targetPath}" meta="${targetPath}" status="completed">Berkas '${targetPath}' berhasil dihapus dari workspace.</action_pill>`;
+        observation = `Berkas '${targetPath}' telah berhasil dihapus dari sandbox.`;
+      } else {
+        updateLastStep('completed', `Berkas '${targetPath}' tidak ditemukan untuk dihapus.`);
+        pillXml = `<action_pill id="${actionId}" type="delete" title="Berkas Tidak Ada: ${targetPath}" meta="${targetPath}" status="completed">Berkas tidak ditemukan.</action_pill>`;
+        observation = `Berkas '${targetPath}' tidak ditemukan di sandbox.`;
+      }
+    } catch (delErr) {
+      updateLastStep('failed', `Gagal menghapus berkas: ${delErr.message}`);
+      pillXml = `<action_pill id="${actionId}" type="delete" title="Gagal Menghapus: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(delErr.message)}</action_pill>`;
+      observation = `Gagal menghapus berkas '${targetPath}': ${delErr.message}`;
+    }
+  } else if (action.type === 'edit_file' || action.type === 'patch_file') {
+    const targetPath = action.path || '';
+    addStep('file_write', `Mengedit Berkas: ${targetPath}`, `Menerapkan perubahan isi berkas '${targetPath}'...`, 'running');
+    try {
+      const editRes = agentSandboxService.editFile(sessionId, targetPath, {
+        target: action.target,
+        replacement: action.replacement,
+        content: action.content
+      });
+      updateLastStep('completed', `Berkas '${targetPath}' berhasil diedit (${(editRes.size / 1024).toFixed(1)} KB).`);
+      pillXml = `<action_pill id="${actionId}" type="write" title="Mengedit Berkas: ${targetPath}" meta="${targetPath}" status="completed">${escapeXml(editRes.summary)}</action_pill>`;
+      observation = `Berkas '${targetPath}' berhasil diedit (${(editRes.size / 1024).toFixed(1)} KB). ${editRes.summary}`;
+    } catch (editErr) {
+      updateLastStep('failed', `Gagal mengedit berkas: ${editErr.message}`);
+      pillXml = `<action_pill id="${actionId}" type="write" title="Gagal Mengedit: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(editErr.message)}</action_pill>`;
+      observation = `Gagal mengedit berkas '${targetPath}': ${editErr.message}`;
+    }
+  } else if (action.type === 'test_file' || action.type === 'validate_file') {
+    const targetPath = action.path || '';
+    addStep('check', `Menguji Berkas: ${targetPath}`, `Menjalankan uji sintaks dan integritas '${targetPath}'...`, 'running');
+    try {
+      const testRes = await agentSandboxService.testFile(sessionId, targetPath);
+      updateLastStep(testRes.success ? 'completed' : 'failed', testRes.message, { detail: testRes.detail });
+      pillXml = `<action_pill id="${actionId}" type="check" title="Uji Berkas: ${targetPath}" meta="${targetPath}" status="${testRes.success ? 'completed' : 'failed'}">${escapeXml(testRes.message + (testRes.detail ? '\n' + testRes.detail : ''))}</action_pill>`;
+      observation = `Hasil uji berkas '${targetPath}':\n${testRes.success ? '✓ LULUS: ' + testRes.message : '✗ GAGAL: ' + testRes.message}\n${testRes.detail ? testRes.detail : ''}`;
+    } catch (testErr) {
+      updateLastStep('failed', `Gagal menguji berkas: ${testErr.message}`);
+      pillXml = `<action_pill id="${actionId}" type="check" title="Uji Gagal: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(testErr.message)}</action_pill>`;
+      observation = `Gagal menjalankan pengujian pada '${targetPath}': ${testErr.message}`;
+    }
+  } else if (action.type === 'send_file' || action.type === 'deliver_file' || action.type === 'resend_file') {
+    const targetPath = action.path || '';
+    addStep('file_write', `Kirim Ulang Berkas: ${targetPath}`, `Menyiapkan berkas '${targetPath}' sebagai deliverable utama...`, 'running');
+    try {
+      const fullPath = agentSandboxService.safeResolvePath(sessionId, targetPath);
+      if (fs.existsSync(fullPath)) {
+        const stat = fs.statSync(fullPath);
+        const checkDetail = `Berkas '${targetPath}' (${(stat.size / 1024).toFixed(1)} KB) berhasil dikirim ulang ke kartu berkas pengguna.`;
+        updateLastStep('completed', checkDetail);
+        pillXml = `<action_pill id="${actionId}" type="write" title="Kirim Berkas: ${targetPath}" meta="${targetPath}" status="completed">${escapeXml(checkDetail)}</action_pill>`;
+        observation = `Berkas '${targetPath}' berhasil ditandai dan dikirimkan sebagai deliverable utama.`;
+      } else {
+        throw new Error(`Berkas '${targetPath}' tidak ditemukan di sandbox.`);
+      }
+    } catch (sendErr) {
+      updateLastStep('failed', `Gagal mengirim berkas: ${sendErr.message}`);
+      pillXml = `<action_pill id="${actionId}" type="write" title="Gagal Kirim: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(sendErr.message)}</action_pill>`;
+      observation = `Gagal mengirim berkas '${targetPath}': ${sendErr.message}`;
+    }
+  } else if (action.type === 'list_files' || action.type === 'dir') {
+    addStep('read', 'Daftar Berkas Sandbox', 'Membaca seluruh berkas yang ada di workspace...', 'running');
+    try {
+      const files = agentSandboxService.listFiles(sessionId);
+      const listSummary = files.map(f => `- ${f.path} (${(f.size / 1024).toFixed(1)} KB)`).join('\n') || 'Workspace sandbox masih kosong.';
+      updateLastStep('completed', `Ditemukan ${files.length} berkas di sandbox.`);
+      pillXml = `<action_pill id="${actionId}" type="read" title="Daftar Berkas Sandbox" meta="${files.length} berkas" status="completed">${escapeXml(listSummary)}</action_pill>`;
+      observation = `Daftar berkas di sandbox saat ini:\n${listSummary}`;
+    } catch (listErr) {
+      updateLastStep('failed', `Gagal membaca berkas: ${listErr.message}`);
+      pillXml = `<action_pill id="${actionId}" type="read" title="Gagal Daftar Berkas" meta="sandbox" status="failed">${escapeXml(listErr.message)}</action_pill>`;
+      observation = `Gagal membaca daftar berkas: ${listErr.message}`;
+    }
   } else if (action.type === 'screenshot' || action.type === 'take_screenshot') {
     let targetFile = (action.target || action.path || 'index.html').trim();
     if (!targetFile.endsWith('.html') && !targetFile.endsWith('.htm')) {
@@ -612,7 +693,16 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep, emi
 function createStreamActionParser(callbacks) {
   let buffer = '';
   let activeThinkingTag = null;
-  const KNOWN_TAGS = ['thinking', 'plan', 'thought', 'think', 'reasoning', 'read_skill', 'search_skill', 'read_file', 'read', 'search_web', 'search', 'run_command', 'command', 'terminal', 'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file', 'preview', 'screenshot', 'take_screenshot'];
+  const KNOWN_TAGS = [
+    'thinking', 'plan', 'thought', 'think', 'reasoning',
+    'read_skill', 'search_skill', 'read_file', 'read',
+    'edit_file', 'patch_file', 'delete_file', 'remove_file', 'delete',
+    'test_file', 'validate_file', 'send_file', 'deliver_file', 'resend_file',
+    'list_files', 'dir',
+    'search_web', 'search', 'run_command', 'command', 'terminal',
+    'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file',
+    'preview', 'screenshot', 'take_screenshot'
+  ];
   let queue = Promise.resolve();
 
   async function processChunk(chunk) {
@@ -690,6 +780,16 @@ function createStreamActionParser(callbacks) {
                             openTagSubstr.includes('/>') ||
                             tagName === 'check_file' || 
                             tagName === 'verify_file' || 
+                            tagName === 'delete_file' ||
+                            tagName === 'remove_file' ||
+                            tagName === 'delete' ||
+                            tagName === 'test_file' ||
+                            tagName === 'validate_file' ||
+                            tagName === 'send_file' ||
+                            tagName === 'deliver_file' ||
+                            tagName === 'resend_file' ||
+                            tagName === 'list_files' ||
+                            tagName === 'dir' ||
                             (tagName === 'read_skill' && !buffer.includes(`</${tagName}>`)) ||
                             (tagName === 'search_skill' && !buffer.includes(`</${tagName}>`)) ||
                             (tagName === 'search_web' && !buffer.includes(`</${tagName}>`)) || 
@@ -1241,13 +1341,23 @@ TAG AKSI SANDBOX & SKILL YANG TERSEDIA:
 - <thought>analisis nalar internal mendalam</thought>
 - <plan>rencana milestone eksekusi</plan>
 - <read_file path="nama_file.ext" />
-  Membaca isi berkas dari sandbox.
+  Membaca isi berkas dari sandbox atau SKILL.md.
+- <list_files />
+  Melihat daftar seluruh berkas yang ada di workspace sandbox beserta ukuran fisiknya.
+- <write_file path="nama_file.ext">isi berkas lengkap</write_file>
+  Membuat berkas baru atau menimpa berkas kode/skrip secara utuh ke sandbox (DILARANG tanda triple backtick di dalam tag ini!).
+- <edit_file path="nama_file.ext"><target>teks lama</target><replacement>teks baru</replacement></edit_file>
+  Mengedit bagian tertentu dari berkas yang ada tanpa menulis ulang seluruh berkas.
+- <delete_file path="nama_file.ext" />
+  Menghapus berkas yang tidak terpakai atau usang dari workspace sandbox.
+- <test_file path="nama_file.ext" />
+  Menguji keabsahan sintaks dan integritas berkas (.py, .js, .json, .pptx, .docx, .xlsx, .html) untuk memastikan tidak rusak atau corrupt.
+- <send_file path="nama_file.ext" />
+  Mengirim ulang berkas yang baru dibuat/diedit ke daftar kartu deliverable pengguna di obrolan.
 - <search_web query="kata kunci pencarian" />
   Melakukan pencarian di Deepernova Search Engine untuk referensi atau data aktual.
 - <run_command>perintah terminal</run_command>
-  Menjalankan perintah terminal di sandbox (misal: python, node, dir, dsb).
-- <write_file path="nama_file.ext">isi berkas lengkap</write_file>
-  Menulis berkas kode atau skrip lengkap ke sandbox (DILARANG tanda triple backtick di dalam tag ini!).
+  Menjalankan perintah terminal di sandbox dengan AKSES INTERNET LANGSUNG & PENUH (misal: curl, pip install, python requests, fetch API, web scraping, git, node, dir, dsb — SANDBOX TIDAK TERISOLASI!).
 - <execute_code language="python|node">kode</execute_code>
   Mengeksekusi kode langsung di sandbox.
 - <check_file path="nama_file.ext" />
@@ -1300,6 +1410,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
     let stepIteration = 0;
     let continueAutonomousLoop = true;
     let isSelfHealingActive = false;
+    const sentFilePaths = new Set();
 
     while (continueAutonomousLoop && stepIteration < MAX_AGENT_STEPS && !isAborted) {
       stepIteration++;
@@ -1439,8 +1550,12 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
               previewFile = parsedAction.entryFile || 'index.html';
             }
 
-            // Emit live sandbox files update if file modified
-            if (['write_file', 'file', 'execute_code', 'run_code', 'run_command', 'command'].includes(parsedAction.type)) {
+            if (['send_file', 'deliver_file', 'resend_file'].includes(parsedAction.type) && parsedAction.path) {
+              sentFilePaths.add(parsedAction.path);
+            }
+
+            // Emit live sandbox files update if file modified or manipulated
+            if (['write_file', 'file', 'edit_file', 'patch_file', 'delete_file', 'remove_file', 'delete', 'send_file', 'deliver_file', 'resend_file', 'execute_code', 'run_code', 'run_command', 'command'].includes(parsedAction.type)) {
               fileActionExecuted = true;
               const currentFiles = agentSandboxService.listFiles(sessionId);
               emitEvent('files_update', { files: currentFiles });
@@ -1705,9 +1820,20 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
 
     const userExplicitlyRequestedFiles = /\b(unduh|download|kirim\s*lagi|mana\s*file|lihat\s*file|minta\s*file|berkas|file\s*tadi|hasil\s*file|unduh\s*berkas|link\s*file|file(?:nya)?)\b/i.test(promptLower);
 
-    // AI Cerdas: Only attach file deliverable cards if files were modified/created or user explicitly asked!
+    // AI Cerdas: Only attach file deliverable cards if files were explicitly sent, modified/created, or user explicitly asked!
     let relevantFiles = [];
-    if (newlyChangedFiles.length > 0 || (fileActionExecuted && finalFiles.length > 0)) {
+    if (sentFilePaths && sentFilePaths.size > 0) {
+      // Prioritize files explicitly sent via <send_file path="..." />
+      const explicitlySent = finalFiles.filter(f => sentFilePaths.has(f.path) || sentFilePaths.has(f.name));
+      const autoDeliverables = agentSandboxService.getRelevantDeliverables(finalFiles, prompt);
+      const combined = [...explicitlySent];
+      for (const f of autoDeliverables) {
+        if (!combined.some(c => c.path === f.path)) {
+          combined.push(f);
+        }
+      }
+      relevantFiles = combined;
+    } else if (newlyChangedFiles.length > 0 || (fileActionExecuted && finalFiles.length > 0)) {
       relevantFiles = agentSandboxService.getRelevantDeliverables(finalFiles, prompt);
     } else if (userExplicitlyRequestedFiles && finalFiles.length > 0) {
       relevantFiles = agentSandboxService.getRelevantDeliverables(finalFiles, prompt);

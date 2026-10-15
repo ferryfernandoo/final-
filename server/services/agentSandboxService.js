@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { exec, spawn } from 'child_process';
+import JSZip from 'jszip';
 import { agentSessionDb, agentMessageDb } from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,10 +27,10 @@ Language: Indonesian (Direct, Professional, Crisp Executive Summary, Action-Firs
 ## 🎯 PRINSIP UTAMA EKSEKUSI & GAYA KERJA AGENTIC (ACTION-FIRST & ANTI-RAMBLE)
 1. LANGSUNG KERJAKAN TUGAS DENGAN AKSI AGENTIC NYATA: Mulai langsung dengan tag aksi (<write_file>, <run_command>, <check_file>, <search_web>).
 2. DILARANG KERAS NGEDUMEL, CURHAT, ATAU MEMBUANG TOKEN: Jangan mengeluh mengenai kendala teknis, jangan berceramah panjang di sela-sela aksi, dan jangan mengulang-ulang instruksi pengguna.
-3. JANGAN PERNAH menulis teks pura-pura seperti "(do)" atau "(do_search)". Cukup gunakan tag aksi XML nyata.
-4. Sistem otomatis mengubah tag aksi Anda menjadi tombol pill interaktif yang dapat diperiksa oleh pengguna secara transparan.
+3. 🌐 SANDBOX MEMILIKI KONEKSI INTERNET LANGSUNG (TIDAK TERISOLASI): Anda dapat menjalankan curl, pip install, python requests, fetch API eksternal, dan scraping data secara bebas melalui terminal sandbox (<run_command>).
+4. SISTEM MANIPULASI BERKAS LENGKAP: Anda dapat membaca (<read_file>), mendaftar berkas (<list_files />), mengedit berkas yang ada (<edit_file>), menghapus berkas (<delete_file>), menguji integritas berkas (<test_file>), serta mengirim ulang berkas baru ke deliverable (<send_file>).
 5. Tulis kode nyata, lengkap, dan tanpa placeholder. Pastikan eksekusi kode menghasilkan berkas fisik di disk sandbox.
-6. Selalu periksa keberadaan dan ukuran berkas dengan \`<check_file path="nama_file.ext" />\` sebelum mengabarkan bahwa berkas siap diunduh.
+6. Selalu periksa keberadaan dan ukuran berkas dengan \`<check_file path="nama_file.ext" />\` atau uji dengan \`<test_file path="nama_file.ext" />\` sebelum mengabarkan bahwa berkas siap diunduh.
 7. KESIMPULAN EKSEKUTIF SAAT SELESAI: Setelah tugas tuntas, berikan HANYA kesimpulan padat: Status pengerjaan (100% Selesai), nama berkas yang terbentuk, 3-4 butir poin pokok intisari, dan akses unduh.
 
 ---
@@ -37,16 +38,26 @@ Language: Indonesian (Direct, Professional, Crisp Executive Summary, Action-Firs
 ## 🛠 DAFTAR TAG AKSI (TOOLS) TERSEDIA:
 - \`<read_file path="nama_file.ext" />\`
   Membaca isi berkas dari sandbox atau SKILL.md.
+- \`<list_files />\`
+  Melihat daftar seluruh berkas yang ada di workspace sandbox beserta ukuran dan statusnya.
+- \`<write_file path="nama_file.ext">isi berkas</write_file>\`
+  Membuat berkas baru atau menimpa berkas kode/skrip secara utuh.
+- \`<edit_file path="nama_file.ext"><target>teks_lama</target><replacement>teks_baru</replacement></edit_file>\`
+  Mengedit bagian tertentu dari berkas yang sudah ada tanpa menulis ulang seluruh berkas.
+- \`<delete_file path="nama_file.ext" />\`
+  Menghapus berkas yang tidak diperlukan dari sandbox.
+- \`<test_file path="nama_file.ext" />\`
+  Menguji validitas sintaks dan integritas berkas (.py, .js, .json, .pptx, .docx, .xlsx, .html).
+- \`<send_file path="nama_file.ext" />\`
+  Mengirim atau memperbarui berkas deliverable utama kepada pengguna di obrolan.
 - \`<search_web query="kata kunci pencarian" />\`
   Mencari referensi, inspirasi materi/puisi/laporan, atau data aktual di internet.
 - \`<run_command>perintah terminal</run_command>\`
-  Menjalankan perintah terminal di workspace sandbox.
-- \`<write_file path="nama_file.ext">isi berkas</write_file>\`
-  Membuat atau memperbarui berkas kode/skrip secara utuh.
+  Menjalankan perintah terminal di workspace sandbox dengan akses internet penuh (curl, pip install, python requests, node, git, dll).
 - \`<execute_code language="python|node">kode</execute_code>\`
   Mengeksekusi kode langsung di sandbox dan menangkap output stdout/stderr.
 - \`<check_file path="nama_file.ext" />\`
-  Memverifikasi keberadaan dan ukuran berkas di disk sandbox.
+  Memverifikasi keberadaan dan ukuran berkas fisik di disk sandbox.
 - \`<screenshot target="index.html" />\`
   Mengambil tangkapan layar (screenshot visual) dari aplikasi web / berkas HTML dan menampilkannya di obrolan pengguna.
 - \`<preview>index.html</preview>\`
@@ -885,9 +896,120 @@ export function listFiles(sessionId) {
 }
 
 /**
+ * Edit file in sandbox by target replacement or new content
+ */
+export function editFile(sessionId, relativePath, { target, replacement, content } = {}) {
+  const filePath = safeResolvePath(sessionId, relativePath);
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Berkas '${relativePath}' tidak ditemukan di sandbox.`);
+  }
+  let current = fs.readFileSync(filePath, 'utf8');
+  let updated = '';
+  let summary = '';
+  if (typeof target === 'string' && target.length > 0) {
+    if (!current.includes(target)) {
+      throw new Error(`Target teks yang ingin diganti tidak ditemukan di dalam '${relativePath}'.`);
+    }
+    updated = current.replace(target, replacement || '');
+    summary = `Target teks pada '${relativePath}' berhasil diganti (${target.length} karakter diubah).`;
+  } else if (typeof content === 'string') {
+    updated = content;
+    summary = `Konten '${relativePath}' berhasil diperbarui (${content.length} karakter).`;
+  } else {
+    throw new Error('Instruksi edit tidak memiliki target penggantian atau konten baru.');
+  }
+  fs.writeFileSync(filePath, updated, 'utf8');
+  const stat = fs.statSync(filePath);
+  return {
+    path: relativePath,
+    size: stat.size,
+    summary
+  };
+}
+
+/**
+ * Test file integrity & syntax inside session sandbox
+ */
+export async function testFile(sessionId, relativePath) {
+  const filePath = safeResolvePath(sessionId, relativePath);
+  if (!fs.existsSync(filePath)) {
+    return { success: false, message: `Berkas '${relativePath}' tidak ditemukan di sandbox.`, detail: '' };
+  }
+  const ext = path.extname(relativePath).toLowerCase().replace('.', '');
+  const stat = fs.statSync(filePath);
+  if (stat.size === 0) {
+    return { success: false, message: `Berkas '${relativePath}' kosong (0 byte).`, detail: 'File size is 0 bytes.' };
+  }
+
+  if (ext === 'py') {
+    return new Promise((resolve) => {
+      exec(`python -m py_compile "${filePath}"`, { timeout: 15000 }, (err, stdout, stderr) => {
+        if (err) {
+          resolve({ success: false, message: `Sintaks Python error pada '${relativePath}'.`, detail: stderr || stdout || err.message });
+        } else {
+          resolve({ success: true, message: `Sintaks Python valid dan bebas error kompilasi.`, detail: `Ukuran berkas: ${(stat.size / 1024).toFixed(1)} KB` });
+        }
+      });
+    });
+  }
+
+  if (ext === 'js' || ext === 'mjs' || ext === 'cjs') {
+    return new Promise((resolve) => {
+      exec(`node --check "${filePath}"`, { timeout: 15000 }, (err, stdout, stderr) => {
+        if (err) {
+          resolve({ success: false, message: `Sintaks JavaScript error pada '${relativePath}'.`, detail: stderr || stdout || err.message });
+        } else {
+          resolve({ success: true, message: `Sintaks JavaScript valid dan bebas error parsing.`, detail: `Ukuran berkas: ${(stat.size / 1024).toFixed(1)} KB` });
+        }
+      });
+    });
+  }
+
+  if (ext === 'json') {
+    try {
+      const raw = fs.readFileSync(filePath, 'utf8');
+      JSON.parse(raw);
+      return { success: true, message: `Format JSON valid.`, detail: `Ukuran berkas: ${(stat.size / 1024).toFixed(1)} KB` };
+    } catch (jsonErr) {
+      return { success: false, message: `Format JSON tidak valid: ${jsonErr.message}`, detail: jsonErr.message };
+    }
+  }
+
+  if (ext === 'pptx' || ext === 'docx' || ext === 'xlsx') {
+    try {
+      const buf = fs.readFileSync(filePath);
+      if (buf.length < 500) {
+        return { success: false, message: `Ukuran berkas Office terlalu kecil (${buf.length} byte). Kemungkinan corrupt.`, detail: `Hanya ${buf.length} bytes.` };
+      }
+      const zip = await JSZip.loadAsync(buf);
+      const fileCount = Object.keys(zip.files).length;
+      if (fileCount > 0) {
+        return { success: true, message: `Struktur arsip ${ext.toUpperCase()} valid (${fileCount} part internal).`, detail: `Ukuran berkas: ${(stat.size / 1024).toFixed(1)} KB` };
+      } else {
+        return { success: false, message: `Arsip berkas ${ext.toUpperCase()} kosong.`, detail: '' };
+      }
+    } catch (zipErr) {
+      return { success: false, message: `Gagal memvalidasi struktur arsip ${ext.toUpperCase()}: ${zipErr.message}`, detail: zipErr.message };
+    }
+  }
+
+  if (ext === 'html') {
+    const htmlContent = fs.readFileSync(filePath, 'utf8');
+    const hasTags = /<html|<head|<body|<!doctype/i.test(htmlContent);
+    if (hasTags) {
+      return { success: true, message: `Dokumen HTML memiliki struktur valid.`, detail: `Ukuran berkas: ${(stat.size / 1024).toFixed(1)} KB` };
+    } else {
+      return { success: false, message: `Dokumen HTML tidak memiliki tag HTML standar.`, detail: '' };
+    }
+  }
+
+  return { success: true, message: `Berkas '${relativePath}' terverifikasi ada dan memiliki integritas normal.`, detail: `Ukuran berkas: ${(stat.size / 1024).toFixed(1)} KB` };
+}
+
+/**
  * Execute code or command safely inside session sandbox
  */
-export async function executeInSandbox(sessionId, { language = 'node', code = '', command = '', timeoutMs = 15000 }) {
+export async function executeInSandbox(sessionId, { language = 'node', code = '', command = '', timeoutMs = 60000 }) {
   const sandboxDir = getSandboxDir(sessionId);
   const startTime = Date.now();
 
@@ -1164,7 +1286,7 @@ export function extractSequentialActions(text) {
   const writtenPaths = new Set();
 
   // Unified tag regex matching paired or self-closing action tags
-  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|check_file|verify_file|screenshot|take_screenshot)\s+([^>]*?)\/?>/gi;
+  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|edit_file|patch_file|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|check_file|verify_file|screenshot|take_screenshot)\s*([^>]*?)\/?>/gi;
 
   let match;
   while ((match = tagRegex.exec(text)) !== null) {
@@ -1193,11 +1315,31 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'read_file' || tagName === 'read') {
         const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
         actions.push({ type: 'read_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'list_files' || tagName === 'dir') {
+        actions.push({ type: 'list_files', rawMatch, index });
       } else if (tagName === 'search_web' || tagName === 'search') {
         const query = getAttr('query') || getAttr('q') || body;
         actions.push({ type: 'search_web', query, rawMatch, index });
       } else if (tagName === 'run_command' || tagName === 'command' || tagName === 'terminal') {
         actions.push({ type: 'run_command', command: body, rawMatch, index });
+      } else if (tagName === 'edit_file' || tagName === 'patch_file') {
+        const filePath = getAttr('path') || getAttr('file');
+        const targetMatch = body.match(/<target>([\s\S]*?)<\/target>/i);
+        const replMatch = body.match(/<replacement>([\s\S]*?)<\/replacement>/i);
+        if (targetMatch && replMatch) {
+          actions.push({ type: 'edit_file', path: filePath, target: targetMatch[1], replacement: replMatch[1], rawMatch, index });
+        } else {
+          actions.push({ type: 'edit_file', path: filePath, content: body, rawMatch, index });
+        }
+      } else if (tagName === 'delete_file' || tagName === 'remove_file' || tagName === 'delete') {
+        const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
+        actions.push({ type: 'delete_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'test_file' || tagName === 'validate_file') {
+        const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
+        actions.push({ type: 'test_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'send_file' || tagName === 'deliver_file' || tagName === 'resend_file') {
+        const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
+        actions.push({ type: 'send_file', path: filePath, rawMatch, index });
       } else if (tagName === 'write_file' || tagName === 'file') {
         let filePath = getAttr('path') || getAttr('file') || getAttr('name');
         if (!filePath) {
@@ -1259,9 +1401,20 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'read_file' || tagName === 'read') {
         const filePath = getAttr('path') || getAttr('file');
         actions.push({ type: 'read_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'list_files' || tagName === 'dir') {
+        actions.push({ type: 'list_files', rawMatch, index });
       } else if (tagName === 'search_web' || tagName === 'search') {
         const query = getAttr('query') || getAttr('q');
         actions.push({ type: 'search_web', query, rawMatch, index });
+      } else if (tagName === 'delete_file' || tagName === 'remove_file' || tagName === 'delete') {
+        const filePath = getAttr('path') || getAttr('file');
+        actions.push({ type: 'delete_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'test_file' || tagName === 'validate_file') {
+        const filePath = getAttr('path') || getAttr('file');
+        actions.push({ type: 'test_file', path: filePath, rawMatch, index });
+      } else if (tagName === 'send_file' || tagName === 'deliver_file' || tagName === 'resend_file') {
+        const filePath = getAttr('path') || getAttr('file');
+        actions.push({ type: 'send_file', path: filePath, rawMatch, index });
       } else if (tagName === 'check_file' || tagName === 'verify_file') {
         const filePath = getAttr('path') || getAttr('file');
         actions.push({ type: 'check_file', path: filePath, rawMatch, index });
@@ -1425,7 +1578,9 @@ export default {
   safeResolvePath,
   writeFile,
   readFile,
+  editFile,
   deleteFile,
+  testFile,
   listFiles,
   executeInSandbox,
   extractSequentialActions,

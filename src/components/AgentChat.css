@@ -2182,174 +2182,7 @@
   to { opacity: 1; }
 }
 
-/* ============================================================================
-   AI GENERATED DELIVERABLES & DOWNLOADABLE FILE CARDS
-   Clean, light, warm orange accent matching ChatBot aesthetic.
-============================================================================ */
-.agent-msg-files-section {
-  margin-top: 14px;
-  padding: 12px 14px;
-  background: #fffaf5;
-  border: 1px solid #fed7aa;
-  border-radius: 12px;
-}
-
-.agent-msg-files-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.agent-msg-files-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #9a3412;
-}
-
-.agent-zip-download-btn {
-  background: linear-gradient(135deg, #ea580c 0%, #dc4c1f 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 5px 12px;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
-  transition: all 0.2s ease;
-}
-
-.agent-zip-download-btn:hover {
-  background: linear-gradient(135deg, #c2410c 0%, #b43d18 100%);
-  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.35);
-  transform: translateY(-1px);
-}
-
-.agent-msg-files-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 10px;
-}
-
-.agent-msg-file-card {
-  background: #ffffff;
-  border: 1px solid #fed7aa;
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.agent-msg-file-card:hover {
-  border-color: #ea580c;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.12);
-  transform: translateY(-1px);
-}
-
-.agent-msg-file-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.agent-file-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.agent-msg-file-meta {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.agent-msg-file-name {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.agent-msg-file-size {
-  font-size: 10.5px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.agent-msg-file-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 6px;
-  flex-wrap: wrap;
-}
-
-.agent-file-card-btn {
-  border: none;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s ease;
-}
-
-.agent-file-card-btn.is-download {
-  background: #ea580c;
-  color: #ffffff;
-}
-
-.agent-file-card-btn.is-download:hover {
-  background: #c2410c;
-}
-
-.agent-file-card-btn.is-view {
-  background: #f1f5f9;
-  color: #334155;
-}
-
-.agent-file-card-btn.is-view:hover {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.agent-file-card-btn.is-preview {
-  background: #eff6ff;
-  color: #2563eb;
-}
-
-.agent-file-card-btn.is-preview:hover {
-  background: #dbeafe;
-}
+/* (Deliverables & file card styles are consolidated in Block 2 below) */
 
 /* Upload Attachments Chips and Bar */
 .agent-upload-chips {
@@ -2929,24 +2762,25 @@
 }
 
 /* ============================================================================
-   📦 AI CERDAS DELIVERABLES SECTION & FILE CARDS
+   📦 AI CERDAS DELIVERABLES SECTION & FILE CARDS (MODERN THIN BORDERLESS GREY)
    ============================================================================ */
 .agent-msg-files-section {
-  margin-top: 14px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.03);
+  margin-top: 12px;
+  background: #f9fafb;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 .agent-msg-files-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -2954,99 +2788,112 @@
 .agent-msg-files-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 7px;
+  font-size: 12px;
   font-weight: 700;
-  color: #0f172a;
+  color: #4b5563;
+  letter-spacing: -0.01em;
 }
 
 .agent-smart-filter-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #059669;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  padding: 2px 8px;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #4b5563;
+  background: #e5e7eb;
+  border: none !important;
+  outline: none !important;
+  padding: 2px 7px;
   border-radius: 999px;
 }
 
 .agent-zip-download-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 600;
-  color: #c2410c;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  padding: 4px 10px;
-  border-radius: 8px;
+  color: #374151;
+  background: #e5e7eb;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 3px 9px;
+  border-radius: 7px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .agent-zip-download-btn:hover {
-  background: #ffedd5;
-  border-color: #ea580c;
-  color: #9a3412;
+  background: #d1d5db;
+  color: #111827;
 }
 
 .agent-msg-files-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
 }
 
+/* Card Tipis, Gaada Outline, Warna Abu-Abu */
 .agent-msg-file-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 9px 11px;
-  gap: 10px;
-  transition: all 0.15s ease;
+  background: #f3f4f6;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-height: 38px;
+  gap: 8px;
+  transition: background 0.15s ease;
 }
 
 .agent-msg-file-card:hover {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-  transform: translateY(-1px);
+  background: #e5e7eb;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none;
 }
 
 .agent-msg-file-card.is-extra-file {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
-  opacity: 0.88;
+  background: #eceef1;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  opacity: 0.9;
 }
 
 .agent-msg-file-card.is-extra-file:hover {
+  background: #e2e4e8;
   opacity: 1;
 }
 
 .agent-msg-file-info {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
 }
 
 .agent-file-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: #e5e7eb;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 13px;
   flex-shrink: 0;
 }
 
@@ -3058,29 +2905,31 @@
 
 .agent-msg-file-name {
   font-size: 12px;
-  font-weight: 650;
-  color: #0f172a;
+  font-weight: 600;
+  color: #1f2937;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 4px;
+  line-height: 1.25;
 }
 
 .agent-extra-badge {
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  color: #64748b;
-  background: #e2e8f0;
-  padding: 0 5px;
+  color: #6b7280;
+  background: #d1d5db;
+  padding: 0 4px;
   border-radius: 4px;
 }
 
 .agent-msg-file-size {
-  font-size: 10.5px;
-  color: #64748b;
+  font-size: 10px;
+  color: #6b7280;
+  line-height: 1.2;
   margin-top: 1px;
 }
 
@@ -3092,74 +2941,213 @@
 }
 
 .agent-file-card-btn {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
+  background: #e5e7eb;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   border-radius: 6px;
-  padding: 4px 7px;
-  font-size: 11px;
+  padding: 3px 7px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: #334155;
+  color: #374151;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .agent-file-card-btn:hover {
-  border-color: #94a3b8;
-  color: #0f172a;
+  background: #d1d5db;
+  color: #111827;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .agent-file-card-btn.is-download {
-  color: #0284c7;
-  border-color: #bae6fd;
-  background: #f0f9ff;
+  background: #e5e7eb;
+  color: #1f2937;
 }
 
 .agent-file-card-btn.is-download:hover {
-  background: #e0f2fe;
-  border-color: #0284c7;
+  background: #d1d5db;
+  color: #030712;
+}
+
+.agent-file-card-btn.is-view {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.agent-file-card-btn.is-view:hover {
+  background: #d1d5db;
+  color: #111827;
 }
 
 .agent-file-card-btn.is-preview {
-  color: #7c3aed;
-  border-color: #ddd6fe;
-  background: #f5f3ff;
+  background: #e5e7eb;
+  color: #374151;
 }
 
 .agent-file-card-btn.is-preview:hover {
-  background: #ede9fe;
-  border-color: #7c3aed;
+  background: #d1d5db;
+  color: #111827;
 }
 
 .agent-extra-files-toggle-wrap {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed #e2e8f0;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #e5e7eb;
   display: flex;
   justify-content: center;
 }
 
 .agent-extra-files-toggle-btn {
-  background: transparent;
-  border: 1px dashed #cbd5e1;
-  color: #64748b;
-  font-size: 11.5px;
+  background: #e5e7eb;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: #4b5563;
+  font-size: 11px;
   font-weight: 600;
-  padding: 5px 14px;
-  border-radius: 20px;
+  padding: 3px 10px;
+  border-radius: 999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
+  gap: 5px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .agent-extra-files-toggle-btn:hover {
-  background: #f8fafc;
-  color: #0f172a;
-  border-color: #94a3b8;
+  background: #d1d5db;
+  color: #111827;
+}
+
+/* Dark Mode Overrides for Modern Grey Borderless Cards */
+.dark .agent-msg-files-section,
+[data-theme="dark"] .agent-msg-files-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dark .agent-msg-files-header,
+[data-theme="dark"] .agent-msg-files-header {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark .agent-msg-files-title,
+[data-theme="dark"] .agent-msg-files-title {
+  color: #9ca3af;
+}
+
+.dark .agent-smart-filter-badge,
+[data-theme="dark"] .agent-smart-filter-badge {
+  background: rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  border: none !important;
+}
+
+.dark .agent-zip-download-btn,
+[data-theme="dark"] .agent-zip-download-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dark .agent-zip-download-btn:hover,
+[data-theme="dark"] .agent-zip-download-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.dark .agent-msg-file-card,
+[data-theme="dark"] .agent-msg-file-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dark .agent-msg-file-card:hover,
+[data-theme="dark"] .agent-msg-file-card:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dark .agent-msg-file-card.is-extra-file,
+[data-theme="dark"] .agent-msg-file-card.is-extra-file {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dark .agent-msg-file-card.is-extra-file:hover,
+[data-theme="dark"] .agent-msg-file-card.is-extra-file:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dark .agent-file-icon-box,
+[data-theme="dark"] .agent-file-icon-box {
+  background: rgba(255, 255, 255, 0.08);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dark .agent-msg-file-name,
+[data-theme="dark"] .agent-msg-file-name {
+  color: #e5e7eb;
+}
+
+.dark .agent-extra-badge,
+[data-theme="dark"] .agent-extra-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: #9ca3af;
+}
+
+.dark .agent-msg-file-size,
+[data-theme="dark"] .agent-msg-file-size {
+  color: #9ca3af;
+}
+
+.dark .agent-file-card-btn,
+[data-theme="dark"] .agent-file-card-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d1d5db;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dark .agent-file-card-btn:hover,
+[data-theme="dark"] .agent-file-card-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.dark .agent-extra-files-toggle-wrap,
+[data-theme="dark"] .agent-extra-files-toggle-wrap {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark .agent-extra-files-toggle-btn,
+[data-theme="dark"] .agent-extra-files-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  border: none !important;
+  outline: none !important;
+}
+
+.dark .agent-extra-files-toggle-btn:hover,
+[data-theme="dark"] .agent-extra-files-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
 /* Smooth streaming typing cursor */
