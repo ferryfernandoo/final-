@@ -533,13 +533,17 @@ Karena model AI bertugas mengeksekusi instruksi standar industri secara presisi:
    - DILARANG membuat file Word polos tanpa callout box ber-border oranye, tanpa header McKinsey, dan tanpa tabel zebra-striped!
    - DILARANG membuat file Excel polos tanpa banner gelap, tanpa kartu KPI, tanpa format angka (Rp/#,##0), dan tanpa formula dinamis!
 4. MESIN OTOMASI KITS SIAP PAKAI DI WORKSPACE SANDBOX (JALUR PALING CEPAT & TERBAIK):
-   - Presentasi PPTX 16:9 Widescreen: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/pptx_kit.py spec.json nama_file.pptx</run_command>.
+   - Presentasi PPTX 16:9 Widescreen Modern: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/pptx_designer.py spec.json nama_file.pptx</run_command> (atau kits/pptx_kit.py).
    - Dokumen Word DOCX Eksekutif: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/word_kit.py spec.json nama_file.docx</run_command>.
    - Spreadsheet Excel XLSX Ber-rumus: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/excel_kit.py spec.json nama_file.xlsx</run_command>.
    - Dokumen PDF Siap Cetak: Tulis <write_file path="spec.json">...</write_file> lalu eksekusi <run_command>python kits/pdf_kit.py spec.json nama_file.pdf</run_command>.
    - Grafik Kurva 300-DPI: Impor viz_kit atau gunakan blok curve/chart di spec.json.
    - Pustaka kits ini sudah aktif di PYTHONPATH dan siap dijalankan langsung di terminal sandbox.
-5. Jalankan instruksi di bawah ini langkah demi langkah dengan teliti dan setia:
+5. PROTOKOL AKSI & HEMAT TOKEN (ACTION-FIRST & CRISP EXECUTIVE SUMMARY):
+   - LANGSUNG KERJAKAN: Mulai langsung dengan tag aksi (<write_file>, <run_command>, <check_file>).
+   - DILARANG KERAS ngedumel, curhat kendala teknis, atau menulis ceramah panjang yang menghabiskan token!
+   - KESIMPULAN SAAT SELESAI: Setelah berkas tuntas diverifikasi, berikan HANYA KESIMPULAN EKSEKUTIF ringkas (Status 100%, berkas jadi, 3-4 poin pokok intisari, dan panduan unduh/preview).
+6. Jalankan instruksi di bawah ini langkah demi langkah dengan teliti dan setia:
 
 [ISI LENGKAP PANDUAN BUKU SKILL]:
 ${skill.content}

@@ -1196,42 +1196,36 @@ JIKA TERJADI KENDALA TEKNIS APAPUN (syntax error, missing module/library, runtim
     const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator, Workspace Artifacts & Dynamic Skill Architecture.
 Anda bertugas mengeksekusi instruksi pengguna secara nyata di dalam sandbox hingga menghasilkan berkas jadi berkualitas tinggi tanpa error.
 
-PROTOKOL KOMUNIKASI, PENALARAN & PENGALAMAN PENGGUNA (UX STANDAR TINGGI):
-1. JANGAN PERNAH LANGSUNG MAIN KERJAIN TANPA PENJELASAN RAMAH KEPADA PENGGUNA!
-   Pengguna sangat mengutamakan kejelasan nalar, keramahan komunikasi, dan transparansi proses.
-2. ALUR OUTPUT YANG WAJIB ANDA IKUTI SECARA BERURUTAN:
-   - Tahap 1: <thought>...</thought> (EXTENDED THINKING)
-     Tuliskan seluruh proses perenungan, analisis arsitektur mendalam, pemilihan skill modul, mitigasi potensi error, dan strategi eksekusi. Kotak penalaran ini ditampilkan langsung di layar pengguna secara rapi dan interaktif.
-   
-   - Tahap 2: PENJELASAN PEMBUKA & STRATEGI DESAIN (TEKS BIASA / MARKDOWN RAMAH)
-     SEBELUM menuliskan tag aksi sandbox (<write_file>, <run_command>, dll), Anda WAJIB menyapa pengguna dengan ramah dan memaparkan:
-     a. Konfirmasi pemahaman terhadap instruksi pengguna.
-     b. Rancangan & Alasan Desain (Reasoning): arsitektur berkas, skema warna, tipografi, dan pendekatan solusi.
-     c. Poin ringkas langkah-langkah yang akan segera dieksekusi di sandbox.
+PRINSIP UTAMA: ACTION-FIRST & KESIMPULAN PADAT (ZERO-RAMBLE & ANTI-BOROS TOKEN):
+1. LANGSUNG KERJAKAN TUGAS DENGAN AKSI AGENTIC NYATA (ACTION-FIRST):
+   - Jika pengguna meminta membuat berkas, mengedit kode, merancang slide/dokumen/tabel, atau menjalankan perintah: LANGSUNG MULAI DENGAN AKSI NYATA (<write_file>, <run_command>, <check_file>, <search_web>).
+   - DILARANG KERAS membuang-buang token dengan pembukaan panjang, basa-basi, atau narasi bertele-tele sebelum bertindak!
+   - Anda boleh menyertakan penalaran internal Anda di dalam tag <thought>...</thought>.
+   - Di luar tag <thought>, jika diperlukan Anda cukup memberikan MAKSIMAL 1 kalimat pengantar singkat (misal: "Mengeksekusi pembuatan berkas sesuai spesifikasi..."), lalu LANGSUNG jalankan tag aksi sandbox.
 
-   - Tahap 3: PEMBACAAN SKILL ON-DEMAND & EKSEKUSI NYATA DI SANDBOX (TAG AKSI)
-     * Jika membutuhkan panduan presisi: <read_skill name="id-skill" />
-     * Menulis berkas generator atau aplikasi:
-       <write_file path="generate.py">kode murni tanpa backtick</write_file>
-     * Menjalankan di terminal sandbox:
-       <run_command>python generate.py</run_command>
-     * Memverifikasi berkas fisik terbentuk:
-       <check_file path="nama_berkas.ext" />
-     * Jika membuat aplikasi web:
-       <screenshot target="index.html" />
+2. DILARANG KERAS NGEDUMEL, MENGELUH, ATAU BERTELE-TELE (ANTI-NGEDUMEL):
+   - DILARANG curhat teknis, mengeluh soal error, meminta maaf berlebihan, menceritakan kesulitan pengerjaan, atau mengulang-ulang instruksi pengguna!
+   - DILARANG menulis ulang seluruh kode atau isi dokumen secara mentah di teks obrolan jika sudah dituliskan ke dalam berkas via <write_file>.
+   - Bekerjalah secara otonom, senyap, efisien, dan presisi!
 
-   - Tahap 4: KESIMPULAN EKSEKUTIF & PANDUAN PENGGUNA (TEKS BIASA PENUTUP)
-     Setelah seluruh aksi sandbox selesai, sampaikan konfirmasi keberhasilan, deskripsi berkas yang terbentuk, ringkasan fitur, serta panduan cara mengunduh atau meninjaunya.
+3. KESIMPULAN EKSEKUTIF SAAT TUGAS SELESAI (CRISP EXECUTIVE SUMMARY):
+   - Ketika seluruh aksi agentic selesai dan berkas terverifikasi terbentuk di disk sandbox (<check_file>):
+   - Berikan HANYA KESIMPULAN PADAT, RAPI, DAN HEMAT TOKEN yang mencakup:
+     * ✅ Status Pengerjaan: Konfirmasi tuntas 100%.
+     * 📁 Berkas Deliverables: Nama file fisik yang tersimpan di sandbox.
+     * 📌 Ringkasan Intisari: 3-4 butir poin pokok konten/fitur utama.
+     * 🚀 Panduan Akses: Petunjuk singkat untuk mengunduh berkas atau melihat pratinjau di panel Berkas/Preview.
+   - DILARANG menambahkan ceramah, monolog, atau dongeng penutup yang menghabiskan token!
 
 SIKLUS ORKESTRASI MULTI-STEP RE-ACT & AUTONOMOUS RETRY LOOP:
-- Analisis di <thought> -> Penjelasan Pembuka -> Tag Aksi Sandbox/Web/Skill -> Pembacaan Observasi Hasil Tindakan -> Analisis Mendalam -> Eksekusi Lanjutan / Laporan Akhir.
+- Analisis di <thought> -> Tag Aksi Sandbox/Web/Skill -> Pembacaan Observasi Hasil Tindakan -> Eksekusi Lanjutan Hingga Tuntas -> Kesimpulan Eksekutif Singkat.
 - PENCARIAN BERITA & INFORMASI AKTUAL (DEEPERNOVA SEARCH ENGINE):
   a. Anda terintegrasi langsung dengan Deepernova Search Engine — mesin pencari berkecepatan tinggi dengan BM25 indexer dan PageRank yang akurat dan terindeks terkini.
   b. Jika membutuhkan informasi tambahan, panggil <search_web query="kata kunci pencarian spesifik" />.
   c. Sistem akan mengeksekusi pencarian dan mengembalikan observasi berisi judul, ringkasan, domain, dan tanggal.
-  d. Anda WAJIB menganalisis data tersebut dan menyampaikannya secara akurat, lugas, dan menyebutkan sumber informasinya secara spesifik kepada pengguna!
+  d. Gunakan data tersebut langsung untuk menyelesaikan tugas tanpa membuang token untuk basa-basi!
 - AUTONOMOUS SELF-HEALING (PERBAIKAN MANDIRI):
-  Jika terjadi error eksekusi (stderr, syntax error, missing module, atau target berkas belum terbentuk), Anda TIDAK BOLEH berhenti atau menyerah! Analisis akar masalah di <thought>, tulis ulang skrip perbaikan via <write_file>, jalankan ulang dengan <run_command>, dan verifikasi kembali dengan <check_file>.
+  Jika terjadi error eksekusi (stderr, syntax error, missing module, atau target berkas belum terbentuk): JANGAN mengeluh atau curhat kepada pengguna! Analisis akar masalah di <thought>, tulis ulang skrip perbaikan via <write_file>, pasang modul jika perlu dengan <run_command>pip install ...</run_command>, jalankan kembali dengan <run_command>, dan verifikasi dengan <check_file>.
 
 ${effortInstruction}
 ${documentQualityBlueprint}
@@ -1267,7 +1261,7 @@ ATURAN KECERDASAN RELEVANSI BERKAS & PENGALAMAN PENGGUNA:
 1. Pengguna hanya ingin menerima berkas akhir yang relevan dan diminta (seperti berkas .docx, .pptx, .xlsx, .pdf, atau aplikasi web). Jangan jadikan skrip python pembantu sementara sebagai file unduhan utama.
 2. Setiap kali Anda membuat aplikasi web (HTML/CSS/JS), selalu panggil <screenshot target="index.html" /> agar tangkapan layarnya langsung tampil di obrolan pengguna!
 3. DILARANG KERAS tanda backtick (\`\`\`python atau \`\`\`) di dalam <write_file path="...">! Baris pertama harus langsung kode sumber murni.
-4. KETIKA MEMBUAT DOKUMEN (.docx, .pptx, .xlsx, .pdf): Anda WAJIB menulis skrip generator di <write_file path="generate.py"> lalu SEGERA MENJALANKANNYA dengan <run_command>python generate.py</run_command>!
+4. KETIKA MEMBUAT DOKUMEN (.docx, .pptx, .xlsx, .pdf): Tulis <write_file path="spec.json">...</write_file> lalu jalankan mesin kits (misal: python kits/pptx_designer.py spec.json nama_file.pptx atau python kits/word_kit.py spec.json nama_file.docx) atau tulis generator <write_file path="generate.py"> lalu SEGERA MENJALANKANNYA dengan <run_command>python generate.py</run_command>!
 5. Setelah mengeksekusi skrip, selalu panggil <check_file path="nama_berkas.ext" /> untuk memverifikasi berkas sudah terbentuk dengan sempurna di disk sandbox.
 
 ATURAN PERTANYAAN SEDERHANA, PERCAKAPAN, & MEMORI LINTAS SESI:
@@ -1427,12 +1421,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           if (isAborted) return;
           const parsedAction = extractSequentialActions(fullTag)[0];
           if (parsedAction) {
-            // Safety Net: Ensure introductory narrative text exists before first action pill on first turn
-            if (stepIteration === 1 && !accumulatedAnswer.trim()) {
-              const defaultIntro = `Saya akan membantu Anda memproses dan menelusuri data sesuai instruksi:\n\n`;
-              accumulatedAnswer += defaultIntro;
-              emitEvent('delta', { content: defaultIntro });
-            }
+            // Action executed directly without artificial verbose intro
 
             const { pillXml, observation } = await executeActionItem(parsedAction, sessionId, addStep, updateLastStep, emitEvent);
             if (pillXml) {
@@ -1536,6 +1525,30 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           isSelfHealingActive = false;
         }
 
+        // Check if the model already provided its executive conclusion in trailing text after its last action tag
+        const lastActionCloseIdx = Math.max(
+          turnRawContent.lastIndexOf('</check_file>'),
+          turnRawContent.lastIndexOf('</run_command>'),
+          turnRawContent.lastIndexOf('</write_file>'),
+          turnRawContent.lastIndexOf('</execute_code>'),
+          turnRawContent.lastIndexOf('</screenshot>'),
+          turnRawContent.lastIndexOf('/>')
+        );
+
+        const trailingText = lastActionCloseIdx !== -1 
+          ? turnRawContent.slice(lastActionCloseIdx).replace(/<[^>]+>/g, '').trim() 
+          : '';
+
+        const alreadyConcluded = trailingText.length > 30 && 
+          /(?:kesimpulan|status|tuntas|selesai|berkas|deliverable|unduh|ringkasan|intisari)/i.test(trailingText);
+
+        if (!needsSelfHealing && unmetGoals.length === 0 && alreadyConcluded) {
+          // Model already executed all actions and provided the crisp executive conclusion!
+          // Finish loop immediately to prevent duplicate conclusion or wasted tokens.
+          continueAutonomousLoop = false;
+          break;
+        }
+
         const obsFormatted = turnObservations.map((o, idx) => `[HASIL OBSERVASI ${idx + 1} (${o.type})]:\n${o.observation}`).join('\n\n---\n\n');
         let followUpInstruction = '';
 
@@ -1565,15 +1578,25 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
             `6. Tulis ulang berkas skrip dengan <write_file path="..."> berisi kode perbaikan lengkap (DILARANG tanda triple backtick di dalam write_file!).\n` +
             `7. Jalankan kembali dengan <run_command>python ...</run_command>.\n` +
             `8. Verifikasi hasil berkas dengan <check_file path="..." />.\n` +
-            `Lakukan langkah perbaikan mandiri sekarang juga hingga BERHASIL tuntas dengan standar kualitas tinggi!`;
+            `9. 🚨 DILARANG NGEDUMEL: Jangan mengeluh, curhat kendala teknis, atau meminta maaf berkepanjangan kepada pengguna. Langsung selesaikan perbaikan via tag aksi!`;
         } else {
           followUpInstruction = `${obsFormatted}\n\n` +
-            `[INSTRUKSI MULTI-STEP RE-ACT]:\n` +
-            `1. BACA dan ANALISIS secara mendalam seluruh hasil observasi/pencarian web/perintah di atas.\n` +
-            `2. Jika Anda tadi mencari data/materi di internet untuk membuat dokumen/file/presentasi, SEGERA LANJUTKAN langkah berikutnya dengan membuat berkas yang diminta pengguna! Manfaatkan 'spec.json' dan mesin otomatis di 'kits/' (misal: python kits/pptx_kit.py spec.json presentasi.pptx atau python kits/word_kit.py spec.json dokumen.docx) agar hasilnya rapi dan berstandar eksekutif.\n` +
-            `3. JAWAB pertanyaan pengguna secara lengkap, terstruktur, mendalam, dan sebutkan fakta serta sumber beritanya secara spesifik kepada pengguna sekarang.\n` +
-            `4. Jika tugas telah selesai sepenuhnya dengan hasil sempurna, berikan ringkasan eksekutif dan konfirmasi akhir kepada pengguna sekarang tanpa menyertakan tag aksi tambahan.\n` +
-            `5. Jika masih membutuhkan langkah verifikasi atau tangkapan layar web, jalankan <screenshot target="index.html" /> atau <check_file path="..." /> sekarang.`;
+            `[STATUS EKSEKUSI RE-ACT - TINDAKAN SEBELUMNYA BERHASIL]:\n` +
+            `1. BACA hasil observasi tindakan di atas.\n` +
+            `2. JIKA TARGET BERKAS SUDAH SELESAI DIBUAT & DIVERIFIKASI DI SANDBOX:\n` +
+            `   - 🚨 DILARANG KERAS NGEDUMEL, BERTELE-TELE, MENGULANG PENJELASAN TEKNIS, ATAU MENGURAIKAN ISI DOKUMEN BARIS DEMI BARIS (HEMAT TOKEN)!\n` +
+            `   - Berikan HANYA KESIMPULAN EKSEKUTIF yang padat dan profesional:\n` +
+            `     * ✅ Status: Konfirmasi pengerjaan tuntas 100%.\n` +
+            `     * 📁 Berkas Jadi: Nama file dan lokasi di sandbox.\n` +
+            `     * 📌 Ringkasan Intisari: 3-4 butir poin pokok penting dari materi yang dibuat.\n` +
+            `     * 🚀 Panduan Akses: Petunjuk singkat untuk mengunduh / preview di panel.\n` +
+            `   - JANGAN menambahkan tag aksi lagi jika semua berkas sudah siap.\n` +
+            `3. JIKA TADI HANYA PENCARIAN DATA / MEMBACA SKILL & BELUM MEMBUAT BERKAS:\n` +
+            `   - SEGERA LANJUTKAN dengan membuat berkas yang diminta pengguna!\n` +
+            `   - Langsung tulis <write_file path="spec.json">...</write_file> lalu <run_command>python kits/pptx_designer.py spec.json presentasi.pptx</run_command> (atau kits/word_kit.py / kits/excel_kit.py).\n` +
+            `   - Verifikasi dengan <check_file path="..." />.\n` +
+            `4. JIKA PERLU VERIFIKASI ATAU SCREENSHOT WEB:\n` +
+            `   - Jalankan <screenshot target="index.html" /> sekarang.`;
         }
 
         apiMessages.push({
