@@ -882,7 +882,7 @@ router.post('/run', async (req, res) => {
 
     // Step 2: Intelligent Skill Suggestion & Dynamic On-Demand Catalog Matching
     const wantsDocx = /\b(docx|word|dokumen|laporan|surat|makalah|paper|proposal)\b/i.test(promptLower);
-    const wantsPptx = /\b(pptx|powerpoint|slide|presentasi|deck|pitch)\b/i.test(promptLower);
+    const wantsPptx = /\b(ppt|pptx|powerpoint|slide|slides|presentasi|deck|pitch)\b/i.test(promptLower);
     const wantsXlsx = /\b(xlsx|excel|spreadsheet|tabel\s*excel|keuangan|financial|budget|cashflow|laba|rugi)\b/i.test(promptLower);
 
     let documentQualityBlueprint = '';
@@ -925,70 +925,146 @@ JIKA MEMBUAT SKRIP PYTHON MANUAL (generate.py):
     if (wantsPptx) {
       documentQualityBlueprint += `
 ================================================================================
-📊 STANDAR MUTLAK PRESENTASI POWERPOINT (.PPTX) 16:9 C-LEVEL DECK (GOLDMAN SACHS / BCG):
-Slide .pptx DILARANG format 4:3 kuno dan DILARANG KERAS teks hitam di atas putih polos (DILARANG prs.slide_layouts[0] atau slide_layouts[1] mentah)!
+📊 STANDAR MUTLAK PRESENTASI POWERPOINT (.PPTX) 16:9 MODERN KELAS DUNIA:
+Slide .pptx DILARANG KERAS TAMPIL TELANJANG!
+DILARANG format 4:3 kuno, DILARANG latar putih polos tanpa kontainer kartu, DILARANG prs.slide_layouts[1] mentah, dan DILARANG KERAS grafik placeholder sembarang seperti np.sin(x)!
 
-JALUR PALING CEPAT & TERBAIK (MESIN OTOMASI KITS):
-Workspace Anda memiliki 'kits/pptx_kit.py'. Cukup buat file 'spec.json' lalu jalankan:
+JALUR PALING CEPAT, KREATIF & TERBAIK (MESIN OTOMASI PPTX DESIGNER):
+Workspace Anda memiliki 'kits/pptx_designer.py' yang menghasilkan slide 16:9 modern dengan kartu Bento Box, badge pills, ornamen aksen, dan visual hierarchy bertaraf internasional. Cukup buat 'spec.json' lalu jalankan:
+
 <write_file path="spec.json">{
-  "theme": "navy",
-  "footer": "Judul Presentasi Eksekutif 2026",
+  "theme": "emerald",
+  "title": "Smart Cattle Farming & Modern Agribusiness 2026",
   "slides": [
     {
       "type": "cover",
-      "kicker": "PRESENTASI STRATEGIS EKSEKUTIF",
-      "title": "Judul Aksi Utama yang Menarik & Berbobot",
-      "subtitle": "Penjelasan Mendalam Mengenai Topik & Implementasi Modern",
-      "meta": "Disusun oleh: Deepernova AI Agent | 2026"
+      "kicker": "SMART LIVESTOCK 4.0",
+      "title": "Transformasi Peternakan Modern Berbasis IoT & AI",
+      "subtitle": "Integrasi Bio-Telemetri, Nutrisi Presisi TMR, dan Biosekuriti Ramah Lingkungan",
+      "meta": "DEEPERNOVA AGRI-TECH • 2026"
+    },
+    {
+      "type": "comparison",
+      "kicker": "PARADIGMA INDUSTRI",
+      "title": "Perbandingan: Sistem Konvensional vs Smart Farm 4.0",
+      "col_a": {
+        "tag": "SISTEM TRADISIONAL",
+        "title": "Pengelolaan Manual",
+        "desc": "Pemantauan visual kasat mata dengan pemberian pakan tanpa takaran terukur.",
+        "stat": "14-16 L",
+        "stat_label": "Produksi harian rata-rata per ekor",
+        "bullets": ["Deteksi birahi & penyakit terlambat", "Pemborosan pakan hingga 25%"]
+      },
+      "col_b": {
+        "tag": "SMART CATTLE 4.0",
+        "title": "Ekosistem Presisi Berbasis Sensor",
+        "desc": "Ear-tag bio-telemetri mendeteksi aktivitas ruminasi dan suhu tubuh 24/7.",
+        "stat": "28.5 L",
+        "stat_label": "Produksi susu Grade A (+85%)",
+        "bullets": ["Pemberian pakan robotik otomatis", "Konversi kotoran menjadi biogas"]
+      }
     },
     {
       "type": "kpi",
-      "kicker": "RINGKASAN METRIK & CAPAIAN",
-      "title": "Indikator Utama Menunjukkan Peningkatan Signifikan",
-      "cards": [
-        { "label": "Produksi", "value": "94.8%", "sub": "+12% dari Target" },
-        { "label": "Efisiensi", "value": "88.2%", "sub": "Optimalisasi Biaya" },
-        { "label": "Kualitas", "value": "Zero Defect", "sub": "Standar Internasional" }
+      "kicker": "METRIK UTAMA",
+      "title": "Indikator Kinerja Utama & Efisiensi Terverifikasi",
+      "kpis": [
+        { "label": "PRODUKSI HARIAN", "value": "28.5 L", "sub": "+78% di atas baseline" },
+        { "label": "FEED CONVERSION (FCR)", "value": "1.28", "sub": "Optimalisasi ransum pakan" },
+        { "label": "TINGKAT KEBUNTINGAN", "value": "72.4%", "sub": "Akurasi inseminasi buatan" },
+        { "label": "MORTALITAS PEDET", "value": "< 1.5%", "sub": "Sistem pencegahan dini" }
       ],
       "bullets": [
-        ["Faktor Utama", "Implementasi teknologi modern meningkatkan produktivitas secara terukur."],
-        ["Dampak Positif", "Efisiensi biaya operasional dan kualitas produk terjaga konsisten."]
+        "Ventilasi tunnel otomatis menjaga iklim kandang nyaman dan menekan heat stress.",
+        "Formulasi pakan silase jagung meningkatkan kadar protein dan lemak susu secara stabil."
       ]
     },
     {
-      "type": "pillars",
-      "kicker": "PILAR STRATEGI",
-      "title": "Tiga Pilar Implementasi Berkelanjutan",
-      "columns": [
-        { "title": "Pilar 1 — Teknologi", "bullets": [["Otomasi", "Penerapan sistem terintegrasi."], ["Pemantauan", "Kontrol data real-time."]] },
-        { "title": "Pilar 2 — Manajemen", "bullets": [["SOP Ketat", "Prosedur operasional baku."], ["Pelatihan", "Peningkatan kapasitas tim."]] },
-        { "title": "Pilar 3 — Kualitas", "bullets": [["Kendali Mutu", "Audit kualitas berkala."], ["Standarisasi", "Sertifikasi mutu industri."]] }
+      "type": "split",
+      "kicker": "ARTIKEL MENDALAM",
+      "left_card": {
+        "tag": "BIO-TELEMETRI SAPI",
+        "title": "Arsitektur Sensor Pintar & Pemantauan Kesehatan Sapi",
+        "paragraphs": [
+          "Setiap ternak dilengkapi ear-tag pintar bersertifikasi IP68 dengan sensor akselerometer 3-sumbu dan termometer inframerah yang mentransmisikan data setiap 15 menit melalui jaringan LoRaWAN.",
+          "Algoritma AI menganalisis pola ruminasi. Penurunan waktu mengunyah di bawah 400 menit per hari langsung memicu peringatan potensi gangguan pencernaan sebelum gejala klinis muncul."
+        ],
+        "bullets": [
+          "Deteksi siklus estrus dengan akurasi 96%",
+          "Pemetaan padang gembala anti-kehilangan",
+          "Rekam medis digital per ekor sapi terintegrasi QR code"
+        ]
+      },
+      "right_card": {
+        "stat_label": "EFISIENSI BIAYA KESEHATAN",
+        "stat": "-64%",
+        "highlight_title": "Pencegahan Penyakit Proaktif",
+        "highlight_desc": "Intervensi dini menekan biaya obat dan mencegah penurunan yield mendadak.",
+        "meta_tag": "BIOSEKURITI GRADE A"
+      }
+    },
+    {
+      "type": "bento",
+      "kicker": "SARANA OTOMASI",
+      "title": "Tiga Komponen Fasilitas Kandang Otomatis Berkelanjutan",
+      "cards": [
+        { "tag": "ROBOTIK", "title": "Rotary Milking Parlour", "stat": "300 Ekor/Jam", "stat_label": "Kapasitas Pemerahan", "desc": "Pemerahan higienis otomatis dengan pendinginan seketika 4°C.", "bullets": ["Zero human touch", "Audit mutu real-time"] },
+        { "tag": "PAKAN", "title": "Automatic Feeding TMR", "stat": "±10 gram", "stat_label": "Presisi Takaran", "desc": "Mixer pakan digital mendistribusikan ransum secara teratur.", "bullets": ["Zero pakan tercecer", "Formulasi adaptif"] },
+        { "tag": "SIRKULASI", "title": "Smart Climate Control", "stat": "22°C", "stat_label": "Suhu Kandang Terjaga", "desc": "Kipas heksagonal dan misting beroperasi otomatis sesuai indeks THI.", "bullets": ["Bebas bau menyengat", "Matras karet empuk"] }
       ]
     },
     {
       "type": "timeline",
-      "kicker": "PETA JALAN EKSEKUSI",
-      "title": "Roadmap Penerapan Bertahap Menuju Skala Penuh",
+      "kicker": "SIKLUS KEBERLANJUTAN",
+      "title": "Penerapan Sirkular Ekonomi: Zero Waste Farm",
       "steps": [
-        { "phase": "FASE 1", "title": "Inisiasi & Analisis", "desc": "Pengumpulan data dan penyiapan infrastruktur dasar." },
-        { "phase": "FASE 2", "title": "Implementasi & Integrasi", "desc": "Penerapan sistem di lapangan dan pelatihan personel." },
-        { "phase": "FASE 3", "title": "Evaluasi & Skalabilitas", "desc": "Optimalisasi berkelanjutan dan ekspansi menyeluruh." }
+        { "phase": "TAHAP 1", "title": "Pembersihan Otomatis", "desc": "Pengumpulan feses dengan scraper mekanik setiap 2 jam." },
+        { "phase": "TAHAP 2", "title": "Reaktor Biodigester", "desc": "Fermentasi menghasilkan gas metana untuk listrik mandiri." },
+        { "phase": "TAHAP 3", "title": "Separasi Kompos", "desc": "Pemisahan padatan untuk pupuk organik perkebunan." },
+        { "phase": "TAHAP 4", "title": "Pupuk Cair Nutrisi", "desc": "Nutrisi cair menyuburkan lahan rumput gajah odot." }
       ]
     },
     {
       "type": "outro",
-      "title": "Komitmen Kualitas Menghasilkan Keberlanjutan Jangka Panjang.",
-      "subtitle": "Terima Kasih | Sesi Tanya Jawab & Diskusi"
+      "title": "Membangun Masa Depan Agribisnis Berkelanjutan",
+      "subtitle": "Kedaulatan Pangan Mandiri • Hubungi: info@smartfarm.id"
     }
   ]
 }</write_file>
-<run_command>python kits/pptx_kit.py spec.json nama_file.pptx</run_command>
+<run_command>python kits/pptx_designer.py spec.json nama_file.pptx</run_command>
 <check_file path="nama_file.pptx" />
 
-JIKA MEMBUAT SKRIP PYTHON MANUAL:
-1. RASIO WIDESCREEN 16:9 MANDATORI: prs.slide_width = Inches(13.333), prs.slide_height = Inches(7.5).
-2. DILARANG slide_layouts[0] polos! Gunakan layout kosong (slide_layouts[6]) dan bentuk elemen card, background gelap pada cover (#0F172A), teks oranye/putih (#EA580C/#FFFFFF).
-3. Minimal 4 slide lengkap dengan cover, KPI card, pilar/analisis, dan outro.
+PILIHAN TEMA WARNA ('theme'):
+- "emerald" : Peternakan, Sapi, Agribisnis, Alam, GreenTech, Sustainability
+- "cyber"   : Dark Mode Obsidian, AI, Cyber Security, Cloud, DeepTech
+- "navy"    : Eksekutif, McKinsey, Perbankan, Keuangan, Corporate
+- "purple"  : Startup Unicorn, SaaS, Sequoia Pitch Deck, AI Produk
+- "luxury"  : Gold & Charcoal, Desain Kreatif, Portofolio, Brand, Hospitality
+- "sunset"  : Warm Crimson, F&B, Retail, Energi Terbarukan
+- "slate"   : Minimalist Blue, Akademik, Konferensi Ilmiah, Tesis
+
+TIPE SLIDE YANG DIDUKUNG:
+- "cover"      : Slide sampul berlatar gelap elegan dengan pita vertikal & badge kategori
+- "comparison" : 2 kartu perbandingan sisi-ke-sisi (Konvensional vs Modern / Sebelum vs Sesudah)
+- "kpi"        : 4 kartu metrik besar (36-40pt bold) + kotak analisis strategis di bawah
+- "split"      : Artikel naratif mendalam di kiri (bebas overflow) + kartu spotlight KPI di kanan
+- "bento"      : 2-4 kartu Bento Box rounded-corner dengan tag badges, stat highlight, dan bullet points
+- "matrix"     : Kuadran 2x2 kartu strategi (SWOT / 4 Pilar Inisiatif)
+- "timeline"   : Alur proses horizontal bertahap dengan lingkaran nomor aksen
+- "outro"      : Slide penutup kontras tinggi untuk tanya jawab
+
+JIKA MENULIS SKRIP PYTHON MANUAL:
+Gunakan import dari pptx_designer agar bebas dari error koordinat:
+from pptx_designer import ModernDeck
+deck = ModernDeck(theme="emerald", title="Judul Presentasi")
+deck.add_cover("Judul", "Subjudul", "KICKER", "2026")
+deck.add_comparison("Judul Perbandingan", "KICKER", col_a={...}, col_b={...})
+deck.add_kpi_showcase("Metrik Utama", "KICKER", kpis=[...], bullets=[...])
+deck.add_split_hero("Artikel Lengkap", "KICKER", left_card={...}, right_card={...})
+deck.add_bento_cards("Tiga Komponen", "KICKER", cards=[...])
+deck.add_process_steps("Alur Kerja", "KICKER", steps=[...])
+deck.add_outro("Penutup", "Kontak")
+deck.save("output.pptx")
 ================================================================================
 `;
     }

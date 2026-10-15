@@ -150,100 +150,134 @@ doc.save('dokumen_laporan.docx')
 
 ---
 
-## 📊 KEAHLIAN SUPER #2: PRESENTASI POWERPOINT (.PPTX) MODERN 16:9
-Pustaka Python: \`python-pptx\` (SUDAH TERPASANG).
+## 📊 KEAHLIAN SUPER #2: PRESENTASI POWERPOINT (.PPTX) MODERN 16:9 (BERSIH & ANTI-TELANJANG)
+Pustaka Python: \`python-pptx\` (SUDAH TERPASANG) + Engine: \`kits/pptx_designer.py\`.
 
-### Standar Kualitas Desain PPTX:
-- WAJIB gunakan rasio layar lebar 16:9:
-  \`\`\`python
-  prs.slide_width = Inches(13.333)
-  prs.slide_height = Inches(7.5)
-  \`\`\`
-- Estetika Desain: Apple Keynote & Pitch Deck Startup Unicorn.
-- Tema:
-  * Dark Executive Mode: Latar belakang \`#0F172A\` / \`#0B0F19\`, teks putih, aksen \`#EA580C\` / \`#38BDF8\`.
-  * Clean Light Mode: Latar belakang \`#F8FAFC\`, kartu putih \`#FFFFFF\` ber-border lembut \`#E2E8F0\`.
-- Struktur Slide Profesional:
-  1. **Slide 1: Hero Cover**: Judul masif (40-44pt bold), subjudul elegan (18-20pt), tag metadata.
-  2. **Slide 2: KPI Scorecard Cards**: 3 atau 4 kartu (\`MSO_SHAPE.ROUNDED_RECTANGLE\`) dengan angka raksasa (36-40pt bold), label metrik, dan penjelasan ringkas.
-  3. **Slide 3: Data Visual & Kurva Grafik**: Grafik hasil Matplotlib resolusi tinggi disematkan rapi berdampingan dengan poin insight utama.
-  4. **Slide 4: Struktur 3 Kolom / Pilar Strategis**: Kolom kontainer terpisah dengan judul tebal dan bullet point padat.
-  5. **Slide 5: Roadmap Milestone / Kesimpulan & Langkah Berikutnya**.
+### Standar Mutlak Kualitas Desain PPTX:
+- SLIDE DILARANG KERAS TAMPIL TELANJANG (DILARANG prs.slide_layouts[1] mentah, DILARANG latar putih polos tanpa kontainer kartu).
+- DILARANG menyisipkan grafik placeholder sembarang seperti sinus \`np.sin(x)\`. Gunakan kartu data kuantitatif nyata atau kartu Bento Box.
+- WAJIB gunakan rasio layar lebar 16:9 Widescreen:
+  * Lebar 13.333 inch, Tinggi 7.5 inch (\`LAYOUT BANDS MATH\` anti-tabrakan).
 
-### Cuplikan Kode Referensi PPTX:
+### JALUR #1 (TERCEPAT & TERBAIK): Gunakan Spec JSON & \`pptx_designer.py\`
+Tulis file \`spec.json\` lalu jalankan runner otomatis:
+\`\`\`json
+{
+  "theme": "emerald",
+  "title": "Smart Cattle & Modern Agribusiness 4.0",
+  "slides": [
+    {
+      "type": "cover",
+      "kicker": "SMART LIVESTOCK 4.0",
+      "title": "Transformasi Peternakan Sapi Modern Berbasis IoT & AI",
+      "subtitle": "Integrasi Bio-Telemetri, Nutrisi Presisi TMR, dan Biosekuriti Ramah Lingkungan",
+      "meta": "DEEPERNOVA AGRI-TECH • 2026"
+    },
+    {
+      "type": "comparison",
+      "kicker": "PARADIGMA INDUSTRI",
+      "title": "Perbandingan: Sistem Konvensional vs Smart Farm 4.0",
+      "col_a": {
+        "tag": "SISTEM TRADISIONAL",
+        "title": "Pengelolaan Manual",
+        "desc": "Pemantauan visual kasat mata dengan pemberian pakan tanpa takaran terukur.",
+        "stat": "14-16 L",
+        "stat_label": "Produksi harian rata-rata per ekor",
+        "bullets": ["Deteksi birahi & penyakit terlambat", "Pemborosan pakan hingga 25%"]
+      },
+      "col_b": {
+        "tag": "SMART CATTLE 4.0",
+        "title": "Ekosistem Presisi Berbasis Sensor",
+        "desc": "Ear-tag bio-telemetri mendeteksi aktivitas ruminasi dan suhu tubuh 24/7.",
+        "stat": "28.5 L",
+        "stat_label": "Produksi susu Grade A (+85%)",
+        "bullets": ["Pemberian pakan robotik otomatis", "Konversi kotoran menjadi biogas"]
+      }
+    },
+    {
+      "type": "kpi",
+      "kicker": "METRIK UTAMA",
+      "title": "Indikator Kinerja Utama & Efisiensi Terverifikasi",
+      "kpis": [
+        {"label": "PRODUKSI HARIAN", "value": "28.5 L", "sub": "+78% di atas baseline"},
+        {"label": "FEED CONVERSION (FCR)", "value": "1.28", "sub": "Optimalisasi ransum pakan"},
+        {"label": "TINGKAT KEBUNTINGAN", "value": "72.4%", "sub": "Akurasi inseminasi buatan"},
+        {"label": "MORTALITAS PEDET", "value": "< 1.5%", "sub": "Sistem pencegahan dini"}
+      ],
+      "bullets": [
+        "Ventilasi tunnel otomatis menjaga iklim kandang nyaman dan menekan heat stress.",
+        "Formulasi pakan silase jagung meningkatkan kadar protein dan lemak susu secara stabil."
+      ]
+    },
+    {
+      "type": "split",
+      "kicker": "ARTIKEL MENDALAM",
+      "left_card": {
+        "tag": "BIO-TELEMETRI SAPI",
+        "title": "Arsitektur Sensor Pintar & Pemantauan Kesehatan Sapi",
+        "paragraphs": [
+          "Setiap ternak dilengkapi ear-tag pintar bersertifikasi IP68 dengan sensor akselerometer 3-sumbu dan termometer inframerah.",
+          "Algoritma AI menganalisis pola ruminasi secara real-time untuk mendeteksi potensi penyakit sebelum gejala klinis muncul."
+        ],
+        "bullets": [
+          "Deteksi siklus estrus dengan akurasi 96%",
+          "Pemetaan padang gembala anti-kehilangan",
+          "Rekam medis digital per ekor sapi terintegrasi QR code"
+        ]
+      },
+      "right_card": {
+        "stat_label": "EFISIENSI BIAYA KESEHATAN",
+        "stat": "-64%",
+        "highlight_title": "Pencegahan Penyakit Proaktif",
+        "highlight_desc": "Intervensi dini menekan biaya obat dan mencegah penurunan yield mendadak.",
+        "meta_tag": "BIOSEKURITI GRADE A"
+      }
+    },
+    {
+      "type": "bento",
+      "kicker": "SARANA OTOMASI",
+      "title": "Tiga Komponen Fasilitas Kandang Otomatis Berkelanjutan",
+      "cards": [
+        {"tag": "ROBOTIK", "title": "Rotary Milking Parlour", "stat": "300 Ekor/Jam", "stat_label": "Kapasitas Pemerahan", "desc": "Pemerahan higienis otomatis dengan pendinginan seketika 4°C.", "bullets": ["Zero human touch", "Audit mutu real-time"]},
+        {"tag": "PAKAN", "title": "Automatic Feeding TMR", "stat": "±10 gram", "stat_label": "Presisi Takaran", "desc": "Mixer pakan digital mendistribusikan ransum secara teratur.", "bullets": ["Zero pakan tercecer", "Formulasi adaptif"]},
+        {"tag": "SIRKULASI", "title": "Smart Climate Control", "stat": "22°C", "stat_label": "Suhu Kandang Terjaga", "desc": "Kipas heksagonal dan misting beroperasi otomatis sesuai indeks THI.", "bullets": ["Bebas bau menyengat", "Matras karet empuk"]}
+      ]
+    },
+    {
+      "type": "timeline",
+      "kicker": "SIKLUS KEBERLANJUTAN",
+      "title": "Penerapan Sirkular Ekonomi: Zero Waste Farm",
+      "steps": [
+        {"phase": "TAHAP 1", "title": "Pembersihan Otomatis", "desc": "Pengumpulan feses dengan scraper mekanik setiap 2 jam."},
+        {"phase": "TAHAP 2", "title": "Reaktor Biodigester", "desc": "Fermentasi menghasilkan gas metana untuk listrik mandiri."},
+        {"phase": "TAHAP 3", "title": "Separasi Kompos", "desc": "Pemisahan padatan untuk pupuk organik perkebunan."},
+        {"phase": "TAHAP 4", "title": "Pupuk Cair Nutrisi", "desc": "Nutrisi cair menyuburkan lahan rumput gajah odot."}
+      ]
+    },
+    {
+      "type": "outro",
+      "title": "Membangun Masa Depan Agribisnis Berkelanjutan",
+      "subtitle": "Kedaulatan Pangan Mandiri • info@smartfarm.id"
+    }
+  ]
+}
+\`\`\`
+Lalu jalankan:
+\`<run_command>python kits/pptx_designer.py spec.json presentasi.pptx</run_command>\`
+
+### JALUR #2: Skrip Python Langsung (\`from pptx_designer import ModernDeck\`)
 \`\`\`python
-import pptx
-from pptx.util import Inches, Pt
-from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
+from pptx_designer import ModernDeck
 
-prs = pptx.Presentation()
-prs.slide_width = Inches(13.333)
-prs.slide_height = Inches(7.5)
-blank_layout = prs.slide_layouts[6]
-
-# Slide 1: Cover Dark Mode
-slide1 = prs.slides.add_slide(blank_layout)
-bg1 = slide1.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-bg1.fill.solid()
-bg1.fill.fore_color.rgb = RGBColor(15, 23, 42)
-bg1.line.fill.background()
-
-tb = slide1.shapes.add_textbox(Inches(1.2), Inches(2.2), Inches(11), Inches(3))
-tf = tb.text_frame
-tf.word_wrap = True
-p = tf.paragraphs[0]
-p.text = "STRATEGI TRANSFORMASI BISNIS & AI"
-p.font.bold = True
-p.font.size = Pt(40)
-p.font.color.rgb = RGBColor(255, 255, 255)
-
-p2 = tf.add_paragraph()
-p2.text = "Rencana Induk Pertumbuhan Skalabilitas 2026 - 2030"
-p2.font.size = Pt(20)
-p2.font.color.rgb = RGBColor(234, 88, 12) # Aksen Oranye
-p2.space_before = Pt(14)
-
-# Slide 2: Data & Chart Slide
-slide2 = prs.slides.add_slide(blank_layout)
-bg2 = slide2.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-bg2.fill.solid()
-bg2.fill.fore_color.rgb = RGBColor(248, 250, 252) # Light Mode
-bg2.line.fill.background()
-
-# Judul Slide 2
-title_box = slide2.shapes.add_textbox(Inches(1.0), Inches(0.6), Inches(11.3), Inches(0.8))
-tp = title_box.text_frame.paragraphs[0]
-tp.text = "Analisis Performa & Grafik Pertumbuhan Kuartalan"
-tp.font.bold = True
-tp.font.size = Pt(26)
-tp.font.color.rgb = RGBColor(15, 23, 42)
-
-# Sisipkan Grafik PNG
-slide2.shapes.add_picture('chart_tren.png', Inches(1.0), Inches(1.6), width=Inches(7.8))
-
-# KPI Card di sebelah kanan
-card = slide2.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(9.1), Inches(1.6), Inches(3.2), Inches(4.8))
-card.fill.solid()
-card.fill.fore_color.rgb = RGBColor(255, 255, 255)
-card.line.color.rgb = RGBColor(226, 232, 240)
-
-ctf = card.text_frame
-ctf.word_wrap = True
-cp1 = ctf.paragraphs[0]
-cp1.text = "+48.6%"
-cp1.font.bold = True
-cp1.font.size = Pt(36)
-cp1.font.color.rgb = RGBColor(234, 88, 12)
-
-cp2 = ctf.add_paragraph()
-cp2.text = "Pertumbuhan Pendapatan"
-cp2.font.bold = True
-cp2.font.size = Pt(14)
-cp2.font.color.rgb = RGBColor(15, 23, 42)
-cp2.space_before = Pt(8)
-
-prs.save('presentasi_eksekutif.pptx')
+deck = ModernDeck(theme="emerald", title="Presentasi Sapi Modern")
+deck.add_cover("Smart Cattle Farming 4.0", "Peternakan Modern Terintegrasi", "AGRI-TECH", "2026")
+deck.add_comparison("Metode Konvensional vs Smart Farm", "PERBANDINGAN", col_a={...}, col_b={...})
+deck.add_kpi_showcase("Metrik Kunci Produksi", "PERFORMA", kpis=[...], bullets=[...])
+deck.add_split_hero("Arsitektur Sensor Pintar Sapi", "DEEP DIVE", left_card={...}, right_card={...})
+deck.add_bento_cards("Tiga Komponen Fasilitas", "FASILITAS", cards=[...])
+deck.add_process_steps("Alur Sirkular Zero Waste", "PROSES", steps=[...])
+deck.add_outro("Membangun Agribisnis Berkelanjutan", "info@smartfarm.id")
+deck.save("presentasi.pptx")
 \`\`\`
 
 ---
@@ -630,7 +664,7 @@ export function getSandboxDir(sessionId) {
   } else {
     try {
       const existingSkill = fs.readFileSync(skillPath, 'utf8');
-      if (!existingSkill.includes('KEAHLIAN SUPER #5') || !existingSkill.includes('table.rows.index')) {
+      if (!existingSkill.includes('KEAHLIAN SUPER #5') || !existingSkill.includes('table.rows.index') || !existingSkill.includes('pptx_designer.py')) {
         fs.writeFileSync(skillPath, DEFAULT_SKILL_MD, 'utf8');
       }
     } catch (_) {}
@@ -638,18 +672,22 @@ export function getSandboxDir(sessionId) {
 
   // Ensure kits/ folder exists in session sandbox for instant Python automation
   const sessionKitsDir = path.join(dir, 'kits');
-  if (!fs.existsSync(sessionKitsDir) && fs.existsSync(KITS_SOURCE_DIR)) {
-    try {
-      fs.cpSync(KITS_SOURCE_DIR, sessionKitsDir, { recursive: true });
-    } catch (_) {}
+  if (fs.existsSync(KITS_SOURCE_DIR)) {
+    if (!fs.existsSync(sessionKitsDir) || !fs.existsSync(path.join(sessionKitsDir, 'pptx_designer.py'))) {
+      try {
+        fs.cpSync(KITS_SOURCE_DIR, sessionKitsDir, { recursive: true });
+      } catch (_) {}
+    }
   }
 
   // Ensure templates/ folder exists in session sandbox
   const sessionTemplatesDir = path.join(dir, 'templates');
-  if (!fs.existsSync(sessionTemplatesDir) && fs.existsSync(TEMPLATES_SOURCE_DIR)) {
-    try {
-      fs.cpSync(TEMPLATES_SOURCE_DIR, sessionTemplatesDir, { recursive: true });
-    } catch (_) {}
+  if (fs.existsSync(TEMPLATES_SOURCE_DIR)) {
+    if (!fs.existsSync(sessionTemplatesDir) || !fs.existsSync(path.join(sessionTemplatesDir, 'pptx_agribisnis_sapi_modern_spec.json'))) {
+      try {
+        fs.cpSync(TEMPLATES_SOURCE_DIR, sessionTemplatesDir, { recursive: true });
+      } catch (_) {}
+    }
   }
 
   return dir;

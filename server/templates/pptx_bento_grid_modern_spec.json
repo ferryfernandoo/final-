@@ -1,0 +1,92 @@
+{
+  "theme": "navy",
+  "title": "Bento Grid System: Arsitektur Presentasi Modern 16:9",
+  "slides": [
+    {
+      "type": "cover",
+      "kicker": "MODERN ARCHITECTURE",
+      "title": "Desain Berbasis Bento Grid 16:9",
+      "subtitle": "Kerapian Visual & Tata Letak Kontainer Presisi Bertaraf Dunia",
+      "meta": "DEEPERNOVA PRO SUITE 2026"
+    },
+    {
+      "type": "bento",
+      "kicker": "PENGEMBANGAN FITUR",
+      "title": "Tiga Pilar Arsitektur Antarmuka Generasi Baru",
+      "cards": [
+        {
+          "tag": "MODULAR",
+          "title": "Komponen Terisolasi",
+          "stat": "100%",
+          "stat_label": "Independen & Reusable",
+          "desc": "Setiap blok kartu dapat dikonfigurasi ulang secara dinamis sesuai kebutuhan modul.",
+          "bullets": [
+            "Zero dependency sprawl",
+            "Penyusunan drag-and-drop",
+            "Audit styling terpusat"
+          ]
+        },
+        {
+          "tag": "KECEPATAN",
+          "title": "Performa Eksekusi",
+          "stat": "<50ms",
+          "stat_label": "Latensi Rendering",
+          "desc": "Optimasi rendering berbasis pipeline komputasi terdistribusi yang sangat responsif.",
+          "bullets": [
+            "Cache memory terdistribusi",
+            "Asset compression 300-DPI",
+            "Thread non-blocking"
+          ]
+        },
+        {
+          "tag": "SKALABILITAS",
+          "title": "Integrasi Terbuka",
+          "stat": "99.9%",
+          "stat_label": "Ketersediaan Layanan",
+          "desc": "Dukungan penuh API terbuka yang siap disambungkan ke berbagai platform analitik.",
+          "bullets": [
+            "RESTful & WebSocket hook",
+            "Telemetry log real-time",
+            "Enkripsi tingkat enterprise"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "matrix",
+      "kicker": "MATRIKS KAPABILITAS",
+      "title": "Pemetaan Kapabilitas Desain Berdasarkan Kuadran",
+      "quadrants": [
+        {
+          "badge": "KUADRAN 1",
+          "title": "Estetika Premium",
+          "desc": "Warna modern, rasio kontras AA/AAA, dan ritme visual dinamis.",
+          "bullets": ["Palet terkurasi", "Border halus 1.5pt"]
+        },
+        {
+          "badge": "KUADRAN 2",
+          "title": "Kerapian Tipografi",
+          "desc": "Ukuran font proporsional yang dapat dibaca jelas dari kejauhan.",
+          "bullets": ["Judul 26-36pt", "Body 11-12pt"]
+        },
+        {
+          "badge": "KUADRAN 3",
+          "title": "Struktur Informasi",
+          "desc": "Pemisahan pilar dengan micro-badge dan stat callout.",
+          "bullets": ["Highlight metrik", "Tag kategori kapital"]
+        },
+        {
+          "badge": "KUADRAN 4",
+          "title": "Otomasi Generasi",
+          "desc": "Eksekusi cepat via python-pptx kit tanpa human error posisi.",
+          "bullets": ["Spec JSON siap pakai", "Layout bands math"]
+        }
+      ]
+    },
+    {
+      "type": "outro",
+      "title": "Solusi Elegan & Berkelanjutan",
+      "subtitle": "Koleksi Desain Modern DEEPERNOVA AI"
+    }
+  ]
+}

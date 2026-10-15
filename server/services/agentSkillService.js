@@ -236,7 +236,35 @@ class AgentSkillService {
     if (!this.isLoaded) this.loadSkills();
     const p = userPrompt.toLowerCase();
 
-    // 01. AGRIBISNIS & PETERNAKAN UNGGAS / BEBEK / AYAM / PAKAN (High specificity)
+    // 00. POWERPOINT (.pptx) & SLIDE DECK (Evaluated early to ensure creative specialized PPT skills)
+    if (/\b(ppt|pptx|powerpoint|slide|slides|presentasi|pitch\s*deck|c-level\s*deck|deck)\b/i.test(p)) {
+      if (/\b(sapi|ternak|peternakan|kambing|domba|unggas|agribisnis|farm|nature|biogas|susu|hewan)\b/i.test(p)) {
+        return this.readSkill('184-skill-ppt-agribisnis-peternakan-nature-modern');
+      }
+      if (/\b(bento|grid|card|kotak|modern\s*ui|apple|linear)\b/i.test(p)) {
+        return this.readSkill('181-skill-ppt-bento-grid-modern-ui');
+      }
+      if (/\b(dark|cyber|tech|ai|keamanan|security|cloud|obsidian|neon|hacker)\b/i.test(p)) {
+        return this.readSkill('182-skill-ppt-dark-mode-tech-cyber');
+      }
+      if (/\b(pitch|investor|sequoia|yc|startup|unicorn|funding|valuasi|modal)\b/i.test(p)) {
+        return this.readSkill('183-skill-ppt-pitch-deck-unicorn-sequoia');
+      }
+      if (/\b(roadmap|alur|timeline|tahapan|proses|infografis|fase|jadwal)\b/i.test(p)) {
+        return this.readSkill('185-skill-ppt-infografis-diagram-proses-roadmap');
+      }
+      if (/\b(mckinsey|bcg|bain|konsultan|eksekutif|c-level|ebitda|mece|corporate)\b/i.test(p)) {
+        return this.readSkill('186-skill-ppt-mckinsey-executive-consulting');
+      }
+      if (/\b(portofolio|kreatif|studio|brand|agency|showcase|desain|kemasan)\b/i.test(p)) {
+        return this.readSkill('187-skill-ppt-creative-portfolio-showcase');
+      }
+      if (/\b(akademik|ilmiah|tesis|disertasi|konferensi|riset|paper|seminar|sidang)\b/i.test(p)) {
+        return this.readSkill('188-skill-ppt-academic-scientific-conference');
+      }
+      return this.readSkill('24-skill-ppt-pptx-lengkap');
+    }
+
     // 01. ANDROID (.apk) & MOBILE DEVELOPMENT (Prioritize software architecture over feature topic)
     if (/\b(apk|android|kotlin|jetpack\s*compose|flutter|react\s*native|expo|capacitor)\b/i.test(p)) {
       if (/\b(flutter|dart)\b/i.test(p)) return this.readSkill('70-skill-flutter-dart-multiplatform-apk-pro');
@@ -277,12 +305,7 @@ class AgentSkillService {
       return this.readSkill('20-skill-excel-xlsx-lengkap');
     }
 
-    // 08. POWERPOINT (.pptx) & SLIDE DECK
-    if (/\b(pptx|powerpoint|slide|presentasi|pitch\s*deck|c-level\s*deck)\b/i.test(p)) {
-      return this.readSkill('24-skill-ppt-pptx-lengkap');
-    }
-
-    // 09. DOKUMEN PDF (.pdf)
+    // 08. DOKUMEN PDF (.pdf)
     if (/\b(pdf|dokumen\s*pdf|laporan\s*pdf|cetak\s*pdf)\b/i.test(p)) {
       return this.readSkill('27-skill-pdf-report-generation-pro');
     }
