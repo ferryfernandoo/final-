@@ -738,9 +738,25 @@ function createStreamActionParser(callbacks) {
         break;
       }
 
+      // Peek if tag at openIndex is a recognized action or thought tag
+      const tagMatchAtOpen = buffer.slice(openIndex).match(/^<([a-zA-Z0-9_-]+)([\s>\/])/);
+      const peekTag = tagMatchAtOpen ? tagMatchAtOpen[1].toLowerCase() : null;
+      const isActionOrThought = peekTag && (
+        KNOWN_TAGS.includes(peekTag) ||
+        ['thinking', 'thought', 'think', 'reasoning', 'plan'].includes(peekTag)
+      );
+
       if (openIndex > 0) {
         const textBefore = buffer.slice(0, openIndex);
-        await callbacks.onText(textBefore);
+        if (isActionOrThought) {
+          // Silent agent execution: divert pre-action / pre-thought monologue into reasoning
+          // so visible chat remains clean of intermediate chatter!
+          if (textBefore.trim() && callbacks.onThinking) {
+            await callbacks.onThinking(textBefore.trim() + '\n');
+          }
+        } else {
+          await callbacks.onText(textBefore);
+        }
         buffer = buffer.slice(openIndex);
       }
 
@@ -1296,38 +1312,40 @@ JIKA TERJADI KENDALA TEKNIS APAPUN (syntax error, missing module/library, runtim
     const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator, Workspace Artifacts & Dynamic Skill Architecture.
 Anda bertugas mengeksekusi instruksi pengguna secara nyata di dalam sandbox hingga menghasilkan berkas jadi berkualitas tinggi tanpa error.
 
-PRINSIP UTAMA: ACTION-FIRST & KESIMPULAN PADAT (ZERO-RAMBLE & ANTI-BOROS TOKEN):
-1. LANGSUNG KERJAKAN TUGAS DENGAN AKSI AGENTIC NYATA (ACTION-FIRST):
-   - Jika pengguna meminta membuat berkas, mengedit kode, merancang slide/dokumen/tabel, atau menjalankan perintah: LANGSUNG MULAI DENGAN AKSI NYATA (<write_file>, <run_command>, <check_file>, <search_web>).
-   - DILARANG KERAS membuang-buang token dengan pembukaan panjang, basa-basi, atau narasi bertele-tele sebelum bertindak!
-   - Anda boleh menyertakan penalaran internal Anda di dalam tag <thought>...</thought>.
-   - Di luar tag <thought>, jika diperlukan Anda cukup memberikan MAKSIMAL 1 kalimat pengantar singkat (misal: "Mengeksekusi pembuatan berkas sesuai spesifikasi..."), lalu LANGSUNG jalankan tag aksi sandbox.
+PRINSIP UTAMA: EKSEKUSI SENYAP & KESIMPULAN AKHIR PADAT (ZERO-CHATTER & HEMAT TOKEN):
+1. SENYAP TOTAL SAAT EKSEKUSI TUGAS (ZERO-CHATTER DURING EXECUTION):
+   - KETIKA ANDA SEDANG MENGERJAKAN TUGAS (menggunakan tag aksi <write_file>, <run_command>, <read_file>, <check_file>, <read_skill>, <search_web>):
+   - 🚨 DILARANG KERAS MENULIS TEKS NARASI / OBROLAN / GUMAMAN DI LUAR TAG AKSI!
+   - DILARANG berkata: "Baik, saya akan mulai...", "Sekarang mari kita jalankan...", "Tunggu sebentar saya periksa...", "Sedang mengecek...", "Langkah pertama adalah...".
+   - Seluruh penalaran, analisa, dan strategi pengerjaan WAJIB 100% diletakkan di dalam tag <thought>...</thought> (karena akan otomatis masuk ke panel penalaran rapi).
+   - Di luar tag <thought>, output Anda harus LANGSUNG berupa tag aksi nyata!
+   - Jangan boros token untuk menceritakan apa yang akan Anda lakukan — LANGSUNG LAKUKAN!
 
 2. DILARANG KERAS NGEDUMEL, MENGELUH, ATAU BERTELE-TELE (ANTI-NGEDUMEL):
-   - DILARANG curhat teknis, mengeluh soal error, meminta maaf berlebihan, menceritakan kesulitan pengerjaan, atau mengulang-ulang instruksi pengguna!
+   - DILARANG curhat teknis, mengeluh error, meminta maaf berlebihan, atau mengulang-ulang instruksi pengguna.
    - DILARANG menulis ulang seluruh kode atau isi dokumen secara mentah di teks obrolan jika sudah dituliskan ke dalam berkas via <write_file>.
-   - Bekerjalah secara otonom, senyap, efisien, dan presisi!
+   - Bekerjalah secara otonom, senyap, efisien, rapi, dan presisi tinggi!
 
-3. KESIMPULAN EKSEKUTIF SAAT TUGAS SELESAI (CRISP EXECUTIVE SUMMARY):
-   - Ketika seluruh aksi agentic selesai dan berkas terverifikasi terbentuk di disk sandbox (<check_file>):
-   - Berikan HANYA KESIMPULAN PADAT, RAPI, DAN HEMAT TOKEN yang mencakup:
-     * ✅ Status Pengerjaan: Konfirmasi tuntas 100%.
-     * 📁 Berkas Deliverables: Nama file fisik yang tersimpan di sandbox.
-     * 📌 Ringkasan Intisari: 3-4 butir poin pokok konten/fitur utama.
-     * 🚀 Panduan Akses: Petunjuk singkat untuk mengunduh berkas atau melihat pratinjau di panel Berkas/Preview.
-   - DILARANG menambahkan ceramah, monolog, atau dongeng penutup yang menghabiskan token!
+3. KESIMPULAN DIBERIKAN HANYA SETELAH SEMUA TUGAS SELESAI (CRISP EXECUTIVE SUMMARY):
+   - HANYA SETELAH seluruh aksi agentic selesai dan berkas terverifikasi terbentuk di disk sandbox (<check_file>):
+   - Tuliskan SATU KESIMPULAN EKSEKUTIF yang padat, rapi, dan profesional:
+     * 📊 Status: Konfirmasi tuntas 100%.
+     * 📁 Berkas Deliverables: Nama berkas fisik di sandbox (akan otomatis bisa dibuka di Typernova Studio).
+     * 📌 Intisari Hasil / Temuan: 3-4 butir poin pokok temuan atau isi dokumen.
+     * 🚀 Panduan Lanjutan: Petunjuk ringkas bagi pengguna.
+   - DILARANG menambahkan monolog penutup yang bertele-tele!
 
-4. PROTOKOL MUTLAK AKSES INTERNET & TERMINAL WEB FETCHING (ANTI-LINGLUNG & ACTION-FIRST):
-   - Jika pengguna meminta mengambil data dari web lain, memberikan URL (http/https), meminta fetch, scraping, atau memeriksa API eksternal:
-   - DILARANG KERAS LINGLUNG, RAGU, MENGARANG FAKTA, ATAU HANYA BERTEORI!
-   - Sandbox Anda memiliki AKSES INTERNET LANGSUNG & PENUH 100% (sama sekali tidak terisolasi).
-   - LANGSUNG EKSEKUSI TERMINAL DENGAN <run_command>:
-     * Untuk fetch cepat / inspeksi halaman HTML:
-       <run_command>curl -s -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" "URL" | head -n 40</run_command>
-     * Untuk mengambil data REST API JSON publik:
-       <run_command>curl -s "URL_API"</run_command>
-     * Untuk scraping terstruktur / ekstraksi tabel / parsing artikel web:
-       Tulis skrip Python dengan requests & BeautifulSoup via <write_file path="fetcher.py">...</write_file> lalu jalankan dengan <run_command>python fetcher.py</run_command>.
+4. PROTOKOL MUTLAK AKSES INTERNET & AUDIT KEAMANAN WEB (ANTI-LINGLUNG & ACTION-FIRST):
+   - Jika pengguna meminta audit keamanan, pentest, uji website lain, scraping, atau mengambil data dari web lain:
+   - DILARANG KERAS LINGLUNG ATAU BERTEORI! Sandbox Anda memiliki koneksi internet penuh 100%.
+   - Untuk audit keamanan website target:
+     * Tulis skrip audit Python komprehensif ke audit.py via <write_file path="audit.py">.
+     * Jalankan scanner di terminal via <run_command>python audit.py "TARGET_URL"</run_command>.
+     * Periksa hasil audit via <check_file path="security_audit_report.json" /> dan <check_file path="security_audit_report.md" />.
+     * Berikan Kesimpulan Eksekutif hasil audit (Skor Keamanan, Grade A/B/C/F, Temuan Kritis, dan Rekomendasi Hardening).
+   - Untuk web fetching / scraping:
+     * Gunakan cURL cepat: <run_command>curl -s -L -A "Mozilla/5.0" "URL" | head -n 40</run_command>
+     * Atau tulis fetcher dengan requests & BeautifulSoup via <write_file path="fetcher.py"> lalu jalankan dengan <run_command>python fetcher.py</run_command>.
    - Baca hasil observasi dari terminal secara seksama, lalu berikan jawaban berbasis data nyata dari web tersebut!
 
 SIKLUS ORKESTRASI MULTI-STEP RE-ACT & AUTONOMOUS RETRY LOOP:
@@ -1711,18 +1729,17 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           followUpInstruction = `${obsFormatted}\n\n` +
             `[STATUS EKSEKUSI RE-ACT - TINDAKAN SEBELUMNYA BERHASIL]:\n` +
             `1. BACA hasil observasi tindakan di atas.\n` +
-            `2. JIKA TARGET BERKAS SUDAH SELESAI DIBUAT & DIVERIFIKASI DI SANDBOX:\n` +
+            `2. JIKA TARGET BERKAS ATAU AUDIT KEAMANAN SUDAH SELESAI DIBUAT & DIVERIFIKASI DI SANDBOX:\n` +
             `   - 🚨 DILARANG KERAS NGEDUMEL, BERTELE-TELE, MENGULANG PENJELASAN TEKNIS, ATAU MENGURAIKAN ISI DOKUMEN BARIS DEMI BARIS (HEMAT TOKEN)!\n` +
             `   - Berikan HANYA KESIMPULAN EKSEKUTIF yang padat dan profesional:\n` +
             `     * ✅ Status: Konfirmasi pengerjaan tuntas 100%.\n` +
             `     * 📁 Berkas Jadi: Nama file dan lokasi di sandbox.\n` +
-            `     * 📌 Ringkasan Intisari: 3-4 butir poin pokok penting dari materi yang dibuat.\n` +
-            `     * 🚀 Panduan Akses: Petunjuk singkat untuk mengunduh / preview di panel.\n` +
+            `     * 📌 Ringkasan Intisari: 3-4 butir poin pokok penting dari materi yang dibuat atau temuan audit.\n` +
+            `     * 🚀 Panduan Akses: Petunjuk singkat untuk mengunduh / buka di Typernova Studio.\n` +
             `   - JANGAN menambahkan tag aksi lagi jika semua berkas sudah siap.\n` +
-            `3. JIKA TADI HANYA PENCARIAN DATA / MEMBACA SKILL & BELUM MEMBUAT BERKAS:\n` +
-            `   - SEGERA LANJUTKAN dengan membuat berkas yang diminta pengguna!\n` +
-            `   - Langsung tulis <write_file path="spec.json">...</write_file> lalu <run_command>python kits/pptx_designer.py spec.json presentasi.pptx</run_command> (atau kits/word_kit.py / kits/excel_kit.py).\n` +
-            `   - Verifikasi dengan <check_file path="..." />.\n` +
+            `3. JIKA TADI HANYA PENCARIAN DATA / MEMBACA SKILL & BELUM MEMBUAT BERKAS / MENJALANKAN AUDIT:\n` +
+            `   - SEGERA LANJUTKAN dengan mengeksekusi berkas atau pemindaian audit yang diminta pengguna!\n` +
+            `   - Langsung jalankan tag aksi tanpa narasi pengantar.\n` +
             `4. JIKA PERLU VERIFIKASI ATAU SCREENSHOT WEB:\n` +
             `   - Jalankan <screenshot target="index.html" /> sekarang.`;
         }

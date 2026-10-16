@@ -236,6 +236,11 @@ class AgentSkillService {
     if (!this.isLoaded) this.loadSkills();
     const p = userPrompt.toLowerCase();
 
+    // 00-SEC. WEB SECURITY AUDITING, PENTESTING & VULNERABILITY ASSESSMENT (Highest priority over generic web fetch)
+    if (/\b(keamanan|security|pentest|penetration|audit\s*keamanan|tes\s*keamanan|uji\s*keamanan|cek\s*keamanan|scan\s*keamanan|vulnerability|kerentanan|owasp|sqli|xss|csrf|cors|hsts|csp|ssl\s*audit|tls\s*audit|port\s*scan|penetration\s*testing|cybersecurity|infosec|cyber\s*attack|vapt)\b/i.test(p)) {
+      return this.readSkill('cybersecurity-pentest-defense');
+    }
+
     // 00-A. WEB FETCHING, SCRAPING, CRAWLER & TERMINAL NETWORK
     if (/\b(fetch|scraping|scrape|crawler|crawl|curl|ambil\s*web|buka\s*link|buka\s*url|kunjungi\s*web|cek\s*web|cek\s*url|baca\s*web|download\s*web|ambil\s*data\s*dari|api\s*eksternal|request\s*web|http\s*request|terminal\s*fetch|web\s*fetch|situs|website)\b/i.test(p) || /(https?:\/\/[^\s]+)/i.test(p)) {
       return this.readSkill('web-scraping-crawler');
