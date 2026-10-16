@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import fetch from 'node-fetch';
 import JSZip from 'jszip';
-import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions, getRelevantDeliverables } from '../services/agentSandboxService.js';
+import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions, getRelevantDeliverables, patchFile, grepSearch, rollbackFile, trimObservation, killSessionProcesses } from '../services/agentSandboxService.js';
 import agentScreenshotService from '../services/agentScreenshotService.js';
 import agentMemoryService from '../services/agentMemoryService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
@@ -588,20 +588,52 @@ async function executeActionItem(action, sessionId, addStep, updateLastStep, emi
     }
   } else if (action.type === 'edit_file' || action.type === 'patch_file') {
     const targetPath = action.path || '';
-    addStep('file_write', `Mengedit Berkas: ${targetPath}`, `Menerapkan perubahan isi berkas '${targetPath}'...`, 'running');
+    addStep('file_write', `Patch / Edit Berkas: ${targetPath}`, `Menerapkan perubahan terarah (diff/patch) pada '${targetPath}'...`, 'running');
     try {
-      const editRes = agentSandboxService.editFile(sessionId, targetPath, {
+      const editRes = agentSandboxService.patchFile(sessionId, targetPath, {
+        startLine: action.startLine,
+        endLine: action.endLine,
         target: action.target,
         replacement: action.replacement,
         content: action.content
       });
-      updateLastStep('completed', `Berkas '${targetPath}' berhasil diedit (${(editRes.size / 1024).toFixed(1)} KB).`);
-      pillXml = `<action_pill id="${actionId}" type="write" title="Mengedit Berkas: ${targetPath}" meta="${targetPath}" status="completed">${escapeXml(editRes.summary)}</action_pill>`;
-      observation = `Berkas '${targetPath}' berhasil diedit (${(editRes.size / 1024).toFixed(1)} KB). ${editRes.summary}`;
+      updateLastStep('completed', `Berkas '${targetPath}' berhasil di-patch (${(editRes.size / 1024).toFixed(1)} KB).`);
+      pillXml = `<action_pill id="${actionId}" type="patch" title="Patch Berkas: ${targetPath}" meta="${targetPath}" status="completed">${escapeXml(editRes.summary)}</action_pill>`;
+      observation = `Berkas '${targetPath}' berhasil di-patch (${(editRes.size / 1024).toFixed(1)} KB). ${editRes.summary}`;
     } catch (editErr) {
-      updateLastStep('failed', `Gagal mengedit berkas: ${editErr.message}`);
-      pillXml = `<action_pill id="${actionId}" type="write" title="Gagal Mengedit: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(editErr.message)}</action_pill>`;
-      observation = `Gagal mengedit berkas '${targetPath}': ${editErr.message}`;
+      updateLastStep('failed', `Gagal patch berkas: ${editErr.message}`);
+      pillXml = `<action_pill id="${actionId}" type="patch" title="Gagal Patch: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(editErr.message)}</action_pill>`;
+      observation = `Gagal patch berkas '${targetPath}': ${editErr.message}`;
+    }
+  } else if (action.type === 'grep_search' || action.type === 'grep') {
+    const query = action.query || '';
+    const includes = action.includes || '';
+    addStep('read', `Grep Search: ${query}`, `Mencari teks '${query}' di seluruh berkas sandbox...`, 'running');
+    try {
+      const matches = agentSandboxService.grepSearch(sessionId, { query, includes });
+      const summary = matches.length > 0
+        ? matches.slice(0, 30).map(m => `${m.file}:${m.line}: ${m.content}`).join('\n')
+        : `Tidak ditemukan baris yang cocok dengan '${query}'.`;
+      updateLastStep('completed', `Ditemukan ${matches.length} kemunculan.`);
+      pillXml = `<action_pill id="${actionId}" type="grep" title="Grep Search: ${query}" meta="${matches.length} hasil" status="completed">${escapeXml(summary)}</action_pill>`;
+      observation = `Hasil grep pencarian untuk "${query}":\n${summary}`;
+    } catch (grepErr) {
+      updateLastStep('failed', grepErr.message);
+      pillXml = `<action_pill id="${actionId}" type="grep" title="Grep Gagal: ${query}" meta="${query}" status="failed">${escapeXml(grepErr.message)}</action_pill>`;
+      observation = `Gagal melakukan grep search: ${grepErr.message}`;
+    }
+  } else if (action.type === 'revert_file' || action.type === 'rollback_file') {
+    const targetPath = action.path || '';
+    addStep('file_write', `Rollback Berkas: ${targetPath}`, `Mengembalikan berkas '${targetPath}' ke checkpoint sebelumnya...`, 'running');
+    try {
+      const rollbackRes = agentSandboxService.rollbackFile(sessionId, targetPath);
+      updateLastStep('completed', `Berkas '${targetPath}' berhasil dikembalikan ke checkpoint.`);
+      pillXml = `<action_pill id="${actionId}" type="revert" title="Rollback Berkas: ${targetPath}" meta="${targetPath}" status="completed">Berkas '${targetPath}' dipulihkan ke versi sebelum mutasi.</action_pill>`;
+      observation = `Berkas '${targetPath}' berhasil di-rollback ke versi sebelumnya (${rollbackRes.restoredFrom}).`;
+    } catch (rbErr) {
+      updateLastStep('failed', rbErr.message);
+      pillXml = `<action_pill id="${actionId}" type="revert" title="Rollback Gagal: ${targetPath}" meta="${targetPath}" status="failed">${escapeXml(rbErr.message)}</action_pill>`;
+      observation = `Gagal rollback berkas '${targetPath}': ${rbErr.message}`;
     }
   } else if (action.type === 'test_file' || action.type === 'validate_file') {
     const targetPath = action.path || '';
@@ -701,7 +733,8 @@ function createStreamActionParser(callbacks) {
     'list_files', 'dir',
     'search_web', 'search', 'run_command', 'command', 'terminal',
     'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file',
-    'preview', 'screenshot', 'take_screenshot'
+    'preview', 'screenshot', 'take_screenshot',
+    'grep_search', 'grep', 'revert_file', 'rollback_file'
   ];
   let queue = Promise.resolve();
 
@@ -806,10 +839,13 @@ function createStreamActionParser(callbacks) {
                             tagName === 'resend_file' ||
                             tagName === 'list_files' ||
                             tagName === 'dir' ||
-                            (tagName === 'read_skill' && !buffer.includes(`</${tagName}>`)) ||
-                            (tagName === 'search_skill' && !buffer.includes(`</${tagName}>`)) ||
-                            (tagName === 'search_web' && !buffer.includes(`</${tagName}>`)) || 
-                            (tagName === 'read_file' && !buffer.includes(`</${tagName}>`));
+                            tagName === 'revert_file' ||
+                            tagName === 'rollback_file' ||
+                            (tagName === 'grep_search' && !buffer.includes('</grep_search>')) ||
+                            (tagName === 'grep' && !buffer.includes('</grep>')) ||
+                            (tagName === 'read_skill' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30) ||
+                            (tagName === 'search_skill' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30) ||
+                            (tagName === 'search_web' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30);
 
       if (isSelfClosing) {
         const fullTag = openTagSubstr;
@@ -909,7 +945,10 @@ router.post('/run', async (req, res) => {
       try {
         upstreamAbortController.abort();
       } catch (_) {}
-      console.log(`[AGENT_STREAM] Client disconnected prematurely for session ${sessionId}, upstream aborted.`);
+      try {
+        killSessionProcesses(sessionId);
+      } catch (_) {}
+      console.log(`[AGENT_STREAM] Client disconnected prematurely for session ${sessionId}, upstream aborted & active processes terminated.`);
     }
   });
 
@@ -1379,6 +1418,13 @@ TAG AKSI SANDBOX & SKILL YANG TERSEDIA:
   Membuat berkas baru atau menimpa berkas kode/skrip secara utuh ke sandbox (DILARANG tanda triple backtick di dalam tag ini!).
 - <edit_file path="nama_file.ext"><target>teks lama</target><replacement>teks baru</replacement></edit_file>
   Mengedit bagian tertentu dari berkas yang ada tanpa menulis ulang seluruh berkas.
+- <patch_file path="nama_file.ext" startLine="10" endLine="20"><replacement>kode baru</replacement></patch_file>
+  (atau: <patch_file path="nama_file.ext"><target>blok lama</target><replacement>blok baru</replacement></patch_file>)
+  Melakukan diff & patch presisi SOTA (standar Claude Code / Codex) pada baris atau blok target tertentu tanpa menulis ulang seluruh berkas. Otomatis membuat checkpoint rollback sebelum modifikasi.
+- <grep_search query="regex_atau_kata_kunci" includes="*.py" />
+  Pencarian kode secepat kilat (ripgrep-style) di seluruh workspace sandbox untuk menemukan baris kode, fungsi, variabel, atau definisi berkas.
+- <revert_file path="nama_file.ext" />
+  Rollback / kembalikan berkas ke snapshot checkpoint sebelumnya jika modifikasi atau patch menimbulkan regresi atau error.
 - <delete_file path="nama_file.ext" />
   Menghapus berkas yang tidak terpakai atau usang dari workspace sandbox.
 - <test_file path="nama_file.ext" />
@@ -1695,7 +1741,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           break;
         }
 
-        const obsFormatted = turnObservations.map((o, idx) => `[HASIL OBSERVASI ${idx + 1} (${o.type})]:\n${o.observation}`).join('\n\n---\n\n');
+        const obsFormatted = turnObservations.map((o, idx) => `[HASIL OBSERVASI ${idx + 1} (${o.type})]:\n${trimObservation(o.observation)}`).join('\n\n---\n\n');
         let followUpInstruction = '';
 
         if (needsSelfHealing) {
@@ -1748,6 +1794,25 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           role: 'user',
           content: followUpInstruction
         });
+
+        // SOTA Context Compaction (Claude Code / Codex Standard):
+        // Prevent token explosion by compacting older intermediate tool write/output messages while retaining system & latest turn
+        if (apiMessages.length > 8) {
+          for (let mIdx = 2; mIdx < apiMessages.length - 2; mIdx++) {
+            const msg = apiMessages[mIdx];
+            if (msg.role === 'assistant' && typeof msg.content === 'string') {
+              msg.content = msg.content.replace(/<write_file path="([^"]+)">[\s\S]{300,}?<\/write_file>/g, '<write_file path="$1">[konten sebelumnya telah ditulis ke disk]</write_file>');
+            } else if (msg.role === 'user' && typeof msg.content === 'string') {
+              msg.content = msg.content.replace(/\[HASIL OBSERVASI \d+ \([^)]+\)\]:[\s\S]{500,}?(?=(\[HASIL OBSERVASI|\n\n\[STATUS|\n\n🚨|\n\nINSTRUKSI|$))/g, (match) => {
+                const lines = match.split('\n');
+                if (lines.length > 10) {
+                  return lines.slice(0, 4).join('\n') + '\n... [observasi historis diringkas untuk efisiensi konteks] ...\n' + lines.slice(-3).join('\n');
+                }
+                return match;
+              });
+            }
+          }
+        }
 
         continueAutonomousLoop = true;
       } else {

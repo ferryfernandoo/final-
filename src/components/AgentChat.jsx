@@ -25,6 +25,14 @@ function getPillConfig(type) {
       return { icon: 'fa-solid fa-terminal', color: '#475569', bg: '#f1f5f9', label: 'Perintah Terminal' };
     case 'write':
       return { icon: 'fa-solid fa-file-pen', color: '#059669', bg: '#d1fae5', label: 'Berkas Ditulis' };
+    case 'patch':
+      return { icon: 'fa-solid fa-wand-magic-sparkles', color: '#8b5cf6', bg: '#ede9fe', label: 'Diff / Patch Berkas' };
+    case 'grep':
+      return { icon: 'fa-solid fa-filter', color: '#0891b2', bg: '#cffafe', label: 'Grep Search' };
+    case 'revert':
+      return { icon: 'fa-solid fa-clock-rotate-left', color: '#f59e0b', bg: '#fef3c7', label: 'Rollback Berkas' };
+    case 'delete':
+      return { icon: 'fa-solid fa-trash-can', color: '#e11d48', bg: '#ffe4e6', label: 'Berkas Dihapus' };
     case 'execute':
       return { icon: 'fa-solid fa-bolt', color: '#ea580c', bg: '#ffedd5', label: 'Bahasa Eksekusi' };
     case 'check':
@@ -101,7 +109,7 @@ function InlineActionPill({ id, type, title, meta, status = 'completed', detail,
               <i className={copied ? "fa-solid fa-check" : "fa-solid fa-copy"} />
               <span>{copied ? 'Tersalin' : 'Salin Detail'}</span>
             </button>
-            {type === 'write' && meta && (
+            {(type === 'write' || type === 'patch') && meta && (
               <button
                 type="button"
                 className="agent-pill-action-btn"
@@ -1228,6 +1236,23 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           </div>
 
           <div className="agent-header-right" ref={menuDropdownRef}>
+            {/* Quick Direct Workspace & Artifacts Button (Claude / Manus standard) */}
+            <button
+              type="button"
+              className={`agent-header-workspace-btn ${sandboxFiles.length > 0 ? 'has-files' : ''} ${isDrawerOpen ? 'is-open' : ''}`}
+              onClick={() => {
+                setActiveDrawerTab('files');
+                setIsDrawerOpen(prev => !prev);
+              }}
+              title="Buka panel berkas & workspace sandbox"
+            >
+              <i className="fa-solid fa-folder-tree" />
+              <span className="agent-header-workspace-label">Workspace</span>
+              {sandboxFiles.length > 0 && (
+                <span className="agent-header-file-count">{sandboxFiles.length}</span>
+              )}
+            </button>
+
             <div className="agent-menu-dropdown-container">
               <button
                 type="button"
@@ -1405,11 +1430,90 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           onTouchMove={handleTouchMove}
         >
           {messages.length === 0 && activeChainOfWork.length === 0 && (
-            <div className="agent-welcome">
-              <div className="agent-welcome-avatar">
-                <img src="/logo.png" alt="Deepernova AI" />
+            <div className="agent-welcome-hero">
+              <div className="agent-welcome-avatar-wrap">
+                <div className="agent-welcome-avatar">
+                  <img src="/logo.png" alt="Deepernova AI" />
+                </div>
+                <div className="agent-welcome-pulse-ring" />
               </div>
               <h2 className="agent-welcome-title">Deepernova AI Agent</h2>
+              <p className="agent-welcome-subtitle">
+                Asisten otonom & rekan berpikir cerdas. Siap diajak <strong>ngobrol santai</strong> bertukar ide, 
+                maupun mengeksekusi <strong>tugas koding, dokumen Word, presentasi PPTX, & audit sistem</strong> di sandbox.
+              </p>
+
+              {/* Status Pills */}
+              <div className="agent-welcome-status-row">
+                <span className="agent-welcome-pill">
+                  <span className="agent-status-dot is-online" /> Sandbox Aktif
+                </span>
+                <span className="agent-welcome-pill">
+                  <i className="fa-solid fa-globe" /> Internet Terkoneksi
+                </span>
+                <span className="agent-welcome-pill">
+                  <i className="fa-solid fa-clock-rotate-left" /> Auto-Checkpoint & Diff
+                </span>
+              </div>
+
+              {/* Bento Quick Starter Cards */}
+              <div className="agent-bento-grid">
+                <button
+                  type="button"
+                  className="agent-bento-card is-chat"
+                  onClick={() => handleSendMessage("Halo! Bisa bantu saya brainstorming ide dan berdiskusi santai tentang tren teknologi terkini?")}
+                >
+                  <div className="agent-bento-icon-wrap" style={{ background: '#fef3c7', color: '#d97706' }}>
+                    <i className="fa-solid fa-mug-hot" />
+                  </div>
+                  <div className="agent-bento-body">
+                    <span className="agent-bento-title">Ngobrol Santai & Ide</span>
+                    <span className="agent-bento-desc">Brainstorming, konsultasi konsep, atau tanya jawab hangat tanpa beban.</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="agent-bento-card is-doc"
+                  onClick={() => handleSendMessage("Buatkan dokumen proposal bisnis eksekutif profesional berformat .docx lengkap dengan tabel metrik KPI dan callout box.")}
+                >
+                  <div className="agent-bento-icon-wrap" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                    <i className="fa-solid fa-file-word" />
+                  </div>
+                  <div className="agent-bento-body">
+                    <span className="agent-bento-title">Dokumen Word (.docx)</span>
+                    <span className="agent-bento-desc">Hasilkan berkas Word .docx eksekutif berstandar McKinsey siap unduh.</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="agent-bento-card is-ppt"
+                  onClick={() => handleSendMessage("Buatkan presentasi PowerPoint .pptx modern 16:9 bertema emerald dengan bento box cards dan visual KPI.")}
+                >
+                  <div className="agent-bento-icon-wrap" style={{ background: '#ffedd5', color: '#ea580c' }}>
+                    <i className="fa-solid fa-file-powerpoint" />
+                  </div>
+                  <div className="agent-bento-body">
+                    <span className="agent-bento-title">Presentasi Slide (.pptx)</span>
+                    <span className="agent-bento-desc">Rancang slide deck 16:9 modern dengan tipografi berkelas & kartu bento.</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="agent-bento-card is-code"
+                  onClick={() => handleSendMessage("Buatkan aplikasi web dashboard analitik interaktif modern lengkap dengan index.html, CSS, dan JS interaktif di sandbox.")}
+                >
+                  <div className="agent-bento-icon-wrap" style={{ background: '#ede9fe', color: '#8b5cf6' }}>
+                    <i className="fa-solid fa-laptop-code" />
+                  </div>
+                  <div className="agent-bento-body">
+                    <span className="agent-bento-title">Aplikasi Web & Koding</span>
+                    <span className="agent-bento-desc">Bangun web HTML/CSS/JS lengkap dengan live preview & screenshot browser.</span>
+                  </div>
+                </button>
+              </div>
             </div>
           )}
 
@@ -1799,6 +1903,47 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               </div>
             )}
 
+            {/* Quick Floating Suggestion Chips */}
+            {!isExecuting && !inputValue.trim() && (
+              <div className="agent-quick-prompt-chips">
+                <button
+                  type="button"
+                  className="agent-prompt-chip"
+                  onClick={() => setInputValue("Tolong buatkan slide presentasi .pptx 16:9 modern tentang ")}
+                >
+                  <i className="fa-solid fa-file-powerpoint" style={{ color: '#ea580c' }} /> Slide PPTX
+                </button>
+                <button
+                  type="button"
+                  className="agent-prompt-chip"
+                  onClick={() => setInputValue("Buatkan dokumen laporan resmi .docx lengkap tentang ")}
+                >
+                  <i className="fa-solid fa-file-word" style={{ color: '#0284c7' }} /> Laporan Word
+                </button>
+                <button
+                  type="button"
+                  className="agent-prompt-chip"
+                  onClick={() => setInputValue("Buatkan aplikasi web interaktif (HTML/CSS/JS) dengan tema ")}
+                >
+                  <i className="fa-solid fa-laptop-code" style={{ color: '#8b5cf6' }} /> Web App
+                </button>
+                <button
+                  type="button"
+                  className="agent-prompt-chip"
+                  onClick={() => setInputValue("Lakukan audit keamanan & pemindaian vulnerability pada website: ")}
+                >
+                  <i className="fa-solid fa-shield-halved" style={{ color: '#dc2626' }} /> Audit Web
+                </button>
+                <button
+                  type="button"
+                  className="agent-prompt-chip"
+                  onClick={() => setInputValue("Mari berdiskusi santai dan bertukar ide tentang ")}
+                >
+                  <i className="fa-solid fa-mug-hot" style={{ color: '#d97706' }} /> Ngobrol Santai
+                </button>
+              </div>
+            )}
+
             <div className={`agent-composer-box ${isExecuting ? 'generating' : ''}`}>
               <input
                 type="file"
@@ -1811,7 +1956,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <div className="agent-composer-textarea-wrapper">
                 <textarea
                   className="agent-composer-input"
-                  placeholder="Tanya Deepernova AI Agent..."
+                  placeholder="Tanya santai atau delegasikan tugas koding, dokumen, web, riset..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -1832,13 +1977,17 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     className="agent-composer-attach-btn"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isExecuting || isUploading}
-                    title="Opsi & Lampiran"
+                    title="Unggah Lampiran ke Sandbox"
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
                       <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                   </button>
+                  <span className="agent-composer-mode-badge" title="Sandbox siap mengeksekusi koding, dokumen, dan perintah terminal dengan internet aktif">
+                    <span className="agent-composer-dot" />
+                    <span>Agentic Sandbox</span>
+                  </span>
                 </div>
 
                 <div className="agent-composer-tools-right">

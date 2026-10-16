@@ -8,13 +8,20 @@ import { agentSessionDb, agentMessageDb } from '../database.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Root path for all user sandboxes
+// Root path for all user sandboxes and checkpoints
 const SANDBOX_ROOT = path.resolve(__dirname, '..', 'temp-files', 'sandbox');
+const CHECKPOINTS_ROOT = path.resolve(__dirname, '..', 'temp-files', 'checkpoints');
 const KITS_SOURCE_DIR = path.resolve(__dirname, '..', 'kits');
 const TEMPLATES_SOURCE_DIR = path.resolve(__dirname, '..', 'templates');
 
+// In-memory process registry for real-time tracking and zombie process killing
+const activeProcesses = new Map(); // sessionId -> Set of ChildProcess
+
 if (!fs.existsSync(SANDBOX_ROOT)) {
   fs.mkdirSync(SANDBOX_ROOT, { recursive: true });
+}
+if (!fs.existsSync(CHECKPOINTS_ROOT)) {
+  fs.mkdirSync(CHECKPOINTS_ROOT, { recursive: true });
 }
 
 // Default standard SKILL.md template to guide the agent
@@ -44,6 +51,12 @@ Language: Indonesian (Direct, Professional, Crisp Executive Summary, Action-Firs
   Membuat berkas baru atau menimpa berkas kode/skrip secara utuh.
 - \`<edit_file path="nama_file.ext"><target>teks_lama</target><replacement>teks_baru</replacement></edit_file>\`
   Mengedit bagian tertentu dari berkas yang sudah ada tanpa menulis ulang seluruh berkas.
+- \`<patch_file path="nama_file.ext" start_line="1" end_line="10"><replacement>kode baru</replacement></patch_file>\`
+  Menerapkan patch/diff presisi berbasis nomor baris atau fuzzy block replacement (SOTA Diff Editing).
+- \`<grep_search query="simbol atau kata" includes="*.py,*.js" />\`
+  Pencarian kode cepat di seluruh workspace sandbox (ripgrep style) dengan info nama berkas & nomor baris.
+- \`<revert_file path="nama_file.ext" />\`
+  Mengembalikan berkas ke versi checkpoint sebelumnya jika terjadi kesalahan koding (Rollback Protection).
 - \`<delete_file path="nama_file.ext" />\`
   Menghapus berkas yang tidak diperlukan dari sandbox.
 - \`<test_file path="nama_file.ext" />\`
@@ -789,14 +802,14 @@ export function writeFile(sessionId, relativePath, content) {
     cleanContent = cleanContent.split(/\r?\n/).filter(line => !/^\s*```/.test(line)).join('\n');
   }
 
-  // Preventative auto-healing for common python/document errors
-  if (relativePath.endsWith('.py') || cleanContent.includes('docx') || cleanContent.includes('pptx')) {
+  // Preventative auto-healing for common python docx/pptx document generation scripts only
+  if ((cleanContent.includes('docx') || cleanContent.includes('pptx')) && (relativePath.endsWith('.py') || cleanContent.includes('Document()') || cleanContent.includes('Presentation()'))) {
     // Fix hallucinated .lstStyle loop on tcPr
     if (cleanContent.includes('.lstStyle')) {
       cleanContent = removeIndentedBlock(cleanContent, /\.lstStyle/);
     }
-    // Replace table.rows.index(...) or tbl.rows.index(...) or anyvar.rows.index(...) or .columns.index(...) with 0
-    cleanContent = cleanContent.replace(/\b(?:\w+\.)?(?:rows|columns)\.index\s*\([^)]*\)/g, '0');
+    // Replace table.rows.index(...) in python-docx with 0 safely without touching pandas/user columns.index
+    cleanContent = cleanContent.replace(/\b(?:tbl|table)\.rows\.index\s*\([^)]*\)/g, '0');
     // Fix font.color.rgb = parse_xml(...)
     cleanContent = cleanContent.replace(/\.font\.color\.rgb\s*=\s*parse_xml\([^)]*\)/g, '.font.color.rgb = RGBColor(255, 255, 255)');
     // Fix truncated WD_ALIGN_PARAGR
@@ -810,7 +823,7 @@ export function writeFile(sessionId, relativePath, content) {
     cleanContent = cleanContent.replace(/[^\n]*\.get_or_add_tblBorders\(\)[^\n]*/g, 'pass');
     cleanContent = cleanContent.replace(/for\s+\w+\s+in\s+\[['"]top['"],[\s\S]*?(?=\n\s*(?:[a-zA-Z_#]|$))/g, 'pass\n');
     // Fix openpyxl tuple range styling ws['A1:D1'].font = ...
-    if (cleanContent.includes('openpyxl') || cleanContent.includes('Workbook') || relativePath.endsWith('.py')) {
+    if (cleanContent.includes('openpyxl') || cleanContent.includes('Workbook')) {
       cleanContent = cleanContent.replace(/([a-zA-Z0-9_]+)\s*\[([^\]\r\n]*:[^\]\r\n]*)\]\.(font|fill|alignment|border|number_format)\s*=\s*([^;\r\n]+)/g, (match, wsVar, rangeExpr, prop, val) => {
         return `for _r in ${wsVar}[${rangeExpr}]:\n    for _c in (_r if isinstance(_r, (tuple, list)) else [_r]):\n        setattr(_c, '${prop}', ${val})`;
       });
@@ -821,6 +834,14 @@ export function writeFile(sessionId, relativePath, content) {
 
   const cleanRelativePath = (relativePath || 'script.js').replace(/^["']|["']$/g, '').trim();
   const filePath = safeResolvePath(sessionId, cleanRelativePath);
+
+  // Automatic Checkpoint: snapshot existing file before overwrite
+  if (fs.existsSync(filePath)) {
+    try {
+      createCheckpoint(sessionId, cleanRelativePath, 'Sebelum overwrite writeFile');
+    } catch (_) {}
+  }
+
   const parentDir = path.dirname(filePath);
   if (!fs.existsSync(parentDir)) {
     fs.mkdirSync(parentDir, { recursive: true });
@@ -896,35 +917,220 @@ export function listFiles(sessionId) {
 }
 
 /**
- * Edit file in sandbox by target replacement or new content
+ * Create a snapshot checkpoint of a file before mutation
  */
-export function editFile(sessionId, relativePath, { target, replacement, content } = {}) {
+export function createCheckpoint(sessionId, relativePath, description = '') {
+  try {
+    const sourcePath = safeResolvePath(sessionId, relativePath);
+    if (!fs.existsSync(sourcePath)) return null;
+
+    const sessionCkDir = path.join(CHECKPOINTS_ROOT, sanitizeSessionId(sessionId));
+    if (!fs.existsSync(sessionCkDir)) fs.mkdirSync(sessionCkDir, { recursive: true });
+
+    const timestamp = Date.now();
+    const backupName = `${timestamp}__${path.basename(relativePath)}`;
+    const backupPath = path.join(sessionCkDir, backupName);
+    fs.copyFileSync(sourcePath, backupPath);
+
+    return {
+      timestamp,
+      file: relativePath,
+      backupFile: backupName,
+      description
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Rollback file to latest saved checkpoint
+ */
+export function rollbackFile(sessionId, relativePath) {
+  const sessionCkDir = path.join(CHECKPOINTS_ROOT, sanitizeSessionId(sessionId));
+  if (!fs.existsSync(sessionCkDir)) {
+    throw new Error('Tidak ada riwayat checkpoint tersimpan untuk sesi ini.');
+  }
+
+  const base = path.basename(relativePath);
+  const backups = fs.readdirSync(sessionCkDir)
+    .filter(f => f.endsWith(`__${base}`))
+    .sort()
+    .reverse();
+
+  if (backups.length === 0) {
+    throw new Error(`Tidak ada checkpoint tersimpan untuk berkas '${relativePath}'.`);
+  }
+
+  const latestBackup = path.join(sessionCkDir, backups[0]);
+  const targetPath = safeResolvePath(sessionId, relativePath);
+  fs.copyFileSync(latestBackup, targetPath);
+
+  return {
+    success: true,
+    file: relativePath,
+    restoredFrom: backups[0]
+  };
+}
+
+/**
+ * SOTA Diff & Patch File with Line-Anchored and Fuzzy Block Matching
+ */
+export function patchFile(sessionId, relativePath, { startLine, endLine, target, replacement, content } = {}) {
   const filePath = safeResolvePath(sessionId, relativePath);
   if (!fs.existsSync(filePath)) {
     throw new Error(`Berkas '${relativePath}' tidak ditemukan di sandbox.`);
   }
-  let current = fs.readFileSync(filePath, 'utf8');
-  let updated = '';
+
+  // Create automatic checkpoint before applying patch
+  createCheckpoint(sessionId, relativePath, 'Sebelum patch_file');
+
+  let raw = fs.readFileSync(filePath, 'utf8');
+  let lines = raw.split(/\r?\n/);
   let summary = '';
-  if (typeof target === 'string' && target.length > 0) {
-    if (!current.includes(target)) {
-      throw new Error(`Target teks yang ingin diganti tidak ditemukan di dalam '${relativePath}'.`);
+
+  const parsedStart = typeof startLine === 'number' ? startLine : parseInt(startLine, 10);
+  const parsedEnd = typeof endLine === 'number' ? endLine : parseInt(endLine, 10);
+
+  if (!isNaN(parsedStart) && !isNaN(parsedEnd) && parsedStart >= 1 && parsedEnd <= lines.length) {
+    // 1. Line-anchored patch (Claude / Codex standard)
+    const beforeLines = lines.slice(0, parsedStart - 1);
+    const afterLines = lines.slice(parsedEnd);
+    const replContent = replacement !== undefined ? replacement : (content || '');
+    const replLines = replContent.split(/\r?\n/);
+    lines = [...beforeLines, ...replLines, ...afterLines];
+    fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+    summary = `Baris ${parsedStart}-${parsedEnd} pada '${relativePath}' berhasil di-patch (${replLines.length} baris baru).`;
+  } else if (target && typeof target === 'string') {
+    // 2. Exact string match
+    if (raw.includes(target)) {
+      raw = raw.replace(target, replacement || '');
+      fs.writeFileSync(filePath, raw, 'utf8');
+      summary = `Target teks pada '${relativePath}' berhasil diganti (${target.length} karakter diubah).`;
+    } else {
+      // 3. Fuzzy line-trimmed match (tolerant to indentation differences)
+      const targetLines = target.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      let matchedIdx = -1;
+      for (let i = 0; i <= lines.length - targetLines.length; i++) {
+        let allMatch = true;
+        for (let j = 0; j < targetLines.length; j++) {
+          if (lines[i + j].trim() !== targetLines[j]) {
+            allMatch = false;
+            break;
+          }
+        }
+        if (allMatch) {
+          matchedIdx = i;
+          break;
+        }
+      }
+      if (matchedIdx !== -1) {
+        const replLines = (replacement || '').split(/\r?\n/);
+        lines.splice(matchedIdx, targetLines.length, ...replLines);
+        fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+        summary = `Target blok pada '${relativePath}' berhasil dicocokkan (fuzzy) dan diperbarui.`;
+      } else {
+        throw new Error(`Target teks yang ingin di-patch tidak ditemukan di dalam '${relativePath}'.`);
+      }
     }
-    updated = current.replace(target, replacement || '');
-    summary = `Target teks pada '${relativePath}' berhasil diganti (${target.length} karakter diubah).`;
   } else if (typeof content === 'string') {
-    updated = content;
+    fs.writeFileSync(filePath, content, 'utf8');
     summary = `Konten '${relativePath}' berhasil diperbarui (${content.length} karakter).`;
   } else {
-    throw new Error('Instruksi edit tidak memiliki target penggantian atau konten baru.');
+    throw new Error('Instruksi patch tidak memiliki target teks atau rentang baris.');
   }
-  fs.writeFileSync(filePath, updated, 'utf8');
+
   const stat = fs.statSync(filePath);
   return {
     path: relativePath,
     size: stat.size,
     summary
   };
+}
+
+/**
+ * Fast search in sandbox files (Ripgrep style)
+ */
+export function grepSearch(sessionId, { query, includes = '', caseInsensitive = true, maxResults = 40 } = {}) {
+  const sandboxDir = getSandboxDir(sessionId);
+  if (!query || typeof query !== 'string') return [];
+
+  const results = [];
+  const flags = caseInsensitive ? 'i' : '';
+  let regex;
+  try {
+    regex = new RegExp(query, flags);
+  } catch (_) {
+    regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+  }
+
+  const includePatterns = includes
+    ? includes.split(',').map(p => p.trim().replace(/\*/g, '.*'))
+    : null;
+
+  function walkAndSearch(dir) {
+    if (!fs.existsSync(dir)) return;
+    const items = fs.readdirSync(dir, { withFileTypes: true });
+    for (const item of items) {
+      if (item.name === '.git' || item.name === 'node_modules' || item.name === 'kits' || item.name === 'templates' || item.name === 'macros' || item.name.startsWith('_runner_temp') || item.name.startsWith('.')) continue;
+      const fullPath = path.join(dir, item.name);
+      const relative = path.relative(sandboxDir, fullPath).replace(/\\/g, '/');
+
+      if (item.isDirectory()) {
+        walkAndSearch(fullPath);
+      } else if (item.isFile()) {
+        if (includePatterns && !includePatterns.some(pat => new RegExp(pat, 'i').test(item.name))) {
+          continue;
+        }
+        const ext = path.extname(item.name).toLowerCase();
+        const textExts = ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.py', '.json', '.html', '.css', '.md', '.txt', '.sql', '.env', '.csv', '.xml', '.yml', '.yaml'];
+        if (!textExts.includes(ext)) continue;
+
+        try {
+          const content = fs.readFileSync(fullPath, 'utf8');
+          const fileLines = content.split(/\r?\n/);
+          for (let lineNum = 0; lineNum < fileLines.length; lineNum++) {
+            const line = fileLines[lineNum];
+            if (regex.test(line)) {
+              results.push({
+                file: relative,
+                line: lineNum + 1,
+                content: line.trim()
+              });
+              if (results.length >= maxResults) return;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  walkAndSearch(sandboxDir);
+  return results;
+}
+
+/**
+ * Intelligent Observation Trimming (Observation Masking)
+ * Preserves the beginning context and end stack traces while compressing noisy middle output.
+ */
+export function trimObservation(text, maxChars = 2500) {
+  if (!text || text.length <= maxChars) return text;
+  const lines = text.split(/\r?\n/);
+  if (lines.length <= 40) {
+    return text.slice(0, 1000) + '\n\n... [output panjang dipangkas untuk efisiensi context window] ...\n\n' + text.slice(-1000);
+  }
+  const headLines = lines.slice(0, 20);
+  const tailLines = lines.slice(-25);
+  const omitted = lines.length - 45;
+  return `${headLines.join('\n')}\n\n... [${omitted} baris output observasi dipangkas untuk efisiensi context window] ...\n\n${tailLines.join('\n')}`;
+}
+
+/**
+ * Edit file in sandbox by target replacement or new content
+ */
+export function editFile(sessionId, relativePath, { target, replacement, content } = {}) {
+  // Delegate to patchFile which supports auto-checkpointing and fuzzy matching
+  return patchFile(sessionId, relativePath, { target, replacement, content });
 }
 
 /**
@@ -1007,6 +1213,61 @@ export async function testFile(sessionId, relativePath) {
 }
 
 /**
+ * Generate sterile environment variables, stripping all host server secrets (API keys, DB secrets, etc.)
+ */
+export function getSterileEnv(sessionId, customEnv = {}) {
+  const safeKeys = [
+    'PATH', 'Path', 'PATHEXT', 'SYSTEMROOT', 'SystemRoot', 'TEMP', 'TMP',
+    'COMSPEC', 'ComSpec', 'OS', 'WINDIR', 'windir', 'PROGRAMFILES', 'ProgramFiles',
+    'PROGRAMFILES(X86)', 'ProgramFiles(x86)', 'LOCALAPPDATA', 'APPDATA', 'USERPROFILE',
+    'HOMEDRIVE', 'HOMEPATH', 'LANG', 'LC_ALL'
+  ];
+  const safeEnv = {};
+  for (const key of safeKeys) {
+    if (process.env[key]) safeEnv[key] = process.env[key];
+  }
+  const sandboxDir = getSandboxDir(sessionId);
+  return {
+    ...safeEnv,
+    NODE_ENV: 'sandbox',
+    SANDBOX_SESSION: sessionId,
+    PYTHONPATH: [
+      path.join(sandboxDir, 'kits'),
+      KITS_SOURCE_DIR,
+      sandboxDir
+    ].filter(Boolean).join(path.delimiter),
+    ...customEnv
+  };
+}
+
+/**
+ * Kill all running child processes for a session (prevents zombie processes on abort)
+ */
+export function killSessionProcesses(sessionId) {
+  const procs = activeProcesses.get(sessionId);
+  if (!procs || procs.size === 0) return 0;
+  let killed = 0;
+  for (const proc of procs) {
+    try {
+      if (proc && proc.pid) {
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F']);
+        } else {
+          try {
+            process.kill(-proc.pid, 'SIGKILL');
+          } catch (_) {
+            proc.kill('SIGKILL');
+          }
+        }
+        killed++;
+      }
+    } catch (_) {}
+  }
+  activeProcesses.delete(sessionId);
+  return killed;
+}
+
+/**
  * Execute code or command safely inside session sandbox
  */
 export async function executeInSandbox(sessionId, { language = 'node', code = '', command = '', timeoutMs = 60000 }) {
@@ -1067,25 +1328,18 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
 
   return new Promise((resolve) => {
     const runProcess = (cmdToRun, retryCount = 0) => {
-      exec(
+      const childProc = exec(
         cmdToRun,
         {
           cwd: sandboxDir,
           timeout: timeoutMs,
           maxBuffer: 1024 * 512, // 512 KB
-          env: {
-            ...process.env,
-            NODE_ENV: 'sandbox',
-            SANDBOX_SESSION: sessionId,
-            PYTHONPATH: [
-              path.join(sandboxDir, 'kits'),
-              KITS_SOURCE_DIR,
-              sandboxDir,
-              process.env.PYTHONPATH || ''
-            ].filter(Boolean).join(path.delimiter)
-          }
+          env: getSterileEnv(sessionId)
         },
         (error, stdout, stderr) => {
+          if (activeProcesses.has(sessionId)) {
+            activeProcesses.get(sessionId).delete(childProc);
+          }
           const executionTimeMs = Date.now() - startTime;
           const cleanStdout = (stdout || '').toString();
           const cleanStderr = (stderr || '').toString();
@@ -1271,6 +1525,11 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
           });
         }
       );
+
+      if (!activeProcesses.has(sessionId)) {
+        activeProcesses.set(sessionId, new Set());
+      }
+      activeProcesses.get(sessionId).add(childProc);
     };
 
     runProcess(execCommand);
@@ -1286,7 +1545,7 @@ export function extractSequentialActions(text) {
   const writtenPaths = new Set();
 
   // Unified tag regex matching paired or self-closing action tags
-  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|edit_file|patch_file|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|check_file|verify_file|screenshot|take_screenshot)\s*([^>]*?)\/?>/gi;
+  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|edit_file|patch_file|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|check_file|verify_file|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file)\s*([^>]*?)\/?>/gi;
 
   let match;
   while ((match = tagRegex.exec(text)) !== null) {
@@ -1324,13 +1583,24 @@ export function extractSequentialActions(text) {
         actions.push({ type: 'run_command', command: body, rawMatch, index });
       } else if (tagName === 'edit_file' || tagName === 'patch_file') {
         const filePath = getAttr('path') || getAttr('file');
+        const startLine = getAttr('start_line') || getAttr('startline');
+        const endLine = getAttr('end_line') || getAttr('endline');
         const targetMatch = body.match(/<target>([\s\S]*?)<\/target>/i);
         const replMatch = body.match(/<replacement>([\s\S]*?)<\/replacement>/i);
         if (targetMatch && replMatch) {
-          actions.push({ type: 'edit_file', path: filePath, target: targetMatch[1], replacement: replMatch[1], rawMatch, index });
+          actions.push({ type: 'patch_file', path: filePath, startLine: startLine ? parseInt(startLine, 10) : undefined, endLine: endLine ? parseInt(endLine, 10) : undefined, target: targetMatch[1], replacement: replMatch[1], rawMatch, index });
+        } else if (startLine && endLine) {
+          actions.push({ type: 'patch_file', path: filePath, startLine: parseInt(startLine, 10), endLine: parseInt(endLine, 10), content: body, rawMatch, index });
         } else {
-          actions.push({ type: 'edit_file', path: filePath, content: body, rawMatch, index });
+          actions.push({ type: 'patch_file', path: filePath, content: body, rawMatch, index });
         }
+      } else if (tagName === 'grep_search' || tagName === 'grep') {
+        const query = getAttr('query') || getAttr('q') || body;
+        const includes = getAttr('includes') || getAttr('include') || '';
+        actions.push({ type: 'grep_search', query, includes, rawMatch, index });
+      } else if (tagName === 'revert_file' || tagName === 'rollback_file') {
+        const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
+        actions.push({ type: 'revert_file', path: filePath, rawMatch, index });
       } else if (tagName === 'delete_file' || tagName === 'remove_file' || tagName === 'delete') {
         const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
         actions.push({ type: 'delete_file', path: filePath, rawMatch, index });
@@ -1406,6 +1676,13 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'search_web' || tagName === 'search') {
         const query = getAttr('query') || getAttr('q');
         actions.push({ type: 'search_web', query, rawMatch, index });
+      } else if (tagName === 'grep_search' || tagName === 'grep') {
+        const query = getAttr('query') || getAttr('q');
+        const includes = getAttr('includes') || getAttr('include') || '';
+        actions.push({ type: 'grep_search', query, includes, rawMatch, index });
+      } else if (tagName === 'revert_file' || tagName === 'rollback_file') {
+        const filePath = getAttr('path') || getAttr('file');
+        actions.push({ type: 'revert_file', path: filePath, rawMatch, index });
       } else if (tagName === 'delete_file' || tagName === 'remove_file' || tagName === 'delete') {
         const filePath = getAttr('path') || getAttr('file');
         actions.push({ type: 'delete_file', path: filePath, rawMatch, index });
@@ -1579,6 +1856,13 @@ export default {
   writeFile,
   readFile,
   editFile,
+  patchFile,
+  grepSearch,
+  createCheckpoint,
+  rollbackFile,
+  trimObservation,
+  killSessionProcesses,
+  getSterileEnv,
   deleteFile,
   testFile,
   listFiles,

@@ -33,6 +33,18 @@ export function formatExecutionStepTitle(step) {
     case 'file_write':
     case 'file':
       return `Membuat berkas ${meta || title || 'berkas'} · ${step.duration || '1s'}`;
+    case 'patch':
+    case 'patch_file':
+      return `Patch diff ${meta || title || 'berkas'} · ${step.duration || '1s'}`;
+    case 'grep':
+    case 'grep_search':
+      return `Grep pencarian kode ${meta ? `"${meta}"` : ''} · ${step.duration || '1s'}`;
+    case 'revert':
+    case 'revert_file':
+      return `Rollback berkas ${meta || title || 'berkas'} · ${step.duration || '1s'}`;
+    case 'delete':
+    case 'file_delete':
+      return `Menghapus berkas ${meta || title || 'berkas'} · ${step.duration || '1s'}`;
     case 'execute':
     case 'execute_code':
     case 'run_code':
@@ -222,7 +234,7 @@ export default function AgentExecutionTree({
             const formattedTitle = formatExecutionStepTitle(step);
             const rawDetail = step.detail ? String(step.detail).trim() : '';
             const isCommandOrExec = ['command', 'terminal', 'execute', 'execute_code', 'run_code'].includes(step.type);
-            const isWriteOrFile = ['write', 'file_write', 'file'].includes(step.type);
+            const isWriteOrFile = ['write', 'file_write', 'file', 'patch', 'patch_file', 'revert', 'revert_file', 'delete', 'file_delete'].includes(step.type);
             const isSkill = ['skill', 'read_skill', 'search_skill'].includes(step.type);
             const isFailed = step.status === 'failed' || /error|failed|gagal/i.test(rawDetail);
 
