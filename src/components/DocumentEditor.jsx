@@ -3011,7 +3011,7 @@ Tulis isi Bab "${currentSection}" secara lengkap dan mengagumkan sekarang:`;
 
     try {
       let arrayBuffer = null;
-      if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+      if (typeof dataUrl === 'string' && (dataUrl.startsWith('data:') || dataUrl.startsWith('http') || dataUrl.startsWith('/api/'))) {
         const res = await fetch(dataUrl);
         arrayBuffer = await res.arrayBuffer();
       } else {
@@ -3080,6 +3080,23 @@ Tulis isi Bab "${currentSection}" secara lengkap dan mengagumkan sekarang:`;
           setUploadedFileType(ext);
           setDocumentTitle(name.replace(/\.[^/.]+$/, ''));
           setAiPrompt(`File Excel "${name}" (${importedSheets.length} sheet) berhasil dimuat secara utuh dengan formula dan format lengkap. Berikan analisis data ini.`);
+        }
+      } else if (ext === 'pptx' || ext === 'ppt') {
+        const parsedSlides = await extractSlidesFromPptx(arrayBuffer);
+        if (parsedSlides && parsedSlides.length > 0) {
+          const slideItems = parsedSlides.map((s, idx) => ({
+            id: Date.now() + idx,
+            type: 'slide',
+            title: s.title || `Slide ${idx + 1}`,
+            content: (s.lines && s.lines.length > 0) ? s.lines.join('\n') : (s.content || ''),
+            notes: ''
+          }));
+          setContent(slideItems);
+          setEditorType('pptx');
+          setUploadedFileName(name);
+          setUploadedFileType('pptx');
+          setDocumentTitle(name.replace(/\.[^/.]+$/, ''));
+          setAiPrompt(`Presentasi PowerPoint "${name}" (${slideItems.length} slide) berhasil dimuat ke editor.`);
         }
       } else {
         const decoder = new TextDecoder('utf-8');

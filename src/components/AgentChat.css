@@ -2832,12 +2832,13 @@
 }
 
 .agent-msg-files-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   gap: 8px;
 }
 
-/* Card Tipis, Gaada Outline, Warna Abu-Abu */
+/* Card Tipis, Gaada Outline, Warna Abu-Abu, Full-Width Lebar */
 .agent-msg-file-card {
   display: flex;
   align-items: center;
@@ -2846,11 +2847,14 @@
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
-  border-radius: 8px;
-  padding: 6px 10px;
-  min-height: 38px;
-  gap: 8px;
-  transition: background 0.15s ease;
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-height: 40px;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.16s ease;
 }
 
 .agent-msg-file-card:hover {
@@ -2859,6 +2863,16 @@
   outline: none !important;
   box-shadow: none !important;
   transform: none;
+}
+
+.agent-msg-file-card.is-wide {
+  width: 100%;
+}
+
+.agent-msg-file-card.is-opening {
+  background: #fff7ed;
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 .agent-msg-file-card.is-extra-file {
@@ -2963,6 +2977,29 @@
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+}
+
+.agent-file-card-btn.is-studio {
+  background: #ea580c;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none !important;
+  outline: none !important;
+  box-shadow: 0 1px 3px rgba(234, 88, 12, 0.2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.agent-file-card-btn.is-studio:hover {
+  background: #c2410c;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.3);
 }
 
 .agent-file-card-btn.is-download {
@@ -3727,44 +3764,47 @@
 }
 
 /* 2. Message Active Skill Pill Banner */
+/* 2. Message Active Skill Pill Banner - Ultra Modern & Mobile Optimized */
 .agent-msg-skill-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
-  border: 1px solid #bbf7d0;
-  border-left: 4px solid #16a34a;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 8px 14px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.05);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
   user-select: none;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .agent-msg-skill-pill:hover {
-  background: linear-gradient(135deg, #ffffff 0%, #dcfce7 100%);
-  border-color: #86efac;
-  border-left-color: #15803d;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.12);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-color: rgba(234, 88, 12, 0.4);
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.15);
   transform: translateY(-1px);
 }
 
 .agent-msg-skill-pill.is-streaming {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  border-color: #fde68a;
-  border-left-color: #d97706;
-  animation: pulseSkillBorder 2s infinite ease-in-out;
+  background: linear-gradient(135deg, #1e1b18 0%, #291c10 100%);
+  border-color: rgba(234, 88, 12, 0.5);
+  animation: pulseSkillGlow 2.4s infinite ease-in-out;
 }
 
-@keyframes pulseSkillBorder {
+@keyframes pulseSkillGlow {
   0%, 100% {
-    border-left-color: #d97706;
+    border-color: rgba(234, 88, 12, 0.35);
+    box-shadow: 0 0 10px rgba(234, 88, 12, 0.15);
   }
   50% {
-    border-left-color: #ea580c;
+    border-color: rgba(234, 88, 12, 0.7);
+    box-shadow: 0 0 20px rgba(234, 88, 12, 0.3);
   }
 }
 
@@ -3773,24 +3813,26 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .agent-skill-icon-wrap {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgba(22, 163, 74, 0.12);
-  color: #16a34a;
+  background: rgba(234, 88, 12, 0.16);
+  color: #ea580c;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13.5px;
   flex-shrink: 0;
 }
 
 .agent-msg-skill-pill.is-streaming .agent-skill-icon-wrap {
-  background: rgba(217, 119, 6, 0.15);
-  color: #d97706;
+  background: rgba(234, 88, 12, 0.25);
+  color: #f97316;
 }
 
 .agent-skill-text-group {
@@ -3798,79 +3840,123 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .agent-skill-kicker {
   font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #15803d;
-}
-
-.agent-msg-skill-pill.is-streaming .agent-skill-kicker {
-  color: #b45309;
-}
-
-.agent-skill-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
+  letter-spacing: 0.06em;
+  color: #ea580c;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.agent-msg-skill-pill.is-streaming .agent-skill-kicker {
+  color: #fb923c;
+}
+
+.agent-skill-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 .agent-msg-skill-pill-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .agent-skill-file-tag {
-  background: rgba(15, 23, 42, 0.05);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  color: #475569;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 11px;
-  padding: 3px 8px;
+  font-size: 10.5px;
+  padding: 3px 7px;
   border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
 }
 
 .agent-skill-open-action {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  color: #16a34a;
+  color: #ea580c;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  white-space: nowrap;
   transition: transform 0.2s ease;
 }
 
 .agent-msg-skill-pill.is-streaming .agent-skill-open-action {
-  color: #d97706;
+  color: #fb923c;
 }
 
 .agent-msg-skill-pill:hover .agent-skill-open-action {
-  transform: translateX(2px);
+  transform: translateX(3px);
+  color: #f97316;
 }
 
 @media (max-width: 640px) {
   .agent-msg-skill-pill {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 8px;
     padding: 10px 12px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .agent-msg-skill-pill-left {
+    width: 100%;
+    max-width: 100%;
+  }
+  .agent-skill-name {
+    font-size: 12.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   .agent-msg-skill-pill-right {
     width: 100%;
+    max-width: 100%;
     justify-content: space-between;
-    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     padding-top: 6px;
+    box-sizing: border-box;
+  }
+  .agent-skill-file-tag {
+    max-width: calc(100% - 65px);
   }
   .agent-header-skill-chip {
     display: none; /* Keep clean on small mobile header */
+  }
+  .agent-msg-file-card {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .agent-msg-file-info {
+    width: 100%;
+  }
+  .agent-msg-file-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 

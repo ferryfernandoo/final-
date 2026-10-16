@@ -317,6 +317,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   // Zero-Search Skill Architecture: Active Skill State
   const [activeSkill, setActiveSkill] = useState(null);
+  const [openingFileInStudio, setOpeningFileInStudio] = useState(null);
 
   // AI Agent Effort Level ('low' | 'medium' | 'high' - Pantang Menyerah)
   const [agentEffort, setAgentEffort] = useState(() => {
@@ -962,6 +963,76 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     window.open(url, '_blank');
   };
 
+  // Open any sandbox deliverable file directly in Typernova Studio (DocumentEditor)
+  const handleOpenFileInTypernova = async (file) => {
+    if (!file || !currentSessionId) return;
+    const filePath = typeof file === 'string' ? file : file.path;
+    const fileName = (typeof file === 'string' ? file.split('/').pop() : file.name) || filePath;
+    const ext = (file.ext || fileName.split('.').pop() || '').toLowerCase();
+
+    setOpeningFileInStudio(filePath);
+    try {
+      const isExcel = ['xlsx', 'xls', 'csv'].includes(ext);
+      const isPpt = ['pptx', 'ppt'].includes(ext);
+      const isWord = ['docx', 'doc', 'pdf'].includes(ext);
+
+      let editorCategory = 'word';
+      let docxType = 'docx';
+      if (isExcel) {
+        editorCategory = 'excel';
+        docxType = 'excel';
+      } else if (isPpt) {
+        editorCategory = 'ppt';
+        docxType = 'pptx';
+      } else {
+        editorCategory = 'word';
+        docxType = isWord ? 'docx' : ext;
+      }
+
+      const downloadUrl = AgentService.getDownloadUrl(currentSessionId, filePath);
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+
+      const reader = new FileReader();
+      const dataUrl = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const cloudFilePayload = {
+        id: `sandbox_${currentSessionId}_${Date.now()}`,
+        name: fileName,
+        ext: ext,
+        type: docxType,
+        dataUrl: dataUrl
+      };
+
+      if (typeof window !== 'undefined') {
+        window.deepernova_active_cloud_file = cloudFilePayload;
+      }
+
+      try {
+        sessionStorage.setItem('editor_return_view', 'agent');
+        sessionStorage.setItem('cloud_file_to_parse', JSON.stringify({
+          id: cloudFilePayload.id,
+          name: fileName,
+          ext: ext,
+          type: docxType,
+          dataUrl: dataUrl
+        }));
+      } catch (_e) {}
+
+      onNavigate?.('documents', editorCategory);
+    } catch (err) {
+      console.error('[AgentChat] Gagal membuka file di Typernova Studio:', err);
+      alert(`Gagal membuka file di Typernova Studio: ${err.message}`);
+    } finally {
+      setOpeningFileInStudio(null);
+    }
+  };
+
   const handleUserFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length || !currentSessionId) return;
@@ -1368,6 +1439,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   {/* Dedicated Active Skill Indicator Banner */}
                   {isBot && (msg.activeSkill || (isExecuting && msg.isStreaming && activeSkill)) && (() => {
                     const currentMsgSkill = msg.activeSkill || activeSkill;
+                    const cleanSkillTag = (currentMsgSkill.file || currentMsgSkill.id || '')
+                      .split('/')
+                      .pop()
+                      .replace(/\.md$/i, '');
                     return (
                       <div 
                         className={`agent-msg-skill-pill ${msg.isStreaming ? 'is-streaming' : ''}`}
@@ -1379,21 +1454,23 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       >
                         <div className="agent-msg-skill-pill-left">
                           <span className="agent-skill-icon-wrap">
-                            <i className="fa-solid fa-book-bookmark" />
+                            <i className="fa-solid fa-graduation-cap" />
                           </span>
                           <div className="agent-skill-text-group">
                             <span className="agent-skill-kicker">
-                              {msg.isStreaming ? '⚡ MEMBACA & MEMATUHI PANDUAN SKILL' : '📖 BERPEGANG TEGUH PADA SKILL'}
+                              {msg.isStreaming ? '⚡ MEMATUHI PANDUAN SKILL' : '📖 BERPEGANG TEGUH PADA SKILL'}
                             </span>
-                            <span className="agent-skill-name">
+                            <span className="agent-skill-name" title={currentMsgSkill.title}>
                               {currentMsgSkill.title}
                             </span>
                           </div>
                         </div>
                         <div className="agent-msg-skill-pill-right">
-                          <span className="agent-skill-file-tag">{currentMsgSkill.file || currentMsgSkill.id}</span>
+                          <span className="agent-skill-file-tag" title={currentMsgSkill.file || currentMsgSkill.id}>
+                            {cleanSkillTag}
+                          </span>
                           <span className="agent-skill-open-action">
-                            Buka Buku <i className="fa-solid fa-arrow-right" />
+                            Buka <i className="fa-solid fa-arrow-right" />
                           </span>
                         </div>
                       </div>
@@ -1535,28 +1612,26 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       <div className="agent-msg-files-section">
                         <div className="agent-msg-files-header">
                           <div className="agent-msg-files-title">
-                            <i className="fa-solid fa-file-circle-check" style={{ color: '#ea580c' }} />
-                            <span>Berkas Proyek ({primaryDeliverables.length})</span>
-                            <span className="agent-smart-filter-badge" title="AI secara otomatis menyaring berkas yang relevan dengan instruksi Anda">
-                              <i className="fa-solid fa-wand-magic-sparkles" /> Siap Pakai
+                            <i className="fa-solid fa-cube" style={{ color: '#ea580c' }} />
+                            <span>Berkas di Sandbox ({filesToShow.length})</span>
+                            <span className="agent-smart-filter-badge" title="Klik langsung untuk membuka & menyunting di Typernova Studio">
+                              <i className="fa-solid fa-wand-magic-sparkles" /> Typernova Studio
                             </span>
                           </div>
-                          <button 
-                            className="agent-zip-download-btn"
-                            onClick={handleDownloadAllZip}
-                            title="Unduh seluruh project sebagai arsip .ZIP"
-                          >
-                            <i className="fa-solid fa-file-zipper" />
-                            <span>Unduh Semua (.ZIP)</span>
-                          </button>
                         </div>
 
                         <div className="agent-msg-files-grid">
                           {filesToShow.map((file) => {
                             const iconMeta = getFileIcon(file.ext);
                             const isExtra = !primaryDeliverables.some(p => p.path === file.path);
+                            const isOpeningThis = openingFileInStudio === file.path;
                             return (
-                              <div key={file.path} className={`agent-msg-file-card ${isExtra ? 'is-extra-file' : ''}`}>
+                              <div 
+                                key={file.path} 
+                                className={`agent-msg-file-card is-wide ${isExtra ? 'is-extra-file' : ''} ${isOpeningThis ? 'is-opening' : ''}`}
+                                onClick={() => handleOpenFileInTypernova(file)}
+                                title={`Klik untuk membuka & menyunting ${file.name} di Typernova Studio`}
+                              >
                                 <div className="agent-msg-file-info">
                                   <div className="agent-file-icon-box">
                                     <i className={iconMeta.icon} style={{ color: iconMeta.color }} />
@@ -1567,40 +1642,58 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                       {isExtra && <span className="agent-extra-badge">internal</span>}
                                     </span>
                                     <span className="agent-msg-file-size">
-                                      {file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'}
+                                      {file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'} · Klik untuk buka di Typernova Studio
                                     </span>
                                   </div>
                                 </div>
                                 <div className="agent-msg-file-actions">
                                   <button
-                                    className="agent-file-card-btn is-download"
-                                    onClick={() => handleDownloadSingleFile(file.path)}
-                                    title={`Unduh berkas ${file.name}`}
+                                    type="button"
+                                    className="agent-file-card-btn is-studio"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenFileInTypernova(file);
+                                    }}
+                                    title={`Buka ${file.name} langsung di Typernova Studio`}
                                   >
-                                    <i className="fa-solid fa-download" /> Unduh
+                                    {isOpeningThis ? (
+                                      <>
+                                        <i className="fa-solid fa-circle-notch fa-spin" />
+                                        <span>Membuka...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <i className="fa-solid fa-pen-to-square" />
+                                        <span>Buka di Studio</span>
+                                      </>
+                                    )}
                                   </button>
                                   <button
+                                    type="button"
                                     className="agent-file-card-btn is-view"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       handleSelectFile(file.path);
                                       setActiveDrawerTab('files');
                                       setIsDrawerOpen(true);
                                     }}
-                                    title={`Buka & periksa ${file.name}`}
+                                    title={`Buka & periksa kode di Drawer`}
                                   >
-                                    <i className="fa-solid fa-code" /> Lihat
+                                    <i className="fa-solid fa-code" /> <span>Inspeksi</span>
                                   </button>
                                   {file.ext === 'html' && (
                                     <button
+                                      type="button"
                                       className="agent-file-card-btn is-preview"
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         setPreviewUrl(`/api/agent/preview/${currentSessionId}/${file.path}`);
                                         setActiveDrawerTab('preview');
                                         setIsDrawerOpen(true);
                                       }}
-                                      title="Live Preview di tab web"
+                                      title="Live Preview web di sandbox"
                                     >
-                                      <i className="fa-solid fa-eye" /> Preview
+                                      <i className="fa-solid fa-eye" /> <span>Preview</span>
                                     </button>
                                   )}
                                 </div>

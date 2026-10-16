@@ -236,6 +236,11 @@ class AgentSkillService {
     if (!this.isLoaded) this.loadSkills();
     const p = userPrompt.toLowerCase();
 
+    // 00-A. WEB FETCHING, SCRAPING, CRAWLER & TERMINAL NETWORK
+    if (/\b(fetch|scraping|scrape|crawler|crawl|curl|ambil\s*web|buka\s*link|buka\s*url|kunjungi\s*web|cek\s*web|cek\s*url|baca\s*web|download\s*web|ambil\s*data\s*dari|api\s*eksternal|request\s*web|http\s*request|terminal\s*fetch|web\s*fetch|situs|website)\b/i.test(p) || /(https?:\/\/[^\s]+)/i.test(p)) {
+      return this.readSkill('web-scraping-crawler');
+    }
+
     // 00. POWERPOINT (.pptx) & SLIDE DECK (Evaluated early to ensure creative specialized PPT skills)
     if (/\b(ppt|pptx|powerpoint|slide|slides|presentasi|pitch\s*deck|c-level\s*deck|deck)\b/i.test(p)) {
       if (/\b(sapi|ternak|peternakan|kambing|domba|unggas|agribisnis|farm|nature|biogas|susu|hewan)\b/i.test(p)) {
