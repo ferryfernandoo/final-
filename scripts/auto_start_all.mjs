@@ -500,8 +500,8 @@ async function main() {
     log.success('Backend Server sudah aktif di port 3001.');
   } else {
     startProcess('node', ['server/server.js'], ROOT_DIR, 'Deepernova Backend Server', 'server.log');
-    log.info('Menunggu Backend Server siap di port 3001 (max 20 detik)...');
-    if (await waitForPort(3001, 20000)) {
+    log.info('Menunggu Backend Server siap di port 3001 (max 35 detik)...');
+    if (await waitForPort(3001, 35000)) {
       log.success('Backend Server siap di port 3001.');
     } else {
       log.warn('Backend Server belum siap, tapi proses lanjut...');
@@ -514,8 +514,8 @@ async function main() {
     log.success('Frontend Vite sudah aktif di port 5174.');
   } else {
     startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
-    log.info('Menunggu Frontend siap di port 5174 (max 15 detik)...');
-    if (await waitForPort(5174, 15000)) {
+    log.info('Menunggu Frontend siap di port 5174 (max 25 detik)...');
+    if (await waitForPort(5174, 25000)) {
       log.success('Frontend Vite siap di port 5174.');
     } else {
       log.warn('Frontend Vite belum siap, tapi proses lanjut...');
