@@ -98,23 +98,23 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://highlighted-dvd-enters-female.trycloudflare.com/api/:path*"
+      "destination": "https://significant-requirements-payroll-pastor.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://highlighted-dvd-enters-female.trycloudflare.com/auth/:path*"
+      "destination": "https://significant-requirements-payroll-pastor.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://highlighted-dvd-enters-female.trycloudflare.com/v1/:path*"
+      "destination": "https://significant-requirements-payroll-pastor.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://highlighted-dvd-enters-female.trycloudflare.com/download/:path*"
+      "destination": "https://significant-requirements-payroll-pastor.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://highlighted-dvd-enters-female.trycloudflare.com/watermarked/:path*"
+      "destination": "https://significant-requirements-payroll-pastor.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
