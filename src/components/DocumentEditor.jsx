@@ -564,6 +564,59 @@ const parseExcelArrayBuffer = async (arrayBuffer) => {
   return importedSheets;
 };
 
+export const extractSlidesFromPptx = async (pptxData) => {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+    await zip.loadAsync(pptxData);
+
+    const slides = [];
+    let slideNum = 1;
+
+    while (true) {
+      const slidePath = `ppt/slides/slide${slideNum}.xml`;
+      const slideFile = zip.file(slidePath);
+      if (!slideFile) break;
+
+      const slideXml = await slideFile.async('text');
+      let paragraphs = [];
+      if (typeof DOMParser !== 'undefined') {
+        const parser = new DOMParser();
+        const slideDoc = parser.parseFromString(slideXml, 'text/xml');
+        paragraphs = Array.from(slideDoc.querySelectorAll('a\\:p, p'))
+          .map(p => Array.from(p.querySelectorAll('a\\:t, t'))
+            .map(el => el.textContent?.trim())
+            .filter(Boolean)
+            .join(' ')
+          )
+          .filter(Boolean);
+      } else {
+        const matches = slideXml.match(/<a:t[^>]*>([^<]+)<\/a:t>/g) || [];
+        paragraphs = matches.map(m => m.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+      }
+
+      const title = paragraphs.length > 0 ? paragraphs[0] : `Slide ${slideNum}`;
+      const body = paragraphs.slice(1).map(line => line.replace(/^[-•]\s*/, '').trim());
+      const lines = body.length > 0 ? body : (paragraphs.length > 1 ? paragraphs.slice(1) : []);
+      const content = [title, ...lines].join('\n');
+
+      slides.push({
+        number: slideNum,
+        title,
+        lines,
+        content,
+      });
+
+      slideNum += 1;
+    }
+
+    return slides.length > 0 ? slides : [{ number: 1, title: 'Slide 1', lines: ['Presentasi Siap Disunting'], content: 'Slide 1\nPresentasi Siap Disunting' }];
+  } catch (error) {
+    console.error('[DocumentEditor] Error parsing PPTX:', error);
+    return [{ number: 1, title: 'Slide 1', lines: ['Presentasi Siap Disunting'], content: 'Slide 1\nPresentasi Siap Disunting' }];
+  }
+};
+
 const EDITOR_SLASH_COMMANDS = [
   { command: '/brainstorm', desc_id: 'Mode Chat Bebas / Tanya AI', desc_en: 'Free Chat mode', icon: '💬' },
   { command: '/agent', desc_id: 'Mode Agent — Susun Bab demi Bab', desc_en: 'Drafting Agent', icon: '🤖' },
@@ -3019,6 +3072,7 @@ Tulis isi Bab "${currentSection}" secara lengkap dan mengagumkan sekarang:`;
       }
 
       if (ext === 'docx' || ext === 'doc') {
+        setEditorType('docx');
         const styleMap = [
           "p[style-name='Heading 1'] => h1.doc-h1:fresh",
           "p[style-name='Heading 2'] => h2.doc-h2:fresh",
@@ -3083,26 +3137,32 @@ Tulis isi Bab "${currentSection}" secara lengkap dan mengagumkan sekarang:`;
         }
       } else if (ext === 'pptx' || ext === 'ppt') {
         const parsedSlides = await extractSlidesFromPptx(arrayBuffer);
-        if (parsedSlides && parsedSlides.length > 0) {
-          const slideItems = parsedSlides.map((s, idx) => ({
-            id: Date.now() + idx,
-            type: 'slide',
-            title: s.title || `Slide ${idx + 1}`,
-            content: (s.lines && s.lines.length > 0) ? s.lines.join('\n') : (s.content || ''),
-            notes: ''
-          }));
-          setContent(slideItems);
-          setEditorType('pptx');
-          setUploadedFileName(name);
-          setUploadedFileType('pptx');
-          setDocumentTitle(name.replace(/\.[^/.]+$/, ''));
-          setAiPrompt(`Presentasi PowerPoint "${name}" (${slideItems.length} slide) berhasil dimuat ke editor.`);
-        }
+        const slidesToUse = (parsedSlides && parsedSlides.length > 0) ? parsedSlides : [{ number: 1, title: 'Slide 1', lines: ['Presentasi Siap Disunting'], content: 'Slide 1' }];
+        const slideItems = slidesToUse.map((s, idx) => ({
+          id: Date.now() + idx,
+          type: 'slide',
+          title: s.title || `Slide ${idx + 1}`,
+          content: (s.lines && s.lines.length > 0) ? s.lines.join('\n') : (s.content || ''),
+          notes: ''
+        }));
+        setContent(slideItems);
+        setEditorType('pptx');
+        setUploadedFileName(name);
+        setUploadedFileType('pptx');
+        setDocumentTitle(name.replace(/\.[^/.]+$/, ''));
+        setAiPrompt(`Presentasi PowerPoint "${name}" (${slideItems.length} slide) berhasil dimuat ke editor.`);
       } else {
+        setEditorType('docx');
         const decoder = new TextDecoder('utf-8');
         const textContent = decoder.decode(arrayBuffer);
         const codeHtml = `<pre style="white-space:pre-wrap; font-family:monospace; padding:16px; background:#f8fafc; border-radius:8px;">${textContent}</pre>`;
         setContent([{ id: Date.now(), type: 'html', text: codeHtml }]);
+        docxTextRef.current = codeHtml;
+        setTimeout(() => {
+          if (pageRef.current) {
+            try { pageRef.current.innerHTML = codeHtml; } catch (_e) {}
+          }
+        }, 100);
         setUploadedFileName(name);
         setUploadedFileType(ext);
         setUploadedFileText(textContent.slice(0, 8000));
@@ -10652,55 +10712,7 @@ Instruksi Pengguna: ${targetPrompt}`;
     reader.readAsArrayBuffer(file);
   };
 
-  // ===== PPT SLIDE PREVIEW =====
-  const extractSlidesFromPptx = async (pptxData) => {
-    try {
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-      await zip.loadAsync(pptxData);
-
-      // Get slide content
-      const slides = [];
-      let slideNum = 1;
-      
-      while (true) {
-        const slidePath = `ppt/slides/slide${slideNum}.xml`;
-        const slideFile = zip.file(slidePath);
-        if (!slideFile) break;
-
-        const slideXml = await slideFile.async('text');
-        const parser = new DOMParser();
-        const slideDoc = parser.parseFromString(slideXml, 'text/xml');
-
-        const paragraphs = Array.from(slideDoc.querySelectorAll('a\\:p'))
-          .map(p => Array.from(p.querySelectorAll('a\\:t, t'))
-            .map(el => el.textContent?.trim())
-            .filter(Boolean)
-            .join(' ')
-          )
-          .filter(Boolean);
-
-        const title = paragraphs.length > 0 ? paragraphs[0] : `Slide ${slideNum}`;
-        const body = paragraphs.slice(1).map(line => line.replace(/^[-•]\s*/, '').trim());
-        const lines = body.length > 0 ? body : paragraphs.length > 1 ? paragraphs.slice(1) : [];
-        const content = [title, ...lines].join('\n');
-
-        slides.push({
-          number: slideNum,
-          title,
-          lines,
-          content,
-        });
-
-        slideNum += 1;
-      }
-
-      return slides.length > 0 ? slides : [{ number: 1, content: 'Empty presentation' }];
-    } catch (error) {
-      console.error('Error parsing PPTX:', error);
-      return [{ number: 1, content: 'Gagal parse file' }];
-    }
-  };
+  // ===== PPT SLIDE PREVIEW (USES HOISTED MODULE extractSlidesFromPptx) =====
 
   const handlePptPreview = async (file) => {
     if (file.type === 'uploaded' && file.data) {

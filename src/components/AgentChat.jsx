@@ -959,16 +959,42 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     }
   };
 
-  const handleDownloadSingleFile = (filePath) => {
-    if (!currentSessionId || !filePath) return;
-    const url = AgentService.getDownloadUrl(currentSessionId, filePath);
-    window.open(url, '_blank');
+  const handleDownloadSingleFile = (fileOrPath) => {
+    if (!currentSessionId || !fileOrPath) return;
+    const pathStr = typeof fileOrPath === 'string' ? fileOrPath : (fileOrPath.path || fileOrPath.name);
+    const fileName = (typeof fileOrPath === 'string' ? fileOrPath.split('/').pop() : fileOrPath.name) || pathStr.split('/').pop() || 'download';
+    const url = AgentService.getDownloadUrl(currentSessionId, pathStr);
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { document.body.removeChild(a); } catch (_) {}
+      }, 250);
+    } catch {
+      window.open(url, '_blank');
+    }
   };
 
   const handleDownloadAllZip = () => {
     if (!currentSessionId) return;
     const url = AgentService.getZipDownloadUrl(currentSessionId);
-    window.open(url, '_blank');
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sandbox_${currentSessionId}.zip`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { document.body.removeChild(a); } catch (_) {}
+      }, 250);
+    } catch {
+      window.open(url, '_blank');
+    }
   };
 
   // Open any sandbox deliverable file directly in Typernova Studio (DocumentEditor)
@@ -998,7 +1024,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       }
 
       const downloadUrl = AgentService.getDownloadUrl(currentSessionId, filePath);
-      const res = await fetch(downloadUrl);
+      const res = await fetch(downloadUrl, { credentials: 'include' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
 
@@ -1023,12 +1049,13 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
       try {
         sessionStorage.setItem('editor_return_view', 'agent');
+        const storageDataUrl = (dataUrl && dataUrl.length < 2000000) ? dataUrl : downloadUrl;
         sessionStorage.setItem('cloud_file_to_parse', JSON.stringify({
           id: cloudFilePayload.id,
           name: fileName,
           ext: ext,
           type: docxType,
-          dataUrl: dataUrl
+          dataUrl: storageDataUrl
         }));
       } catch (_e) {}
 
@@ -1722,6 +1749,15 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               <i className="fa-solid fa-wand-magic-sparkles" /> Typernova Studio
                             </span>
                           </div>
+                          <button 
+                            type="button"
+                            className="agent-zip-download-btn"
+                            onClick={handleDownloadAllZip}
+                            title="Unduh seluruh berkas sandbox sebagai file .ZIP"
+                          >
+                            <i className="fa-solid fa-file-zipper" />
+                            <span>Unduh Semua (.ZIP)</span>
+                          </button>
                         </div>
 
                         <div className="agent-msg-files-grid">
@@ -1751,6 +1787,17 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                   </div>
                                 </div>
                                 <div className="agent-msg-file-actions">
+                                  <button
+                                    type="button"
+                                    className="agent-file-card-btn is-download"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadSingleFile(file);
+                                    }}
+                                    title={`Unduh berkas ${file.name} ke perangkat`}
+                                  >
+                                    <i className="fa-solid fa-download" /> <span>Unduh</span>
+                                  </button>
                                   <button
                                     type="button"
                                     className="agent-file-card-btn is-studio"

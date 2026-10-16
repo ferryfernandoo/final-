@@ -188,7 +188,7 @@ function App() {
     if (view === 'documents') {
       try {
         // Track where the user came from before entering documents editor
-        const originView = currentView === 'office' ? 'office' : (currentView === 'universe' ? 'universe' : 'chat');
+        const originView = currentView === 'office' ? 'office' : (currentView === 'universe' ? 'universe' : (currentView === 'agent' ? 'agent' : 'chat'));
         sessionStorage.setItem('editor_return_view', originView);
       } catch (_) {}
     } else if (view === 'office') {
