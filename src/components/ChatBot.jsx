@@ -379,90 +379,66 @@ const renderHighlightedCode = (highlightedHtml) => {
 // Source Bubble Carousel — animasi masuk/keluar per bubble
 // ============================================================
 const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
-  const MAX_VISIBLE = 4;
-  const [offset, setOffset] = React.useState(0);
+  const safeSources = React.useMemo(() => {
+    if (!Array.isArray(sources)) return [];
+    // Deduplicate sources by URL or domain
+    const seen = new Set();
+    return sources.filter(s => {
+      if (!s) return false;
+      const key = (s.link || s.url || s.title || s.domain || '').toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [sources]);
 
-  const safeSources = Array.isArray(sources) ? sources.filter(Boolean) : [];
-  const hasMoreBubble = safeSources.length > MAX_VISIBLE;
-  const totalItems = hasMoreBubble ? safeSources.length + 1 : safeSources.length;
-  const maxOffset = Math.max(0, totalItems - MAX_VISIBLE);
+  const scrollRef = React.useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
 
-  // Generate unique signature of sources content so every step re-triggers animation
-  const sourcesKey = React.useMemo(() => {
-    return safeSources.map(s => s.link || s.title || s.domain || '').join('|');
-  }, [safeSources]);
-
-  const userInteractedRef = React.useRef(false);
-  const isHoveredRef = React.useRef(false);
+  const checkScroll = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 6);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 6);
+  }, []);
 
   React.useEffect(() => {
-    setOffset(0);
-    userInteractedRef.current = false;
-    isHoveredRef.current = false;
-
-    if (maxOffset <= 0) return;
-
-    let intervalId = null;
-    // Initial pause of 600ms so user sees the initial results, then auto-slide 1 dot at a time
-    const startTimeout = setTimeout(() => {
-      intervalId = setInterval(() => {
-        if (userInteractedRef.current) {
-          if (intervalId) clearInterval(intervalId);
-          return;
-        }
-        if (isHoveredRef.current) {
-          return; // pause when user is hovering
-        }
-        setOffset(prev => {
-          if (prev < maxOffset) {
-            return prev + 1;
-          } else {
-            if (intervalId) clearInterval(intervalId);
-            return prev;
-          }
-        });
-      }, 700);
-    }, 600);
-
+    checkScroll();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    window.addEventListener('resize', checkScroll, { passive: true });
     return () => {
-      clearTimeout(startTimeout);
-      if (intervalId) clearInterval(intervalId);
+      el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
     };
-  }, [sourcesKey, maxOffset]);
+  }, [checkScroll, safeSources.length]);
+
+  const handleScroll = (dir) => {
+    if (!scrollRef.current) return;
+    const amount = dir === 'left' ? -200 : 200;
+    scrollRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+  };
 
   if (safeSources.length === 0) return null;
 
-  const handlePrev = (e) => {
-    e.stopPropagation();
-    userInteractedRef.current = true;
-    setOffset(prev => Math.max(prev - 1, 0));
-  };
-
-  const handleNext = (e) => {
-    e.stopPropagation();
-    userInteractedRef.current = true;
-    setOffset(prev => Math.min(prev + 1, maxOffset));
-  };
-
-  const handleDotClick = (idx) => {
-    userInteractedRef.current = true;
-    setOffset(idx);
-  };
-
   return (
     <div className="source-bubbles-section">
-      <div className="search-sources-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+      <div className="search-sources-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <i className="fa-solid fa-circle-nodes" style={{ color: '#4f46e5' }}></i>
+          <i className="fa-solid fa-circle-nodes" style={{ color: '#4f46e5', fontSize: '13px' }}></i>
           <span style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary, #4b5563)' }}>
-            {language === 'id' ? 'Sumber Web:' : 'Web Sources:'}
+            {language === 'id' ? 'Sumber Terverifikasi:' : 'Verified Sources:'}
           </span>
-          <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 500 }}>
-            ({safeSources.length})
+          <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 700, background: 'rgba(99, 102, 241, 0.1)', padding: '1px 7px', borderRadius: '10px' }}>
+            {safeSources.length}
           </span>
         </div>
         {safeSources.length > 0 && onShowAll && (
           <button 
+            type="button"
             className="show-all-sources-btn"
             onClick={onShowAll}
             style={{
@@ -480,57 +456,67 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
               transition: 'all 0.2s',
             }}
           >
-            {language === 'id' ? 'Lihat Selengkapnya' : 'See Details'} ➜
+            {language === 'id' ? 'Lihat Rincian' : 'See Details'} ➜
           </button>
         )}
       </div>
 
-      <div 
-        className="source-bubbles-carousel-container" 
-        style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', minHeight: '68px' }}
-        onMouseEnter={() => { isHoveredRef.current = true; }}
-        onMouseLeave={() => { isHoveredRef.current = false; }}
-        onTouchStart={() => { userInteractedRef.current = true; }}
-      >
-        {/* Left Arrow Button */}
-        {offset > 0 && (
+      <div className="source-bubbles-carousel-container" style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+        {/* Left Scroll Chevron Button */}
+        {canScrollLeft && (
           <button 
-            onClick={handlePrev}
+            type="button"
+            onClick={() => handleScroll('left')}
             className="carousel-nav-btn prev-btn"
+            aria-label="Scroll left"
             style={{
               position: 'absolute',
-              left: '-12px',
+              left: '-8px',
+              top: '50%',
+              transform: 'translateY(-50%)',
               zIndex: 10,
-              width: '24px',
-              height: '24px',
+              width: '26px',
+              height: '26px',
               borderRadius: '50%',
               background: 'rgba(255, 255, 255, 0.95)',
-              border: '1px solid rgba(0, 0, 0, 0.1)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: '10px',
+              fontSize: '11px',
               color: '#374151',
-              transition: 'all 0.2s',
+              backdropFilter: 'blur(4px)'
             }}
-            onMouseEnter={(e) => { e.target.style.background = '#f3f4f6'; e.target.style.transform = 'scale(1.1)'; }}
-            onMouseLeave={(e) => { e.target.style.background = 'rgba(255, 255, 255, 0.95)'; e.target.style.transform = 'scale(1)'; }}
           >
             ◀
           </button>
         )}
 
-        {/* Viewport: clips overflow */}
-        <div className="source-bubbles-viewport" style={{ overflow: 'hidden', width: '100%', maxWidth: '264px' }}>
+        {/* Fluid Scrollable Track: Displays many bubbles without shifting automatically */}
+        <div 
+          ref={scrollRef}
+          className="source-bubbles-viewport fluid-scroll"
+          style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            width: '100%',
+            maxWidth: '100%',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch',
+            padding: '4px 2px 6px 2px'
+          }}
+        >
           <div
-            className="source-bubbles-track"
+            className="source-bubbles-track fluid-track"
             style={{
               display: 'flex',
-              gap: '10px',
-              transform: `translateX(-${offset * 66}px)`,
-              transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: '12px',
+              width: 'max-content'
             }}
           >
             {safeSources.map((source, i) => {
@@ -541,15 +527,12 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
 
               return (
                 <a
-                  key={`bubble_${i}_${source.link || i}`}
-                  href={source.link || '#'}
+                  key={`bubble_${i}_${source.link || source.url || i}`}
+                  href={source.link || source.url || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   title={`${source.title || cleanDomain}\n${source.snippet || ''}`}
                   className="source-bubble"
-                  style={{
-                    animation: `bubble-pop-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.06}s both`
-                  }}
                 >
                   <img
                     src={faviconUrl}
@@ -563,6 +546,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
                     }}
                     className="source-bubble-favicon"
                     alt={cleanDomain || 'source'}
+                    loading="lazy"
                   />
                   <span className="source-bubble-label">
                     {shortLabel}
@@ -571,68 +555,56 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
               );
             })}
 
-            {hasMoreBubble && onShowAll && (
+            {safeSources.length > 3 && onShowAll && (
               <div 
                 className="source-bubble show-all-bubble"
                 onClick={onShowAll}
-                title={language === 'id' ? 'Lihat Semua' : 'See All'}
+                title={language === 'id' ? 'Lihat Semua Sumber' : 'See All Sources'}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="source-bubble-more-circle">
-                  +{safeSources.length - MAX_VISIBLE}
+                  +{safeSources.length}
                 </div>
                 <span className="source-bubble-label" style={{ color: '#4f46e5', fontWeight: '700' }}>
-                  {language === 'id' ? 'Lainnya' : 'More'}
+                  {language === 'id' ? 'Semua' : 'All'}
                 </span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Arrow Button */}
-        {offset < maxOffset && (
+        {/* Right Scroll Chevron Button */}
+        {canScrollRight && (
           <button 
-            onClick={handleNext}
+            type="button"
+            onClick={() => handleScroll('right')}
             className="carousel-nav-btn next-btn"
+            aria-label="Scroll right"
             style={{
               position: 'absolute',
-              left: `${264 - 12}px`,
+              right: '-8px',
+              top: '50%',
+              transform: 'translateY(-50%)',
               zIndex: 10,
-              width: '24px',
-              height: '24px',
+              width: '26px',
+              height: '26px',
               borderRadius: '50%',
               background: 'rgba(255, 255, 255, 0.95)',
-              border: '1px solid rgba(0, 0, 0, 0.1)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: '10px',
+              fontSize: '11px',
               color: '#374151',
-              transition: 'all 0.2s',
+              backdropFilter: 'blur(4px)'
             }}
-            onMouseEnter={(e) => { e.target.style.background = '#f3f4f6'; e.target.style.transform = 'scale(1.1)'; }}
-            onMouseLeave={(e) => { e.target.style.background = 'rgba(255, 255, 255, 0.95)'; e.target.style.transform = 'scale(1)'; }}
           >
             ▶
           </button>
         )}
       </div>
-
-      {/* Dot progress indicator */}
-      {safeSources.length > MAX_VISIBLE && (
-        <div className="source-bubble-dots" style={{ display: 'flex', gap: '5px', justifyContent: 'center', marginTop: '4px' }}>
-          {Array.from({ length: maxOffset + 1 }).map((_, i) => (
-            <span 
-              key={i} 
-              className={`bubble-dot${i === offset ? ' active' : ''}`}
-              onClick={() => handleDotClick(i)}
-              style={{ cursor: 'pointer' }}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 };

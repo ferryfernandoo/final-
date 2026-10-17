@@ -10530,19 +10530,29 @@ pre.code-block code {
   margin-bottom: 12px;
 }
 
-/* Viewport: clips to exactly 4 bubbles wide */
+/* Viewport: full width, smooth native horizontal scroll, no clipping */
 .source-bubbles-viewport {
-  overflow: hidden;
-  width: calc(4 * 56px + 3 * 10px); /* 4 × (56px bubble + 10px gap) − last gap */
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
   max-width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Track: all bubbles in a row, slides with JS transform */
+.source-bubbles-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+/* Track: all bubbles in a fluid row, rock-solid without unwanted shifting */
 .source-bubbles-track {
   display: flex;
   flex-direction: row;
-  gap: 10px;
-  will-change: transform;
+  align-items: flex-start;
+  gap: 12px;
+  width: max-content;
+  padding: 4px 2px 6px 2px;
 }
 
 /* Each bubble */
@@ -10553,15 +10563,19 @@ pre.code-block code {
   gap: 5px;
   text-decoration: none;
   flex-shrink: 0;
-  width: 56px;
+  width: 58px;
   cursor: pointer;
-  /* hover handled separately so carousel transform doesn't conflict */
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.source-bubble:hover {
+  transform: translateY(-3px);
 }
 
 .source-bubble:hover .source-bubble-favicon {
-  border-color: rgba(99, 102, 241, 0.45);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.22), 0 2px 6px rgba(0,0,0,0.08);
-  transform: translateY(-4px) scale(1.1);
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25), 0 2px 6px rgba(0,0,0,0.08);
+  transform: scale(1.08);
 }
 
 /* Circle favicon */

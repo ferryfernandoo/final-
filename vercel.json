@@ -47,6 +47,15 @@
       ]
     },
     {
+      "source": "/search/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -101,8 +110,12 @@
       "destination": "/search/index.html"
     },
     {
-      "source": "/search/:path*",
-      "destination": "/search/:path*"
+      "source": "/search/",
+      "destination": "/search/index.html"
+    },
+    {
+      "source": "/search/((?!assets/|app\\.js|style\\.css).*)",
+      "destination": "/search/index.html"
     },
     {
       "source": "/api/search",

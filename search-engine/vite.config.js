@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
+  base: '/search/',
   plugins: [react()],
   root: path.resolve('src/client'),
   build: {
