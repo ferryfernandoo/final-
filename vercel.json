@@ -97,6 +97,30 @@
   ],
   "rewrites": [
     {
+      "source": "/search",
+      "destination": "/search/index.html"
+    },
+    {
+      "source": "/search/:path*",
+      "destination": "/search/:path*"
+    },
+    {
+      "source": "/api/search",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/search"
+    },
+    {
+      "source": "/api/suggestions/:path*",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/suggestions/:path*"
+    },
+    {
+      "source": "/api/proxy-image",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/proxy-image"
+    },
+    {
+      "source": "/api/telemetry/:path*",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/telemetry/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://extensions-cingular-problems-gym.trycloudflare.com/api/:path*"
     },
@@ -117,7 +141,7 @@
       "destination": "https://extensions-cingular-problems-gym.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/((?!assets/|search/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]

@@ -516,7 +516,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     const skill = await AgentService.readFile(sessionId, 'SKILL.md');
     if (skill) setSkillContent(skill);
 
-    setTimeout(() => scrollToBottom(false), 80);
+    if (msgs.length > 0) {
+      setTimeout(() => scrollToBottom(false), 80);
+    } else if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = 0;
+    }
   };
 
   // 3. Start a new agent session
@@ -534,7 +538,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       setPreviewUrl(null);
       const skill = await AgentService.readFile(newSession.id, 'SKILL.md');
       if (skill) setSkillContent(skill);
-      setTimeout(() => scrollToBottom(false), 50);
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = 0;
+      }
     }
   };
 
@@ -1458,87 +1464,74 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         >
           {messages.length === 0 && activeChainOfWork.length === 0 && (
             <div className="agent-welcome-hero">
-              <div className="agent-welcome-avatar-wrap">
-                <div className="agent-welcome-avatar">
-                  <img src="/logo.png" alt="Deepernova AI" />
-                </div>
-                <div className="agent-welcome-pulse-ring" />
+              <div className="agent-welcome-avatar">
+                <img src="/logo.png" alt="Deepernova AI" />
               </div>
-              <h2 className="agent-welcome-title">Deepernova AI Agent</h2>
+              <h2 className="agent-welcome-title">Ada yang bisa saya bantu hari ini?</h2>
               <p className="agent-welcome-subtitle">
-                Asisten otonom & rekan berpikir cerdas. Siap diajak <strong>ngobrol santai</strong> bertukar ide, 
-                maupun mengeksekusi <strong>tugas koding, dokumen Word, presentasi PPTX, & audit sistem</strong> di sandbox.
+                Rekan berpikir dan asisten otonom untuk koding, analisis data, dokumen, dan riset.
               </p>
 
-              {/* Status Pills */}
-              <div className="agent-welcome-status-row">
-                <span className="agent-welcome-pill">
-                  <span className="agent-status-dot is-online" /> Sandbox Aktif
-                </span>
-                <span className="agent-welcome-pill">
-                  <i className="fa-solid fa-globe" /> Internet Terkoneksi
-                </span>
-                <span className="agent-welcome-pill">
-                  <i className="fa-solid fa-clock-rotate-left" /> Auto-Checkpoint & Diff
-                </span>
-              </div>
-
-              {/* Bento Quick Starter Cards */}
-              <div className="agent-bento-grid">
+              {/* Minimal Clean Starter Cards */}
+              <div className="agent-starter-grid">
                 <button
                   type="button"
-                  className="agent-bento-card is-chat"
-                  onClick={() => handleSendMessage("Halo! Bisa bantu saya brainstorming ide dan berdiskusi santai tentang tren teknologi terkini?")}
-                >
-                  <div className="agent-bento-icon-wrap" style={{ background: '#fef3c7', color: '#d97706' }}>
-                    <i className="fa-solid fa-mug-hot" />
-                  </div>
-                  <div className="agent-bento-body">
-                    <span className="agent-bento-title">Ngobrol Santai & Ide</span>
-                    <span className="agent-bento-desc">Brainstorming, konsultasi konsep, atau tanya jawab hangat tanpa beban.</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className="agent-bento-card is-doc"
+                  className="agent-starter-card"
                   onClick={() => handleSendMessage("Buatkan dokumen proposal bisnis eksekutif profesional berformat .docx lengkap dengan tabel metrik KPI dan callout box.")}
                 >
-                  <div className="agent-bento-icon-wrap" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                  <div className="agent-starter-icon">
                     <i className="fa-solid fa-file-word" />
                   </div>
-                  <div className="agent-bento-body">
-                    <span className="agent-bento-title">Dokumen Word (.docx)</span>
-                    <span className="agent-bento-desc">Hasilkan berkas Word .docx eksekutif berstandar McKinsey siap unduh.</span>
+                  <div className="agent-starter-body">
+                    <span className="agent-starter-title">Dokumen Bisnis (.docx)</span>
+                    <span className="agent-starter-desc">Proposal eksekutif & laporan formal</span>
                   </div>
+                  <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
                 </button>
 
                 <button
                   type="button"
-                  className="agent-bento-card is-ppt"
+                  className="agent-starter-card"
                   onClick={() => handleSendMessage("Buatkan presentasi PowerPoint .pptx modern 16:9 bertema emerald dengan bento box cards dan visual KPI.")}
                 >
-                  <div className="agent-bento-icon-wrap" style={{ background: '#ffedd5', color: '#ea580c' }}>
+                  <div className="agent-starter-icon">
                     <i className="fa-solid fa-file-powerpoint" />
                   </div>
-                  <div className="agent-bento-body">
-                    <span className="agent-bento-title">Presentasi Slide (.pptx)</span>
-                    <span className="agent-bento-desc">Rancang slide deck 16:9 modern dengan tipografi berkelas & kartu bento.</span>
+                  <div className="agent-starter-body">
+                    <span className="agent-starter-title">Presentasi Slide (.pptx)</span>
+                    <span className="agent-starter-desc">Rancang deck 16:9 modern & visual KPI</span>
                   </div>
+                  <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
                 </button>
 
                 <button
                   type="button"
-                  className="agent-bento-card is-code"
+                  className="agent-starter-card"
                   onClick={() => handleSendMessage("Buatkan aplikasi web dashboard analitik interaktif modern lengkap dengan index.html, CSS, dan JS interaktif di sandbox.")}
                 >
-                  <div className="agent-bento-icon-wrap" style={{ background: '#ede9fe', color: '#8b5cf6' }}>
+                  <div className="agent-starter-icon">
                     <i className="fa-solid fa-laptop-code" />
                   </div>
-                  <div className="agent-bento-body">
-                    <span className="agent-bento-title">Aplikasi Web & Koding</span>
-                    <span className="agent-bento-desc">Bangun web HTML/CSS/JS lengkap dengan live preview & screenshot browser.</span>
+                  <div className="agent-starter-body">
+                    <span className="agent-starter-title">Aplikasi Web Interaktif</span>
+                    <span className="agent-starter-desc">Bangun web HTML/CSS/JS di sandbox</span>
                   </div>
+                  <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
+                </button>
+
+                <button
+                  type="button"
+                  className="agent-starter-card"
+                  onClick={() => handleSendMessage("Halo! Bisa bantu saya brainstorming ide dan berdiskusi santai tentang tren teknologi terkini?")}
+                >
+                  <div className="agent-starter-icon">
+                    <i className="fa-solid fa-comments" />
+                  </div>
+                  <div className="agent-starter-body">
+                    <span className="agent-starter-title">Diskusi & Brainstorming</span>
+                    <span className="agent-starter-desc">Tukar ide, strategi, atau tanya santai</span>
+                  </div>
+                  <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
                 </button>
               </div>
             </div>
@@ -1950,46 +1943,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               </div>
             )}
 
-            {/* Quick Floating Suggestion Chips */}
-            {!isExecuting && !inputValue.trim() && (
-              <div className="agent-quick-prompt-chips">
-                <button
-                  type="button"
-                  className="agent-prompt-chip"
-                  onClick={() => setInputValue("Tolong buatkan slide presentasi .pptx 16:9 modern tentang ")}
-                >
-                  <i className="fa-solid fa-file-powerpoint" style={{ color: '#ea580c' }} /> Slide PPTX
-                </button>
-                <button
-                  type="button"
-                  className="agent-prompt-chip"
-                  onClick={() => setInputValue("Buatkan dokumen laporan resmi .docx lengkap tentang ")}
-                >
-                  <i className="fa-solid fa-file-word" style={{ color: '#0284c7' }} /> Laporan Word
-                </button>
-                <button
-                  type="button"
-                  className="agent-prompt-chip"
-                  onClick={() => setInputValue("Buatkan aplikasi web interaktif (HTML/CSS/JS) dengan tema ")}
-                >
-                  <i className="fa-solid fa-laptop-code" style={{ color: '#8b5cf6' }} /> Web App
-                </button>
-                <button
-                  type="button"
-                  className="agent-prompt-chip"
-                  onClick={() => setInputValue("Lakukan audit keamanan & pemindaian vulnerability pada website: ")}
-                >
-                  <i className="fa-solid fa-shield-halved" style={{ color: '#dc2626' }} /> Audit Web
-                </button>
-                <button
-                  type="button"
-                  className="agent-prompt-chip"
-                  onClick={() => setInputValue("Mari berdiskusi santai dan bertukar ide tentang ")}
-                >
-                  <i className="fa-solid fa-mug-hot" style={{ color: '#d97706' }} /> Ngobrol Santai
-                </button>
-              </div>
-            )}
+            {/* Composer Box */}
 
             <div className={`agent-composer-box ${isExecuting ? 'generating' : ''}`}>
               <input
@@ -2003,7 +1957,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <div className="agent-composer-textarea-wrapper">
                 <textarea
                   className="agent-composer-input"
-                  placeholder="Tanya santai atau delegasikan tugas koding, dokumen, web, riset..."
+                  placeholder="Tanya apa saja atau delegasikan tugas..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {

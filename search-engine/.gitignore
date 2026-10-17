@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Database and CRAWL Data (DO NOT COMMIT 98GB DATA)
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Binaries
+bin/
+cloudflared.exe
+
+# Logs & Temp
+logs/
+*.log
+scratch/
+tmp_*.json
+search_*.json
+
+# Env
+.env.local
+.env.*.local

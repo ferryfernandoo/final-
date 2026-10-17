@@ -1,0 +1,2395 @@
+/**
+ * Format timestamp to human-readable date / relative recency string (Indonesian)
+ */
+function formatSearchDate(timestampMs) {
+  if (!timestampMs || isNaN(timestampMs)) return null;
+  const time = Number(timestampMs);
+  if (time < 946684800000) return null;
+
+  const now = Date.now();
+  const diffMs = now - time;
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMinutes < 1) return 'Baru saja';
+  if (diffMinutes < 60) return diffMinutes + ' mnt lalu';
+  if (diffHours < 24) return diffHours + ' jam lalu';
+  if (diffDays === 1) return 'Kemarin';
+  if (diffDays < 7) return diffDays + ' hr lalu';
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return weeks + ' mgg lalu';
+  }
+
+  const dateObj = new Date(time);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return dateObj.getDate() + ' ' + months[dateObj.getMonth()] + ' ' + dateObj.getFullYear();
+}
+
+import { ALL_NEWS_DOMAINS } from '../crawler/newsCrawler.js';
+import { InstantAnswersEngine } from './instantAnswers.js';
+import { TrustGatekeeper } from '../crawler/trustGatekeeper.js';
+import { AntiTypoEngine } from './antiTypoEngine.js';
+
+// Common Indonesian and English question particles and conversational stopwords
+const CONVERSATIONAL_QUESTION_WORDS = new Set([
+  'apa', 'itu', 'ini', 'siapa', 'bagaimana', 'mengapa', 'kenapa', 'kapan', 'dimana', 'kemana', 'darimana',
+  'berapa', 'adalah', 'merupakan', 'artinya', 'maksud', 'arti', 'pengertian', 'definisi', 'maksudnya',
+  'tentang', 'mengenai', 'cara', 'tutorial', 'contoh', 'sejarah', 'dan', 'atau', 'yang', 'di', 'ke',
+  'dari', 'pada', 'untuk', 'oleh', 'dengan', 'sebagai', 'karena', 'sehingga', 'juga', 'hanya', 'saja',
+  'bisa', 'dapat', 'akan', 'sudah', 'telah', 'sedang', 'belum', 'tidak', 'bukan', 'ada', 'hari', 'kemarin', 'besok', 'saat',
+  'what', 'is', 'who', 'how', 'why', 'when', 'where', 'which', 'the', 'a', 'an', 'of', 'to', 'in', 'for', 'on'
+]);
+
+// Generic category and topic terms that should NOT trigger brand/domain-match boosts
+export const GENERIC_CATEGORY_WORDS = new Set([
+  'berita', 'news', 'ekonomi', 'bisnis', 'tekno', 'teknologi', 'keuangan', 'finance',
+  'politik', 'nasional', 'internasional', 'daerah', 'regional', 'metro', 'olahraga',
+  'sport', 'lifestyle', 'hiburan', 'seleb', 'kuliner', 'otomotif', 'properti', 'edukasi',
+  'gempa', 'cuaca', 'kabar', 'info', 'peristiwa', 'hukum', 'kriminal', 'terkini'
+]);
+
+// Common generic geographic, governmental, or general entity words that must never trigger domain-intent probes
+export const COMMON_NON_BRAND_WORDS = new Set([
+  'indonesia', 'jakarta', 'jawa', 'bali', 'surabaya', 'bandung', 'medan', 'semarang', 'makassar',
+  'negara', 'presiden', 'menteri', 'gubernur', 'bupati', 'walikota', 'pemerintah', 'dpr', 'kpu',
+  'cuaca', 'gempa', 'berita', 'kabar', 'info', 'resep', 'cara', 'daftar', 'harga', 'jadwal',
+  'sejarah', 'wisata', 'kuliner', 'film', 'lagu', 'chord', 'lirik', 'arti', 'makna', 'definisi'
+]);
+
+export const CHANNEL_SUBDOMAINS = new Set([
+  'news', 'berita', 'regional', 'nasional', 'internasional', 'ekonomi', 'bisnis', 'finance',
+  'tekno', 'teknologi', 'lifestyle', 'sport', 'sports', 'bola', 'sepakbola', 'otomotif',
+  'properti', 'edukasi', 'health', 'sehat', 'food', 'kuliner', 'travel', 'wisata', 'hiburan',
+  'seleb', 'selebriti', 'hype', 'fokus', 'kolom', 'opini', 'foto', 'video', 'tv'
+]);
+
+export const GENERIC_CHANNEL_PATHS = new Set([
+  'berita', 'news', 'nasional', 'internasional', 'ekonomi', 'bisnis', 'finance',
+  'tekno', 'teknologi', 'lifestyle', 'sport', 'sports', 'bola', 'sepakbola', 'otomotif',
+  'properti', 'edukasi', 'health', 'sehat', 'food', 'kuliner', 'travel', 'wisata',
+  'hiburan', 'seleb', 'selebriti', 'hype', 'fokus', 'kolom', 'opini', 'feed', 'rss',
+  'indeks', 'index', 'warta-terkini', 'terkini', 'terpopuler', 'headline', 'topik', 'topics',
+  'tag', 'tags', 'kategori', 'category', 'kanal', 'rubrik', 'more'
+]);
+
+/**
+ * Detects whether a URL is a generic channel homepage, portal landing page, category index, or tag hub
+ */
+export function isChannelOrHubPage(url, title = '') {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    const domain = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.replace(/\/+$/, '');
+    const lowerTitle = (title || '').toLowerCase().trim();
+
+    if (pathname === '' || pathname === '/') return true;
+
+    const domainParts = domain.split('.');
+    if (domainParts.length >= 3) {
+      const sub = domainParts[0];
+      if (CHANNEL_SUBDOMAINS.has(sub) && (pathname === '' || pathname === '/' || pathname === '/index.html' || pathname === '/index.php')) {
+        return true;
+      }
+    }
+
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length <= 1) {
+      const seg0 = segments.length === 1 ? segments[0].toLowerCase() : '';
+      if (!seg0 || GENERIC_CHANNEL_PATHS.has(seg0) || (!/\d/.test(seg0) && seg0.length < 30)) {
+        return true;
+      }
+    }
+
+    if (segments.length >= 2) {
+      const seg0 = segments[0].toLowerCase();
+      const seg1 = segments[1].toLowerCase();
+      if (['tag', 'tags', 'kategori', 'category', 'topic', 'topics', 'kanal', 'rubrik', 'indeks', 'index', 'more', 'network', 'arsitektur', 'tujuan', 'home', 'latest', 'trending', 'berita', 'news', 'search', 'archive', 'videos', 'video', 'photo', 'photos', 'live'].includes(seg0)) {
+        return true;
+      }
+      if (!/\d/.test(pathname) && (!seg1.includes('-') || seg1.length < 18)) {
+        return true;
+      }
+    }
+
+    if (
+      lowerTitle.startsWith('berita terkini') ||
+      lowerTitle.startsWith('berita regional') ||
+      lowerTitle.startsWith('berita nasional') ||
+      lowerTitle.startsWith('berita peristiwa') ||
+      lowerTitle.startsWith('berita daerah terkini') ||
+      lowerTitle.startsWith('indeks berita') ||
+      lowerTitle.startsWith('kabar harian') ||
+      lowerTitle.startsWith('kumpulan berita') ||
+      lowerTitle.startsWith('kategori:') ||
+      lowerTitle.startsWith('category:') ||
+      lowerTitle.startsWith('topik:') ||
+      lowerTitle.startsWith('penyedia foto jurnalistik') ||
+      lowerTitle.includes('kumpulan berita') ||
+      lowerTitle.includes('indeks topik') ||
+      lowerTitle.includes('berita terkini') ||
+      lowerTitle.includes('berita terbaru hari ini') ||
+      lowerTitle.includes('berita populer') ||
+      /^(berita|kabar|info|seputar)\s*-\s*[a-z0-9]/i.test(lowerTitle) ||
+      /\b(latest|trending|popular|top stories|headlines|newsroom|archive)\b/i.test(lowerTitle)
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detects whether a URL is a genuine deep news article with narrative body content
+ */
+export function isRealArticlePage(url, title = '') {
+  if (!url) return false;
+  if (isChannelOrHubPage(url, title)) return false;
+  try {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname;
+    const lowerTitle = (title || '').trim();
+    const segments = pathname.split('/').filter(Boolean);
+
+    const hasArticlePattern = (
+      pathname.includes('/read/') ||
+      pathname.includes('/artikel/') ||
+      pathname.includes('/story/') ||
+      pathname.includes('/news/') ||
+      pathname.includes('/article/') ||
+      pathname.includes('/video/') ||
+      /\/(202[4-9]|203[0-9])[\d\-_\/]/i.test(pathname) ||
+      /-\d{5,}(\.html)?$/i.test(pathname) ||
+      /\/\d{5,}(\/|$)/.test(pathname) ||
+      /d-\d{5,}/.test(pathname) ||
+      /tkw[a-z0-9]+/i.test(pathname) ||
+      /\.html?$/i.test(pathname)
+    );
+
+    const hasDeepContentSignal = segments.length >= 2 && lowerTitle.length >= 28 && !/^(home|latest|news|berita|kabar|top stories|live)$/i.test(lowerTitle);
+    return hasArticlePattern || hasDeepContentSignal;
+  } catch {
+    return false;
+  }
+}
+
+class SearchCache {
+  constructor(maxSize = 800, ttlMs = 60000) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+    this.ttlMs = ttlMs;
+  }
+  get(key) {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    if (Date.now() - item.time > this.ttlMs) {
+      this.cache.delete(key);
+      return null;
+    }
+    return item.data;
+  }
+  set(key, data) {
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, { data, time: Date.now() });
+  }
+  clear() {
+    this.cache.clear();
+  }
+}
+
+/**
+ * Search Query Engine combining BM25 relevance and PageRank authority
+ */
+export class SearchEngine {
+  constructor(dbInstance) {
+    this.db = dbInstance.db;
+    this.dbInstance = dbInstance;
+    this.antiTypo = new AntiTypoEngine(dbInstance);
+    this._newsDomainPattern = [...ALL_NEWS_DOMAINS].map(d => `'%${d}%'`).join(',');
+    this.searchCache = new SearchCache(3000, 300000); // 3000 queries, 5 min TTL
+    this.newsCache = new SearchCache(400, 45000);
+    this.imageCache = new SearchCache(400, 60000);
+
+    // Pre-compiled prepared statements for ultra-fast zero-overhead execution
+    try {
+      this.stmtBaseAnd = this.db.prepare(`
+        SELECT
+          p.id, p.url, p.domain, p.title, p.description, p.headings,
+          SUBSTR(p.content, 1, 600) as content,
+          p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
+          p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
+          p.in_links_count, p.published_at, p.crawled_at,
+          f.bm25_score
+        FROM (
+          SELECT rowid, bm25(fts_pages, 8.0, 4.0, 3.0, 1.5) as bm25_score
+          FROM fts_pages
+          WHERE fts_pages MATCH ?
+          ORDER BY bm25_score ASC
+          LIMIT ?
+        ) f
+        JOIN pages p ON f.rowid = p.id
+      `);
+
+      this.stmtBaseOr = this.db.prepare(`
+        SELECT
+          p.id, p.url, p.domain, p.title, p.description, p.headings,
+          SUBSTR(p.content, 1, 600) as content,
+          p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
+          p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
+          p.in_links_count, p.published_at, p.crawled_at,
+          f.bm25_score
+        FROM (
+          SELECT rowid, bm25(fts_pages, 8.0, 4.0, 3.0, 1.5) as bm25_score
+          FROM fts_pages
+          WHERE fts_pages MATCH ?
+          ORDER BY bm25_score ASC
+          LIMIT ?
+        ) f
+        JOIN pages p ON f.rowid = p.id
+      `);
+
+      this.stmtBaseDomain = this.db.prepare(`
+        SELECT
+          p.id, p.url, p.domain, p.title, p.description, p.headings,
+          SUBSTR(p.content, 1, 600) as content,
+          p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
+          p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
+          p.in_links_count, p.published_at, p.crawled_at,
+          1.0 as bm25_score
+        FROM pages p
+        WHERE p.domain IN (?, ?, ?, ?, ?, ?, ?)
+        LIMIT 10
+      `);
+
+      this.stmtSitelinks = this.db.prepare(`
+        SELECT title, url, description
+        FROM pages
+        WHERE domain = ? AND url != ?
+        LIMIT 4
+      `);
+    } catch {}
+
+    this._domainProbeStmtCache = new Map();
+  }
+
+  /**
+   * Retrieves or compiles a cached prepared statement for domain candidate probing
+   */
+  getDomainProbeStmt(paramCount) {
+    let stmt = this._domainProbeStmtCache.get(paramCount);
+    if (!stmt) {
+      const placeholders = new Array(paramCount).fill('?').join(',');
+      stmt = this.db.prepare(`
+        SELECT
+          p.id, p.url, p.domain, p.title, p.description, p.headings,
+          SUBSTR(p.content, 1, 600) as content,
+          p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
+          p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
+          p.in_links_count, p.published_at, p.crawled_at,
+          -1.0 as bm25_score
+        FROM pages p
+        WHERE p.domain IN (${placeholders})
+        ORDER BY p.pagerank DESC, p.trust_score DESC
+        LIMIT 20
+      `);
+      this._domainProbeStmtCache.set(paramCount, stmt);
+    }
+    return stmt;
+  }
+
+  /**
+   * Generates SQL WHERE condition for news domains (Indexed + Fast)
+   */
+  _buildNewsDomainCondition(tableAlias = 'p') {
+    const col = `${tableAlias}.domain`;
+    const exactList = [...ALL_NEWS_DOMAINS].map(d => `'${d}'`).join(',');
+    return `(${col} IN (${exactList}) OR ${tableAlias}.category = 'news')`;
+  }
+
+  /**
+   * Enforces multi-source publisher diversity (max N articles per domain in top results)
+   */
+  _applyDomainDiversity(rows = [], maxPerDomain = 2, targetLimit = 20) {
+    if (!rows || rows.length === 0) return [];
+    const domainCounts = new Map();
+    const diverse = [];
+    const overflow = [];
+
+    for (const row of rows) {
+      const d = row.domain || 'unknown';
+      const count = domainCounts.get(d) || 0;
+      if (count < maxPerDomain) {
+        domainCounts.set(d, count + 1);
+        diverse.push(row);
+      } else {
+        overflow.push(row);
+      }
+    }
+
+    if (diverse.length < targetLimit && overflow.length > 0) {
+      for (const row of overflow) {
+        if (diverse.length >= targetLimit) break;
+        diverse.push(row);
+      }
+    }
+
+    return diverse.slice(0, targetLimit);
+  }
+
+  /**
+   * Cleans search query for SQLite FTS5 syntax
+   */
+  sanitizeQuery(query) {
+    if (!query || typeof query !== 'string') return '';
+    // Strip special FTS5 operators to prevent syntax errors
+    const cleaned = query
+      .replace(/[^\p{L}\p{N}\s_]/gu, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(term => term.length > 0);
+
+    if (cleaned.length === 0) return '';
+    // Match terms with prefix matching
+    return cleaned.map(term => `"${term}"*`).join(' ');
+  }
+
+  /**
+   * Parses natural language query intent, extracting core entity subject and stripping conversational fluff
+   */
+  parseQueryIntent(rawQuery) {
+    const cleanRaw = (rawQuery || '').trim().toLowerCase();
+    const allTerms = cleanRaw
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter(t => t.length > 0);
+
+    const coreTerms = allTerms.filter(t => !CONVERSATIONAL_QUESTION_WORDS.has(t));
+    const effectiveCoreTerms = coreTerms.length > 0 ? coreTerms : allTerms;
+    const coreSubject = effectiveCoreTerms.join(' ');
+
+    const isDefinitional = (
+      cleanRaw.includes('apa itu') ||
+      cleanRaw.includes('itu apa') ||
+      cleanRaw.includes('pengertian') ||
+      cleanRaw.includes('definisi') ||
+      cleanRaw.includes('arti ') ||
+      cleanRaw.includes('artinya') ||
+      cleanRaw.includes('adalah') ||
+      cleanRaw.includes('maksud dari') ||
+      cleanRaw.startsWith('what is') ||
+      cleanRaw.endsWith('is')
+    );
+
+    const isBiographical = (
+      cleanRaw.includes('siapa ') ||
+      cleanRaw.includes('siapa itu') ||
+      cleanRaw.includes('profil ') ||
+      cleanRaw.includes('biografi') ||
+      cleanRaw.startsWith('who is')
+    );
+
+    return {
+      cleanRaw,
+      allTerms,
+      coreTerms: effectiveCoreTerms,
+      coreSubject,
+      hasStopwords: coreTerms.length < allTerms.length,
+      isDefinitional,
+      isBiographical
+    };
+  }
+
+  /**
+   * Highlights keywords in text snippet
+   */
+  createSnippet(text, terms, maxLength = 220) {
+    if (!text) return '';
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+    if (terms.length === 0) return cleanText.slice(0, maxLength) + (cleanText.length > maxLength ? '...' : '');
+
+    // Find first occurrence of any search term
+    const lowerText = cleanText.toLowerCase();
+    let bestIndex = -1;
+
+    for (const term of terms) {
+      const idx = lowerText.indexOf(term.toLowerCase());
+      if (idx !== -1 && (bestIndex === -1 || idx < bestIndex)) {
+        bestIndex = idx;
+      }
+    }
+
+    let start = 0;
+    if (bestIndex > 60) {
+      start = Math.max(0, bestIndex - 60);
+      // Align to word boundary
+      const spaceIdx = cleanText.indexOf(' ', start);
+      if (spaceIdx !== -1 && spaceIdx < bestIndex) {
+        start = spaceIdx + 1;
+      }
+    }
+
+    let snippet = cleanText.slice(start, start + maxLength);
+    if (start > 0) snippet = '...' + snippet;
+    if (start + maxLength < cleanText.length) snippet += '...';
+
+    // Highlight terms
+    for (const term of terms) {
+      if (!term || term.length < 2) continue;
+      const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      snippet = snippet.replace(regex, '<mark class="hl">$1</mark>');
+    }
+
+    return snippet;
+  }
+
+  /**
+   * Calculates high-accuracy relevance score based on:
+   * 1. Core Subject Mandatory Guard (No false ranking of stopwords like 'itu', 'apa')
+   * 2. Exact domain & entity matches (e.g. 'claude' -> 'claude.ai', 'claude.com' gets #1 rank)
+   * 3. Definitional QA Relevancy (Wikipedia, official docs, exact definitions)
+   * 4. Full query term coverage across core subjects
+   * 5. Weighted term density in title, headings, description, and content
+   * 6. PageRank & E-E-A-T Domain Trust Score
+   * 7. Anti-Generic Channel Demotion (Eliminates portal noise)
+   */
+  calculateQueryAccuracyScore(row, rawQuery, terms, termRegexes = null, intentInfo = null) {
+    if (!row || !terms || terms.length === 0) return 1.0;
+
+    const lowerQuery = rawQuery.trim().toLowerCase();
+    const url = (row.url || '').toLowerCase();
+    const domain = (row.domain || '').toLowerCase();
+    const title = (row.title || '').toLowerCase();
+    const headings = (row.headings || '').toLowerCase();
+    const description = (row.description || '').toLowerCase();
+    const content = (row.content || '').toLowerCase();
+
+    const coreTerms = intentInfo?.coreTerms || terms.filter(t => !CONVERSATIONAL_QUESTION_WORDS.has(t));
+    const effectiveCoreTerms = coreTerms.length > 0 ? coreTerms : terms;
+    const coreSubject = intentInfo?.coreSubject || effectiveCoreTerms.join(' ');
+
+    // 🛑 ZERO-TOLERANCE ANTI-JUDOL & ANTI-SPAM GUARD:
+    // Completely drop any compromised government/edu page, promotional slot/togel page, or adult site
+    if (
+      TrustGatekeeper.isSpamUrl(row.url) ||
+      TrustGatekeeper.isCompromisedGovEduSpam(row.url, row.title, row.content) ||
+      TrustGatekeeper.isSpamTitleOrContent(row.title, row.content, row.url)
+    ) {
+      return 0; // Filtered out completely! Never rank or display!
+    }
+
+    // 🛑 CORE SUBJECT MANDATORY GUARD:
+    // If user searched for a specific subject ("claude", "jokowi", "bbca") alongside conversational words ("itu apa"),
+    // this page MUST match at least one core term! A page matching only stop words receives score 0.
+    if (effectiveCoreTerms.length > 0) {
+      let matchedCoreCount = 0;
+      for (const ct of effectiveCoreTerms) {
+        if (title.includes(ct) || domain.includes(ct) || headings.includes(ct) || description.includes(ct) || content.includes(ct)) {
+          matchedCoreCount++;
+        }
+      }
+      if (matchedCoreCount === 0) {
+        return 0; // Pure noise page that only matched stopwords
+      }
+    }
+
+    let score = 0;
+
+    // 0. DEEPERNOVA.COM Ecosystem Priority Match
+    const isDeeperNovaDomain = domain === 'deepernova.com' || domain.endsWith('.deepernova.com');
+    const isDeeperNovaQuery = lowerQuery.includes('deepernova') || lowerQuery.includes('deeper nova');
+    if (isDeeperNovaDomain) {
+      score += 200;
+      if (isDeeperNovaQuery) {
+        score += 15000; // Unmatched #1 Rank Guarantee
+      }
+    }
+
+    // 1. DOMAIN-FIRST SUPREME WEIGHTING (Google-grade Brand & Official Domain Authority)
+    // Rule: When user searches for a domain or brand (e.g. 'youtube', 'youtube indonesia', 'detik', 'kompas', 'deepseek'),
+    // the official domain MUST have the absolute heaviest weight over any third-party page that merely mentions it!
+    const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/^(m\.)?/, '').toLowerCase();
+    const domainParts = cleanDomain.split('.');
+    // Extract the primary brand label, safely skipping ccTLDs and subdomains
+    // e.g. "id.wikipedia.org" -> "wikipedia", "hot.detik.com" -> "detik", "youtube.com" -> "youtube"
+    const brandCandidates = domainParts.filter(l => !['co', 'com', 'org', 'id', 'net', 'edu', 'gov', 'go', 'ac', 'tv', 'ai', 'io', 'info'].includes(l));
+    const mainBrand = brandCandidates.length > 0 ? brandCandidates[brandCandidates.length - 1] : domainParts[0];
+    
+    // Check if the URL is the root homepage of this domain
+    const isRootUrl = (
+      url === `https://${domain}/` ||
+      url === `http://${domain}/` ||
+      url === `https://${domain}` ||
+      url === `http://${domain}` ||
+      url === `https://www.${cleanDomain}/` ||
+      url === `http://www.${cleanDomain}/` ||
+      url === `https://www.${cleanDomain}` ||
+      url === `http://www.${cleanDomain}` ||
+      url === `https://${cleanDomain}/` ||
+      url === `http://${cleanDomain}/` ||
+      url === `https://${cleanDomain}` ||
+      url === `http://${cleanDomain}`
+    );
+
+    // Primary apex portal domain vs niche subdomains (e.g. detik.com vs hot.detik.com)
+    const isApexDomain = (
+      domain === `${mainBrand}.com` ||
+      domain === `www.${mainBrand}.com` ||
+      domain === `${mainBrand}.id` ||
+      domain === `www.${mainBrand}.id` ||
+      domain === `${mainBrand}.co.id` ||
+      domain === `www.${mainBrand}.co.id` ||
+      domain === `${mainBrand}.org` ||
+      domain === `www.${mainBrand}.org` ||
+      domain === `${mainBrand}.tv` ||
+      domain === `www.${mainBrand}.tv` ||
+      domain === `${mainBrand}.ai` ||
+      domain === `www.${mainBrand}.ai` ||
+      cleanDomain === `${mainBrand}.com` ||
+      cleanDomain === `${mainBrand}.id` ||
+      cleanDomain === `${mainBrand}.co.id` ||
+      cleanDomain === `${mainBrand}.org`
+    );
+
+    const isChannel = isChannelOrHubPage(row.url, row.title);
+    const isArticle = isRealArticlePage(row.url, row.title);
+    const isNonBrandWord = (
+      GENERIC_CATEGORY_WORDS.has(lowerQuery) ||
+      GENERIC_CATEGORY_WORDS.has(coreSubject) ||
+      COMMON_NON_BRAND_WORDS.has(coreSubject) ||
+      COMMON_NON_BRAND_WORDS.has(lowerQuery)
+    );
+    const isExactBrandQuery = (cleanDomain === lowerQuery || cleanDomain === coreSubject || mainBrand === lowerQuery || mainBrand === coreSubject) && !isNonBrandWord;
+
+    let isDomainIntent = false;
+
+    // 1. Exact Brand / Domain Intent Match
+    if (isExactBrandQuery) {
+      isDomainIntent = true;
+      score += 120000; // Unmatched supreme priority for official brand domain
+      if (isApexDomain) score += 40000; // Apex domain preferred over subdomains
+      if (isRootUrl) score += 60000; // Official homepage guaranteed #1 spot
+    } else if (!isNonBrandWord && !isChannel && effectiveCoreTerms.length === 1) {
+      // For single-word brand queries (e.g. 'youtube', 'kompas', 'detik')
+      const singleTerm = effectiveCoreTerms[0];
+      if (singleTerm.length >= 3 && mainBrand === singleTerm && !GENERIC_CATEGORY_WORDS.has(singleTerm) && !COMMON_NON_BRAND_WORDS.has(singleTerm)) {
+        isDomainIntent = true;
+        score += 100000;
+        if (isApexDomain) score += 30000;
+        if (isRootUrl) score += 50000;
+      }
+    }
+
+    // Baseline FTS BM25 relevance (FTS5 returns negative bm25 score; lower/more negative is better)
+    if (row.bm25_score != null) {
+      const absBm25 = Math.abs(row.bm25_score);
+      score += Math.max(0, (25 - absBm25)) * 100;
+    }
+
+    // 2. EXACT TITLE / DEFINITIVE ENTITY MATCH (Google-grade precision)
+    const isExactTitle = title === lowerQuery || title === coreSubject;
+    const isTitlePrefix = title.startsWith(lowerQuery) || title.startsWith(coreSubject);
+    const isTitleContains = title.includes(lowerQuery) || title.includes(coreSubject);
+
+    if (isExactTitle) {
+      score += 30000;
+    } else if (isTitlePrefix) {
+      score += 18000;
+    } else if (isTitleContains) {
+      score += 12000;
+    } else if (headings.includes(coreSubject)) {
+      score += 2500;
+    } else if (description.includes(coreSubject)) {
+      score += 1000;
+    }
+
+    // 2b. High Authority Knowledge & Official Repositories (Wikipedia ID, Setneg, Kemdikbud, Britannica)
+    const isKnowledgeAuthority = (
+      domain.includes('id.wikipedia.org') ||
+      domain.includes('britannica.com') ||
+      domain.includes('setneg.go.id') ||
+      domain.includes('kemdikbud.go.id') ||
+      domain.includes('plato.stanford.edu') ||
+      domain.includes('historia.id') ||
+      domain.includes('anri.go.id')
+    );
+    if (isKnowledgeAuthority && (isTitlePrefix || isTitleContains)) {
+      score += 8000;
+    }
+
+    // 2b-2. Web Pemerintah (.go.id) & BMKG Razor-Sharp Official Authority Boost
+    const isGovIntentQuery = (
+      lowerQuery.includes('bmkg') || lowerQuery.includes('cuaca') ||
+      lowerQuery.includes('gempa') || lowerQuery.includes('pemerintah') ||
+      lowerQuery.includes('kemenkeu') || lowerQuery.includes('kementerian') ||
+      lowerQuery.includes('presiden') || lowerQuery.includes('kemkes') ||
+      lowerQuery.includes('kominfo') || lowerQuery.includes('bps') ||
+      lowerQuery.includes('ojk') || lowerQuery.includes('pajak') ||
+      lowerQuery.includes('paspor') || lowerQuery.includes('pemprov') ||
+      lowerQuery.includes('dprd') || lowerQuery.includes('polri') ||
+      lowerQuery.includes('mahkamah agung')
+    );
+    if (isGovIntentQuery && (domain.endsWith('.go.id') || domain.endsWith('.mil') || row.category === 'gov_edu')) {
+      score += 45000;
+    }
+
+    // 2b-3. Sports (Liga 1, Timnas Indonesia, PSSI, Bulu Tangkis, MotoGP, F1) Boost
+    const isSportIntentQuery = (
+      lowerQuery.includes('timnas') || lowerQuery.includes('pssi') ||
+      lowerQuery.includes('liga 1') || lowerQuery.includes('bola') ||
+      lowerQuery.includes('sepakbola') || lowerQuery.includes('sepak bola') ||
+      lowerQuery.includes('motogp') || lowerQuery.includes('formula 1') ||
+      lowerQuery.includes('f1') || lowerQuery.includes('bulutangkis') ||
+      lowerQuery.includes('bulu tangkis') || lowerQuery.includes('badminton') ||
+      lowerQuery.includes('all england') || lowerQuery.includes('skor') ||
+      lowerQuery.includes('klasemen') || lowerQuery.includes('jadwal bola')
+    );
+    if (isSportIntentQuery && (
+      row.category === 'sport' ||
+      domain.includes('sport.detik.com') ||
+      domain.includes('bola.kompas.com') ||
+      domain.includes('bola.net') ||
+      domain.includes('bola.com') ||
+      domain.includes('pssi.org') ||
+      domain.includes('ligaindonesiabaru.com') ||
+      domain.includes('pbsi.id')
+    )) {
+      score += 35000;
+    }
+
+    // Indonesian domain / language prioritization
+    const isIndonesianSource = (
+      domain.endsWith('.id') ||
+      domain.endsWith('.co.id') ||
+      domain.endsWith('.go.id') ||
+      domain.endsWith('.ac.id') ||
+      domain.includes('id.wikipedia.org') ||
+      domain.includes('kompas.com') ||
+      domain.includes('detik.com') ||
+      domain.includes('kontan.co.id') ||
+      domain.includes('tribunnews.com') ||
+      domain.includes('antaranews.com')
+    );
+    if (isIndonesianSource) {
+      score += 4000;
+    }
+
+    // 2c. Definitional Q&A Boost (e.g. "X itu apa", "apa itu X")
+    if (intentInfo?.isDefinitional && (isTitlePrefix || isTitleContains)) {
+      if (content.includes('adalah') || content.includes('merupakan') || content.includes('is an') || content.includes('is a') || isKnowledgeAuthority || isExactBrandQuery) {
+        score += 4000;
+      }
+    }
+
+    // 3. Query Term Coverage (Weighted heavily on coreTerms in Title vs Body)
+    let matchedCoreTermsCount = 0;
+    let titleCoreTermsMatchedCount = 0;
+    let totalOccurrencesWeighted = 0;
+
+    for (let i = 0; i < effectiveCoreTerms.length; i++) {
+      const term = effectiveCoreTerms[i];
+      if (!term || term.length < 2) continue;
+
+      let termFound = false;
+      const regex = (termRegexes && termRegexes[i]) || new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+
+      // Count occurrences in title (weighted x50)
+      const titleMatches = (title.match(regex) || []).length;
+      if (titleMatches > 0) {
+        termFound = true;
+        titleCoreTermsMatchedCount++;
+        totalOccurrencesWeighted += titleMatches * 50;
+      }
+
+      // Count occurrences in headings (weighted x20)
+      const headingMatches = (headings.match(regex) || []).length;
+      if (headingMatches > 0) {
+        termFound = true;
+        totalOccurrencesWeighted += headingMatches * 20;
+      }
+
+      // Count occurrences in description (weighted x10)
+      const descMatches = (description.match(regex) || []).length;
+      if (descMatches > 0) {
+        termFound = true;
+        totalOccurrencesWeighted += descMatches * 10;
+      }
+
+      // Count occurrences in content (weighted x2.0)
+      const contentMatches = (content.match(regex) || []).length;
+      if (contentMatches > 0) {
+        termFound = true;
+        totalOccurrencesWeighted += Math.min(contentMatches, 40) * 2.0;
+      }
+
+      if (termFound) {
+        matchedCoreTermsCount++;
+      }
+    }
+
+    // Core terms coverage multiplier
+    const coverageRatio = effectiveCoreTerms.length > 0 ? (matchedCoreTermsCount / effectiveCoreTerms.length) : 1;
+    score += (coverageRatio * coverageRatio) * 1000;
+    score += totalOccurrencesWeighted * 3.5;
+
+    // If ALL core terms are present in the TITLE, give super relevancy bonus
+    if (effectiveCoreTerms.length > 0 && titleCoreTermsMatchedCount === effectiveCoreTerms.length) {
+      score += 8000;
+    } else if (titleCoreTermsMatchedCount > 0) {
+      score += titleCoreTermsMatchedCount * 2500;
+    }
+
+    // 2d. Specific Content / Deep Article Boost - ONLY IF RELEVANT TO QUERY!
+    if (isArticle) {
+      if (isExactTitle || isTitlePrefix || isTitleContains) {
+        score += 5500;
+      } else if (titleCoreTermsMatchedCount > 0 || headings.includes(coreSubject)) {
+        score += 3000;
+      }
+    } else {
+      const isDeepArticle = (
+        url.includes('/read/') ||
+        url.includes('/artikel/') ||
+        url.includes('/berita/20') ||
+        url.includes('/nasional/20') ||
+        url.includes('/ekonomi/20') ||
+        url.includes('/internasional/20') ||
+        url.includes('/wiki/') ||
+        url.includes('/post/') ||
+        url.includes('/entries/')
+      );
+      if (isDeepArticle && (isTitlePrefix || isTitleContains || titleCoreTermsMatchedCount > 0)) {
+        score += 2500;
+      }
+    }
+
+    // Authority boost (PageRank & in-links graph & Domain Trust Score)
+    const pr = row.pagerank || 1.0;
+    const inLinks = row.in_links_count || 0;
+    const trustScore = row.trust_score || 50.0;
+    const isVerified = row.is_verified_trust || 0;
+
+    score += (pr * 6.0) + (inLinks * 0.8) + (trustScore * 4.0);
+    if (isVerified) {
+      score += 300;
+    }
+
+    // 4. ANTI-GENERIC-CHANNEL DEMOTION (Anti-Portal Index Hijacking)
+    const isGenericChannelOrHub = (
+      url.endsWith('/berita') || url.endsWith('/berita/') ||
+      url.endsWith('/nasional') || url.endsWith('/nasional/') ||
+      url.endsWith('/ekonomi') || url.endsWith('/ekonomi/') ||
+      url.endsWith('/internasional') || url.endsWith('/internasional/') ||
+      url.endsWith('/terkini') || url.endsWith('/terkini/') ||
+      url.endsWith('/terpopuler') || url.endsWith('/terpopuler/') ||
+      url.endsWith('/news') || url.endsWith('/news/') ||
+      url.endsWith('/feed') || url.endsWith('/rss') ||
+      url.includes('/tag/') || url.includes('/kategori/') || url.includes('/kanal/') ||
+      url.includes('/rubrik/') || url.includes('/category/') ||
+      title.startsWith('berita terkini') || title.startsWith('indeks berita') ||
+      title.startsWith('kabar harian') || title.startsWith('kumpulan berita') ||
+      title.includes('kumpulan berita') || title.includes('indeks topik') ||
+      title.startsWith('kategori:') || title.startsWith('category:')
+    );
+
+    // If it is a channel, check if the channel path/domain actually matches the user's specific query topic!
+    // (e.g. query "cuaca jakarta" matching "kompas.com/cuaca" is a topic destination, NOT a random portal hub)
+    const hasHubIntent = lowerQuery.includes('kanal') || lowerQuery.includes('indeks') || lowerQuery.includes('kategori');
+    let pathname = '';
+    const slashIdx = url.indexOf('/', 8);
+    if (slashIdx !== -1) {
+      const qmIdx = url.indexOf('?', slashIdx);
+      pathname = qmIdx !== -1 ? url.slice(slashIdx, qmIdx) : url.slice(slashIdx);
+    }
+    const queryMatchesTopic = effectiveCoreTerms.some(t => t.length >= 3 && (pathname.includes(t) || domain.includes(t)));
+
+    if ((isChannel || isGenericChannelOrHub) && !hasHubIntent && !isExactBrandQuery) {
+      if (queryMatchesTopic && (isTitleContains || titleCoreTermsMatchedCount > 0)) {
+        score += 6000; // Targeted topic destination
+      } else {
+        score *= 0.05; // Demote generic portal landing pages
+      }
+    }
+
+    // Subdomain portal penalty (e.g. momsmoney.kontan.co.id for tech query)
+    if (domain.split('.').length > 3 && !domain.includes(coreSubject)) {
+      score *= 0.6;
+    }
+
+    // Demote obscure foreign language wikipedias for general Indonesian searches
+    if (domain.includes('.wikipedia.org') && !domain.startsWith('id.') && !domain.startsWith('en.')) {
+      score *= 0.02; // Slashes foreign wikis so Indonesian Wikipedia and official news always dominate
+    }
+
+    // 🛑 CRUCIAL FINAL MULTIPLIER: If query has 2+ core terms and page title has ZERO of them, severely demote
+    // (Eliminates irrelevant food/tax articles ranking for "presiden indonesia" or "cuaca jakarta")
+    if (effectiveCoreTerms.length >= 2 && titleCoreTermsMatchedCount === 0) {
+      score *= 0.15;
+    }
+
+    // 5. Intelligent Calibrated Freshness Boost & Metadata Elevation
+    // User Requirement: "ranking nya ada tiemestamp nya jadi orang tau ini tanggla berapa setiap hasil pencarian makin baru makin relevan makin diatas"
+    const now = Date.now();
+    const hasExplicitPublishedAt = Boolean(row.published_at && Number(row.published_at) > 946684800000);
+    const pubTime = Number(row.published_at || row.crawled_at || 0);
+
+    if (pubTime > 946684800000 && !isGenericChannelOrHub) {
+      const diffHours = Math.max(0, (now - pubTime) / (3600 * 1000));
+      const hasMetadata = Boolean(
+        (row.author && row.author.length > 2) ||
+        (row.schema_type && row.schema_type.includes('Article')) ||
+        (row.lead_image_url) ||
+        (row.reading_time_min && row.reading_time_min > 0)
+      );
+
+      const isBreakingNewsQuery = (
+        lowerQuery.includes('terbaru') ||
+        lowerQuery.includes('terkini') ||
+        lowerQuery.includes('hari ini') ||
+        lowerQuery.includes('update') ||
+        lowerQuery.includes('gempa') ||
+        lowerQuery.includes('berita') ||
+        lowerQuery.includes('live') ||
+        lowerQuery.includes('skor') ||
+        lowerQuery.includes('kabar') ||
+        lowerQuery.includes('peristiwa')
+      );
+
+      const isQueryRelevantToArticle = (isTitlePrefix || isTitleContains || titleCoreTermsMatchedCount > 0);
+
+      // Progressive recency boost: newer content gets significant elevation
+      if (diffHours <= 2) {
+        // Breaking content within 2 hours: supreme priority
+        const multiplier = isBreakingNewsQuery ? 4.0 : (isQueryRelevantToArticle ? 3.0 : 2.0);
+        score *= multiplier;
+        score += 45000;
+        if (hasMetadata) score += 6000;
+      } else if (diffHours <= 6) {
+        // Very fresh within 6 hours
+        const multiplier = isBreakingNewsQuery ? 3.0 : (isQueryRelevantToArticle ? 2.5 : 1.7);
+        score *= multiplier;
+        score += 32000;
+        if (hasMetadata) score += 5000;
+      } else if (diffHours <= 12) {
+        // Fresh within 12 hours
+        const multiplier = isBreakingNewsQuery ? 2.4 : (isQueryRelevantToArticle ? 2.0 : 1.5);
+        score *= multiplier;
+        score += 24000;
+        if (hasMetadata) score += 4000;
+      } else if (diffHours <= 24) {
+        // Fresh within 24 hours (today)
+        const multiplier = isBreakingNewsQuery ? 2.0 : (isQueryRelevantToArticle ? 1.6 : 1.3);
+        score *= multiplier;
+        score += 16000;
+        if (hasMetadata) score += 3000;
+      } else if (diffHours <= 72) {
+        // Fresh within 3 days
+        const multiplier = isBreakingNewsQuery ? 1.5 : (isQueryRelevantToArticle ? 1.3 : 1.15);
+        score *= multiplier;
+        score += 9000;
+        if (hasMetadata) score += 2000;
+      } else if (diffHours <= 168) {
+        // Fresh within 7 days (this week)
+        const multiplier = isBreakingNewsQuery ? 1.3 : (isQueryRelevantToArticle ? 1.15 : 1.08);
+        score *= multiplier;
+        score += 5000;
+        if (hasMetadata) score += 1000;
+      } else if (diffHours <= 720) {
+        // Fresh within 30 days
+        score += 2500;
+      } else if (diffHours > 17520) {
+        // Over 2 years old: slight decay for fast-moving content, but keep official docs intact
+        const isOfficialReference = domain.includes('.wikipedia.org') || domain.endsWith('.gov') || domain.endsWith('.go.id') || domain.endsWith('.edu') || domain.endsWith('.ac.id');
+        if (!isOfficialReference) {
+          score *= 0.88;
+        }
+      }
+
+      // Explicit structured article metadata bonus
+      if (hasMetadata && hasExplicitPublishedAt && isQueryRelevantToArticle) {
+        score += 4000;
+      }
+    }
+
+    return score;
+  }
+
+  /**
+   * Executes World-Scale High-Trust Search with Multi-Stage FTS5 + Instant Answers + Sitelinks
+   */
+  search(rawQuery, options = {}) {
+    const startTime = performance.now();
+    const limit = options.limit || 20;
+    const page = options.page || 1;
+    const offset = (page - 1) * limit;
+    const type = options.type || options.category || 'all';
+
+    const intentInfo = this.parseQueryIntent(rawQuery);
+    const cleanRaw = intentInfo.cleanRaw;
+    const coreSubject = intentInfo.coreSubject;
+    const terms = intentInfo.allTerms;
+    const coreTerms = intentInfo.coreTerms;
+    const effectiveCoreTerms = coreTerms.length > 0 ? coreTerms : terms;
+
+    const cacheKey = `${cleanRaw}:${limit}:${page}:${type}:${options.timeFilter || 'all'}`;
+    const cached = this.searchCache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        durationMs: Math.max(0.1, Math.round((performance.now() - startTime) * 100) / 100)
+      };
+    }
+
+    // 0. Compute Instant Answer (Calculations, Conversions, Knowledge Graph, Cached Geo)
+    const instantAnswer = options.instantAnswer !== undefined
+      ? options.instantAnswer
+      : ((page === 1) ? InstantAnswersEngine.getInstantAnswer(rawQuery, this.dbInstance || this.db) : null);
+
+    // 🛑 ZERO-TOLERANCE ANTI-JUDOL & SAFESEARCH COMPLIANCE SHIELD:
+    const isExplicitIllegalQuery = (
+      TrustGatekeeper.isSpamTitleOrContent(rawQuery, '', '') ||
+      /\b(slot|judi|judol|togel|bokep|porno|maxwin|gacor|totomacau|sbobet|poker88|dewanaga|rokokbet|toto188|jablay123)\b/i.test(cleanRaw)
+    );
+    const isNewsCrackdownQuery = (
+      cleanRaw.includes('tangkap') || cleanRaw.includes('polisi') || cleanRaw.includes('polri') ||
+      cleanRaw.includes('blokir') || cleanRaw.includes('satgas') || cleanRaw.includes('kasus') ||
+      cleanRaw.includes('berita') || cleanRaw.includes('hukum') || cleanRaw.includes('sidang') ||
+      cleanRaw.includes('berantas') || cleanRaw.includes('cegah') || cleanRaw.includes('tersangka')
+    );
+
+    if (isExplicitIllegalQuery && !isNewsCrackdownQuery) {
+      const noticeMsg = 'Pencarian terkait perjudian online (judi/slot/togel) atau konten pornografi dibatasi sesuai UU ITE No. 1 Tahun 2024 dan regulasi Kementerian Komunikasi dan Informatika Republik Indonesia. DeeperNova Search Engine menerapkan kebijakan zero-tolerance terhadap situs ilegal, penipuan, dan konten terlarang.';
+      return {
+        query: rawQuery,
+        total: 0,
+        page: 1,
+        durationMs: Math.max(0.1, Math.round((performance.now() - startTime) * 100) / 100),
+        safeSearchBlocked: true,
+        safeSearchMessage: noticeMsg,
+        safeSearchNotice: {
+          blocked: true,
+          type: 'compliance',
+          title: 'Peringatan Keamanan & Kepatuhan Hukum (Anti-Judol & Anti-Pornografi)',
+          message: noticeMsg,
+          reportUrl: 'https://aduankonten.id'
+        },
+        instantAnswer: {
+          type: 'compliance_alert',
+          title: '🛡️ Konten Ilegal Dibatasi (SafeSearch Anti-Judol)',
+          description: 'Layanan perjudian online dan situs dewasa dilarang di Indonesia berdasarkan Pasal 27 Ayat 2 UU ITE. Laporkan situs judi online ilegal ke portal resmi pemerintah melalui aduankonten.id.',
+          source: 'Kementerian Kominfo RI',
+          url: 'https://aduankonten.id'
+        },
+        results: []
+      };
+    }
+
+    if (terms.length === 0) {
+      return {
+        query: rawQuery,
+        total: 0,
+        page,
+        durationMs: 0,
+        instantAnswer,
+        results: []
+      };
+    }
+
+    // Fast-path for empty or 1-character queries (e.g. 'i', 'a') to guarantee sub-1ms instant response
+    if (cleanRaw.length <= 1) {
+      if (cleanRaw.length === 0) {
+        return {
+          query: rawQuery,
+          total: 0,
+          page: 1,
+          durationMs: 0.1,
+          instantAnswer: null,
+          results: []
+        };
+      }
+      try {
+        const nextChar = String.fromCharCode(cleanRaw.charCodeAt(0) + 1);
+        const topRows = this.db.prepare(`
+          SELECT id, url, domain, title, description, headings, SUBSTR(content, 1, 600) as content,
+                 logo_url, lead_image_url, pagerank, trust_score, category, author, reading_time_min,
+                 schema_type, is_verified_trust, in_links_count, published_at, crawled_at
+          FROM pages
+          WHERE domain >= ? AND domain < ?
+          LIMIT ?
+        `).all(cleanRaw, nextChar, limit);
+        return {
+          query: rawQuery,
+          total: topRows.length,
+          page: 1,
+          durationMs: Math.max(0.1, Math.round((performance.now() - startTime) * 100) / 100),
+          instantAnswer,
+          results: topRows.map(r => this._formatSearchResult(r, rawQuery, cleanRaw, [cleanRaw]))
+        };
+      } catch {}
+    }
+
+    const now = Date.now();
+    let filterCondition = '';
+    if (options.timeFilter === '24h') {
+      filterCondition += ` AND (p.published_at >= ${now - 86400000} OR p.crawled_at >= ${now - 86400000})`;
+    } else if (options.timeFilter === '7d') {
+      filterCondition += ` AND (p.published_at >= ${now - 604800000} OR p.crawled_at >= ${now - 604800000})`;
+    } else if (options.timeFilter === '30d') {
+      filterCondition += ` AND (p.published_at >= ${now - 2592000000} OR p.crawled_at >= ${now - 2592000000})`;
+    }
+
+    // Category Filtering
+    if (type === 'academic') {
+      filterCondition += ` AND (p.category = 'academic' OR p.domain LIKE '%.edu' OR p.domain LIKE '%.ac.id' OR p.domain LIKE '%arxiv.org%' OR p.domain LIKE '%pubmed%')`;
+    } else if (type === 'developer') {
+      filterCondition += ` AND (p.category = 'developer' OR p.domain LIKE '%github.com%' OR p.domain LIKE '%stackoverflow.com%' OR p.domain LIKE '%developer.mozilla.org%')`;
+    } else if (type === 'gov_edu') {
+      filterCondition += ` AND (p.category = 'gov_edu' OR p.domain LIKE '%.gov' OR p.domain LIKE '%.go.id' OR p.domain LIKE '%.edu' OR p.domain LIKE '%.ac.id')`;
+    } else if (type === 'finance') {
+      filterCondition += ` AND (p.category = 'finance' OR p.domain LIKE '%finance%' OR p.domain LIKE '%market%' OR p.domain LIKE '%investing.com%')`;
+    } else if (type === 'knowledge') {
+      filterCondition += ` AND (p.category = 'knowledge' OR p.domain LIKE '%wikipedia.org%' OR p.domain LIKE '%britannica.com%')`;
+    } else if (type === 'sport') {
+      filterCondition += ` AND (p.category = 'sport' OR p.domain LIKE '%sport%' OR p.domain LIKE '%bola%' OR p.domain LIKE '%pssi.org%' OR p.domain LIKE '%ligaindonesiabaru%')`;
+    } else if (type === 'news') {
+      filterCondition += ` AND ${this._buildNewsDomainCondition('p')}`;
+    }
+
+    const candidatesMap = new Map();
+    const fetchQueryLimit = Math.max(limit * 4, 80);
+
+    // Stage 0: DOMAIN-FIRST Candidate Retrieval (Guarantee official domains like youtube, detik, kompas enter pool)
+    const isGenericNavQuery = GENERIC_CATEGORY_WORDS.has(coreSubject) || COMMON_NON_BRAND_WORDS.has(coreSubject) || GENERIC_CATEGORY_WORDS.has(cleanRaw);
+    const domainCandidatesToProbe = new Set();
+    const cleanSubj = coreSubject.replace(/[^a-zA-Z0-9.-]/g, '').toLowerCase();
+
+    // Only probe brand domains if query looks like a specific brand/website name (NOT generic words/countries)
+    if (cleanSubj.length >= 3 && !isGenericNavQuery && effectiveCoreTerms.length <= 2) {
+      domainCandidatesToProbe.add(cleanSubj);
+      domainCandidatesToProbe.add(`www.${cleanSubj}`);
+      domainCandidatesToProbe.add(`${cleanSubj}.com`);
+      domainCandidatesToProbe.add(`www.${cleanSubj}.com`);
+      domainCandidatesToProbe.add(`${cleanSubj}.id`);
+      domainCandidatesToProbe.add(`${cleanSubj}.co.id`);
+      domainCandidatesToProbe.add(`${cleanSubj}.ai`);
+      domainCandidatesToProbe.add(`www.${cleanSubj}.ai`);
+      domainCandidatesToProbe.add(`${cleanSubj}.org`);
+    }
+
+    if (domainCandidatesToProbe.size > 0) {
+      try {
+        const probeList = Array.from(domainCandidatesToProbe);
+        const stmtDomainProbe = this.getDomainProbeStmt(probeList.length);
+        const domainMatches = stmtDomainProbe.all(...probeList);
+        for (const r of domainMatches) {
+          candidatesMap.set(r.id, r);
+        }
+      } catch {}
+    }
+
+    // Safe FTS term formatter: only append prefix wildcard '*' for words with length >= 3
+    // and words that are NOT common stopwords/conversational particles.
+    // When 3+ terms exist, only append wildcard to the last term to prevent b-tree scans
+    const ftsTerm = (t, idx) => {
+      if (coreTerms.length >= 3) {
+        return (idx === coreTerms.length - 1 && t.length >= 4) ? `"${t}"*` : `"${t}"`;
+      }
+      return (t.length >= 3 && !CONVERSATIONAL_QUESTION_WORDS.has(t) ? `"${t}"*` : `"${t}"`);
+    };
+
+    // Stage 1: Strict Conjunction (AND) FTS5 Search on Core Terms
+    const coreAndQuery = coreTerms.map((t, i) => ftsTerm(t, i)).join(' ');
+    try {
+      let andRows;
+      if (!filterCondition && this.stmtBaseAnd) {
+        andRows = this.stmtBaseAnd.all(coreAndQuery, fetchQueryLimit);
+      } else {
+        const stmtAnd = this.db.prepare(`
+          SELECT
+            p.id, p.url, p.domain, p.title, p.description, p.headings,
+            SUBSTR(p.content, 1, 600) as content,
+            p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
+            p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
+            p.in_links_count, p.published_at, p.crawled_at,
+            f.bm25_score
+          FROM (
+            SELECT rowid, bm25(fts_pages, 8.0, 4.0, 3.0, 1.5) as bm25_score
+            FROM fts_pages
+            WHERE fts_pages MATCH ?
+            ORDER BY bm25_score ASC
+            LIMIT ?
+          ) f
+          JOIN pages p ON f.rowid = p.id
+          WHERE 1=1 ${filterCondition}
+        `);
+        andRows = stmtAnd.all(coreAndQuery, fetchQueryLimit);
+      }
+      for (const r of andRows) {
+        candidatesMap.set(r.id, r);
+      }
+    } catch {}
+
+    // Stage 1b: Full Query Conjunction (only if core search yielded fewer than limit results)
+    if (candidatesMap.size < limit && terms.length > coreTerms.length) {
+      try {
+        const fullAndQuery = terms.map((t, i) => ftsTerm(t, i)).join(' ');
+        let fullRows;
+        if (!filterCondition && this.stmtBaseAnd) {
+          fullRows = this.stmtBaseAnd.all(fullAndQuery, 20);
+        }
+        if (fullRows) {
+          for (const r of fullRows) {
+            candidatesMap.set(r.id, r);
+          }
+        }
+      } catch {}
+    }
+
+    // Stage 2: Disjunction (OR) FTS5 Search on Core Terms (only if Stage 1 AND yielded fewer than limit results)
+    if (candidatesMap.size < limit && coreTerms.length > 1) {
+      try {
+        // In OR fallback, do exact matching (without wildcard) to prevent massive b-tree expansion
+        const orQuery = coreTerms.map(t => `"${t}"`).join(' OR ');
+        let orRows;
+        if (!filterCondition && this.stmtBaseOr) {
+          orRows = this.stmtBaseOr.all(orQuery, fetchQueryLimit);
+        } else {
+          const stmtOr = this.db.prepare(`
+            SELECT
+              p.id, p.url, p.domain, p.title, p.description, p.headings,
+              SUBSTR(p.content, 1, 600) as content,
+              p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
+              p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
+              p.in_links_count, p.published_at, p.crawled_at,
+              f.bm25_score
+            FROM (
+              SELECT rowid, bm25(fts_pages, 8.0, 4.0, 3.0, 1.5) as bm25_score
+              FROM fts_pages
+              WHERE fts_pages MATCH ?
+              ORDER BY bm25_score ASC
+              LIMIT ?
+            ) f
+            JOIN pages p ON f.rowid = p.id
+            WHERE 1=1 ${filterCondition}
+          `);
+          orRows = stmtOr.all(orQuery, fetchQueryLimit);
+        }
+        if (orRows) {
+          for (const r of orRows) {
+            if (!candidatesMap.has(r.id)) {
+              candidatesMap.set(r.id, r);
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Stage 3: Fast Exact Domain Match using indexed domain
+    try {
+      const target = coreSubject.replace(/[^a-zA-Z0-9.-]/g, '');
+      if (target && target.length >= 2 && this.stmtBaseDomain) {
+        const domainRows = this.stmtBaseDomain.all(
+          target,
+          `www.${target}`,
+          `${target}.com`,
+          `www.${target}.com`,
+          `${target}.ai`,
+          `www.${target}.ai`,
+          `${target}.org`
+        );
+        for (const r of domainRows) {
+          if (!candidatesMap.has(r.id)) {
+            candidatesMap.set(r.id, r);
+          }
+        }
+      }
+    } catch {}
+
+    // Freshness & Version Deduplication:
+    // If a domain has crawled multiple versions of the same article/page, keep strictly the newest version
+    const freshCandidates = [];
+    const seenArticleKeys = new Map();
+
+    for (const row of Array.from(candidatesMap.values())) {
+      const cleanTitle = (row.title || '').trim().toLowerCase();
+      const articleKey = cleanTitle.length >= 8 ? `${row.domain}::${cleanTitle}` : row.url;
+      const existingIdx = seenArticleKeys.get(articleKey);
+
+      if (existingIdx !== undefined) {
+        const existingRow = freshCandidates[existingIdx];
+        const existingTime = existingRow.published_at || existingRow.crawled_at || 0;
+        const candidateTime = row.published_at || row.crawled_at || 0;
+        if (candidateTime > existingTime) {
+          // Replace with the newer/fresher version
+          freshCandidates[existingIdx] = row;
+        }
+      } else {
+        seenArticleKeys.set(articleKey, freshCandidates.length);
+        freshCandidates.push(row);
+      }
+    }
+
+    const termRegexes = coreTerms.map(term =>
+      term && term.length >= 2 ? new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null
+    );
+
+    // Calculate Google-grade accuracy scores with E-E-A-T trust weighting and Intent Awareness
+    const scoredRows = freshCandidates
+      .map(row => ({
+        ...row,
+        accuracyScore: this.calculateQueryAccuracyScore(row, rawQuery, terms, termRegexes, intentInfo)
+      }))
+      .filter(row => row.accuracyScore > 0); // Exclude zero-scored irrelevant pages
+
+    // Sort strictly by accuracy score descending
+    scoredRows.sort((a, b) => {
+      const scoreDiff = b.accuracyScore - a.accuracyScore;
+      const avgScore = (a.accuracyScore + b.accuracyScore) / 2;
+      const relativeDiff = avgScore > 0 ? Math.abs(scoreDiff) / avgScore : 0;
+
+      const timeA = Number(a.published_at || a.crawled_at || 0);
+      const timeB = Number(b.published_at || b.crawled_at || 0);
+
+      // If scores are competitive (within 15%) and one is noticebly newer (> 1 hour difference), rank newer first
+      if (relativeDiff < 0.15 && timeA > 0 && timeB > 0 && Math.abs(timeB - timeA) > 3600000) {
+        return timeB - timeA;
+      }
+
+      return scoreDiff;
+    });
+
+    const total = scoredRows.length;
+    const pageRows = scoredRows.slice(offset, offset + limit);
+
+    // Deep Sitelinks Extraction for #1 ranked domain result (using fast index)
+    let topDomainSitelinks = [];
+    if (page === 1 && pageRows.length > 0) {
+      const topResult = pageRows[0];
+      try {
+        if (this.stmtSitelinks) {
+          topDomainSitelinks = this.stmtSitelinks.all(topResult.domain, topResult.url) || [];
+        }
+      } catch {}
+    }
+
+    const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+    const results = pageRows.map((row, idx) => {
+      // Highlight matching query terms in title with stabilo
+      let highlightedTitle = row.title || '';
+      for (const term of terms) {
+        if (term && term.length >= 2) {
+          const r = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+          highlightedTitle = highlightedTitle.replace(r, '<mark class="hl">$1</mark>');
+        }
+      }
+
+      const snippet = this.createSnippet(
+        row.description || row.content,
+        terms,
+        220
+      );
+
+      return {
+        id: row.id,
+        url: row.url,
+        domain: row.domain,
+        title: highlightedTitle,
+        rawTitle: row.title,
+        snippet,
+        description: snippet,
+        content: row.content || snippet,
+        logoUrl: row.logo_url || null,
+        leadImageUrl: row.lead_image_url || null,
+        pagerank: row.pagerank,
+        trustScore: row.trust_score || 50,
+        category: row.category || 'general',
+        author: row.author || null,
+        readingTimeMin: row.reading_time_min || 1,
+        schemaType: row.schema_type || 'WebPage',
+        isVerifiedTrust: Boolean(row.is_verified_trust || (row.domain && (row.domain.endsWith('.gov') || row.domain.endsWith('.go.id') || row.domain.endsWith('.edu') || row.domain.endsWith('.ac.id')))),
+        bm25: row.bm25_score != null ? Math.round(Math.abs(row.bm25_score) * 100) / 100 : 1.0,
+        accuracyScore: Math.round(row.accuracyScore * 10) / 10,
+        inLinks: row.in_links_count,
+        headings: row.headings,
+        date: formatSearchDate(row.published_at || row.crawled_at),
+        formattedDate: formatSearchDate(row.published_at || row.crawled_at),
+        timestampMs: Number(row.published_at || row.crawled_at || 0),
+        publishedAt: row.published_at || row.crawled_at,
+        published_at: row.published_at || row.crawled_at,
+        crawledAt: row.crawled_at,
+        sitelinks: (idx === 0 && topDomainSitelinks.length > 0) ? topDomainSitelinks : []
+      };
+    });
+
+    const finalResult = {
+      query: options.displayedQuery || rawQuery,
+      actualQuery: rawQuery,
+      total,
+      page,
+      durationMs,
+      instantAnswer,
+      correction: options.correction || null,
+      type,
+      algorithm: {
+        name: "DeeperNova High-Trust Neural Search Engine",
+        formula: "Score = ExactDomainBonus + ExactPhraseTitle + (CoverageRatio^2 * 400) + DensityBonus + PageRank + TrustScore(E-E-A-T)",
+        terms
+      },
+      results
+    };
+
+    // Cache computed response
+    this.searchCache.set(cacheKey, finalResult);
+
+    return finalResult;
+  }
+
+  /**
+   * Asynchronous search executor with real-time autonomous crawling for unknown locations & entities
+   * + Google-grade Anti-Typo Auto-Correction Engine
+   */
+  async searchAsync(rawQuery, options = {}, db = null) {
+    const page = options.page || 1;
+    const forceOriginal = options.forceOriginal === true || options.forceOriginal === 'true';
+
+    // 1. Execute instant search on rawQuery directly (lightning fast in-memory / FTS5)
+    const originalResult = this.search(rawQuery, options);
+
+    // If original query yields good results or user forced original, return immediately (0ms overhead)
+    if (forceOriginal || originalResult.total >= 3) {
+      return originalResult;
+    }
+
+    // 2. Only if original query yields zero/sparse results and the query is long enough to justify typo-linting,
+    // skip the expensive fuzzy pass for short terms like "ai", "tes", "id", which otherwise dominate CPU.
+    const shouldRunTypoFix = rawQuery && rawQuery.trim().length >= 3 && rawQuery.trim().split(/\s+/).some(token => token.length >= 3);
+    let typoInfo = null;
+    if (shouldRunTypoFix) {
+      try {
+        typoInfo = this.antiTypo.correctQuery(rawQuery);
+      } catch {}
+    }
+
+    if (typoInfo && typoInfo.isCorrected && typoInfo.correctedQuery.toLowerCase() !== rawQuery.trim().toLowerCase()) {
+      const correctedResult = this.search(typoInfo.correctedQuery, options);
+      if (correctedResult.total > originalResult.total) {
+        const correction = {
+          originalQuery: rawQuery,
+          correctedQuery: typoInfo.correctedQuery,
+          didYouMean: typoInfo.correctedQuery,
+          autoCorrected: originalResult.total === 0,
+          explanation: originalResult.total === 0
+            ? `Menampilkan hasil untuk ${typoInfo.correctedQuery}. Cari ${rawQuery} sebagai gantinya?`
+            : `Mungkin maksud Anda: ${typoInfo.correctedQuery}`
+        };
+        return {
+          ...correctedResult,
+          correction,
+          displayedQuery: rawQuery
+        };
+      }
+    }
+
+    return originalResult;
+  }
+
+  /**
+   * Dedicated Image Search Engine with Multi-Stage FTS5 & Page Inheritance relevance
+   */
+  searchImages(rawQuery, options = {}) {
+    const startTime = performance.now();
+    const limit = options.limit || 30;
+    const page = options.page || 1;
+    const offset = (page - 1) * limit;
+
+    if (!rawQuery || typeof rawQuery !== 'string' || !rawQuery.trim()) {
+      return this.getExploreImages(limit, page);
+    }
+
+    const cleanRaw = rawQuery.trim().toLowerCase();
+    const cacheKey = `${cleanRaw}:${limit}:${page}`;
+    const cached = this.imageCache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        durationMs: Math.max(0.1, Math.round((performance.now() - startTime) * 100) / 100)
+      };
+    }
+
+    const terms = cleanRaw
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter(t => t.length > 0);
+
+    const ftsQuery = this.sanitizeQuery(rawQuery);
+
+    try {
+      const candidatesMap = new Map();
+      const fetchLimit = Math.max(limit * 4, 100);
+
+      // Stage 1: Search Image FTS (alt_text, title, context_text, domain)
+      if (ftsQuery) {
+        try {
+          const stmtFtsImg = this.db.prepare(`
+            SELECT
+              img.id, img.image_url, img.page_url, img.domain,
+              img.alt_text, img.title, img.context_text, img.is_logo,
+              img.width, img.height,
+              p.title as page_title, p.logo_url, p.pagerank,
+              bm25(fts_images, 4.0, 3.0, 1.5, 2.0) as bm25_score
+            FROM fts_images
+            JOIN images img ON fts_images.rowid = img.id
+            LEFT JOIN pages p ON img.page_id = p.id
+            WHERE fts_images MATCH ?
+            LIMIT ?
+          `);
+          const imgRows = stmtFtsImg.all(ftsQuery, fetchLimit) || [];
+          for (const r of imgRows) {
+            candidatesMap.set(r.id, { ...r, matchSource: 'fts_image' });
+          }
+        } catch {}
+      }
+
+      // Stage 2: Search Host Page FTS (Match images on pages whose title/content matches query)
+      if (ftsQuery) {
+        try {
+          const stmtPageFts = this.db.prepare(`
+            SELECT
+              img.id, img.image_url, img.page_url, img.domain,
+              img.alt_text, img.title, img.context_text, img.is_logo,
+              img.width, img.height,
+              p.title as page_title, p.logo_url, p.pagerank,
+              bm25(fts_pages, 6.0, 3.0, 2.0, 1.0) as bm25_score
+            FROM fts_pages
+            JOIN pages p ON fts_pages.rowid = p.id
+            JOIN images img ON img.page_id = p.id
+            WHERE fts_pages MATCH ?
+            LIMIT ?
+          `);
+          const pageImgRows = stmtPageFts.all(ftsQuery, fetchLimit) || [];
+          for (const r of pageImgRows) {
+            if (!candidatesMap.has(r.id)) {
+              candidatesMap.set(r.id, { ...r, matchSource: 'fts_page' });
+            }
+          }
+        } catch {}
+      }
+
+      // Stage 3: Indexed Domain Match (only if candidates need topping up)
+      if (candidatesMap.size < limit && cleanRaw.length >= 2) {
+        try {
+          const domainPrefix = `${cleanRaw}%`;
+          const stmtDomainImg = this.db.prepare(`
+            SELECT
+              img.id, img.image_url, img.page_url, img.domain,
+              img.alt_text, img.title, img.context_text, img.is_logo,
+              img.width, img.height,
+              p.title as page_title, p.logo_url, p.pagerank,
+              1.0 as bm25_score
+            FROM images img
+            LEFT JOIN pages p ON img.page_id = p.id
+            WHERE (img.domain = ? OR img.domain = ? OR img.domain LIKE ?)
+            LIMIT ?
+          `);
+          const domRows = stmtDomainImg.all(cleanRaw, `www.${cleanRaw}`, domainPrefix, limit) || [];
+          for (const r of domRows) {
+            if (!candidatesMap.has(r.id)) {
+              candidatesMap.set(r.id, { ...r, matchSource: 'domain' });
+            }
+          }
+        } catch {}
+      }
+
+      const allCandidates = Array.from(candidatesMap.values());
+
+      // Calculate composite Image Relevance Score
+      const scoredCandidates = allCandidates.map(img => {
+        let score = 100;
+        const imgDomain = (img.domain || '').toLowerCase();
+        const alt = (img.alt_text || '').toLowerCase();
+        const title = (img.title || '').toLowerCase();
+        const pageTitle = (img.page_title || '').toLowerCase();
+        const context = (img.context_text || '').toLowerCase();
+
+        // 1. Exact Domain Match
+        if (imgDomain.includes(cleanRaw)) {
+          score += 1500;
+        }
+
+        // 2. High-precision Term Matching
+        let matchedCount = 0;
+        for (const term of terms) {
+          if (!term || term.length < 2) continue;
+          if (alt.includes(term)) { score += 250; matchedCount++; }
+          if (title.includes(term)) { score += 200; matchedCount++; }
+          if (pageTitle.includes(term)) { score += 150; matchedCount++; }
+          if (context.includes(term)) { score += 60; matchedCount++; }
+        }
+
+        if (terms.length > 0 && matchedCount === terms.length) {
+          score += 300;
+        }
+
+        // Authority & Quality Boost
+        const pr = img.pagerank || 1.0;
+        score += pr * 10;
+        if (img.width >= 300 && img.height >= 200) score += 80;
+        if (img.is_logo) score += 50;
+
+        return {
+          ...img,
+          imageScore: score
+        };
+      });
+
+      // Sort strictly by relevance score descending
+      scoredCandidates.sort((a, b) => b.imageScore - a.imageScore);
+
+      const total = scoredCandidates.length;
+      const pageRows = scoredCandidates.slice(offset, offset + limit);
+      const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+      const results = pageRows.map(row => ({
+        id: row.id,
+        imageUrl: row.image_url,
+        pageUrl: row.page_url,
+        pageTitle: row.page_title || row.title || row.domain,
+        alt: row.alt_text || row.title || row.page_title || 'Gambar web',
+        title: row.title || row.alt_text || row.page_title || '',
+        context: row.context_text || '',
+        domain: row.domain,
+        logoUrl: row.logo_url || null,
+        isLogo: Boolean(row.is_logo),
+        width: row.width || null,
+        height: row.height || null,
+        pagerank: row.pagerank || 1.0
+      }));
+
+      const finalResult = {
+        query: rawQuery,
+        total,
+        page,
+        durationMs,
+        type: 'images',
+        algorithm: {
+          name: "DeeperNova Visual Intelligence Matcher",
+          formula: "Score = DomainMatch + AltTextMatch + TitleMatch + PageInheritance + PageRank + HighResBonus",
+          terms
+        },
+        results
+      };
+
+      this.imageCache.set(cacheKey, finalResult);
+      return finalResult;
+    } catch (e) {
+      return { query: rawQuery, total: 0, page, durationMs: 0, type: 'images', results: [] };
+    }
+  }
+
+  /**
+   * Get Explore/Trending Images from the database when no query is given
+   */
+  getExploreImages(limit = 30, page = 1) {
+    const startTime = performance.now();
+    const offset = (page - 1) * limit;
+
+    try {
+      const stmt = this.db.prepare(`
+        SELECT
+          img.id, img.image_url, img.page_url, img.domain,
+          img.alt_text, img.title, img.context_text, img.is_logo,
+          img.width, img.height,
+          p.title as page_title, p.logo_url, p.pagerank
+        FROM images img
+        LEFT JOIN pages p ON img.page_id = p.id
+        WHERE img.image_url IS NOT NULL AND length(img.image_url) > 10
+        ORDER BY (COALESCE(p.pagerank, 1.0) * (CASE WHEN img.width >= 300 THEN 1.8 ELSE 1.0 END)) DESC, img.id DESC
+        LIMIT ? OFFSET ?
+      `);
+
+      const rows = stmt.all(limit, offset) || [];
+      const countRow = this.db.prepare('SELECT count(*) as total FROM images').get();
+      const total = countRow ? countRow.total : rows.length;
+      const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+      const results = rows.map(row => ({
+        id: row.id,
+        imageUrl: row.image_url,
+        pageUrl: row.page_url,
+        pageTitle: row.page_title || row.title || row.domain,
+        alt: row.alt_text || row.title || row.page_title || 'Gambar web',
+        title: row.title || row.alt_text || row.page_title || '',
+        context: row.context_text || '',
+        domain: row.domain,
+        logoUrl: row.logo_url || null,
+        isLogo: Boolean(row.is_logo),
+        width: row.width || null,
+        height: row.height || null,
+        pagerank: row.pagerank || 1.0
+      }));
+
+      return {
+        query: '',
+        total,
+        page,
+        durationMs,
+        type: 'images',
+        algorithm: {
+          name: "Explore / Trending Images"
+        },
+        results
+      };
+    } catch {
+      return { query: '', total: 0, page, durationMs: 0, type: 'images', results: [] };
+    }
+  }
+
+  fallbackSearch(rawQuery, limit, offset, startTime, terms) {
+    const likePattern = `%${rawQuery.trim()}%`;
+    const stmt = this.db.prepare(`
+      SELECT
+        id, url, domain, title, description, headings, content, logo_url, lead_image_url, pagerank, in_links_count, crawled_at
+      FROM pages
+      WHERE title LIKE ? OR description LIKE ? OR content LIKE ?
+      ORDER BY pagerank DESC
+      LIMIT ? OFFSET ?
+    `);
+
+    const rows = stmt.all(likePattern, likePattern, likePattern, limit, offset);
+    const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+    const results = rows.map(row => ({
+      id: row.id,
+      url: row.url,
+      domain: row.domain,
+      title: row.title,
+      rawTitle: row.title,
+      snippet: this.createSnippet(row.description || row.content, terms, 200),
+      logoUrl: row.logo_url || null,
+      leadImageUrl: row.lead_image_url || null,
+      pagerank: row.pagerank,
+      bm25: 1.0,
+      inLinks: row.in_links_count,
+      headings: row.headings,
+      crawledAt: row.crawled_at
+    }));
+
+    return {
+      query: rawQuery,
+      total: results.length,
+      page: 1,
+      durationMs,
+      algorithm: {
+        name: "PageRank Fallback LIKE",
+        formula: "Score = PageRank * TextMatch",
+        fallback: true
+      },
+      results
+    };
+  }
+
+  fallbackImageSearch(rawQuery, limit, offset, startTime, terms) {
+    const clean = rawQuery ? rawQuery.trim() : '';
+    const likePattern = `%${clean}%`;
+    const stmt = this.db.prepare(`
+      SELECT
+        img.id, img.image_url, img.page_url, img.domain, img.alt_text, img.title, img.context_text, img.is_logo, img.width, img.height,
+        p.title as page_title, p.logo_url, p.pagerank
+      FROM images img
+      LEFT JOIN pages p ON img.page_id = p.id
+      WHERE img.alt_text LIKE ? OR img.title LIKE ? OR img.domain LIKE ? OR img.context_text LIKE ? OR p.title LIKE ?
+      ORDER BY COALESCE(p.pagerank, 1.0) DESC
+      LIMIT ? OFFSET ?
+    `);
+
+    const rows = stmt.all(likePattern, likePattern, likePattern, likePattern, likePattern, limit, offset);
+    const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+    const results = rows.map(row => ({
+      id: row.id,
+      imageUrl: row.image_url,
+      pageUrl: row.page_url,
+      pageTitle: row.page_title || row.title || row.domain,
+      alt: row.alt_text || row.title || row.page_title || 'Gambar web',
+      title: row.title || row.alt_text || row.page_title || '',
+      context: row.context_text || '',
+      domain: row.domain,
+      logoUrl: row.logo_url || null,
+      isLogo: Boolean(row.is_logo),
+      width: row.width || null,
+      height: row.height || null,
+      pagerank: row.pagerank || 1.0
+    }));
+
+    return {
+      query: rawQuery,
+      total: results.length,
+      page: 1,
+      durationMs,
+      type: 'images',
+      algorithm: {
+        name: "Image Search Fallback LIKE",
+        fallback: true
+      },
+      results
+    };
+  }
+
+  // ============================================================
+  // NEWS-SPECIFIC SEARCH METHODS
+  // ============================================================
+
+  /**
+   * Google News-Grade Ranking & Virality Algorithm
+   * Multi-signal composite score evaluating:
+   * 1. Query intent & keyword density
+   * 2. Cross-publisher virality & buzz clustering
+   * 3. Publisher authority tier (Tier 1 National vs Tier 2)
+   * 4. Exponential recency decay
+   */
+  calculateGoogleNewsRanking(row, rawQuery, terms, allRows = []) {
+    if (!row) return { rankingScore: 1.0, viralityScore: 0, viralityBadge: null, mediaTier: 'Standard' };
+
+    const lowerQuery = (rawQuery || '').trim().toLowerCase();
+    const title = (row.title || '').toLowerCase();
+    const headings = (row.headings || '').toLowerCase();
+    const description = (row.description || '').toLowerCase();
+    const content = (row.content || '').toLowerCase();
+    const domain = (row.domain || '').toLowerCase();
+
+    // 1. RELEVANCE & QUERY DENSITY
+    let relevanceScore = 0;
+    if (lowerQuery.length >= 2) {
+      if (title.includes(lowerQuery)) relevanceScore += 450;
+      else if (headings.includes(lowerQuery)) relevanceScore += 220;
+      else if (description.includes(lowerQuery)) relevanceScore += 140;
+
+      let matchedTermsCount = 0;
+      let totalOccurrencesWeighted = 0;
+
+      for (const term of terms) {
+        if (!term || term.length < 2) continue;
+        let termFound = false;
+
+        const titleMatches = (title.match(new RegExp(`\\b${term}`, 'gi')) || []).length;
+        if (titleMatches > 0) {
+          termFound = true;
+          totalOccurrencesWeighted += titleMatches * 15;
+        }
+
+        const headingMatches = (headings.match(new RegExp(`\\b${term}`, 'gi')) || []).length;
+        if (headingMatches > 0) {
+          termFound = true;
+          totalOccurrencesWeighted += headingMatches * 8;
+        }
+
+        const descMatches = (description.match(new RegExp(`\\b${term}`, 'gi')) || []).length;
+        if (descMatches > 0) {
+          termFound = true;
+          totalOccurrencesWeighted += descMatches * 4;
+        }
+
+        const contentMatches = (content.match(new RegExp(`\\b${term}`, 'gi')) || []).length;
+        if (contentMatches > 0) {
+          termFound = true;
+          totalOccurrencesWeighted += Math.min(contentMatches, 40);
+        }
+
+        if (termFound) matchedTermsCount++;
+      }
+
+      const coverageRatio = terms.length > 0 ? (matchedTermsCount / terms.length) : 1;
+      relevanceScore += (coverageRatio * coverageRatio) * 250;
+      relevanceScore += totalOccurrencesWeighted * 3.5;
+    } else {
+      relevanceScore = 100; // Zero-query default
+    }
+
+    // 2. VIRALITY & CROSS-PUBLISHER BUZZ VELOCITY
+    // Count how many unique media domains covered this story/topic
+    const distinctCoveringDomains = new Set();
+    if (terms && terms.length > 0) {
+      for (const other of allRows) {
+        if (!other || other.id === row.id) continue;
+        const otherTitle = (other.title || '').toLowerCase();
+        const matchesQuery = terms.some(t => t.length >= 3 && otherTitle.includes(t));
+        if (matchesQuery && other.domain) {
+          distinctCoveringDomains.add(other.domain);
+        }
+      }
+    }
+    const multiDomainCount = distinctCoveringDomains.size;
+
+    // Detect viral trigger words
+    const viralKeywords = ['viral', 'trending', 'breaking', 'heboh', 'gempa', 'presiden', 'resmi', 'update', 'bmkg', 'live', 'terkini'];
+    const hasViralTrigger = viralKeywords.some(vk => title.includes(vk) || headings.includes(vk));
+
+    const now = Date.now();
+    const pubTime = Number(row.published_at || row.crawled_at || now);
+    const diffHours = Math.max(0.05, (now - pubTime) / (3600 * 1000));
+    const recencyVelocity = diffHours <= 2 ? 30 : (diffHours <= 6 ? 20 : (diffHours <= 24 ? 10 : 0));
+    const recencyBoost = Math.max(0, 1200 - (diffHours * 80));
+
+    const inLinks = row.in_links_count || 0;
+    const pr = row.pagerank || 1.0;
+
+    let viralityRaw = (multiDomainCount * 12) + (hasViralTrigger ? 20 : 0) + (inLinks * 5) + (pr * 3) + recencyVelocity;
+    const viralityScore = Math.min(99, Math.max(15, Math.round(viralityRaw)));
+
+    let viralityBadge = null;
+    if (viralityScore >= 70 || multiDomainCount >= 4) {
+      viralityBadge = { label: 'Super Viral', type: 'super_viral', icon: 'flame', color: '#dc2626' };
+    } else if (viralityScore >= 45 || multiDomainCount >= 2) {
+      viralityBadge = { label: 'Trending Cepat', type: 'trending', icon: 'zap', color: '#ea580c' };
+    } else if (multiDomainCount >= 1 || hasViralTrigger) {
+      viralityBadge = { label: 'Banyak Diberitakan', type: 'buzz', icon: 'newspaper', color: '#2563eb' };
+    }
+
+    // 3. PUBLISHER AUTHORITY TIER
+    const tier1Domains = [
+      'detik.com', 'kompas.com', 'antaranews.com', 'cnnindonesia.com', 'cnbcindonesia.com', 'tempo.co', 'bbc.com',
+      'reuters.com', 'apnews.com', 'nytimes.com', 'washingtonpost.com', 'wsj.com', 'bloomberg.com', 'cnbc.com',
+      'theguardian.com', 'aljazeera.com', 'npr.org', 'techcrunch.com', 'arstechnica.com', 'theverge.com',
+      'news.ycombinator.com'
+    ];
+    const tier2Domains = [
+      'sindonews.com', 'liputan6.com', 'merdeka.com', 'tribunnews.com', 'republika.co.id', 'kumparan.com', 'bmkg.go.id',
+      'kontan.co.id', 'katadata.co.id', 'bisnis.com', 'jawapos.com', 'slate.com', 'engadget.com', 'wired.com',
+      'technologyreview.com', 'fastcompany.com', 'zdnet.com', 'theregister.com', 'reddit.com', 'slashdot.org', 'lobste.rs'
+    ];
+
+    let authorityMultiplier = 1.0;
+    let mediaTier = 'Standard Media';
+
+    if (tier1Domains.some(d => domain.includes(d))) {
+      authorityMultiplier = 1.6;
+      mediaTier = 'Tier 1 National';
+    } else if (tier2Domains.some(d => domain.includes(d))) {
+      authorityMultiplier = 1.3;
+      mediaTier = 'Tier 2 Trusted';
+    }
+
+    // 4. EXPONENTIAL RECENCY DECAY
+    let freshnessMultiplier = 1.0;
+    if (diffHours <= 1) freshnessMultiplier = 3.2;
+    else if (diffHours <= 3) freshnessMultiplier = 2.5;
+    else if (diffHours <= 6) freshnessMultiplier = 2.0;
+    else if (diffHours <= 12) freshnessMultiplier = 1.6;
+    else if (diffHours <= 24) freshnessMultiplier = 1.25;
+    else if (diffHours <= 72) freshnessMultiplier = 0.95;
+    else if (diffHours <= 168) freshnessMultiplier = 0.70;
+    else freshnessMultiplier = 0.35; // Old news penalty
+
+    // 5. RICH MEDIA COMPLETENESS
+    let mediaBonus = 0;
+    if (row.lead_image_url) mediaBonus += 35;
+    if (row.logo_url) mediaBonus += 15;
+
+    // 6. ARTICLE DEPTH VS CHANNEL HUB DISCRIMINATION
+    const isChannel = isChannelOrHubPage(row.url, row.title);
+    const isArticle = isRealArticlePage(row.url, row.title);
+    let articleBonus = 0;
+    if (isArticle) {
+      articleBonus = 400;
+    }
+
+    // COMPOSITE GOOGLE NEWS SCORE
+    let rankingScore = (relevanceScore + (viralityScore * 2.5) + mediaBonus + articleBonus) * authorityMultiplier * freshnessMultiplier;
+    rankingScore += recencyBoost;
+
+    // Severe demotion for channel landing hubs:
+    if (isChannel) {
+      rankingScore *= 0.01; // 99% penalty so real news articles always rank above channels
+    }
+
+    return {
+      rankingScore,
+      timestampMs: pubTime,
+      newsAgeHours: diffHours,
+      viralityScore,
+      viralityBadge,
+      mediaTier,
+      multiDomainCoverage: multiDomainCount > 0 ? `${multiDomainCount + 1}+ media meliput` : null,
+      freshnessMultiplier
+    };
+  }
+
+  /**
+   * Search news articles with Google News-grade multi-signal ranking
+   */
+  searchNews(rawQuery, options = {}) {
+    const startTime = performance.now();
+    const limit = options.limit || 20;
+    const page = options.page || 1;
+    const offset = (page - 1) * limit;
+    const sort = options.sort || 'latest';
+    const category = options.category || null;
+
+    const cleanRaw = (rawQuery || '').trim().toLowerCase();
+    const cacheKey = `${cleanRaw}:${limit}:${page}:${sort}:${category || 'all'}`;
+    const cached = this.newsCache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        durationMs: Math.max(0.1, Math.round((performance.now() - startTime) * 100) / 100)
+      };
+    }
+
+    const terms = cleanRaw
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter(t => t.length > 0);
+
+    const ftsQuery = this.sanitizeQuery(rawQuery);
+
+    if (!ftsQuery) {
+      return { query: rawQuery, total: 0, page, durationMs: 0, type: 'news', results: [] };
+    }
+
+    try {
+      const newsDomainFilter = this._buildNewsDomainCondition('p');
+      const fetchLimit = Math.max(limit * 3, 60);
+
+      const stmt = this.db.prepare(`
+        SELECT
+          p.id, p.url, p.domain, p.title, p.description, p.headings,
+          SUBSTR(p.content, 1, 600) as content,
+          p.logo_url, p.lead_image_url, p.pagerank, p.in_links_count,
+          p.published_at, p.crawled_at,
+          f.bm25_score
+        FROM (
+          SELECT rowid, bm25(fts_pages, 8.0, 4.0, 3.0, 1.5) as bm25_score
+          FROM fts_pages
+          WHERE fts_pages MATCH ?
+          ORDER BY bm25_score ASC
+          LIMIT ?
+        ) f
+        JOIN pages p ON f.rowid = p.id
+        WHERE ${newsDomainFilter}
+          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
+          AND p.lead_image_url NOT LIKE '%favicon%'
+          AND p.lead_image_url NOT LIKE '%icon.png%'
+          AND p.lead_image_url NOT LIKE '%default-avatar%'
+        LIMIT ? OFFSET ?
+      `);
+
+      const rows = stmt.all(ftsQuery, fetchLimit * 3, fetchLimit, offset);
+      const total = rows.length >= fetchLimit ? (page * limit) + 20 : (offset + rows.length);
+
+      const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+      // Separate genuine news articles from generic channel hubs
+      const articleCandidates = [];
+      const hubCandidates = [];
+
+      for (const r of rows) {
+        if (isRealArticlePage(r.url, r.title)) {
+          articleCandidates.push(r);
+        } else if (!isChannelOrHubPage(r.url, r.title)) {
+          articleCandidates.push(r);
+        } else {
+          hubCandidates.push(r);
+        }
+      }
+
+      // If we have enough genuine articles, use them exclusively!
+      const candidatesToScore = articleCandidates.length >= limit ? articleCandidates : [...articleCandidates, ...hubCandidates];
+
+      // Calculate Google News composite score & virality for every candidate
+      const scoredRows = candidatesToScore.map(row => {
+        const metrics = this.calculateGoogleNewsRanking(row, rawQuery, terms, candidatesToScore);
+        return {
+          ...row,
+          ...metrics
+        };
+      });
+
+      // Sort based on chosen mode. Explicit timestamp ordering ensures newest news is always on top.
+      const getTimestamp = row => Number(row.published_at || row.crawled_at || 0);
+      if (sort === 'latest') {
+        scoredRows.sort((a, b) => {
+          const timeDiff = getTimestamp(b) - getTimestamp(a);
+          if (timeDiff !== 0) return timeDiff;
+          return b.rankingScore - a.rankingScore;
+        });
+      } else if (sort === 'trending') {
+        scoredRows.sort((a, b) => b.viralityScore - a.viralityScore || (getTimestamp(b) - getTimestamp(a)) || b.rankingScore - a.rankingScore);
+      } else {
+        // 'toprank' remains quality-weighted, but newest publication always wins ties.
+        scoredRows.sort((a, b) => (getTimestamp(b) - getTimestamp(a)) || b.rankingScore - a.rankingScore);
+      }
+
+      const diverseRows = this._applyDomainDiversity(scoredRows, 2, limit);
+      const pageRows = diverseRows.slice(0, limit);
+
+      const results = pageRows.map(row => {
+        let highlightedTitle = row.title || '';
+        for (const term of terms) {
+          if (term && term.length >= 2) {
+            const r = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            highlightedTitle = highlightedTitle.replace(r, '<mark class="hl">$1</mark>');
+          }
+        }
+
+        const snippetText = this.createSnippet(row.description || row.content || row.title, terms, 240);
+
+        return {
+          id: row.id,
+          url: row.url,
+          domain: row.domain,
+          title: highlightedTitle,
+          rawTitle: row.title,
+          snippet: snippetText,
+          description: snippetText,
+          content: row.content || snippetText,
+          logoUrl: row.logo_url || null,
+          leadImageUrl: row.lead_image_url || null,
+          pagerank: row.pagerank,
+          bm25: row.bm25_score != null ? Math.round(Math.abs(row.bm25_score) * 100) / 100 : 1.0,
+          accuracyScore: Math.round(row.rankingScore * 10) / 10,
+          viralityScore: row.viralityScore,
+          viralityBadge: row.viralityBadge,
+          mediaTier: row.mediaTier,
+          multiDomainCoverage: row.multiDomainCoverage,
+          inLinks: row.in_links_count,
+          headings: row.headings,
+          publishedAt: row.published_at || row.crawled_at,
+          published_at: row.published_at || row.crawled_at,
+          timestampMs: row.timestampMs || (row.published_at || row.crawled_at),
+          crawledAt: row.crawled_at
+        };
+      });
+
+      const finalResult = { query: rawQuery, total, page, durationMs, type: 'news', sort, results };
+      this.newsCache.set(cacheKey, finalResult);
+      return finalResult;
+    } catch (err) {
+      // Fallback
+      return this._fallbackNewsSearch(rawQuery, limit, offset, startTime, terms, sort);
+    }
+  }
+
+  /**
+   * Get trending news — fresh recent articles with highest authority
+   */
+  getTrendingNews(limit = 20, page = 1) {
+    const startTime = performance.now();
+    const offset = (page - 1) * limit;
+    const fetchLimit = Math.max(limit * 3, 60);
+    const newsDomainFilter = this._buildNewsDomainCondition('p');
+
+    const now = Date.now();
+    const h2 = now - 2 * 3600 * 1000;
+    const h6 = now - 6 * 3600 * 1000;
+    const h12 = now - 12 * 3600 * 1000;
+    const h24 = now - 24 * 3600 * 1000;
+    const d3 = now - 3 * 86400 * 1000;
+    const d7 = now - 7 * 86400 * 1000;
+
+    const freshnessSql = `(CASE 
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h2} THEN 12.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h6} THEN 8.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h12} THEN 5.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h24} THEN 3.5
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${d3} THEN 2.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${d7} THEN 1.0
+      ELSE 0.3
+    END)`;
+
+    try {
+      const stmt = this.db.prepare(`
+        SELECT id, url, domain, title, description, headings,
+               logo_url, lead_image_url, pagerank, in_links_count,
+               published_at, crawled_at
+        FROM pages p
+        WHERE ${newsDomainFilter}
+          AND p.title IS NOT NULL AND length(p.title) > 10
+          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
+          AND p.lead_image_url NOT LIKE '%favicon%'
+          AND p.lead_image_url NOT LIKE '%icon.png%'
+          AND p.lead_image_url NOT LIKE '%default-avatar%'
+        ORDER BY ((p.pagerank * 2.5 + COALESCE(p.in_links_count, 0) * 0.8 + 1.0) * ${freshnessSql}) DESC, COALESCE(p.published_at, p.crawled_at) DESC
+        LIMIT ? OFFSET ?
+      `);
+
+      const rows = stmt.all(fetchLimit, offset);
+      const articleCandidates = rows.filter(r => isRealArticlePage(r.url, r.title) || !isChannelOrHubPage(r.url, r.title));
+      const pool = articleCandidates.length >= limit ? articleCandidates : (articleCandidates.length > 0 ? [...articleCandidates, ...rows.filter(r => !articleCandidates.includes(r))] : rows);
+      const diverseRows = this._applyDomainDiversity(pool, 2, limit);
+
+      const total = diverseRows.length >= limit ? (page * limit) + 20 : (offset + diverseRows.length);
+      const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+      const results = diverseRows.map(row => {
+        const metrics = this.calculateGoogleNewsRanking(row, '', [], diverseRows);
+        const snippetText = (row.description || '').slice(0, 240);
+        return {
+          id: row.id,
+          url: row.url,
+          domain: row.domain,
+          title: row.title,
+          rawTitle: row.title,
+          snippet: snippetText,
+          description: snippetText,
+          content: row.content || snippetText,
+          logoUrl: row.logo_url || null,
+          leadImageUrl: row.lead_image_url || null,
+          pagerank: row.pagerank,
+          bm25: null,
+          accuracyScore: Math.round(metrics.rankingScore * 10) / 10,
+          viralityScore: metrics.viralityScore,
+          viralityBadge: metrics.viralityBadge,
+          mediaTier: metrics.mediaTier,
+          multiDomainCoverage: metrics.multiDomainCoverage,
+          inLinks: row.in_links_count,
+          headings: row.headings,
+          publishedAt: row.published_at || row.crawled_at,
+          published_at: row.published_at || row.crawled_at,
+          crawledAt: row.crawled_at
+        };
+      });
+
+      return { query: '', total, page, durationMs, type: 'news', sort: 'trending', results };
+    } catch {
+      return { query: '', total: 0, page, durationMs: 0, type: 'news', sort: 'trending', results: [] };
+    }
+  }
+
+  /**
+   * Get top-ranked news — Highest PageRank with strong Freshness & Virality Weight
+   * Newest high-authority news stays firmly at the top!
+   */
+  getTopRankedNews(limit = 20, page = 1) {
+    const startTime = performance.now();
+    const offset = (page - 1) * limit;
+    const fetchLimit = Math.max(limit * 3, 60);
+    const newsDomainFilter = this._buildNewsDomainCondition('p');
+
+    const now = Date.now();
+    const h2 = now - 2 * 3600 * 1000;
+    const h6 = now - 6 * 3600 * 1000;
+    const h12 = now - 12 * 3600 * 1000;
+    const h24 = now - 24 * 3600 * 1000;
+    const d3 = now - 3 * 86400 * 1000;
+    const d7 = now - 7 * 86400 * 1000;
+
+    const freshnessSql = `(CASE 
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h2} THEN 12.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h6} THEN 8.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h12} THEN 5.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${h24} THEN 3.5
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${d3} THEN 2.0
+      WHEN COALESCE(p.published_at, p.crawled_at) >= ${d7} THEN 1.0
+      ELSE 0.3
+    END)`;
+
+    try {
+      const stmt = this.db.prepare(`
+        SELECT id, url, domain, title, description, headings,
+               logo_url, lead_image_url, pagerank, in_links_count,
+               published_at, crawled_at
+        FROM pages p
+        WHERE ${newsDomainFilter}
+          AND p.title IS NOT NULL AND length(p.title) > 10
+          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
+          AND p.lead_image_url NOT LIKE '%favicon%'
+          AND p.lead_image_url NOT LIKE '%icon.png%'
+          AND p.lead_image_url NOT LIKE '%default-avatar%'
+        ORDER BY ((p.pagerank * 3.0 + COALESCE(p.in_links_count, 0) * 0.5 + 1.0) * ${freshnessSql}) DESC, COALESCE(p.published_at, p.crawled_at) DESC
+        LIMIT ? OFFSET ?
+      `);
+
+      const rows = stmt.all(fetchLimit, offset);
+      const articleCandidates = rows.filter(r => isRealArticlePage(r.url, r.title) || !isChannelOrHubPage(r.url, r.title));
+      const pool = articleCandidates.length >= limit ? articleCandidates : (articleCandidates.length > 0 ? [...articleCandidates, ...rows.filter(r => !articleCandidates.includes(r))] : rows);
+      const diverseRows = this._applyDomainDiversity(pool, 2, limit);
+
+      const total = diverseRows.length >= limit ? (page * limit) + 20 : (offset + diverseRows.length);
+      const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+      const results = diverseRows.map(row => {
+        const metrics = this.calculateGoogleNewsRanking(row, '', [], diverseRows);
+        const snippetText = (row.description || '').slice(0, 240);
+        return {
+          id: row.id,
+          url: row.url,
+          domain: row.domain,
+          title: row.title,
+          rawTitle: row.title,
+          snippet: snippetText,
+          description: snippetText,
+          content: row.content || snippetText,
+          logoUrl: row.logo_url || null,
+          leadImageUrl: row.lead_image_url || null,
+          pagerank: row.pagerank,
+          bm25: null,
+          accuracyScore: Math.round(metrics.rankingScore * 10) / 10,
+          viralityScore: metrics.viralityScore,
+          viralityBadge: metrics.viralityBadge,
+          mediaTier: metrics.mediaTier,
+          multiDomainCoverage: metrics.multiDomainCoverage,
+          inLinks: row.in_links_count,
+          headings: row.headings,
+          publishedAt: row.published_at || row.crawled_at,
+          published_at: row.published_at || row.crawled_at,
+          crawledAt: row.crawled_at
+        };
+      });
+
+      return { query: '', total, page, durationMs, type: 'news', sort: 'toprank', results };
+    } catch {
+      return { query: '', total: 0, page, durationMs: 0, type: 'news', sort: 'toprank', results: [] };
+    }
+  }
+
+  /**
+   * Search images from news pages only
+   */
+  searchNewsImages(rawQuery, options = {}) {
+    const startTime = performance.now();
+    const limit = options.limit || 24;
+    const page = options.page || 1;
+    const offset = (page - 1) * limit;
+
+    const ftsQuery = this.sanitizeQuery(rawQuery);
+    if (!ftsQuery) {
+      return { query: rawQuery, total: 0, page, durationMs: 0, type: 'news_images', results: [] };
+    }
+
+    try {
+      const newsDomainFilter = this._buildNewsDomainCondition('img');
+
+      const stmt = this.db.prepare(`
+        SELECT
+          img.id, img.image_url, img.page_url, img.domain,
+          img.alt_text, img.title, img.context_text, img.is_logo,
+          img.width, img.height,
+          p.title as page_title, p.logo_url, p.pagerank,
+          bm25(fts_images, 4.0, 3.0, 1.5, 2.0) as bm25_score
+        FROM fts_images
+        JOIN images img ON fts_images.rowid = img.id
+        LEFT JOIN pages p ON img.page_id = p.id
+        WHERE fts_images MATCH ? AND ${newsDomainFilter}
+        ORDER BY bm25_score ASC
+        LIMIT ? OFFSET ?
+      `);
+
+      const rows = stmt.all(ftsQuery, limit, offset);
+
+      let total = rows.length;
+      if (page > 1 || rows.length >= limit) {
+        try {
+          const countStmt = this.db.prepare(`
+            SELECT count(*) as total
+            FROM fts_images
+            JOIN images img ON fts_images.rowid = img.id
+            WHERE fts_images MATCH ? AND ${newsDomainFilter}
+          `);
+          const countRow = countStmt.get(ftsQuery);
+          if (countRow) total = countRow.total;
+        } catch { total = rows.length; }
+      }
+
+      const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+      const results = rows.map(row => ({
+        id: row.id,
+        imageUrl: row.image_url,
+        pageUrl: row.page_url,
+        pageTitle: row.page_title || row.title || row.domain,
+        alt: row.alt_text || row.title || 'Gambar berita',
+        title: row.title || row.alt_text || '',
+        context: row.context_text || '',
+        domain: row.domain,
+        logoUrl: row.logo_url || null,
+        isLogo: Boolean(row.is_logo),
+        width: row.width || null,
+        height: row.height || null,
+        pagerank: row.pagerank || 1.0
+      }));
+
+      return { query: rawQuery, total, page, durationMs, type: 'news_images', results };
+    } catch {
+      return this.fallbackImageSearch(rawQuery, limit, offset, startTime, []);
+    }
+  }
+
+  /**
+   * Fallback news search using LIKE
+   */
+  _fallbackNewsSearch(rawQuery, limit, offset, startTime, terms, sort) {
+    const likePattern = `%${rawQuery.trim()}%`;
+    const newsDomainFilter = this._buildNewsDomainCondition('p');
+
+    let orderBy = 'p.published_at DESC';
+    if (sort === 'toprank') orderBy = 'p.pagerank DESC';
+    if (sort === 'trending') orderBy = '(p.pagerank + COALESCE(p.in_links_count, 0) * 0.1) DESC';
+
+    try {
+      const stmt = this.db.prepare(`
+        SELECT id, url, domain, title, description, headings, content,
+               logo_url, lead_image_url, pagerank, in_links_count, published_at, crawled_at
+        FROM pages p
+        WHERE (title LIKE ? OR description LIKE ? OR content LIKE ?)
+          AND ${newsDomainFilter}
+          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
+          AND p.lead_image_url NOT LIKE '%favicon%'
+          AND p.lead_image_url NOT LIKE '%icon.png%'
+          AND p.lead_image_url NOT LIKE '%default-avatar%'
+        ORDER BY ${orderBy}
+        LIMIT ? OFFSET ?
+      `);
+
+      const rows = stmt.all(likePattern, likePattern, likePattern, Math.max(limit * 3, 60), offset);
+      const articleCandidates = rows.filter(r => isRealArticlePage(r.url, r.title) || !isChannelOrHubPage(r.url, r.title));
+      const pool = articleCandidates.length >= limit ? articleCandidates : (articleCandidates.length > 0 ? [...articleCandidates, ...rows.filter(r => !articleCandidates.includes(r))] : rows);
+      const diverseRows = this._applyDomainDiversity(pool, 2, limit);
+      const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+      const results = diverseRows.map(row => {
+        let highlightedTitle = row.title || '';
+        for (const term of terms) {
+          if (term && term.length >= 2) {
+            const r = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            highlightedTitle = highlightedTitle.replace(r, '<mark class="hl">$1</mark>');
+          }
+        }
+
+        const snippetText = this.createSnippet(row.description || row.content || row.title, terms, 220);
+        return {
+          id: row.id,
+          url: row.url,
+          domain: row.domain,
+          title: highlightedTitle,
+          rawTitle: row.title,
+          snippet: snippetText,
+          description: snippetText,
+          content: row.content || snippetText,
+          logoUrl: row.logo_url || null,
+          leadImageUrl: row.lead_image_url || null,
+          pagerank: row.pagerank,
+          bm25: 1.0,
+          inLinks: row.in_links_count,
+          headings: row.headings,
+          publishedAt: row.published_at || row.crawled_at,
+          published_at: row.published_at || row.crawled_at,
+          crawledAt: row.crawled_at
+        };
+      });
+
+      return { query: rawQuery, total: results.length, page: 1, durationMs, type: 'news', sort, results };
+    } catch {
+      return { query: rawQuery, total: 0, page: 1, durationMs: 0, type: 'news', sort, results: [] };
+    }
+  }
+}
+
+SearchEngine.formatSearchDate = formatSearchDate;
