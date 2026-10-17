@@ -917,6 +917,8 @@ const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://12
 const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
 
 const proxyToSearchEngine = async (endpoint, req, res) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // ⏱️ Batas waktu maksimal 10 detik per sesi tanya search
   try {
     const baseTarget = SEARCH_ENGINE_TARGET.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
     let targetEndpoint = endpoint;
@@ -939,12 +941,23 @@ const proxyToSearchEngine = async (endpoint, req, res) => {
         'X-API-Key': req.headers['x-api-key'] || SEARCH_ENGINE_KEY,
         'Content-Type': 'application/json'
       },
-      body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined
+      body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined,
+      signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
     const data = await upstream.json();
     return res.status(upstream.status).json(data);
   } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      return res.status(504).json({
+        error: {
+          message: 'Batas waktu pencarian 10 detik per sesi tercapai agar tidak mengganggu pengguna lain.',
+          timedOut: true
+        }
+      });
+    }
     console.warn(`[Search Engine Proxy Error] ${endpoint}:`, err.message);
     return res.status(502).json({
       error: {
@@ -5600,7 +5613,7 @@ async function handleUnifiedSearch(req, res) {
       for (const searchBase of searchApiBases) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 35000);
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // ⏱️ Batas waktu maksimal 10 detik per sesi tanya search
 
           const [searchResp, imagesResp] = await Promise.allSettled([
             fetch(`${searchBase}/search?q=${encodeURIComponent(targetQuery)}&limit=${limit}`, {

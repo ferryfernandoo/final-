@@ -767,8 +767,9 @@ function dbStats() {
 // ==========================================
 
 // ⚡ Autonomous QoS Search Priority Middleware:
-// When any user or external client searches or requests suggestions, this middleware
-// immediately signals the priorityGovernor to throttle crawlers and yield SQLite write locks.
+// Enforces a strict 10-second per-session deadline to ensure zero starvation of concurrent users
+const MAX_SEARCH_SESSION_TIMEOUT_MS = 10000;
+
 function searchPriorityMiddleware(req, res, next) {
   const tag = (req.query.q || req.path).slice(0, 60);
   priorityGovernor.acquireSearch(tag);
@@ -783,8 +784,19 @@ function searchPriorityMiddleware(req, res, next) {
     }
   };
 
-  // Safety guard: auto-release after 15s to guarantee activeSearches never leaks
-  safetyTimeout = setTimeout(onEnd, 15000);
+  // Safety guard: auto-release after 10s to guarantee activeSearches never blocks other users
+  safetyTimeout = setTimeout(onEnd, MAX_SEARCH_SESSION_TIMEOUT_MS);
+
+  // Set 10-second hard socket/request timeout
+  req.setTimeout(MAX_SEARCH_SESSION_TIMEOUT_MS, () => {
+    onEnd();
+    if (!res.headersSent) {
+      res.status(504).json({
+        error: 'Search timeout (10s exceeded)',
+        message: 'Batas waktu pencarian 10 detik per sesi tercapai agar tidak mengganggu kecepatan layanan untuk pengguna lain.'
+      });
+    }
+  });
 
   res.on('finish', onEnd);
   res.on('close', onEnd);
@@ -912,11 +924,29 @@ async function handleV1Search(req, res) {
 
   const tStart = performance.now();
   let result;
-  if (type === 'images') {
-    result = searchEngine.searchImages(query, { page, limit });
-  } else {
-    result = await searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal: false }, db);
-  }
+  let searchTimer = null;
+  const timeoutPromise = new Promise((resolve) => {
+    searchTimer = setTimeout(() => {
+      resolve({
+        total: 0,
+        results: [],
+        durationMs: MAX_SEARCH_SESSION_TIMEOUT_MS,
+        timedOut: true,
+        message: 'Batas waktu pencarian 10 detik per sesi tercapai (QoS Protection).'
+      });
+    }, MAX_SEARCH_SESSION_TIMEOUT_MS);
+  });
+
+  const searchExecution = (async () => {
+    if (type === 'images') {
+      return searchEngine.searchImages(query, { page, limit });
+    } else {
+      return await searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal: false }, db);
+    }
+  })();
+
+  result = await Promise.race([searchExecution, timeoutPromise]);
+  if (searchTimer) clearTimeout(searchTimer);
   const latencyMs = Math.round((performance.now() - tStart) * 100) / 100;
 
   const formattedResults = (result.results || []).map(r => {
@@ -1222,7 +1252,24 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
   }
 
   const t_start = performance.now();
-  const result = await searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal }, db);
+  let searchTimer = null;
+  const timeoutPromise = new Promise((resolve) => {
+    searchTimer = setTimeout(() => {
+      resolve({
+        timedOut: true,
+        query,
+        total: 0,
+        results: [],
+        durationMs: MAX_SEARCH_SESSION_TIMEOUT_MS,
+        message: 'Batas waktu pencarian 10 detik tercapai (QoS Protection). Layanan dibatasi demi menjaga kecepatan bersama.'
+      });
+    }, MAX_SEARCH_SESSION_TIMEOUT_MS);
+  });
+
+  const searchExecution = searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal }, db);
+  const result = await Promise.race([searchExecution, timeoutPromise]);
+  if (searchTimer) clearTimeout(searchTimer);
+
   const t_diff = performance.now() - t_start;
   if (t_diff > 30) {
     console.log(`[PERF-SEARCH] query="${query}" async=${t_diff.toFixed(1)}ms engine=${result.durationMs}ms`);
@@ -1232,7 +1279,8 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
     ...result,
     type,
     timeFilter,
-    liveCrawlTriggered: liveCrawl
+    liveCrawlTriggered: liveCrawl,
+    maxProcessTimeMs: MAX_SEARCH_SESSION_TIMEOUT_MS
   };
 
   if (!liveCrawl) {
@@ -1295,6 +1343,27 @@ app.post('/api/ai/stream', searchPriorityMiddleware, async (req, res) => {
   };
 
   const controller = new AbortController();
+  
+  // ⏱️ Batas waktu proses AI maksimal 10 detik per sesi tanya agar tidak membebani server untuk pengguna lain
+  const streamSessionTimer = setTimeout(() => {
+    try {
+      sendEvent('step', { message: 'Batas waktu 10 detik per sesi tercapai. Menyelesaikan jawaban...' });
+      sendEvent('complete', {
+        summary: 'Batas waktu AI 10 detik tercapai (QoS Protection). Sesi ditutup agar kecepatan layanan tetap lancar untuk semua pengguna.',
+        isTimeout: true
+      });
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch {}
+    controller.abort();
+  }, MAX_SEARCH_SESSION_TIMEOUT_MS);
+
+  const cleanStreamTimer = () => {
+    if (streamSessionTimer) clearTimeout(streamSessionTimer);
+  };
+  res.on('finish', cleanStreamTimer);
+  res.on('close', cleanStreamTimer);
+
   res.on('close', () => {
     if (!res.writableEnded) {
       controller.abort();
@@ -1327,16 +1396,19 @@ app.post('/api/ai/stream', searchPriorityMiddleware, async (req, res) => {
         sendEvent('token', { token });
       },
       onComplete: (data) => {
+        cleanStreamTimer();
         sendEvent('complete', data);
         res.write('data: [DONE]\n\n');
         res.end();
       },
       onError: (err) => {
+        cleanStreamTimer();
         sendEvent('error', { message: err.message || 'AI Synthesis error' });
         res.end();
       }
     });
   } catch (err) {
+    cleanStreamTimer();
     sendEvent('error', { message: err.message || 'Server synthesis exception' });
     res.end();
   }
@@ -1359,7 +1431,22 @@ app.post('/api/ai/summary', searchPriorityMiddleware, async (req, res) => {
       targetResults = targetResults.slice(0, 15);
     }
 
-    const summaryData = await aiSynthesisEngine.synthesizeFast(query, targetResults, { instantAnswer });
+    // ⏱️ Batas waktu maksimal 10 detik per sesi tanya
+    let summaryTimer = null;
+    const timeoutPromise = new Promise((resolve) => {
+      summaryTimer = setTimeout(() => {
+        resolve({
+          summary: generateLocalRagSummary(query, targetResults),
+          isTimeout: true,
+          message: 'Ringkasan instan disajikan karena batas waktu AI 10 detik tercapai.'
+        });
+      }, MAX_SEARCH_SESSION_TIMEOUT_MS);
+    });
+
+    const summaryPromise = aiSynthesisEngine.synthesizeFast(query, targetResults, { instantAnswer });
+    const summaryData = await Promise.race([summaryPromise, timeoutPromise]);
+    if (summaryTimer) clearTimeout(summaryTimer);
+
     res.json({
       success: true,
       ...summaryData
@@ -1383,8 +1470,22 @@ app.post('/api/ai/deep-search', searchPriorityMiddleware, async (req, res) => {
     const results = searchRes?.results || [];
     const instantAnswer = searchRes?.instantAnswer || null;
 
+    // ⏱️ Batas waktu maksimal 10 detik per sesi tanya
+    let deepTimer = null;
+    const timeoutPromise = new Promise((resolve) => {
+      deepTimer = setTimeout(() => {
+        resolve({
+          summary: generateLocalRagSummary(query, results),
+          isTimeout: true,
+          message: 'Batas waktu Deep Search 10 detik tercapai. Menampilkan ringkasan awal.'
+        });
+      }, MAX_SEARCH_SESSION_TIMEOUT_MS);
+    });
+
     // Step 2: Synthesis with DeepSeek reading top 15 results
-    const summaryData = await aiSynthesisEngine.synthesizeFast(query, results, { instantAnswer });
+    const summaryPromise = aiSynthesisEngine.synthesizeFast(query, results, { instantAnswer });
+    const summaryData = await Promise.race([summaryPromise, timeoutPromise]);
+    if (deepTimer) clearTimeout(deepTimer);
 
     res.json({
       success: true,

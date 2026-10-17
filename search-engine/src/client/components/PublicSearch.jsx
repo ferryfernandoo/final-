@@ -1073,12 +1073,20 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     }
     searchAbortRef.current = new AbortController();
 
+    // ⏱️ Batas waktu pencarian maksimal 10 detik per sesi tanya agar tidak membebani server untuk pengguna lain
+    const searchTimeoutId = setTimeout(() => {
+      if (searchAbortRef.current) {
+        searchAbortRef.current.abort();
+      }
+    }, 10000);
+
     setLoading(true);
     setShowSuggestions(false);
 
     try {
       const url = `/api/search?q=${encodeURIComponent(trimmed)}&page=${targetPage}&limit=${type === 'images' ? 24 : 12}&type=${type}&time=${time}`;
       const res = await fetch(url, { signal: searchAbortRef.current.signal });
+      clearTimeout(searchTimeoutId);
       const data = await res.json();
       clientSearchCache.current.set(cacheKey, data);
       setResultsData(data);
@@ -1102,10 +1110,23 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
         }
       }
     } catch (e) {
-      if (e.name !== 'AbortError') {
+      clearTimeout(searchTimeoutId);
+      if (e.name === 'AbortError') {
+        setResultsData({
+          query: trimmed,
+          total: 0,
+          results: [],
+          durationMs: 10000,
+          timedOut: true,
+          message: 'Batas waktu pencarian 10 detik per sesi tanya tercapai (QoS Protection). Layanan dibatasi agar tetap cepat untuk semua pengguna.'
+        });
+        setHasSearched(true);
+        setPage(1);
+      } else {
         console.error('Search fetch failed:', e);
       }
     } finally {
+      clearTimeout(searchTimeoutId);
       setLoading(false);
     }
   };
@@ -1862,6 +1883,28 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             {searchType === 'all' && viewMode === 'results' && resultsData && (
               <div className="dn-results-layout-grid">
                 <div className="dn-results-primary-col">
+                  {/* QoS 10-Second Search Deadline Notice Banner */}
+                  {resultsData.timedOut && (
+                    <div style={{
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      borderRadius: '10px',
+                      padding: '0.7rem 1rem',
+                      marginBottom: '1.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.65rem',
+                      fontSize: '0.82rem',
+                      color: 'var(--text-primary, #92400e)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                    }}>
+                      <Clock size={16} style={{ color: '#d97706', flexShrink: 0 }} />
+                      <span>
+                        <strong>Batas Waktu Sesi (Maks 10 Detik):</strong> Pencarian dibatasi maksimal 10 detik per sesi tanya agar sistem tetap ringan dan tidak mengganggu kecepatan pengguna lain.
+                      </span>
+                    </div>
+                  )}
+
                   {/* Instant Answer Rich Widgets */}
                   {resultsData.instantAnswer && (
                     <ErrorBoundary fallback={null}>
