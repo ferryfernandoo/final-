@@ -575,6 +575,92 @@ function SlimBiographyCardWidget({ data }) {
 
 
 
+/**
+ * 🛡️ SmartImageCard:
+ * - Completely ignores & hides broken images from the gallery
+ * - Attempts high-speed image proxy if external host blocks hotlinking (HTTP 403)
+ * - If image fails completely or is a tracking pixel (<30px), removes card from layout (returns null)
+ * - Smooth fade-in once validated
+ */
+function SmartImageCard({ img, onSelect }) {
+  const [status, setStatus] = useState('loading'); // 'loading' | 'loaded' | 'broken'
+  const [imgSrc, setImgSrc] = useState(img.imageUrl || img.url);
+  const [hasProxied, setHasProxied] = useState(false);
+
+  useEffect(() => {
+    // If the image takes longer than 2.8s to load (hanging host), drop and ignore it
+    const timer = setTimeout(() => {
+      setStatus(prev => (prev === 'loaded' ? 'loaded' : 'broken'));
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [imgSrc]);
+
+  // If broken: completely ignore this image and do not render the card (AFTER all hooks)
+  if (status === 'broken') {
+    return null;
+  }
+
+  const handleError = () => {
+    if (!hasProxied) {
+      setHasProxied(true);
+      setImgSrc(`/api/proxy-image?url=${encodeURIComponent(img.imageUrl || img.url)}`);
+    } else {
+      setStatus('broken');
+    }
+  };
+
+  const handleLoad = (e) => {
+    const el = e.currentTarget;
+    if (el.naturalWidth < 30 || el.naturalHeight < 30) {
+      setStatus('broken');
+    } else {
+      setStatus('loaded');
+    }
+  };
+
+  return (
+    <div
+      className={`image-card ${status === 'loaded' ? 'is-ready' : 'is-loading'}`}
+      onClick={() => onSelect(img)}
+      style={{ display: status === 'loaded' ? 'block' : 'none' }}
+    >
+      <div className="image-thumb-wrapper">
+        <img
+          src={imgSrc}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          style={{
+            opacity: status === 'loaded' ? 1 : 0,
+            transition: 'opacity 0.2s ease-in'
+          }}
+          onLoad={handleLoad}
+          onError={handleError}
+        />
+      </div>
+      <div className="image-card-caption">
+        <div className="image-domain-line">
+          {img.logoUrl ? (
+            <img 
+              src={img.logoUrl} 
+              alt="" 
+              className="image-domain-logo"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          ) : (
+            <Globe size={12} className="text-slate-400" />
+          )}
+          <span className="image-domain-name">{img.domain}</span>
+        </div>
+        <p className="image-title-text" title={img.alt || img.title}>
+          {img.alt || img.title || img.domain}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
   const isLocalOrAdmin = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.search.includes('admin') || window.location.pathname.startsWith('/admin'));
   const showCrawlerLiveBadge = true;
@@ -1875,48 +1961,11 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                 {resultsData.results && resultsData.results.length > 0 ? (
                   <div className="images-waterfall-grid">
                     {resultsData.results.map((img, i) => (
-                      <div
-                        key={i}
-                        className="image-card"
-                        onClick={() => setSelectedImageModal(img)}
-                      >
-                        <div className="image-thumb-wrapper">
-                          <img
-                            src={img.imageUrl || img.url}
-                            alt={img.alt || img.title || 'Gambar Web'}
-                            loading="lazy"
-                            decoding="async"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              if (!e.currentTarget.dataset.proxied) {
-                                e.currentTarget.dataset.proxied = 'true';
-                                e.currentTarget.src = `/api/proxy-image?url=${encodeURIComponent(img.imageUrl || img.url)}`;
-                              } else {
-                                const card = e.currentTarget.closest('.image-card');
-                                if (card) card.style.display = 'none';
-                              }
-                            }}
-                          />
-                        </div>
-                        <div className="image-card-caption">
-                          <div className="image-domain-line">
-                            {img.logoUrl ? (
-                              <img 
-                                src={img.logoUrl} 
-                                alt="" 
-                                className="image-domain-logo"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                              />
-                            ) : (
-                              <Globe size={12} className="text-slate-400" />
-                            )}
-                            <span className="image-domain-name">{img.domain}</span>
-                          </div>
-                          <p className="image-title-text" title={img.alt || img.title}>
-                            {img.alt || img.title || img.domain}
-                          </p>
-                        </div>
-                      </div>
+                      <SmartImageCard
+                        key={`${resultsData.query || query}_${img.id || img.imageUrl || i}`}
+                        img={img}
+                        onSelect={setSelectedImageModal}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -1993,6 +2042,13 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
               <img
                 src={selectedImageModal.imageUrl || selectedImageModal.url}
                 alt={selectedImageModal.alt || selectedImageModal.title || ''}
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  if (!e.currentTarget.dataset.proxied) {
+                    e.currentTarget.dataset.proxied = 'true';
+                    e.currentTarget.src = `/api/proxy-image?url=${encodeURIComponent(selectedImageModal.imageUrl || selectedImageModal.url)}`;
+                  }
+                }}
               />
             </div>
             <div className="lightbox-footer">

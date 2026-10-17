@@ -361,8 +361,35 @@ export default function AiOverview({ query, results = [] }) {
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      console.error('AI summary stream fetch error:', err);
-      setError({ message: 'Tidak dapat memuat Ringkasan AI saat ini. Silakan muat ulang.' });
+      console.warn('AI summary stream fetch error, falling back to instant client synthesis:', err);
+      // Fallback: Synthesize intelligent summary directly from top web results
+      const topSources = targetResults && targetResults.length > 0 ? targetResults.slice(0, 8) : [];
+      if (topSources.length > 0) {
+        const validSnippets = topSources
+          .map(r => (r.snippet || r.description || '').replace(/<[^>]+>/g, '').trim())
+          .filter(s => s.length > 20);
+
+        let fallbackSummary = '';
+        if (validSnippets.length > 0) {
+          const first = validSnippets[0].slice(0, 180).replace(/[.,;:]\s*$/, '') + '.';
+          const second = validSnippets[1] ? ' ' + validSnippets[1].slice(0, 150).replace(/[.,;:]\s*$/, '') + '.' : '';
+          fallbackSummary = `${first}${second}`;
+        } else {
+          fallbackSummary = `**${targetQuery}** adalah kueri penelusuran di DeeperNova Search. Hasil teratas mencakup informasi dari ${topSources.map(s => s.domain).filter(Boolean).slice(0, 3).join(', ')}.`;
+        }
+
+        setSummary(fallbackSummary);
+        setSources(topSources.map((s, idx) => ({
+          citId: idx + 1,
+          title: s.title || s.rawTitle || s.domain,
+          domain: s.domain || '',
+          url: s.url || '#',
+          snippet: (s.snippet || s.description || '').slice(0, 150)
+        })));
+        setError(null);
+      } else {
+        setError({ message: 'Tidak dapat memuat Ringkasan AI saat ini. Silakan muat ulang.' });
+      }
     } finally {
       setLoading(false);
     }

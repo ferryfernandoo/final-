@@ -254,6 +254,10 @@
   100% { transform: translateX(100%); }
 }
 
+.image-card.is-ready .image-thumb-wrapper::before {
+  display: none !important;
+}
+
 [data-theme="dark"] .image-thumb-wrapper {
   background: #151c2e !important;
 }

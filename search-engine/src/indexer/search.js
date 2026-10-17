@@ -1579,7 +1579,14 @@ export class SearchEngine {
         } catch {}
       }
 
-      const allCandidates = Array.from(candidatesMap.values());
+      const allCandidates = Array.from(candidatesMap.values()).filter(img => {
+        if (!img.image_url || typeof img.image_url !== 'string') return false;
+        const u = img.image_url.trim().toLowerCase();
+        if (!u.startsWith('http://') && !u.startsWith('https://')) return false;
+        if (u.includes('spacer.gif') || u.includes('blank.gif') || u.includes('pixel.gif') || u.includes('1x1') || u.includes('data:image')) return false;
+        if (img.width !== null && img.width < 40 && img.height !== null && img.height < 40) return false;
+        return true;
+      });
 
       // Calculate composite Image Relevance Score
       const scoredCandidates = allCandidates.map(img => {

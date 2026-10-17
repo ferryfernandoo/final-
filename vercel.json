@@ -109,6 +109,22 @@
       "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/search"
     },
     {
+      "source": "/api/ai/:path*",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/ai/:path*"
+    },
+    {
+      "source": "/api/images/:path*",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/images/:path*"
+    },
+    {
+      "source": "/api/news/:path*",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/news/:path*"
+    },
+    {
+      "source": "/api/economics/:path*",
+      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/economics/:path*"
+    },
+    {
       "source": "/api/suggestions/:path*",
       "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/suggestions/:path*"
     },
