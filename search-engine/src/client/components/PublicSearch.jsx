@@ -720,15 +720,17 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const isSearchActive = Boolean(hasSearched || resultsData || isSearchFocused || searchType === 'news' || searchType === 'images' || searchType === 'economics' || searchType === 'api');
 
-  // Auto-focus the header search input smoothly when entering active search mode
+  // Auto-focus the header search input smoothly ONLY when entering active search mode from empty home state
   useEffect(() => {
-    if (isSearchFocused) {
+    if (isSearchFocused && !hasSearched) {
       const timer = setTimeout(() => {
-        inputRef.current?.focus();
+        if (!hasSearched) {
+          inputRef.current?.focus();
+        }
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [isSearchFocused]);
+  }, [isSearchFocused, hasSearched]);
 
   // Google-style Search History (Persistent across sessions)
   const [recentSearches, setRecentSearches] = useState(() => {
@@ -997,11 +999,15 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     }
   };
 
-  // Close suggestions and reset focus mode when clicking outside
+  // Close suggestions, dismiss mobile soft keyboard, and reset focus mode when clicking outside or scrolling
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setShowSuggestions(false);
+        // 📱 Tutup keyboard Android saat tap di luar search box
+        if (document.activeElement === inputRef.current) {
+          inputRef.current?.blur();
+        }
         if (!hasSearched && !query.trim()) {
           setIsSearchFocused(false);
         }
@@ -1010,12 +1016,37 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
         setIsFilterMenuOpen(false);
       }
     };
+
+    const handleDismissKeyboardOnScroll = () => {
+      // 📱 Tutup keyboard Android saat user mulai scroll hasil pencarian
+      if (document.activeElement === inputRef.current) {
+        inputRef.current?.blur();
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    window.addEventListener('scroll', handleDismissKeyboardOnScroll, { passive: true });
+    window.addEventListener('touchmove', handleDismissKeyboardOnScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      window.removeEventListener('scroll', handleDismissKeyboardOnScroll);
+      window.removeEventListener('touchmove', handleDismissKeyboardOnScroll);
+    };
   }, [hasSearched, query]);
 
   // Fetch search results
   const fetchSearch = async (searchQuery, targetPage = 1, type = searchType, time = timeFilter) => {
+    // 📱 Tutup keyboard hp Android seketika begitu pencarian dijalankan
+    setIsSearchFocused(false);
+    setShowSuggestions(false);
+    inputRef.current?.blur();
+    if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+
     const trimmed = (searchQuery || '').trim();
     if (!trimmed && type !== 'images') {
       setResultsData(null);
@@ -1125,17 +1156,34 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
+    setIsSearchFocused(false);
+    setShowSuggestions(false);
+    // 📱 Tutup keyboard hp Android seketika
+    inputRef.current?.blur();
+    if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
     if (selectedIndex >= 0 && suggestions[selectedIndex]) {
       const selected = suggestions[selectedIndex];
-      setQuery(selected);
-      fetchSearch(selected, 1, searchType, timeFilter);
+      const queryText = typeof selected === 'string' ? selected : (selected.query || selected.title || '');
+      setQuery(queryText);
+      fetchSearch(queryText, 1, searchType, timeFilter);
     } else {
       fetchSearch(query, 1, searchType, timeFilter);
     }
-    setShowSuggestions(false);
   };
 
   const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      // 📱 Tutup keyboard hp Android seketika saat tombol Enter ditekan
+      setIsSearchFocused(false);
+      setShowSuggestions(false);
+      inputRef.current?.blur();
+      if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+    }
+
     if (!showSuggestions || !suggestions.length) return;
 
     if (e.key === 'ArrowDown') {
@@ -1153,9 +1201,15 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
   };
 
   const handleSelectSuggestion = (text) => {
+    setIsSearchFocused(false);
+    setShowSuggestions(false);
+    // 📱 Tutup keyboard hp Android seketika
+    inputRef.current?.blur();
+    if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
     setQuery(text);
     fetchSearch(text, 1, searchType, timeFilter);
-    setShowSuggestions(false);
   };
 
   const handleFillQuery = (text) => {
@@ -1434,7 +1488,9 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
           <input
             ref={inputRef}
-            type="text"
+            type="search"
+            enterKeyHint="search"
+            inputMode="search"
             value={query}
             onChange={(e) => handleInputChange(e.target.value)}
             onFocus={handleInputFocus}
@@ -1443,6 +1499,9 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             className="dn-search-input"
             autoFocus={false}
             autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
           />
 
           {/* In Header Mode: If query has text, show clean X. If query is empty, show Mic and Camera. Zero bulky 'Cari' button! */}

@@ -448,3 +448,13 @@
   cursor: pointer !important;
   flex-shrink: 0 !important;
 }
+
+/* 📱 Native mobile search input styling: remove duplicate browser clear button */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: none !important;
+}
