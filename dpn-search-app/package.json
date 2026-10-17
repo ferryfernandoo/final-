@@ -1,0 +1,14 @@
+{
+  "name": "dpn-search",
+  "version": "1.0.0",
+  "description": "DPN Search - DeeperNova Autonomous Search Engine Android App",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Assets already in dist'"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2"
+  }
+}

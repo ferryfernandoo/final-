@@ -1,0 +1,13 @@
+{
+  "appId": "com.dpn.search",
+  "appName": "DPN Search",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
