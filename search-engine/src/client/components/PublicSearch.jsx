@@ -718,19 +718,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
   }, [theme]);
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const isSearchActive = Boolean(hasSearched || resultsData || isSearchFocused || searchType === 'news' || searchType === 'images' || searchType === 'economics' || searchType === 'api');
-
-  // Auto-focus the header search input smoothly ONLY when entering active search mode from empty home state
-  useEffect(() => {
-    if (isSearchFocused && !hasSearched) {
-      const timer = setTimeout(() => {
-        if (!hasSearched) {
-          inputRef.current?.focus();
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isSearchFocused, hasSearched]);
+  const isSearchActive = Boolean(hasSearched || resultsData || searchType === 'news' || searchType === 'images' || searchType === 'economics' || searchType === 'api');
 
   // Google-style Search History (Persistent across sessions)
   const [recentSearches, setRecentSearches] = useState(() => {
@@ -1176,7 +1164,13 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
   };
 
   const handleSubmit = (e) => {
-    if (e) e.preventDefault();
+    if (e) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+    const currentVal = (inputRef.current ? inputRef.current.value : query) || '';
+    const trimmed = currentVal.trim();
+
     setIsSearchFocused(false);
     setShowSuggestions(false);
     // 📱 Tutup keyboard hp Android seketika
@@ -1184,25 +1178,27 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
       document.activeElement.blur();
     }
+
+    let targetQuery = trimmed;
     if (selectedIndex >= 0 && suggestions[selectedIndex]) {
       const selected = suggestions[selectedIndex];
-      const queryText = typeof selected === 'string' ? selected : (selected.query || selected.title || '');
-      setQuery(queryText);
-      fetchSearch(queryText, 1, searchType, timeFilter);
-    } else {
-      fetchSearch(query, 1, searchType, timeFilter);
+      targetQuery = (typeof selected === 'string' ? selected : (selected.query || selected.title || '')).trim() || trimmed;
+    }
+
+    if (targetQuery) {
+      setQuery(targetQuery);
+      fetchSearch(targetQuery, 1, searchType, timeFilter);
+    } else if (query && query.trim()) {
+      fetchSearch(query.trim(), 1, searchType, timeFilter);
     }
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      // 📱 Tutup keyboard hp Android seketika saat tombol Enter ditekan
-      setIsSearchFocused(false);
-      setShowSuggestions(false);
-      inputRef.current?.blur();
-      if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      handleSubmit(e);
+      return;
     }
 
     if (!showSuggestions || !suggestions.length) return;
@@ -1493,7 +1489,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
       <form onSubmit={handleSubmit} className="dn-search-form">
         <div className={`dn-search-bar ${isHeaderMode ? 'is-header-bar google-header-bar' : 'is-hero-bar'} ${showSuggestions && suggestions.length > 0 ? 'has-dropdown' : ''} ${isListening ? 'listening-pulse' : ''}`}>
           
-          {/* Left Icon: In header mode, clean '+' button as in Google mobile screenshot; in hero mode, Search icon */}
+          {/* Left Icon: In header mode, clean '+' button; in hero mode, clickable Search icon */}
           {isHeaderMode ? (
             <button
               type="button"
@@ -1504,7 +1500,18 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
               <Plus size={20} />
             </button>
           ) : (
-            <Search size={22} className="dn-search-icon" />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                handleSubmit(e);
+              }}
+              className="dn-search-icon-btn"
+              title="Cari"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <Search size={22} className="dn-search-icon" />
+            </button>
           )}
 
           <input
@@ -1525,44 +1532,78 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             spellCheck="false"
           />
 
-          {/* In Header Mode: If query has text, show clean X. If query is empty, show Mic and Camera. Zero bulky 'Cari' button! */}
+          {/* Right Action Controls: Always include working search button */}
           {isHeaderMode ? (
-            query.trim().length > 0 ? (
-              <button
-                type="button"
-                onClick={clearQuery}
-                className="dn-clear-btn google-clear-btn"
-                title="Hapus kata kunci"
-              >
-                <X size={18} />
-              </button>
-            ) : (
-              <div className="google-header-actions">
+            <div className="google-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {query && query.trim().length > 0 ? (
                 <button
                   type="button"
-                  onClick={startVoiceSearch}
-                  className={`dn-action-btn dn-mic-btn ${isListening ? 'active-listening' : ''}`}
-                  title={isListening ? "Hentikan perekaman suara" : "Pencarian Suara"}
+                  onClick={clearQuery}
+                  className="dn-clear-btn google-clear-btn"
+                  title="Hapus kata kunci"
                 >
-                  {isListening ? (
-                    <MicOff size={18} className="mic-listening-icon" />
-                  ) : (
-                    <Mic size={18} />
-                  )}
+                  <X size={18} />
                 </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={startVoiceSearch}
+                    className={`dn-action-btn dn-mic-btn ${isListening ? 'active-listening' : ''}`}
+                    title={isListening ? "Hentikan perekaman suara" : "Pencarian Suara"}
+                  >
+                    {isListening ? (
+                      <MicOff size={18} className="mic-listening-icon" />
+                    ) : (
+                      <Mic size={18} />
+                    )}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowVisualModal(true)}
-                  className="dn-action-btn dn-camera-btn"
-                  title="Cari dengan Gambar (Visual Search)"
-                >
-                  <Camera size={18} />
-                </button>
-              </div>
-            )
+                  <button
+                    type="button"
+                    onClick={() => setShowVisualModal(true)}
+                    className="dn-action-btn dn-camera-btn"
+                    title="Cari dengan Gambar (Visual Search)"
+                  >
+                    <Camera size={18} />
+                  </button>
+                </>
+              )}
+
+              <button
+                type="submit"
+                className="dn-submit-btn dn-header-submit-btn"
+                disabled={loading}
+                title="Cari"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSubmit(e);
+                }}
+                style={{
+                  height: '34px',
+                  width: '36px',
+                  padding: 0,
+                  borderRadius: '18px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(37,99,235,0.35)',
+                  flexShrink: 0
+                }}
+              >
+                {loading ? (
+                  <div className="spinner-sm" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                ) : (
+                  <Search size={16} />
+                )}
+              </button>
+            </div>
           ) : (
-            /* In Hero Mode: standard hero controls */
+            /* In Hero Mode: standard hero controls with robust click handler */
             <>
               {query && (
                 <button
@@ -1602,6 +1643,10 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                 className="dn-submit-btn"
                 disabled={loading}
                 title="Cari Web"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSubmit(e);
+                }}
               >
                 {loading ? (
                   <div className="spinner-sm" />
