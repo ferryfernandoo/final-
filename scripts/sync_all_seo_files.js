@@ -17,7 +17,7 @@ const robotsContent = `# =======================================================
 # Deepernova Corp - Indonesia's Leading Autonomous AI & Coding Platform
 # ==============================================================================
 
-# 1. Major Global Search Engines (Google, Bing, Yahoo/Slurp, Yandex, Baidu, DuckDuckGo, Naver, Seznam, Apple)
+# 1. Major Global Search Engines (Google, Bing, Yahoo/Slurp, Yandex, DuckDuckGo, Naver, Seznam, Apple)
 User-agent: Googlebot
 User-agent: Googlebot-Image
 User-agent: Googlebot-News
@@ -25,7 +25,6 @@ User-agent: Googlebot-Video
 User-agent: Bingbot
 User-agent: Slurp
 User-agent: DuckDuckBot
-User-agent: Baiduspider
 User-agent: YandexBot
 User-agent: YandexImages
 User-agent: Yeti
