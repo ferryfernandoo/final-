@@ -1234,6 +1234,17 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <span className="agent-header-brand-badge">Agent</span>
             </div>
 
+            {/* Quick Switch to Regular Chatbot */}
+            <button
+              type="button"
+              className="agent-header-switch-chat-btn"
+              onClick={() => onNavigate?.('chat')}
+              title="Kembali ke AI Chatbot Biasa"
+            >
+              <i className="fa-regular fa-comments"></i>
+              <span>AI Biasa</span>
+            </button>
+
             {/* Quick Effort Badge Chip */}
             <button
               type="button"

@@ -436,6 +436,18 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
   };
   fs.writeFileSync(vercelPath, JSON.stringify(vercelConfig, null, 2), 'utf8');
   log.success('vercel.json rewrites berhasil diperbarui.');
+
+  // 8. Update dpn-search-app/dist/index.html
+  const dpnSearchHtmlPath = path.join(ROOT_DIR, 'dpn-search-app', 'dist', 'index.html');
+  if (fs.existsSync(dpnSearchHtmlPath)) {
+    let dpnHtml = fs.readFileSync(dpnSearchHtmlPath, 'utf8');
+    dpnHtml = dpnHtml.replace(
+      /var BACKEND_URL = '[^']+';/,
+      `var BACKEND_URL = '${searchEngineUrl}';`
+    );
+    fs.writeFileSync(dpnSearchHtmlPath, dpnHtml, 'utf8');
+    log.success('dpn-search-app/dist/index.html server address updated.');
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -644,6 +656,41 @@ async function main() {
     }
   } else {
     log.info('Melewati Step 8 (Build Frontend) via parameter...');
+  }
+
+  // ── Step 8.5: Update & Build APKs ───
+  if (process.argv.includes('--build-apk') || process.argv.includes('--apk')) {
+    log.title('📱 STEP 8.5: Update & Build Android APKs');
+    // 1. DPN Search APK
+    try {
+      log.info('Menyinkronkan dan merakit DPN-Search.apk...');
+      const dpnDir = path.join(ROOT_DIR, 'dpn-search-app');
+      execSync('npx cap sync android', { cwd: dpnDir, stdio: 'inherit' });
+      execSync('.\\gradlew.bat assembleDebug', { cwd: path.join(dpnDir, 'android'), stdio: 'inherit' });
+      const dpnApkSrc = path.join(dpnDir, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+      const dpnApkDest = path.join(ROOT_DIR, 'DPN-Search.apk');
+      if (fs.existsSync(dpnApkSrc)) {
+        fs.copyFileSync(dpnApkSrc, dpnApkDest);
+        log.success(`DPN-Search.apk berhasil diperbarui (${(fs.statSync(dpnApkDest).size / 1024 / 1024).toFixed(2)} MB).`);
+      }
+    } catch (apkErr) {
+      log.warn(`Gagal merakit DPN-Search.apk: ${apkErr.message}`);
+    }
+
+    // 2. DeeperNova AI APK
+    try {
+      log.info('Menyinkronkan dan merakit deepernova-ai.apk...');
+      execSync('npx cap sync android', { cwd: ROOT_DIR, stdio: 'inherit' });
+      execSync('.\\gradlew.bat assembleDebug', { cwd: path.join(ROOT_DIR, 'android'), stdio: 'inherit' });
+      const aiApkSrc = path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+      const aiApkDest = path.join(ROOT_DIR, 'deepernova-ai.apk');
+      if (fs.existsSync(aiApkSrc)) {
+        fs.copyFileSync(aiApkSrc, aiApkDest);
+        log.success(`deepernova-ai.apk berhasil diperbarui (${(fs.statSync(aiApkDest).size / 1024 / 1024).toFixed(2)} MB).`);
+      }
+    } catch (aiApkErr) {
+      log.warn(`Gagal merakit deepernova-ai.apk: ${aiApkErr.message}`);
+    }
   }
 
   // ── Step 9: Git Commit & Push ───

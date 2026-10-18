@@ -47,15 +47,6 @@
       ]
     },
     {
-      "source": "/search/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -106,71 +97,27 @@
   ],
   "rewrites": [
     {
-      "source": "/search",
-      "destination": "/search/index.html"
-    },
-    {
-      "source": "/search/",
-      "destination": "/search/index.html"
-    },
-    {
-      "source": "/search/((?!assets/|app\\.js|style\\.css).*)",
-      "destination": "/search/index.html"
-    },
-    {
-      "source": "/api/search",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/search"
-    },
-    {
-      "source": "/api/ai/:path*",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/ai/:path*"
-    },
-    {
-      "source": "/api/images/:path*",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/images/:path*"
-    },
-    {
-      "source": "/api/news/:path*",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/news/:path*"
-    },
-    {
-      "source": "/api/economics/:path*",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/economics/:path*"
-    },
-    {
-      "source": "/api/suggestions/:path*",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/suggestions/:path*"
-    },
-    {
-      "source": "/api/proxy-image",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/proxy-image"
-    },
-    {
-      "source": "/api/telemetry/:path*",
-      "destination": "https://songs-crimes-angela-tourist.trycloudflare.com/api/telemetry/:path*"
-    },
-    {
       "source": "/api/:path*",
-      "destination": "https://extensions-cingular-problems-gym.trycloudflare.com/api/:path*"
+      "destination": "https://maternity-carried-comp-div.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://extensions-cingular-problems-gym.trycloudflare.com/auth/:path*"
+      "destination": "https://maternity-carried-comp-div.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://extensions-cingular-problems-gym.trycloudflare.com/v1/:path*"
+      "destination": "https://maternity-carried-comp-div.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://extensions-cingular-problems-gym.trycloudflare.com/download/:path*"
+      "destination": "https://maternity-carried-comp-div.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://extensions-cingular-problems-gym.trycloudflare.com/watermarked/:path*"
+      "destination": "https://maternity-carried-comp-div.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!assets/|search/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]

@@ -11775,6 +11775,33 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           {userLanguage === 'id' ? 'Apa yang bisa saya lakukan untuk Anda?' : 'What can I help you with today?'}
         </h1>
 
+        {/* Choice of AI Mode: AI Biasa (Chatbot) or AI Agent */}
+        <div className="meta-hero-mode-selector">
+          <div className="meta-mode-pill-track">
+            <button
+              type="button"
+              className="meta-mode-pill is-active-chat"
+              title={userLanguage === 'id' ? 'Mode Aktif: AI Chatbot Biasa' : 'Active Mode: Regular AI Chatbot'}
+            >
+              <span className="mode-pill-pulse-dot"></span>
+              <span className="mode-pill-icon">💬</span>
+              <span className="mode-pill-name">AI Biasa</span>
+              <span className="mode-pill-active-badge">{userLanguage === 'id' ? 'Aktif' : 'Active'}</span>
+            </button>
+
+            <button
+              type="button"
+              className="meta-mode-pill is-agent-option"
+              onClick={() => onNavigate?.('agent')}
+              title={userLanguage === 'id' ? 'Buka AI Agent: Eksekusi kode otonom, terminal, perbaikan mandiri & pembuatan proyek' : 'Open AI Agent: Autonomous code execution, terminal & self-healing'}
+            >
+              <span className="mode-pill-icon">⚡</span>
+              <span className="mode-pill-name">AI Agent</span>
+              <span className="mode-pill-cta-badge">{userLanguage === 'id' ? 'Buka Agent →' : 'Launch Agent →'}</span>
+            </button>
+          </div>
+        </div>
+
         {/* Uploaded Attachments & Text Queue if present in Greeting State */}
         {(uploadedFiles.length > 0 || uploadedImages.length > 0) && (
           <div className={`uploaded-attachments-container${attachmentQueueMinimized ? ' minimized' : ''}`}>
@@ -12164,6 +12191,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         {/* Quick Prompt Chips */}
         <div className="meta-prompt-chips-row">
+          <button
+            type="button"
+            className="meta-prompt-chip agent-entry-chip"
+            onClick={() => onNavigate?.('agent')}
+            title={userLanguage === 'id' ? 'Buka Autonomous AI Agent (Eksekusi Kode & File)' : 'Launch Autonomous AI Agent'}
+          >
+            ⚡ Mode AI Agent
+          </button>
           <button
             type="button"
             className="meta-prompt-chip"
@@ -14302,6 +14337,20 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 {agenticSteps.length > 0 && (
                   <span className="agentic-steps-badge">{agenticSteps.length}</span>
                 )}
+              </button>
+            </div>
+          )}
+
+          {messages.length === 0 && (
+            <div className="header-right-actions">
+              <button
+                type="button"
+                className="header-switch-agent-btn"
+                onClick={() => onNavigate?.('agent')}
+                title={userLanguage === 'id' ? 'Buka Mode AI Agent (Eksekusi Kode & File)' : 'Open AI Agent Mode'}
+              >
+                <i className="fa-solid fa-bolt"></i>
+                <span>AI Agent</span>
               </button>
             </div>
           )}
