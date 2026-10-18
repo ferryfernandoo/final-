@@ -255,12 +255,10 @@ Deepernova memiliki search engine internal sub-20ms. Keputusan untuk melakukan p
      User: "Siapa juara piala dunia 2026?" → AI: [SEARCH_REQUEST: juara piala dunia 2026]
      User: "Coba cari info tentang X di web" → AI: [SEARCH_REQUEST: X]
 2. KAPAN TIDAK PERLU SEARCHING (langsung jawab komprehensif dari pengetahuan internal):
-   - Anda sudah mengetahui jawabannya secara pasti dan tuntas.
+   - Percakapan kasual, sapaan, curhat, humor, filosofi, opini pribadi, logika penalaran, penulisan kreatif, coding murni, atau matematika.
    - Pertanyaan jam, hari, tanggal, atau waktu saat ini (jawab langsung dari data [WAKTU REAL-TIME SEKARANG]).
-   - Percakapan kasual, sapaan, curhat, humor, filosofi, opini, logika penalaran, coding, matematika, naskah kreatif, atau analisis mendalam.
-   - JIKA RAGU apakah perlu search atau tidak: JAWAB LANGSUNG. Jangan memaksakan pencarian jika tidak mutlak dibutuhkan.
 3. ATURAN FORMAT PENCARIAN:
-   - Jika memutuskan searching: keluarkan tag [SEARCH_REQUEST: kata kunci] di baris paling awal tanpa teks pembuka.
+   - Jika pengguna menanyakan fakta, peristiwa, berita, tokoh, harga, cuaca, atau meminta pencarian: WAJIB keluarkan tag [SEARCH_REQUEST: kata kunci ringkas] di baris paling awal tanpa teks pembuka.
    - Jika hasil web kurang relevan: padukan dengan pengetahuan internal Anda dan jawab dengan percaya diri tanpa meminta maaf.
 
 🔴 RECALL MEMORY & PROFIL PERSONAL:
@@ -390,8 +388,7 @@ Aturan Utama:
    - JIKA HASIL PENCARIAN KURANG RELEVAN, TIDAK MENJAWAB LENGKAP, ATAU OFF-TOPIC: Secara otomatis dan mulus gunakan pengetahuan serta penalaran internal LLM Anda sendiri untuk memberikan jawaban yang lengkap, akurat, dan memuaskan.
    - JANGAN PERNAH meminta maaf soal pencarian, JANGAN PERNAH menyalahkan sumber atau hasil pencarian, dan JANGAN PERNAH mengatakan "Maaf, hasil pencarian tidak relevan...", "Sumber tidak memuat informasi...", atau kalimat sejenis. Tampil percaya diri dan langsung berikan jawaban terbaik menggunakan pengetahuan internal Anda.
 6. Jangan pernah membaca atau merangkum berita secara kaku/terisolasi seolah-olah Anda adalah robot pembaca berita. Jawaban Anda harus menyatu sebagai asisten AI yang sedang berdialog dengan pengguna.
-7. Jangan pernah mengulang-ulang frasa atau kata yang sama (hindari token looping/word salad).
-8. Jangan keluarkan tag [SEARCH_REQUEST] jika pertanyaan pengguna sudah dapat dijawab secara tuntas.
+8. Gunakan tag [SEARCH_REQUEST: kata kunci] secara proaktif apabila pertanyaan memerlukan verifikasi fakta mutakhir atau data web terkini.
 9. FORMAT JAWABAN SUPER RAPI, TERSTRUKTUR, & SCANNABLE (SANGAT PENTING):
    - Awali dengan 1-2 kalimat ringkasan inti di paragraf pembuka.
    - Gunakan hirarki heading markdown yang jelas: gunakan '###' untuk subjudul bagian tematik (misal: "### 1. Perkembangan Utama" atau "### Analisis Lengkap").
@@ -419,8 +416,7 @@ Key Rules:
    - IF SEARCH RESULTS ARE NOT RELEVANT, INCOMPLETE, OR OFF-TOPIC: Seamlessly and automatically fall back to your own vast internal knowledge and reasoning to answer the user's question completely, accurately, and confidently.
    - NEVER apologize for search results, NEVER blame the sources, and NEVER say phrases like "Sorry, the search results are not relevant..." or "The provided sources do not contain...". Always maintain a confident persona and provide the best answer using your internal knowledge.
 6. Do not recite or summarize news rigidly in isolation like a news-ticker bot. Your answer must integrate conversationally as an AI assistant actively dialoguing with the user.
-7. Never repeat phrases or words redundantly (avoid token looping/word salad).
-8. Do not emit [SEARCH_REQUEST] if the inquiry can already be answered thoroughly.
+8. Proactively emit [SEARCH_REQUEST: keywords] whenever user inquiry involves current real-world facts, live updates, or external knowledge.
 9. HIGHLY STRUCTURED & SCANNABLE FORMATTING:
    - Start with a direct 1-2 sentence executive summary answering the question immediately.
    - Use thematic markdown subheadings (###) to separate distinct topics.
@@ -795,17 +791,13 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         '- JIKA kamu memerlukan informasi real-time, berita hari ini/terbaru, harga terkini (emas/saham/kripto/kurs), data faktual terkini, atau jika pengguna meminta kamu mencari/browsing di internet:\n' +
         '  PANCARKAN FLAG BERIKUT TEPAT DI AWAL RESPON dan HANYA tag ini saja tanpa kata pengantar apapun sebelumnya:\n' +
         '  [SEARCH_REQUEST: kata kunci pencarian yang spesifik dan ringkas]\n' +
-        '- DILARANG KERAS memancarkan tag pencarian jika pengguna sekadar memakai kata "cari" dalam obrolan santai atau mencari ide/nama/rekomendasi (contoh: "aku lagi cari ide nama kucing", "lagi cari inspirasi usaha"). Untuk obrolan santai, ide kreatif, sapaan, matematika, atau coding, JAWAB LANGSUNG tanpa tag pencarian!\n' +
-        '- Jika ragu apakah perlu mencari atau tidak: Jawab langsung tanpa mencari.'
+        '- DILARANG KERAS memancarkan tag pencarian jika pengguna sekadar memakai kata "cari" dalam obrolan santai atau mencari ide/nama/rekomendasi (contoh: "aku lagi cari ide nama kucing"). Untuk sapaan, curhat, matematika, atau coding umum, jawab langsung.'
       : '\n\nAUTONOMOUS WEB SEARCH RIGHTS (WEB SEARCH FLAG):\n' +
         '- You have autonomous capability to search the web in real-time whenever you need current information.\n' +
-        '- ONLY YOU (the AI) decide when a search is necessary.\n' +
         '- IF you require real-time information, latest news/updates, today\'s market rates, dynamic facts, or if the user asks you to search online:\n' +
         '  EMIT THIS FLAG AT THE VERY START of your response with no preamble before it:\n' +
         '  [SEARCH_REQUEST: specific and concise search keywords]\n' +
-        '- DO NOT emit [SEARCH_REQUEST] for greetings, casual chat, math, coding, or standard knowledge you already know.\n' +
-        '- DO NOT emit search flags when the user casually says "I am looking for ideas/names". Answer directly with creative ideas.\n' +
-        '- When in doubt whether to search: Answer directly without searching.'
+        '- DO NOT emit [SEARCH_REQUEST] for greetings, casual chat, math, coding, or purely creative brainstorming.'
     );
 
     const visionInstruction = validImageUrls.length > 0

@@ -24,7 +24,7 @@ import GlobalMemorySettings from './GlobalMemorySettings';
 import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch } from '../services/clientSearchService';
+import { executeWebSearch, detectUpfrontSearchIntent } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import './ChatBot.css';
 
@@ -2374,6 +2374,23 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       const next = !prev;
       try {
         localStorage.setItem('deepernova_reasoning_enabled', String(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+  const [isWebSearchActive, setIsWebSearchActive] = useState(() => {
+    try {
+      const stored = localStorage.getItem('deepernova_web_search_enabled');
+      return stored === null ? true : stored === 'true';
+    } catch {
+      return true;
+    }
+  });
+  const toggleWebSearch = useCallback(() => {
+    setIsWebSearchActive(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('deepernova_web_search_enabled', String(next));
       } catch (e) {}
       return next;
     });
@@ -9262,9 +9279,61 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // Keputusan pencarian web sepenuhnya ditentukan oleh AI (LLM).
-    // Tidak ada match query regex aneh di awal. Jika AI membutuhkan data web/real-time,
-    // AI secara otonom akan mengeluarkan tag [SEARCH_REQUEST: kata kunci].
+    // 🌐 Web Search Trigger:
+    // Cek niat pencarian upfront agar chatbot langsung mencari ke search engine
+    // tanpa menunggu halusinasi LLM atau streaming tag.
+    const searchCandidateText = cleanUserText || (inputValue || '').trim();
+    const upfrontSearchQuery = detectUpfrontSearchIntent(searchCandidateText, userLanguage);
+    const isGreetingOrCasual = /^(?:halo|hai|hi|hello|pagi|siang|sore|malam|apa kabar|terima kasih|makasih|thanks|thank you|ok|oke|sip|siap|bye|dadah|siapa kamu)\b/i.test(searchCandidateText);
+    const isSimpleGreetingOnly = isGreetingOrCasual && searchCandidateText.split(/\s+/).length <= 4;
+    const isExplicitSearchQuery = Boolean(
+      upfrontSearchQuery ||
+      (isWebSearchActive && !isSimpleGreetingOnly && searchCandidateText.length >= 4 && !searchCandidateText.startsWith('/'))
+    );
+
+    if (isExplicitSearchQuery && imagesToPass.length === 0 && !searchCandidateText.startsWith('/')) {
+      const targetSearchQuery = upfrontSearchQuery || searchCandidateText.replace(/[?!.]+$/, '').trim();
+      console.log(`[ChatBot] 🌐 Direct upfront Web Search triggered for: "${targetSearchQuery}" (upfrontDetected: ${Boolean(upfrontSearchQuery)})`);
+
+      // Mark message state as searching
+      setMessages(prev =>
+        prev.map(msg => {
+          if (msg.id === placeholderId) {
+            return {
+              ...msg,
+              text: '',
+              isStreaming: false,
+              isSearching: true,
+              searchQuery: targetSearchQuery,
+              searchResults: null,
+              searchSources: [],
+              searchSteps: [{
+                query: targetSearchQuery,
+                isSearching: true,
+                sources: [],
+                images: []
+              }]
+            };
+          }
+          return msg;
+        })
+      );
+
+      triggeredSearchRequestsRef.current.add(placeholderId);
+
+      if (statusUpdateIntervalRef.current) {
+        clearInterval(statusUpdateIntervalRef.current);
+        statusUpdateIntervalRef.current = null;
+      }
+
+      executeSearchAndSynthesize({
+        messageId: placeholderId,
+        searchQuery: targetSearchQuery,
+        userPrompt: cleanUserText,
+        baseHistory: updatedConversationHistory
+      });
+      return;
+    }
     if (imagesToPass.length > 0 && !isReasoningImage) {
       setReasoningImages(imagesToPass);
       setReasoningPrompt(inputValue);
@@ -12085,6 +12154,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   </span>
                 </button>
               )}
+
+              {/* Web Search Mode Toggle Button */}
+              <button
+                type="button"
+                className={`claude-search-toggle-btn ${isWebSearchActive ? 'active' : ''}`}
+                onClick={toggleWebSearch}
+                title={
+                  isWebSearchActive
+                    ? (userLanguage === 'id' ? 'Pencarian Web: AKTIF (Klik untuk nonaktifkan)' : 'Web Search: ACTIVE (Click to disable)')
+                    : (userLanguage === 'id' ? 'Pencarian Web: NONAKTIF (Klik untuk aktifkan)' : 'Web Search: DISABLED (Click to enable)')
+                }
+              >
+                <span className="search-toggle-icon">🌐</span>
+                <span className="search-toggle-text">
+                  {userLanguage === 'id' ? 'Cari Web' : 'Web Search'}
+                </span>
+                <span className={`search-toggle-status-pill ${isWebSearchActive ? 'on' : 'off'}`}>
+                  {isWebSearchActive ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Mati' : 'Off')}
+                </span>
+              </button>
 
               {/* Speech-to-Text Microphone Button */}
               <button
@@ -15008,6 +15097,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   </span>
                 </button>
               )}
+
+              {/* Web Search Mode Toggle Button */}
+              <button
+                type="button"
+                className={`claude-search-toggle-btn ${isWebSearchActive ? 'active' : ''}`}
+                onClick={toggleWebSearch}
+                title={
+                  isWebSearchActive
+                    ? (userLanguage === 'id' ? 'Pencarian Web: AKTIF (Klik untuk nonaktifkan)' : 'Web Search: ACTIVE (Click to disable)')
+                    : (userLanguage === 'id' ? 'Pencarian Web: NONAKTIF (Klik untuk aktifkan)' : 'Web Search: DISABLED (Click to enable)')
+                }
+              >
+                <span className="search-toggle-icon">🌐</span>
+                <span className="search-toggle-text">
+                  {userLanguage === 'id' ? 'Cari Web' : 'Web Search'}
+                </span>
+                <span className={`search-toggle-status-pill ${isWebSearchActive ? 'on' : 'off'}`}>
+                  {isWebSearchActive ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Mati' : 'Off')}
+                </span>
+              </button>
 
               {/* Speech-to-Text Microphone Button */}
               <button
