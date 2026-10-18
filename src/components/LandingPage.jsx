@@ -3,7 +3,7 @@ import { SEARCH_ENGINE_URL } from '../apiConfig';
 import './LandingPage.css';
 
 const openSearch = (q) => {
-  const base = (SEARCH_ENGINE_URL || 'https://depot-entrance-land-combining.trycloudflare.com').replace(/\/+$/, '');
+  const base = (SEARCH_ENGINE_URL || 'https://playstation-clearance-eight-away.trycloudflare.com').replace(/\/+$/, '');
   const searchBase = base.endsWith('/search') ? base : `${base}/search`;
   const url = q ? `${searchBase}?q=${encodeURIComponent(q)}` : base;
   window.open(url, '_blank', 'noopener,noreferrer');
