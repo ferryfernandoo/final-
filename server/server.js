@@ -212,8 +212,6 @@ app.use((req, res, next) => {
     reqPath === '/codedance' ||
     reqPath === '/documents' ||
     reqPath === '/chat' ||
-    reqPath === '/promo' ||
-    reqPath === '/ad' ||
     reqPath === '/universe' ||
     reqPath === '/ceo.jpg' ||
     reqPath.startsWith('/watermarked-') ||
@@ -7911,7 +7909,7 @@ app.get(['/help', '/help/', '/help.html'], (req, res) => {
 });
 
 // SPA catch-all for public frontend routes
-app.get(['/', '/chat', '/chat/', '/promo', '/promo/', '/ad', '/ad/', '/codedance', '/codedance/', '/documents', '/documents/', '/universe', '/universe/'], (req, res, next) => {
+app.get(['/', '/chat', '/chat/', '/codedance', '/codedance/', '/documents', '/documents/', '/universe', '/universe/'], (req, res, next) => {
   const distIndex = path.join(__dirname, '..', 'dist', 'index.html');
   if (fs.existsSync(distIndex)) {
     return res.sendFile(distIndex);
