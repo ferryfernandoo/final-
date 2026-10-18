@@ -178,6 +178,19 @@ export default function PromoVideoAd({ onNavigate, onClose }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Expose programmatic time driver for external renderers / recording scripts
+  useEffect(() => {
+    window.__setPromoTime = (sec) => {
+      setCurrentTime(sec);
+      setIsPlaying(false);
+    };
+    window.__promoReady = true;
+    return () => {
+      delete window.__setPromoTime;
+      delete window.__promoReady;
+    };
+  }, []);
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -260,6 +273,15 @@ export default function PromoVideoAd({ onNavigate, onClose }) {
         </div>
 
         <div className="promo-header-right">
+          <a 
+            href="/deepernova-iklan-30s.mp4" 
+            download="deepernova-iklan-30s.mp4"
+            className="promo-header-download-btn"
+            title="Download File Video MP4 (1080p Full HD)"
+          >
+            <i className="fa-solid fa-download"></i>
+            <span>Download MP4</span>
+          </a>
           <button 
             type="button" 
             className="promo-header-cta-btn"
