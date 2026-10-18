@@ -922,7 +922,10 @@ const proxyToSearchEngine = async (endpoint, req, res) => {
   try {
     const baseTarget = SEARCH_ENGINE_TARGET.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
     let targetEndpoint = endpoint;
-    if (endpoint === '/images') targetEndpoint = '/search-images';
+    if (endpoint === '/search' || endpoint === '/search-fast') targetEndpoint = '/api/v1/search';
+    if (endpoint === '/images' || endpoint === '/search-images') targetEndpoint = '/api/v1/images';
+    if (endpoint === '/news') targetEndpoint = '/api/v1/news';
+    if (endpoint === '/suggest') targetEndpoint = '/suggest';
 
     const targetUrl = new URL(`${baseTarget}${targetEndpoint}`);
     if (req.query) {
@@ -930,7 +933,7 @@ const proxyToSearchEngine = async (endpoint, req, res) => {
         if (req.query[k] !== undefined) targetUrl.searchParams.append(k, String(req.query[k]));
       });
     }
-    if ((targetEndpoint === '/search' || targetEndpoint === '/search-fast') && !targetUrl.searchParams.has('crawl')) {
+    if ((targetEndpoint === '/api/v1/search' || targetEndpoint === '/search' || targetEndpoint === '/search-fast') && !targetUrl.searchParams.has('crawl')) {
       targetUrl.searchParams.set('crawl', '0');
     }
 
@@ -5794,7 +5797,11 @@ app.use('/api/v1', async (req, res) => {
     const baseTarget = DEEPERNOVA_SEARCH_API_URL.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
     let subPath = req.url;
     if (subPath.startsWith('/images')) {
-      subPath = subPath.replace('/images', '/search-images');
+      subPath = subPath.replace('/images', '/api/v1/images');
+    } else if (subPath.startsWith('/suggest')) {
+      subPath = subPath.replace('/suggest', '/suggest');
+    } else if (!subPath.startsWith('/api/v1')) {
+      subPath = `/api/v1${subPath}`;
     }
     const targetUrl = `${baseTarget}${subPath}`;
     const headers = { ...req.headers };
@@ -5820,8 +5827,8 @@ app.use('/api/v1', async (req, res) => {
         res.setHeader(key, val);
       }
     });
-    const buffer = await resp.buffer();
-    return res.send(buffer);
+    const arrayBuf = await resp.arrayBuffer();
+    return res.send(Buffer.from(arrayBuf));
   } catch (err) {
     console.error('[API/V1 PROXY ERROR]', err.message);
     return res.status(502).json({ success: false, error: 'Search engine proxy connection failed: ' + err.message });

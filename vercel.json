@@ -97,6 +97,66 @@
   ],
   "rewrites": [
     {
+      "source": "/search",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/search"
+    },
+    {
+      "source": "/search/:path*",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/search/:path*"
+    },
+    {
+      "source": "/api/v1/search",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/v1/search"
+    },
+    {
+      "source": "/api/v1/images",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/v1/images"
+    },
+    {
+      "source": "/api/v1/news",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/v1/news"
+    },
+    {
+      "source": "/api/v1/suggest",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/suggest"
+    },
+    {
+      "source": "/api/suggestions",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/suggestions"
+    },
+    {
+      "source": "/api/suggestions/:path*",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/suggestions/:path*"
+    },
+    {
+      "source": "/api/ai/stream",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/ai/stream"
+    },
+    {
+      "source": "/api/news/:path*",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/news/:path*"
+    },
+    {
+      "source": "/api/tokoh/:path*",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/tokoh/:path*"
+    },
+    {
+      "source": "/api/geo/:path*",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/geo/:path*"
+    },
+    {
+      "source": "/api/crawl/:path*",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/crawl/:path*"
+    },
+    {
+      "source": "/api/economics/:path*",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/economics/:path*"
+    },
+    {
+      "source": "/api/proxy-image",
+      "destination": "https://depot-entrance-land-combining.trycloudflare.com/api/proxy-image"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://emacs-corn-accommodation-regarded.trycloudflare.com/api/:path*"
     },

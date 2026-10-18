@@ -285,7 +285,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     }
     if (searchEngineUrl) {
       apiConfigContent = apiConfigContent.replace(
-        /export const SEARCH_ENGINE_URL =\s*[\s\S]*?'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
+        /export const SEARCH_ENGINE_URL =[\s\S]*?;/,
         `export const SEARCH_ENGINE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||\n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:4000'\n    : '${searchEngineUrl}');`
       );
     }
@@ -310,15 +310,9 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
   if (fs.existsSync(landingPagePath)) {
     let lpContent = fs.readFileSync(landingPagePath, 'utf8');
     lpContent = lpContent.replace(
-      /const SEARCH_ENGINE_URL =[\s\S]*?;/,
-      `const SEARCH_ENGINE_URL = \n  import.meta.env?.VITE_SEARCH_ENGINE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:4000'\n    : '${searchEngineUrl}');`
+      /const openSearch = \(q\) => \{[\s\S]*?\};/,
+      `const openSearch = (q) => {\n  const base = (SEARCH_ENGINE_URL || '${searchEngineUrl}').replace(/\\/+$/, '');\n  const searchBase = base.endsWith('/search') ? base : \`\${base}/search\`;\n  const url = q ? \`\${searchBase}?q=\${encodeURIComponent(q)}\` : base;\n  window.open(url, '_blank', 'noopener,noreferrer');\n};`
     );
-    if (dteUrl) {
-      lpContent = lpContent.replace(
-        /const ORDER_DTE_URL =[\s\S]*?;/,
-        `const ORDER_DTE_URL = \n  import.meta.env?.VITE_ORDER_DTE_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:5173'\n    : '${dteUrl}');`
-      );
-    }
     fs.writeFileSync(landingPagePath, lpContent, 'utf8');
     log.success('src/components/LandingPage.jsx berhasil diperbarui.');
   }
@@ -408,6 +402,66 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
       }
     ],
     rewrites: [
+      {
+        source: "/search",
+        destination: `${searchEngineUrl}/search`
+      },
+      {
+        source: "/search/:path*",
+        destination: `${searchEngineUrl}/search/:path*`
+      },
+      {
+        source: "/api/v1/search",
+        destination: `${searchEngineUrl}/api/v1/search`
+      },
+      {
+        source: "/api/v1/images",
+        destination: `${searchEngineUrl}/api/v1/images`
+      },
+      {
+        source: "/api/v1/news",
+        destination: `${searchEngineUrl}/api/v1/news`
+      },
+      {
+        source: "/api/v1/suggest",
+        destination: `${searchEngineUrl}/suggest`
+      },
+      {
+        source: "/api/suggestions",
+        destination: `${searchEngineUrl}/api/suggestions`
+      },
+      {
+        source: "/api/suggestions/:path*",
+        destination: `${searchEngineUrl}/api/suggestions/:path*`
+      },
+      {
+        source: "/api/ai/stream",
+        destination: `${searchEngineUrl}/api/ai/stream`
+      },
+      {
+        source: "/api/news/:path*",
+        destination: `${searchEngineUrl}/api/news/:path*`
+      },
+      {
+        source: "/api/tokoh/:path*",
+        destination: `${searchEngineUrl}/api/tokoh/:path*`
+      },
+      {
+        source: "/api/geo/:path*",
+        destination: `${searchEngineUrl}/api/geo/:path*`
+      },
+      {
+        source: "/api/crawl/:path*",
+        destination: `${searchEngineUrl}/api/crawl/:path*`
+      },
+      {
+        source: "/api/economics/:path*",
+        destination: `${searchEngineUrl}/api/economics/:path*`
+      },
+      {
+        source: "/api/proxy-image",
+        destination: `${searchEngineUrl}/api/proxy-image`
+      },
       {
         source: "/api/:path*",
         destination: `${backendUrl}/api/:path*`

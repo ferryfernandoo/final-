@@ -3,8 +3,9 @@ import { SEARCH_ENGINE_URL } from '../apiConfig';
 import './LandingPage.css';
 
 const openSearch = (q) => {
-  const base = SEARCH_ENGINE_URL || 'https://vernon-clear-officials-absent.trycloudflare.com';
-  const url = q ? `${base}?q=${encodeURIComponent(q)}` : base;
+  const base = (SEARCH_ENGINE_URL || 'https://depot-entrance-land-combining.trycloudflare.com').replace(/\/+$/, '');
+  const searchBase = base.endsWith('/search') ? base : `${base}/search`;
+  const url = q ? `${searchBase}?q=${encodeURIComponent(q)}` : base;
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
