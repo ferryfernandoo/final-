@@ -40,57 +40,10 @@ export function enrichQueryWithDateIfRecent(query, userPrompt = '', language = '
 }
 
 /**
- * Smart detection of search intent from user prompt.
- * If user asks for real-time information, facts, news, prices, weather, or uses search verbs,
- * extracts a clean, optimized search query.
+ * Deteksi regex di awal ditiadakan.
+ * Keputusan apakah perlu searching atau tidak sepenuhnya ditentukan oleh AI (LLM).
  */
 export function detectUpfrontSearchIntent(promptText, language = 'id') {
-  if (!promptText || typeof promptText !== 'string') return null;
-  const raw = promptText.trim();
-  if (raw.length < 3) return null;
-
-  // Filter out pure code blocks or json/xml
-  if (raw.startsWith('```') || raw.startsWith('{') || raw.startsWith('<')) return null;
-
-  // 1. Explicit search commands/verbs
-  const explicitSearchRegex = /^(?:tolong\s+)?(?:coba\s+)?(?:cari|carikan|search|searching|browsing|googling|cek|lihatkan|temukan)\s+(?:tentang\s+|info\s+|informasi\s+|berita\s+|data\s+|soal\s+)?(.+)/i;
-  const explicitMatch = raw.match(explicitSearchRegex);
-  if (explicitMatch && explicitMatch[1] && explicitMatch[1].trim().length >= 2) {
-    let clean = explicitMatch[1].replace(/[?!.]+$/, '').trim();
-    clean = clean.replace(/\s+(?:dong|deh|ya|nih|kan|please|plis)$/i, '').trim();
-    if (clean.length >= 2) return clean;
-  }
-
-  // 2. Factual inquiry questions (news, current events, weather, prices, who/what/when)
-  const questionPatterns = [
-    /^(?:siapa|siapakah)\s+(?:presiden|menteri|gubernur|bupati|walikota|ceo|pendiri|penemu|juara|pemenang|pelatih|kapten|pemilik|tokoh|pemeran|aktor|aktris)\s+(.+)/i,
-    /^(?:apa\s+(?:itu|artinya|makna|maksud|definisi|kabar|berita|perkembangan))\s+(.+)/i,
-    /(?:berita|kabar|perkembangan|isu|info|informasi)\s+(?:terbaru|terkini|hari ini|viral|hangat|terupdate|teranyar)\s*(?:tentang|mengenai|soal|terkait)?\s*(.*)/i,
-    /(?:harga|kurs|biaya|tarif|nilai tukar)\s+(?:emas|bitcoin|btc|saham|dolar|bbm|pertalite|minyak|beras|kripto|usd|idr)?\s*(?:terbaru|terkini|hari ini|saat ini|sekarang)?\s*(.*)/i,
-    /(?:jadwal|skor|hasil|klasemen)\s+(?:pertandingan|bola|sepak bola|liga|timnas|siaran|tayang|piala)\s*(.*)/i,
-    /(?:cuaca|prakiraan cuaca|gempa|gempa bumi)\s+(?:hari ini|saat ini|terkini|terbaru|di)?\s*(.*)/i,
-    /(?:siapa|apakah|kapan|dimana|jadwal|hasil)\s+(?:pemilu|pilpres|pilkada|piala dunia|world cup|olimpiade|asian games|liga champions|ucl|motogp|f1)\s*(.*)/i
-  ];
-
-  for (const pattern of questionPatterns) {
-    const match = raw.match(pattern);
-    if (match) {
-      let q = raw.replace(/^(?:tolong\s+)?(?:coba\s+)?(?:bisakah kamu\s+)?(?:bisa\s+)?(?:jelaskan\s+)?/i, '');
-      q = q.replace(/[?!.]+$/, '').trim();
-      return q;
-    }
-  }
-
-  // 3. Temporal indicators combined with factual keywords
-  const temporalRegex = /(?:terbaru|terkini|hari ini|kemarin|malam ini|siang ini|pagi ini|minggu ini|bulan ini|tahun 2026|tahun ini|terupdate|viral|saat ini|sekarang ini)/i;
-  const factualRegex = /(?:berita|harga|kurs|presiden|menteri|juara|pemilu|pilpres|pilkada|gempa|cuaca|jadwal|skor|pertandingan|klasemen|saham|kripto|bitcoin|emas|update|peristiwa|kejadian|kasus)/i;
-
-  if (temporalRegex.test(raw) && factualRegex.test(raw)) {
-    let clean = raw.replace(/^(?:tolong|coba|bisakah kamu|bisa|mohon)\s+/i, '');
-    clean = clean.replace(/[?!.]+$/, '').trim();
-    return clean;
-  }
-
   return null;
 }
 
@@ -174,7 +127,7 @@ function setClientSearchCache(key, data) {
 /**
  * Helper to perform direct frontend search and map results into standard format
  */
-async function performDirectSearch(query, limit, includeImages, timeoutMs = 1800) {
+async function performDirectSearch(query, limit, includeImages, timeoutMs = 5000) {
   // Only block direct fetch if page is loaded over HTTPS and target search API is an insecure HTTP URL.
   // When DEEPERNOVA_SEARCH_API_URL is already HTTPS (e.g. Cloudflare tunnel), direct hit works flawlessly!
   if (typeof window !== 'undefined' && window.location.protocol === 'https:' && DEEPERNOVA_SEARCH_API_URL.startsWith('http:')) {
@@ -195,7 +148,7 @@ async function performDirectSearch(query, limit, includeImages, timeoutMs = 1800
     searchUrl.searchParams.append('q', query);
     searchUrl.searchParams.append('limit', String(limit));
     searchUrl.searchParams.append('crawl', '1');
-    searchUrl.searchParams.append('fast', '1');
+    searchUrl.searchParams.append('fast', '0');
 
     const searchPromise = fetch(searchUrl.toString(), {
       headers: searchHeaders,
@@ -208,7 +161,7 @@ async function performDirectSearch(query, limit, includeImages, timeoutMs = 1800
       imagesUrl.searchParams.append('q', query);
       imagesUrl.searchParams.append('limit', String(limit));
       imagesUrl.searchParams.append('crawl', '1');
-      imagesUrl.searchParams.append('fast', '1');
+      imagesUrl.searchParams.append('fast', '0');
       imagesPromise = fetch(imagesUrl.toString(), {
         headers: searchHeaders,
         signal: controller.signal
@@ -283,11 +236,11 @@ async function performDirectSearch(query, limit, includeImages, timeoutMs = 1800
 /**
  * Helper to perform backend proxy search
  */
-async function performProxySearch(query, limit, timeoutMs = 1800) {
+async function performProxySearch(query, limit, timeoutMs = 5000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=${limit}&crawl=1&fast=1`;
+    const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=${limit}&crawl=1&fast=0`;
     const response = await fetch(backendProxyUrl, {
       credentials: 'include',
       signal: controller.signal
@@ -349,8 +302,8 @@ export async function executeWebSearch(query, options = {}) {
         }).catch(() => resolve(null));
       });
 
-    const directPromise = wrapSearchResult(performDirectSearch(effectiveQuery, limit, includeImages, 1800));
-    const proxyPromise = wrapSearchResult(performProxySearch(effectiveQuery, limit, 1800));
+    const directPromise = wrapSearchResult(performDirectSearch(effectiveQuery, limit, includeImages, 5000));
+    const proxyPromise = wrapSearchResult(performProxySearch(effectiveQuery, limit, 5000));
 
     // Fast-path: whichever returns valid results first wins immediately!
     const firstResult = await Promise.race([
@@ -373,7 +326,7 @@ export async function executeWebSearch(query, options = {}) {
     };
   };
 
-  // Hard global timeout at 2400ms - strictly guaranteed under 3 seconds
+  // Hard global timeout at 7500ms - guarantees deep search completion
   const hardTimeoutPromise = new Promise((resolve) => {
     setTimeout(() => {
       resolve({
@@ -381,10 +334,10 @@ export async function executeWebSearch(query, options = {}) {
         data: {
           organic_results: [],
           inline_images: [],
-          search_information: { query: effectiveQuery, total_results: 0, time_taken_ms: 2400, timed_out: true }
+          search_information: { query: effectiveQuery, total_results: 0, time_taken_ms: 7500, timed_out: true }
         }
       });
-    }, 2400);
+    }, 7500);
   });
 
   const finalResult = await Promise.race([executeWithTimeout(), hardTimeoutPromise]);

@@ -243,22 +243,25 @@ PRINSIP UTAMA: ANTI BASA-BASI & PANJANG ADAPTIF (ADAPTIVE DEPTH WITHOUT FLUFF):
   * DILARANG KERAS menolak, mengatakan tidak punya akses waktu real-time, mengira masih tahun 2024, atau menyuruh pengguna mengecek perangkat/jam sendiri.
   * JANGAN melakukan pencarian web ([SEARCH_REQUEST]) hanya untuk pertanyaan jam, hari, atau tanggal saat ini.
 
-🔴 PENCARIAN WEB OTONOM (SMART WEB SEARCH):
-Deepernova memiliki search engine internal sub-20ms. Keputusan untuk melakukan pencarian di web sepenuhnya berada di tangan Anda (AI) secara otonom.
-1. KAPAN MENGGUNAKAN SEARCHING (keluarkan tag [SEARCH_REQUEST: kata kunci ringkas] di awal respons):
-   - Pengguna secara eksplisit meminta mencari di internet / web ("cari di internet", "search", "googling", "cek info terkini").
-   - Pertanyaan membutuhkan fakta terkini, berita mutakhir, atau data yang baru saja terjadi.
-   - Data real-time: harga komoditas/emas/saham/kripto, kurs mata uang, jadwal siaran, skor pertandingan, atau cuaca terkini.
-   - Kata kunci pencarian harus ALAMI, RINGKAS, dan TEPAT SASARAN (tanpa format aneh atau kata sambung yang tidak perlu).
+🔴 PENCARIAN WEB OTONOM (DEEPERNOVA SEARCH ENGINE & LIVE CRAWLER):
+Deepernova terhubung langsung dengan DeeperNova Search Engine yang hidup, aktif, dan terus melakukan live crawling data web.
+1. KEBEBASAN OTONOM PENUH (SEARCHING SESUKA ANDA):
+   - Anda (AI) memiliki hak, kebebasan, dan otonomi penuh untuk mencari di search engine SESUKA ANDA dengan kata kunci query apa saja yang Anda rumuskan sendiri!
+   - Kapan pun Anda membutuhkan data terkini, berita mutakhir, fakta spesifik, harga komoditas/emas/saham/kripto/kurs, profil tokoh, institusi, produk teknologi, perbandingan, verifikasi fakta, atau eksplorasi internet:
+     PANCARKAN TAG PENCARIAN TEPAT DI AWAL RESPON:
+     [SEARCH_REQUEST: kata kunci pencarian pilihan Anda yang tajam dan alami]
+   - Anda BEBAS menentukan dan merumuskan query pencarian apa pun (ringkas, tajam, dan tepat sasaran).
+   - Jangan ragu untuk mencari! Pencarian di search engine DeeperNova membuat jawaban Anda selalu segar, faktual, dan memiliki referensi nyata.
    - Contoh:
      User: "Berapa harga bitcoin sekarang?" → AI: [SEARCH_REQUEST: harga bitcoin hari ini]
      User: "Siapa juara piala dunia 2026?" → AI: [SEARCH_REQUEST: juara piala dunia 2026]
      User: "Coba cari info tentang X di web" → AI: [SEARCH_REQUEST: X]
-2. KAPAN TIDAK PERLU SEARCHING (langsung jawab komprehensif dari pengetahuan internal):
-   - Percakapan kasual, sapaan, curhat, humor, filosofi, opini pribadi, logika penalaran, penulisan kreatif, coding murni, atau matematika.
+     User: "Kabar terbaru IKN bagaimana?" → AI: [SEARCH_REQUEST: kabar terbaru IKN Nusantara 2026]
+2. JAWAB LANGSUNG TANPA SEARCH:
    - Pertanyaan jam, hari, tanggal, atau waktu saat ini (jawab langsung dari data [WAKTU REAL-TIME SEKARANG]).
+   - Percakapan kasual sapaan singkat ("halo", "hai", "apa kabar"), humor, curhat, filosofi murni, atau logika/coding dasar yang sudah sangat Anda kuasai.
 3. ATURAN FORMAT PENCARIAN:
-   - Jika pengguna menanyakan fakta, peristiwa, berita, tokoh, harga, cuaca, atau meminta pencarian: WAJIB keluarkan tag [SEARCH_REQUEST: kata kunci ringkas] di baris paling awal tanpa teks pembuka.
+   - Jika memutuskan searching: keluarkan tag [SEARCH_REQUEST: kata kunci] di baris paling awal tanpa teks pembuka apapun.
    - Jika hasil web kurang relevan: padukan dengan pengetahuan internal Anda dan jawab dengan percaya diri tanpa meminta maaf.
 
 🔴 RECALL MEMORY & PROFIL PERSONAL:
@@ -318,24 +321,24 @@ CORE PRINCIPLE: NO FLUFF / SMALL TALK & ADAPTIVE DEPTH (ADAPTIVE DEPTH WITHOUT F
   * STRICTLY FORBIDDEN to refuse, claim lack of real-time clock access, assume it is 2024, or tell the user to check their device.
   * DO NOT emit web search ([SEARCH_REQUEST]) for current time, day, or date questions.
 
-🔴 AUTONOMOUS WEB SEARCH (SMART SEARCH):
-Deepernova has a sub-20ms internal search engine. The decision to search the web is 100% autonomously made by you (the AI).
-1. WHEN TO SEARCH (emit [SEARCH_REQUEST: concise keywords] at the start of your response):
-   - User explicitly asks to search ("search online", "look up on web", "google it").
-   - Question requires breaking news, today's events, or rapidly changing real-time data.
-   - Real-time market data: stock/crypto prices, currency rates, schedules, or current weather.
-   - Keep search keywords NATURAL, CONCISE, and TARGETED (avoid weird formats or unnecessary filler words).
+🔴 AUTONOMOUS WEB SEARCH (DEEPERNOVA SEARCH ENGINE & LIVE CRAWLER):
+Deepernova is directly integrated with the live DeeperNova Search Engine with continuous real-time crawling.
+1. FULL AUTONOMOUS SEARCH FREEDOM:
+   - You (the AI) have full freedom, right, and autonomy to search the web for ANY QUERY YOU WANT at any time!
+   - Whenever you need recent updates, breaking news, specific facts, commodity/crypto/stock prices, company info, product comparisons, or real-world verification:
+     EMIT THE SEARCH TAG AT THE VERY START of your response:
+     [SEARCH_REQUEST: your chosen targeted search keywords]
+   - Feel completely free to formulate any search query that best retrieves the information. Do not hesitate to search!
    - Examples:
      User: "Current bitcoin price?" → AI: [SEARCH_REQUEST: bitcoin price today]
      User: "Who won the 2026 World Cup?" → AI: [SEARCH_REQUEST: 2026 World Cup winner]
      User: "Search for X online" → AI: [SEARCH_REQUEST: X]
-2. WHEN NOT TO SEARCH (answer thoroughly from your internal knowledge):
-   - You already know the answer thoroughly and accurately.
-   - Questions about current time/day/date (answer directly from the [CURRENT REAL-TIME CLOCK] block).
-   - Casual greetings, chats, jokes, philosophies, opinions, reasoning, coding, math, essays, or deep analysis.
-   - WHEN IN DOUBT: ANSWER DIRECTLY. Do not force an unnecessary web search.
+     User: "Latest updates on AI agents?" → AI: [SEARCH_REQUEST: latest AI agent developments 2026]
+2. ANSWER DIRECTLY WITHOUT SEARCH:
+   - Current time/day/date queries (answer directly from [CURRENT REAL-TIME CLOCK]).
+   - Simple greetings ("hello", "hi", "how are you") or pure math/logic/creative coding already completely clear to you.
 3. SEARCH MECHANICS:
-   - If searching: emit [SEARCH_REQUEST: ...] at the very beginning without preamble.
+   - If searching: emit [SEARCH_REQUEST: ...] at the very beginning with no preamble.
    - If search results are irrelevant: synthesize with your internal knowledge and answer confidently.
 
 🔴 MEMORY RECALL & PERSONAL PROFILE:
@@ -388,7 +391,8 @@ Aturan Utama:
    - JIKA HASIL PENCARIAN KURANG RELEVAN, TIDAK MENJAWAB LENGKAP, ATAU OFF-TOPIC: Secara otomatis dan mulus gunakan pengetahuan serta penalaran internal LLM Anda sendiri untuk memberikan jawaban yang lengkap, akurat, dan memuaskan.
    - JANGAN PERNAH meminta maaf soal pencarian, JANGAN PERNAH menyalahkan sumber atau hasil pencarian, dan JANGAN PERNAH mengatakan "Maaf, hasil pencarian tidak relevan...", "Sumber tidak memuat informasi...", atau kalimat sejenis. Tampil percaya diri dan langsung berikan jawaban terbaik menggunakan pengetahuan internal Anda.
 6. Jangan pernah membaca atau merangkum berita secara kaku/terisolasi seolah-olah Anda adalah robot pembaca berita. Jawaban Anda harus menyatu sebagai asisten AI yang sedang berdialog dengan pengguna.
-8. Gunakan tag [SEARCH_REQUEST: kata kunci] secara proaktif apabila pertanyaan memerlukan verifikasi fakta mutakhir atau data web terkini.
+7. Jangan pernah mengulang-ulang frasa atau kata yang sama (hindari token looping/word salad).
+8. Anda BEBAS dan DISARANKAN memancarkan [SEARCH_REQUEST: kata kunci pilihan Anda] kapan pun data nyata dari internet, berita terbaru, atau verifikasi web akan membuat jawaban Anda lebih kaya, akurat, dan komprehensif.
 9. FORMAT JAWABAN SUPER RAPI, TERSTRUKTUR, & SCANNABLE (SANGAT PENTING):
    - Awali dengan 1-2 kalimat ringkasan inti di paragraf pembuka.
    - Gunakan hirarki heading markdown yang jelas: gunakan '###' untuk subjudul bagian tematik (misal: "### 1. Perkembangan Utama" atau "### Analisis Lengkap").
@@ -416,7 +420,8 @@ Key Rules:
    - IF SEARCH RESULTS ARE NOT RELEVANT, INCOMPLETE, OR OFF-TOPIC: Seamlessly and automatically fall back to your own vast internal knowledge and reasoning to answer the user's question completely, accurately, and confidently.
    - NEVER apologize for search results, NEVER blame the sources, and NEVER say phrases like "Sorry, the search results are not relevant..." or "The provided sources do not contain...". Always maintain a confident persona and provide the best answer using your internal knowledge.
 6. Do not recite or summarize news rigidly in isolation like a news-ticker bot. Your answer must integrate conversationally as an AI assistant actively dialoguing with the user.
-8. Proactively emit [SEARCH_REQUEST: keywords] whenever user inquiry involves current real-world facts, live updates, or external knowledge.
+7. Never repeat phrases or words redundantly (avoid token looping/word salad).
+8. You are fully FREE and ENCOURAGED to emit [SEARCH_REQUEST: your chosen keywords] whenever real-world internet data, latest developments, or web verification makes your response richer and more accurate.
 9. HIGHLY STRUCTURED & SCANNABLE FORMATTING:
    - Start with a direct 1-2 sentence executive summary answering the question immediately.
    - Use thematic markdown subheadings (###) to separate distinct topics.
@@ -703,7 +708,7 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 };
 
 // Function untuk call backend proxy
-const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false) => {
+const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true) => {
   const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
   
@@ -784,20 +789,25 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       ? `[WAKTU REAL-TIME SEKARANG]: Tahun ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayId}.`
       : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
 
-    const searchInstruction = isSearchConclusion ? '' : (language === 'id'
-      ? '\n\nHAK PENCARIAN WEB OTONOM (WEB SEARCH FLAG):\n' +
-        '- Kamu memiliki hak dan akses otonom penuh untuk mencari di internet secara real-time kapan pun kamu membutuhkan informasi terbaru.\n' +
-        '- HANYA KAMU (AI) yang berhak menentukan kapan perlu melakukan pencarian di web. Pengguna tidak perlu mengetik perintah pencarian tertentu.\n' +
-        '- JIKA kamu memerlukan informasi real-time, berita hari ini/terbaru, harga terkini (emas/saham/kripto/kurs), data faktual terkini, atau jika pengguna meminta kamu mencari/browsing di internet:\n' +
-        '  PANCARKAN FLAG BERIKUT TEPAT DI AWAL RESPON dan HANYA tag ini saja tanpa kata pengantar apapun sebelumnya:\n' +
-        '  [SEARCH_REQUEST: kata kunci pencarian yang spesifik dan ringkas]\n' +
-        '- DILARANG KERAS memancarkan tag pencarian jika pengguna sekadar memakai kata "cari" dalam obrolan santai atau mencari ide/nama/rekomendasi (contoh: "aku lagi cari ide nama kucing"). Untuk sapaan, curhat, matematika, atau coding umum, jawab langsung.'
-      : '\n\nAUTONOMOUS WEB SEARCH RIGHTS (WEB SEARCH FLAG):\n' +
-        '- You have autonomous capability to search the web in real-time whenever you need current information.\n' +
-        '- IF you require real-time information, latest news/updates, today\'s market rates, dynamic facts, or if the user asks you to search online:\n' +
-        '  EMIT THIS FLAG AT THE VERY START of your response with no preamble before it:\n' +
-        '  [SEARCH_REQUEST: specific and concise search keywords]\n' +
-        '- DO NOT emit [SEARCH_REQUEST] for greetings, casual chat, math, coding, or purely creative brainstorming.'
+    const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
+      ? '\n\n🔴 KEMAMPUAN SEARCH ENGINE & LIVE WEB CRAWLER:\n' +
+        '- Kamu terhubung langsung ke DeeperNova Search Engine yang siap melakukan pencarian index dan live crawling web.\n' +
+        '- KEPUTUSAN MENCARI SEPENUHNYA DI TANGANMU (OTONOM):\n' +
+        '  * Kamu sendiri yang bebas dan cerdas menilai: apakah pertanyaan pengguna ini memerlukan pencarian di web atau tidak.\n' +
+        '  * JIKA pertanyaan bisa kamu jawab langsung dengan pengetahuan internalmu (seperti obrolan santai, sapaan, curhat, ide/kreativitas, coding/pemrograman, penjelasan konsep umum, matematika, filosofi): JAWAB LANGSUNG secara alami tanpa memanggil search engine.\n' +
+        '  * JIKA kamu merasa membutuhkan info terkini, berita hari ini, fakta spesifik, harga komoditas/pasar, verifikasi data, atau informasi mutakhir dari web: Kamu BEBAS menentukan kata kunci pencarian apa saja yang kamu inginkan, dan pancarkan di baris pertama responmu:\n' +
+        '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
+        '  * Kata kunci query bebas terserah kamu, rumuskan seringkas dan setepat sasaran mungkin sesuai data yang ingin kamu temukan.\n' +
+        '  * Search engine akan otomatis mencari dan meng-crawl web secara live lalu mengembalikan data terupdate untuk kamu olah.'
+      : '\n\n🔴 SEARCH ENGINE & LIVE WEB CRAWLER CAPABILITY:\n' +
+        '- You are directly connected to DeeperNova Search Engine and live web crawler.\n' +
+        '- SEARCH DECISION IS 100% IN YOUR HANDS (AUTONOMOUS):\n' +
+        '  * You independently evaluate whether the user question requires searching the web or not.\n' +
+        '  * IF the question can be answered from your knowledge (casual conversation, greetings, creative ideas, coding, explanations, math, philosophy): ANSWER DIRECTLY without searching.\n' +
+        '  * IF you need current facts, today\'s news, dynamic market prices, or real-time web info: You are FREE to formulate any search query you desire, and emit at the first line:\n' +
+        '    [SEARCH_REQUEST: your chosen query]\n' +
+        '  * Formulate the query however you see fit (concise and targeted).\n' +
+        '  * The search engine will execute query and live crawling, returning fresh sources for you to synthesize.'
     );
 
     const visionInstruction = validImageUrls.length > 0
@@ -1013,7 +1023,7 @@ export const appendToGlobalMemory = async (newQuestion, isAuthenticated, isGuest
   return;
 };
 
-export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false) => {
+export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false, enableWebSearch = true) => {
   let lastError = null;
   const operationStartTime = Date.now();
   
@@ -1099,7 +1109,8 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
       globalMemory,
       conversationId,
       isGuest,
-      enableReasoning
+      enableReasoning,
+      enableWebSearch
     );
   } catch (backendErr) {
     if (backendErr.name === 'AbortError') throw backendErr;

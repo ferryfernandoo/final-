@@ -767,8 +767,8 @@ function dbStats() {
 // ==========================================
 
 // ⚡ Autonomous QoS Search Priority Middleware:
-// Enforces a strict 2.2-second per-session deadline to ensure zero starvation of concurrent users (<3s guaranteed)
-const MAX_SEARCH_SESSION_TIMEOUT_MS = 2200;
+// Enforces a strict 5-second per-session deadline for deep crawling and instant search responses
+const MAX_SEARCH_SESSION_TIMEOUT_MS = 5000;
 
 function searchPriorityMiddleware(req, res, next) {
   const tag = (req.query.q || req.path).slice(0, 60);
@@ -784,15 +784,15 @@ function searchPriorityMiddleware(req, res, next) {
     }
   };
 
-  // Safety guard: auto-release after 2.2s to guarantee activeSearches never blocks other users
+  // Safety guard: auto-release after 5s to guarantee activeSearches never blocks other users
   safetyTimeout = setTimeout(onEnd, MAX_SEARCH_SESSION_TIMEOUT_MS);
 
-  // Set 2.2-second hard socket/request timeout
+  // Set 5-second hard socket/request timeout
   req.setTimeout(MAX_SEARCH_SESSION_TIMEOUT_MS, () => {
     onEnd();
     if (!res.headersSent) {
       res.status(504).json({
-        error: 'Search timeout (2.2s exceeded)',
+        error: 'Search timeout (5.0s exceeded)',
         message: 'Batas waktu pencarian 2.2 detik per sesi tercapai agar tidak mengganggu kecepatan layanan untuk pengguna lain.'
       });
     }
@@ -961,6 +961,20 @@ async function handleV1Search(req, res) {
   if (searchTimer) clearTimeout(searchTimer);
   const latencyMs = Math.round((performance.now() - tStart) * 100) / 100;
 
+  // Autonomous on-demand crawl injection: keep crawler fed with user/AI queries
+  if (query && crawlerEngine && typeof crawlerEngine.injectSeeds === 'function') {
+    try {
+      const encoded = encodeURIComponent(query.trim());
+      const querySeeds = [
+        `https://id.wikipedia.org/wiki/Special:Search?search=${encoded}`,
+        `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
+        `https://news.google.com/rss/search?q=${encoded}&hl=id&gl=ID&ceid=ID:id`,
+        `https://news.google.com/rss/search?q=${encoded}&hl=en-US&gl=US&ceid=US:en`
+      ];
+      crawlerEngine.injectSeeds(querySeeds, 35);
+    } catch (_cErr) {}
+  }
+
   const formattedResults = (result.results || []).map(r => {
     const rawTitle = (r.rawTitle || r.title || '').replace(/<[^>]+>/g, '').trim();
     const snippet = (r.snippet || r.description || r.content || '').replace(/<[^>]+>/g, '').trim();
@@ -979,6 +993,63 @@ async function handleV1Search(req, res) {
       lead_image_url: r.lead_image_url || r.leadImageUrl || null
     };
   });
+
+  // 🚀 Fast Live Crawl Fallback: If results are sparse or fresh news query, fetch and index live in seconds
+  if (formattedResults.length < 3 && query && type !== 'images') {
+    try {
+      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=id&gl=ID&ceid=ID:id`;
+      const rssResp = await fetch(rssUrl, {
+        signal: AbortSignal.timeout(2200),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
+        }
+      });
+      if (rssResp.ok) {
+        const xml = await rssResp.text();
+        const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+        for (const m of itemMatches.slice(0, 8)) {
+          const itemXml = m[1];
+          const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
+          const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
+          const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
+          const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
+          if (rawTitle && rawLink) {
+            let domain = '';
+            try { domain = new URL(rawLink).hostname.replace('www.', ''); } catch(e) {}
+            const pageItem = {
+              url: rawLink,
+              domain: domain || 'news.google.com',
+              title: rawTitle,
+              description: rawTitle,
+              headings: rawTitle,
+              content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
+              author: source || null,
+              publishedAt: pubDate ? new Date(pubDate).getTime() : Date.now(),
+              pagerank: 1.2,
+              trustScore: 85
+            };
+            db.savePage(pageItem);
+            formattedResults.push({
+              title: rawTitle,
+              url: rawLink,
+              domain: domain || 'news.google.com',
+              snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
+              description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
+              author: source || null,
+              published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+              pagerank: 1.2,
+              trust_score: 85,
+              logo_url: null,
+              lead_image_url: null
+            });
+          }
+        }
+        db.flushPageBuffer();
+      }
+    } catch (_liveErr) {
+      console.warn('[V1-SEARCH] Fast live crawl note:', _liveErr.message);
+    }
+  }
 
   const aiContext = formatAiContext(query, formattedResults);
 
