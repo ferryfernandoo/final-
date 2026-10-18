@@ -918,7 +918,7 @@ const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d694
 
 const proxyToSearchEngine = async (endpoint, req, res) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // ⏱️ Batas waktu maksimal 10 detik per sesi tanya search
+  const timeoutId = setTimeout(() => controller.abort(), 2000); // ⏱️ Batas waktu maksimal 2 detik untuk respon instan
   try {
     const baseTarget = SEARCH_ENGINE_TARGET.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
     let targetEndpoint = endpoint;
@@ -933,9 +933,8 @@ const proxyToSearchEngine = async (endpoint, req, res) => {
         if (req.query[k] !== undefined) targetUrl.searchParams.append(k, String(req.query[k]));
       });
     }
-    if ((targetEndpoint === '/api/v1/search' || targetEndpoint === '/search' || targetEndpoint === '/search-fast') && !targetUrl.searchParams.has('crawl')) {
-      targetUrl.searchParams.set('crawl', '0');
-    }
+    targetUrl.searchParams.set('crawl', '0');
+    targetUrl.searchParams.set('fast', '1');
 
     const upstream = await fetch(targetUrl.toString(), {
       method: req.method,
@@ -5575,6 +5574,9 @@ function cleanSearchText(str) {
   return str.replace(/<\/?mark[^>]*>/gi, '').trim();
 }
 
+const unifiedSearchCache = new Map();
+const UNIFIED_CACHE_TTL = 10 * 60 * 1000;
+
 async function handleUnifiedSearch(req, res) {
   try {
     const rawQ = req.query?.q || req.body?.query || req.body?.q;
@@ -5584,6 +5586,12 @@ async function handleUnifiedSearch(req, res) {
     }
 
     const cleanRawQ = rawQ.trim();
+    const cacheKey = `${cleanRawQ.toLowerCase()}:${limit}`;
+    const cachedItem = unifiedSearchCache.get(cacheKey);
+    if (cachedItem && Date.now() - cachedItem.time < UNIFIED_CACHE_TTL) {
+      return res.json(cachedItem.data);
+    }
+
     // Candidates to query:
     // 1) The clean original query (best for BM25 match against existing articles)
     // 2) Stripped query if it had an injected date
@@ -5616,14 +5624,14 @@ async function handleUnifiedSearch(req, res) {
       for (const searchBase of searchApiBases) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // ⏱️ Batas waktu maksimal 10 detik per sesi tanya search
+          const timeoutId = setTimeout(() => controller.abort(), 1800); // ⏱️ Batas waktu maksimal 1.8 detik untuk kecepatan instan
 
           const [searchResp, imagesResp] = await Promise.allSettled([
-            fetch(`${searchBase}/search?q=${encodeURIComponent(targetQuery)}&limit=${limit}`, {
+            fetch(`${searchBase}/search?q=${encodeURIComponent(targetQuery)}&limit=${limit}&crawl=0&fast=1`, {
               headers: searchHeaders,
               signal: controller.signal
             }),
-            fetch(`${searchBase}/images?q=${encodeURIComponent(targetQuery)}&limit=8`, {
+            fetch(`${searchBase}/images?q=${encodeURIComponent(targetQuery)}&limit=8&crawl=0&fast=1`, {
               headers: searchHeaders,
               signal: controller.signal
             })
@@ -5694,8 +5702,14 @@ async function handleUnifiedSearch(req, res) {
         engine: engineUsed
       };
 
+      const finalResult = { success: true, data: responsePayload };
+      unifiedSearchCache.set(cacheKey, { data: finalResult, time: Date.now() });
+      if (unifiedSearchCache.size > 5000) {
+        const oldest = unifiedSearchCache.keys().next().value;
+        if (oldest) unifiedSearchCache.delete(oldest);
+      }
       console.log(`[SEARCH] ✓ Returning ${organicResults.length} organic results and ${inlineImages.length} images for: "${cleanRawQ}"`);
-      return res.json({ success: true, data: responsePayload });
+      return res.json(finalResult);
     }
 
     // 3. Resilient Fallback: If no results found, return empty array with 200 rather than 502 error

@@ -502,6 +502,22 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     fs.writeFileSync(dpnSearchHtmlPath, dpnHtml, 'utf8');
     log.success('dpn-search-app/dist/index.html server address updated.');
   }
+
+  // 9. Update search-engine/vercel.json
+  const seVercelPath = path.join(ROOT_DIR, 'search-engine', 'vercel.json');
+  if (fs.existsSync(seVercelPath)) {
+    try {
+      const seVercel = JSON.parse(fs.readFileSync(seVercelPath, 'utf8'));
+      if (Array.isArray(seVercel.rewrites)) {
+        const apiRewrite = seVercel.rewrites.find(r => r.source === '/api/:path*');
+        if (apiRewrite) {
+          apiRewrite.destination = `${searchEngineUrl}/api/:path*`;
+          fs.writeFileSync(seVercelPath, JSON.stringify(seVercel, null, 2), 'utf8');
+          log.success('search-engine/vercel.json rewrites berhasil diperbarui.');
+        }
+      }
+    } catch {}
+  }
 }
 
 // ─────────────────────────────────────────────
