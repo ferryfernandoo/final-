@@ -79,6 +79,9 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           </button>
 
           <nav className="lp-nav-links" aria-label="Navigasi utama">
+            <button type="button" onClick={() => onNavigate?.('promo')} className="lp-nav-promo-btn" title="Tonton Video Iklan 30s Deepernova">
+              🎬 Iklan 30s
+            </button>
             <button type="button" onClick={() => onNavigate?.('agent')} className="lp-nav-agent-btn">
               <span className="lp-agent-dot"></span> AI Agent
             </button>
@@ -107,6 +110,16 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
         {/* ===== HERO ===== */}
         <section className="lp-hero">
           <div className="lp-container lp-hero-inner">
+            <button 
+              type="button" 
+              onClick={() => onNavigate?.('promo')} 
+              className="lp-pill lp-pill-promo"
+              title="Putar Video Iklan 30 Detik (Search, Chat, Agent & API)"
+            >
+              <span className="lp-pill-dot" style={{ background: '#0284c7' }}></span>
+              <span>Tonton Preview 30 Detik Ekosistem Deepernova</span>
+              <span className="lp-pill-arrow">▶</span>
+            </button>
             <h1 className="lp-hero-title">
               Asisten AI yang <span className="lp-gradient">cerdas, cepat</span>,<br className="lp-br-lg" /> dan sepenuhnya gratis.
             </h1>

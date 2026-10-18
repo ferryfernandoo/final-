@@ -13,6 +13,7 @@ import CodeDanceIDE from './components/CodeDanceIDE'
 import HelpCenter from './components/HelpCenter'
 import DtePortal from './components/DtePortal'
 import ApiMarketplace from './components/ApiMarketplace'
+import PromoVideoAd from './components/PromoVideoAd'
 import CloudSyncModal from './components/CloudSyncModal'
 import { CookieConsent } from './components/CookieConsent'
 import { ConversationPersistenceService } from './services/conversationPersistenceService'
@@ -157,6 +158,7 @@ function App() {
     if (typeof window !== 'undefined') {
       const path = (window.location.pathname || '').toLowerCase();
       const hash = (window.location.hash || '').toLowerCase();
+      if (path === '/promo' || hash === '#promo' || path === '/ad' || hash === '#ad') return 'promo';
       if (path === '/agent' || hash === '#agent') return 'agent';
       if (path === '/help' || hash === '#help') return 'help';
       if (path === '/codedance' || hash === '#codedance') return 'codedance';
@@ -215,6 +217,8 @@ function App() {
     setCurrentView(view);
     if (typeof window !== 'undefined' && window.history && window.history.pushState) {
       const routeMap = {
+        promo: '/promo',
+        ad: '/promo',
         agent: '/agent',
         help: '/help',
         codedance: '/codedance',
@@ -248,7 +252,10 @@ function App() {
     const handleUrlChange = () => {
       const path = (window.location.pathname || '').toLowerCase();
       const hash = (window.location.hash || '').toLowerCase();
-      if (path === '/agent' || hash === '#agent') {
+      if (path === '/promo' || hash === '#promo' || path === '/ad' || hash === '#ad') {
+        setCurrentView('promo');
+      }
+      else if (path === '/agent' || hash === '#agent') {
         if (!isAuthenticated && !isGuest) handleGuestLogin();
         setCurrentView('agent');
       }
@@ -274,7 +281,7 @@ function App() {
   // Synchronize active view class on document.body and document.documentElement for clean scroll behavior
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const allViews = ['view-landing', 'view-chat', 'view-agent', 'view-documents', 'view-codedance', 'view-help', 'view-dte', 'view-office', 'view-universe'];
+    const allViews = ['view-landing', 'view-promo', 'view-chat', 'view-agent', 'view-documents', 'view-codedance', 'view-help', 'view-dte', 'view-office', 'view-universe'];
     document.body.classList.remove(...allViews);
     document.documentElement.classList.remove(...allViews);
     
@@ -671,6 +678,18 @@ function App() {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
         <DtePortal onNavigate={handleNavigate} />
+      </ErrorBoundary>
+    );
+  }
+
+  // 1.6b. 🎬 Dedicated 30-Second Google-Style Video Ad Commercial Showcase (/promo, /ad)
+  if (currentView === 'promo' || currentView === 'ad') {
+    return (
+      <ErrorBoundary onNavigate={handleNavigate}>
+        <PromoVideoAd 
+          onNavigate={handleNavigate}
+          onClose={() => handleNavigate('landing')}
+        />
       </ErrorBoundary>
     );
   }
