@@ -478,9 +478,9 @@ async function main() {
   if (await checkPortOpen(8000)) {
     log.success('AI Server sudah aktif di port 8000.');
   } else if (fs.existsSync(AI_SERVER_DIR)) {
-    startProcess('python', ['start_api_server.py'], AI_SERVER_DIR, 'Deepernova AI Server', 'ai-server.log');
-    log.info('Menunggu AI Server siap di port 8000 (max 50 detik)...');
-    if (await waitForPort(8000, 50000)) {
+    startProcess('python', ['-u', 'start_api_server.py'], AI_SERVER_DIR, 'Deepernova AI Server', 'ai-server.log');
+    log.info('Menunggu AI Server siap di port 8000 (max 80 detik)...');
+    if (await waitForPort(8000, 80000)) {
       log.success('AI Server siap di port 8000.');
     } else {
       log.warn('AI Server belum merespons port 8000, proses lanjut di background...');
