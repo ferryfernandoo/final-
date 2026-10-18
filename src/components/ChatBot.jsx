@@ -2384,33 +2384,6 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   }, [selectedModel]);
   const isReasoningCapable = currentModelObj?.supportsReasoning === true && !currentModelObj?.id?.toLowerCase().includes('gold');
 
-  // Dynamic Suggestion Cards Rotation (Random 4 Cards Every 6 Seconds)
-  const [rotatingCardIndices, setRotatingCardIndices] = useState([0, 1, 2, 3]);
-  const [isRotatingFading, setIsRotatingFading] = useState(false);
-  const [isCardsHovered, setIsCardsHovered] = useState(false);
-
-  useEffect(() => {
-    if (messages.length > 0) return;
-    if (isCardsHovered) return;
-
-    const interval = setInterval(() => {
-      setIsRotatingFading(true);
-      setTimeout(() => {
-        const total = SUGGESTION_PROMPTS_POOL.length;
-        const newIndices = [];
-        while (newIndices.length < 4) {
-          const rand = Math.floor(Math.random() * total);
-          if (!newIndices.includes(rand)) {
-            newIndices.push(rand);
-          }
-        }
-        setRotatingCardIndices(newIndices);
-        setIsRotatingFading(false);
-      }, 280);
-    }, 6000); // Tepat setiap 6 detik
-
-    return () => clearInterval(interval);
-  }, [messages.length, isCardsHovered]);
 
   const [showSourcesModal, setShowSourcesModal] = useState(false); // Show sources modal
   const [showSidebarMoreMenu, setShowSidebarMoreMenu] = useState(false); // Meta AI sidebar More menu
@@ -4348,6 +4321,10 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     setCurrentConversationId(newId);
     rememberConversationId(newId);
     setMessages([]);
+    currentConversationHistoryRef.current = [];
+    lastSentPromptRef.current = '';
+    lastSentUserMessageIdRef.current = null;
+    lastSentUserInputTextRef.current = '';
     prevMessagesLengthRef.current = 0;
     prevLastMessageTextRef.current = '';
     setCompactView(true);
@@ -5639,6 +5616,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
       setCurrentConversationId(convId);
       setMessages(convMsgs);
+      currentConversationHistoryRef.current = convMsgs;
+      lastSentPromptRef.current = '';
+      lastSentUserMessageIdRef.current = null;
+      lastSentUserInputTextRef.current = '';
       prevMessagesLengthRef.current = convMsgs.length;
       const lastMsg = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : null;
       prevLastMessageTextRef.current = lastMsg ? (lastMsg.text || lastMsg.content || '') : '';
@@ -11771,35 +11752,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     return (
       <div className="meta-hero-empty-state">
         {/* Top Title: Exactly matching Meta AI screenshot */}
-        <h1 className="meta-hero-heading">
-          {userLanguage === 'id' ? 'Apa yang bisa saya lakukan untuk Anda?' : 'What can I help you with today?'}
-        </h1>
-
-        {/* Choice of AI Mode: AI Biasa (Chatbot) or AI Agent */}
-        <div className="meta-hero-mode-selector">
-          <div className="meta-mode-pill-track">
-            <button
-              type="button"
-              className="meta-mode-pill is-active-chat"
-              title={userLanguage === 'id' ? 'Mode Aktif: AI Chatbot Biasa' : 'Active Mode: Regular AI Chatbot'}
-            >
-              <span className="mode-pill-pulse-dot"></span>
-              <span className="mode-pill-icon">💬</span>
-              <span className="mode-pill-name">AI Biasa</span>
-              <span className="mode-pill-active-badge">{userLanguage === 'id' ? 'Aktif' : 'Active'}</span>
-            </button>
-
-            <button
-              type="button"
-              className="meta-mode-pill is-agent-option"
-              onClick={() => onNavigate?.('agent')}
-              title={userLanguage === 'id' ? 'Buka AI Agent: Eksekusi kode otonom, terminal, perbaikan mandiri & pembuatan proyek' : 'Open AI Agent: Autonomous code execution, terminal & self-healing'}
-            >
-              <span className="mode-pill-icon">⚡</span>
-              <span className="mode-pill-name">AI Agent</span>
-              <span className="mode-pill-cta-badge">{userLanguage === 'id' ? 'Buka Agent →' : 'Launch Agent →'}</span>
-            </button>
-          </div>
+        {/* Clean, Elegant Greeting Header */}
+        <div className="meta-hero-header-wrap">
+          <h1 className="meta-hero-heading">
+            {userLanguage === 'id' ? 'Apa yang bisa saya bantu hari ini?' : 'What can I help you with today?'}
+          </h1>
+          <button
+            type="button"
+            className="meta-hero-agent-pill-btn"
+            onClick={() => onNavigate?.('agent')}
+            title={userLanguage === 'id' ? 'Buka Autonomous AI Agent (Eksekusi Kode, Terminal & Proyek)' : 'Launch Autonomous AI Agent'}
+          >
+            <span className="agent-pill-icon">⚡</span>
+            <span className="agent-pill-label">{userLanguage === 'id' ? 'Mode AI Agent' : 'AI Agent'}</span>
+            <span className="agent-pill-arrow">→</span>
+          </button>
         </div>
 
         {/* Uploaded Attachments & Text Queue if present in Greeting State */}
@@ -12189,21 +12156,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           </div>
         </div>
 
-        {/* Quick Prompt Chips */}
+        {/* Clean, Tranquil Prompt Suggestions */}
         <div className="meta-prompt-chips-row">
           <button
             type="button"
-            className="meta-prompt-chip agent-entry-chip"
-            onClick={() => onNavigate?.('agent')}
-            title={userLanguage === 'id' ? 'Buka Autonomous AI Agent (Eksekusi Kode & File)' : 'Launch Autonomous AI Agent'}
-          >
-            ⚡ Mode AI Agent
-          </button>
-          <button
-            type="button"
             className="meta-prompt-chip"
             onClick={() => {
-              setInputValue('Coba Deepernova AI: jelaskan kemampuan dan keunggulanmu');
+              setInputValue(userLanguage === 'id' ? 'Jelaskan konsep ini secara jelas dan mudah dipahami: ' : 'Explain this concept clearly and simply: ');
               setTimeout(() => {
                 if (textareaElementRef.current) {
                   textareaElementRef.current.focus();
@@ -12212,22 +12171,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }, 20);
             }}
           >
-            ⚡ Coba Deepernova AI
+            💡 {userLanguage === 'id' ? 'Tanyakan apa pun' : 'Ask anything'}
           </button>
           <button
             type="button"
             className="meta-prompt-chip"
             onClick={() => {
-              textareaElementRef.current?.focus();
-            }}
-          >
-            💡 Tanyakan apa pun
-          </button>
-          <button
-            type="button"
-            className="meta-prompt-chip"
-            onClick={() => {
-              setInputValue('Ambil tindakan: bantu rencanakan strategi proyek saya hari ini');
+              setInputValue(userLanguage === 'id' ? 'Bantu saya menulis kode program untuk: ' : 'Help write code for: ');
               setTimeout(() => {
                 if (textareaElementRef.current) {
                   textareaElementRef.current.focus();
@@ -12236,13 +12186,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }, 20);
             }}
           >
-            🎯 Ambil tindakan
+            💻 {userLanguage === 'id' ? 'Tulis kode' : 'Write code'}
           </button>
           <button
             type="button"
             className="meta-prompt-chip"
             onClick={() => {
-              setInputValue('Buatkan game neon clicker interaktif lengkap dengan HTML dan JavaScript');
+              setInputValue(userLanguage === 'id' ? 'Bantu susun rencana dan langkah terstruktur untuk: ' : 'Help plan a structured strategy for: ');
               setTimeout(() => {
                 if (textareaElementRef.current) {
                   textareaElementRef.current.focus();
@@ -12251,50 +12201,23 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }, 20);
             }}
           >
-            🎨 Buat sesuatu...
+            🎯 {userLanguage === 'id' ? 'Rencana & strategi' : 'Plan & strategy'}
           </button>
-        </div>
-
-        {/* Dynamic 4 Suggestion Cards Rotating Every 6 Seconds (CDN Icons) */}
-        <div 
-          className={`meta-suggestion-cards-grid ${isRotatingFading ? 'fading' : ''}`}
-          onMouseEnter={() => setIsCardsHovered(true)}
-          onMouseLeave={() => setIsCardsHovered(false)}
-        >
-          {rotatingCardIndices.map((idx) => {
-            const item = SUGGESTION_PROMPTS_POOL[idx] || SUGGESTION_PROMPTS_POOL[0];
-            return (
-              <div
-                key={`${item.id}-${idx}`}
-                className="meta-suggestion-card"
-                onClick={() => {
-                  const targetPrompt = userLanguage === 'id' ? item.prompt : (item.promptEn || item.prompt);
-                  setInputValue(targetPrompt);
-                  setTimeout(() => {
-                    if (textareaElementRef.current) {
-                      textareaElementRef.current.focus();
-                      scheduleTextareaResize(textareaElementRef.current);
-                    }
-                  }, 20);
-                }}
-                title={userLanguage === 'id' ? item.prompt : (item.promptEn || item.prompt)}
-              >
-                <div 
-                  className="meta-card-icon-circle"
-                  style={{
-                    background: `${item.color}15`,
-                    color: item.color,
-                    borderColor: `${item.color}35`
-                  }}
-                >
-                  <i className={`${item.icon} meta-card-icon-cdn`}></i>
-                </div>
-                <div className="meta-card-label">
-                  {userLanguage === 'id' ? item.label : (item.labelEn || item.label)}
-                </div>
-              </div>
-            );
-          })}
+          <button
+            type="button"
+            className="meta-prompt-chip"
+            onClick={() => {
+              setInputValue(userLanguage === 'id' ? 'Buatkan draf teks profesional tentang: ' : 'Draft a professional document about: ');
+              setTimeout(() => {
+                if (textareaElementRef.current) {
+                  textareaElementRef.current.focus();
+                  scheduleTextareaResize(textareaElementRef.current);
+                }
+              }, 20);
+            }}
+          >
+            📝 {userLanguage === 'id' ? 'Tulis dokumen' : 'Write document'}
+          </button>
         </div>
       </div>
     );

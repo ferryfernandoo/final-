@@ -174,47 +174,6 @@ class MemoryService {
             keywords: ['nama', 'pengguna', ...keywords]
           });
         }
-
-        // 2. Proyek / Aktivitas / Fokus Obrolan
-        const projectMatch = text.match(/\b(?:sedang|lagi|membuat|bikin|proyek|project|bekerja|kerja|fokus|mengembangkan|belajar)\s+([^.!?\n]{3,80})/i);
-        if (projectMatch) {
-          extracted.push({
-            type: 'context',
-            content: 'Aktivitas/Proyek: ' + text.slice(0, 150),
-            weight: 0.9,
-            keywords: ['proyek', 'aktivitas', ...keywords]
-          });
-        }
-
-        // 3. Preferensi & Minat Pengguna
-        if (/\b(like|prefer|want|need|love|hate|dislike|suka|gemar|senang|favorit|hobi|ingin|mau)\b/i.test(text)) {
-          extracted.push({
-            type: 'preference',
-            content: text.slice(0, 150),
-            weight: 0.85,
-            keywords
-          });
-        }
-        
-        // 4. Fakta Profil Pribadi
-        if (/\b(saya|aku|punya|bekerja|dari|tinggal|asal|rumah|tinggal di|asal dari)\b/i.test(text) && text.length > 8) {
-          extracted.push({
-            type: 'fact',
-            content: text.slice(0, 150),
-            weight: 0.85,
-            keywords
-          });
-        }
-        
-        // 5. Pola & Konteks Kebiasaan
-        if (/\b(when|how often|usually|always|never|daily|weekly|kapan|berapa sering|biasanya|selalu|tidak pernah|setiap)\b/i.test(text)) {
-          extracted.push({
-            type: 'pattern',
-            content: text.slice(0, 150),
-            weight: 0.75,
-            keywords
-          });
-        }
       }
     });
     
@@ -788,14 +747,17 @@ class MemoryService {
     const activeItems = [];
     const seenContent = new Set();
 
-    // 1. Structured memories prioritized by importance (preference, fact, pattern)
-    const prioritized = [...this.memories].sort((a, b) => {
-      const typeRank = { preference: 4, fact: 3, pattern: 2, context: 1, summary: 0 };
-      const rankA = typeRank[a.type] || 0;
-      const rankB = typeRank[b.type] || 0;
-      if (rankA !== rankB) return rankB - rankA;
-      return (b.weight || 0.5) - (a.weight || 0.5);
-    });
+    // 1. Structured memories: ONLY keep explicit user identity/facts or explicit preferences
+    // NEVER include conversation summaries or casual context which causes topic confusion across sessions
+    const prioritized = [...this.memories]
+      .filter(mem => mem && mem.type !== 'summary' && mem.type !== 'context')
+      .sort((a, b) => {
+        const typeRank = { preference: 4, fact: 3, pattern: 2 };
+        const rankA = typeRank[a.type] || 0;
+        const rankB = typeRank[b.type] || 0;
+        if (rankA !== rankB) return rankB - rankA;
+        return (b.weight || 0.5) - (a.weight || 0.5);
+      });
 
     prioritized.forEach(mem => {
       if (!mem || !mem.content || typeof mem.content !== 'string') return;

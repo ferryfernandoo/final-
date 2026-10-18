@@ -25,87 +25,69 @@ class ConversationPersistenceService {
   /**
    * Get cached conversations immediately for 0ms optimistic render
    */
-  static getCachedConversations() {
+  static getCachedConversations(isAuthenticated, isGuest) {
     if (_memoryCache && Array.isArray(_memoryCache) && _memoryCache.length > 0) {
       return _memoryCache;
+    }
+    // If logged into account, do NOT return stale unauthenticated guest localStorage
+    if (this.shouldUseBackendStorage(isAuthenticated, isGuest)) {
+      return [];
     }
     return this.loadFromLocalStorage() || [];
   }
 
   /**
-   * Load conversations from appropriate storage (merging backend + local storage)
+   * Load conversations from appropriate storage:
+   * - Authenticated users: Load strictly from backend database (no localStorage merge/pollution)
+   * - Guests: Load from localStorage
    */
   static async loadConversations(isAuthenticated, isGuest) {
-    let backendConvs = [];
-    if (this.shouldUseBackendStorage(isAuthenticated, isGuest)) {
-      try {
-        const loaded = await this.loadFromBackend();
-        if (Array.isArray(loaded)) {
-          backendConvs = loaded;
-        }
-      } catch (err) {
-        console.warn('[ConversationPersistence] Backend load error, fallback to local:', err);
-      }
-    }
-
-    const localConvs = this.loadFromLocalStorage() || [];
-
-    // For authenticated users, backend cloud database is the authoritative source of truth across all devices
-    const convMap = new Map();
     const isAuth = this.shouldUseBackendStorage(isAuthenticated, isGuest);
 
-    // 1. Add backend conversations
-    backendConvs.forEach(conv => {
-      if (conv && conv.id && Array.isArray(conv.messages)) {
-        convMap.set(String(conv.id), conv);
-      }
-    });
-
-    // 2. Merge local conversations: only add or update if offline/empty, or local has strictly more messages
-    localConvs.forEach(conv => {
-      if (conv && conv.id && Array.isArray(conv.messages) && conv.messages.length > 0) {
-        const idStr = String(conv.id);
-        if (!convMap.has(idStr)) {
-          if (!isAuth || backendConvs.length === 0) {
-            convMap.set(idStr, conv);
-          }
-        } else {
-          const existing = convMap.get(idStr);
-          const existingCount = existing.messages?.length || 0;
-          const newCount = conv.messages?.length || 0;
-          if (newCount > existingCount) {
-            convMap.set(idStr, conv);
-          }
+    if (isAuth) {
+      try {
+        const backendConvs = await this.loadFromBackend();
+        if (Array.isArray(backendConvs)) {
+          _memoryCache = backendConvs;
+          // Clear any stale unauthenticated guest conversation key from localStorage
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem('cached_conversations');
+          } catch (_e) {}
+          return backendConvs.length > 0 ? backendConvs : null;
         }
+      } catch (err) {
+        console.warn('[ConversationPersistence] Backend load error:', err);
       }
-    });
-
-    const merged = Array.from(convMap.values());
-    _memoryCache = merged;
-    if (merged.length > 0) {
-      this.saveToLocalStorage(merged);
+      return _memoryCache && _memoryCache.length > 0 ? _memoryCache : null;
     }
-    return merged.length > 0 ? merged : null;
+
+    // Guest mode only: load from localStorage
+    const localConvs = this.loadFromLocalStorage() || [];
+    _memoryCache = localConvs;
+    return localConvs.length > 0 ? localConvs : null;
   }
 
   /**
-   * Save conversations to appropriate storage (always saves to localStorage + backend)
+   * Save conversations to appropriate storage:
+   * - Authenticated users: Save strictly to backend cloud database (NOT in shared localStorage)
+   * - Guests: Save to browser localStorage
    */
   static async saveConversations(conversations, isAuthenticated, isGuest) {
     if (!Array.isArray(conversations) || conversations.length === 0) return true;
 
     _memoryCache = conversations;
 
-    // Always save to localStorage first as instant backup
-    this.saveToLocalStorage(conversations);
-
-    // Save to backend database if authenticated
     if (this.shouldUseBackendStorage(isAuthenticated, isGuest)) {
+      // Authenticated users: Save strictly to backend cloud database
       try {
         await this.saveToBackend(conversations);
       } catch (err) {
         console.warn('[ConversationPersistence] Backend save error:', err);
       }
+    } else {
+      // Guest mode only: save to browser localStorage
+      this.saveToLocalStorage(conversations);
     }
     return true;
   }

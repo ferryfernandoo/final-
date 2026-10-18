@@ -361,15 +361,8 @@ Deepernova has a sub-20ms internal search engine. The decision to search the web
 4. Avoid repetitive fillers or generic conversational sign-offs.`
 };
 
-// Active memory profile auto-injection for zero-latency memory awareness (compact 3 items to save tokens)
-const getLocalMemoryContext = (message = '', language = 'id', conversationId = null, sessionMessageCount = 0) => {
-  try {
-    if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
-      return memoryService.getActiveMemoryProfile(language, 3);
-    }
-  } catch (e) {
-    console.warn('[grokApi] getLocalMemoryContext warning:', e);
-  }
+// Memory profile context helper - disabled cross-session auto-injection to prevent topic pollution
+const getLocalMemoryContext = (_message = '', _language = 'id', _conversationId = null, _sessionMessageCount = 0) => {
   return '';
 };
 
@@ -750,13 +743,12 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
   const safeUploadedImages = isSearchConclusion ? [] : (Array.isArray(uploadedImages) ? uploadedImages : []);
   const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
 
-  const localMemoryContext = isSearchConclusion ? '' : getLocalMemoryContext(message, language, conversationId, sessionMessageCount);
   const cleanTextMessage = typeof message === 'string' ? message.trim() : (message || '');
 
   if (validImageUrls.length > 0) {
     console.log(`📸 Backend proxy vision mode: sending ${validImageUrls.length} image(s)`);
     userMessageContent = [
-      { type: 'text', text: `${cleanTextMessage}${localMemoryContext}` },
+      { type: 'text', text: cleanTextMessage },
       ...validImageUrls.map(imgUrl => ({
         type: 'image_url',
         image_url: {
@@ -765,7 +757,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       }))
     ];
   } else {
-    userMessageContent = `${cleanTextMessage}${localMemoryContext}`;
+    userMessageContent = cleanTextMessage;
   }
 
   const mLower = (deepernovaModel || '').toLowerCase();
@@ -859,7 +851,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi.\n' +
         '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.\n' +
         '3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan mendalam, analisis, perancangan sistem, tutorial, atau tugas coding, kamu bisa dan diwajibkan men-generate jawaban yang panjang, lengkap, komprehensif, dan tuntas sesuai kebutuhan, namun tetap langsung masuk ke pembahasan tanpa basa-basi pengantar.\n' +
-        'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.' +
+        '4. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit, menyambung-nyambungkan, atau membahas percakapan/topik dari sesi sebelumnya yang sudah tidak relevan. HANYA hubungkan dengan riwayat sebelumnya jika pertanyaan pengguna saat ini jelas-jelas merupakan kalimat lanjutan (follow-up) dalam sesi yang sama.\n' +
         searchInstruction +
         visionInstruction +
         (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +

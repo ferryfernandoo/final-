@@ -16557,15 +16557,91 @@ pre.code-block code {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.meta-hero-header-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  margin-bottom: 26px !important;
+  width: 100% !important;
+}
+
 .meta-hero-heading {
   font-size: 32px !important;
   font-weight: 600 !important;
   color: #111827 !important;
   text-align: center !important;
-  margin: 0 0 28px 0 !important;
+  margin: 0 !important;
   letter-spacing: -0.025em !important;
   line-height: 1.25 !important;
   font-family: inherit !important;
+}
+
+.meta-hero-agent-pill-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 6px 14px !important;
+  border-radius: 9999px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+  background: rgba(241, 245, 249, 0.8) !important;
+  border: 1px solid rgba(203, 213, 225, 0.7) !important;
+  cursor: pointer !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.meta-hero-agent-pill-btn:hover {
+  background: rgba(226, 232, 240, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.85) !important;
+  color: #0f172a !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.meta-hero-agent-pill-btn .agent-pill-icon {
+  font-size: 13px !important;
+  color: #f59e0b !important;
+  display: inline-flex !important;
+}
+
+.meta-hero-agent-pill-btn .agent-pill-label {
+  letter-spacing: 0.01em !important;
+}
+
+.meta-hero-agent-pill-btn .agent-pill-arrow {
+  font-size: 12px !important;
+  opacity: 0.6 !important;
+  transition: transform 0.2s ease, opacity 0.2s ease !important;
+}
+
+.meta-hero-agent-pill-btn:hover .agent-pill-arrow {
+  opacity: 1 !important;
+  transform: translateX(2px) !important;
+}
+
+/* Dark mode overrides for agent pill */
+.dark-theme .meta-hero-agent-pill-btn,
+.dark-mode .meta-hero-agent-pill-btn,
+[data-theme='dark'] .meta-hero-agent-pill-btn {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(71, 85, 105, 0.55) !important;
+  color: #94a3b8 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-theme .meta-hero-agent-pill-btn:hover,
+.dark-mode .meta-hero-agent-pill-btn:hover,
+[data-theme='dark'] .meta-hero-agent-pill-btn:hover {
+  background: rgba(51, 65, 85, 0.9) !important;
+  border-color: rgba(99, 102, 241, 0.6) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* Central Floating Input Box */
