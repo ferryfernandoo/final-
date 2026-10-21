@@ -677,6 +677,35 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
   const [selectedImageModal, setSelectedImageModal] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // 📱 PWA Standalone Detection & 1-Click Install Prompt
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(
+      window.matchMedia?.('(display-mode: standalone)')?.matches ||
+      window.navigator?.standalone ||
+      document.referrer.includes('android-app://')
+    );
+  });
+
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   // Theme Management (Dark / Light)
   const [theme, setTheme] = useState(() => {
     try {
@@ -1777,14 +1806,58 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
         {/* Search Hero Section (ONLY shown when !isSearchActive on home landing) */}
         {!isSearchActive && (
           <section className="search-hero-section expanded">
-            <div className="hero-typography">
-              <div className="hero-badge-pill">
-                <Sparkles size={13} className="text-blue-500" />
-                <span>Next-Gen AI Neural Search</span>
+            <div className="hero-typography" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ position: 'relative', display: 'inline-block', marginBottom: '14px' }}>
+                <img
+                  src="/search/icons/icon-192.png"
+                  alt="DeeperNova Search Logo"
+                  style={{
+                    width: '92px',
+                    height: '92px',
+                    borderRadius: '26px',
+                    boxShadow: '0 12px 32px rgba(0, 114, 255, 0.28)',
+                    objectFit: 'contain',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    display: 'block'
+                  }}
+                  onError={(e) => {
+                    // Fallback to relative path if on custom domain
+                    if (!e.currentTarget.dataset.fallback) {
+                      e.currentTarget.dataset.fallback = 'true';
+                      e.currentTarget.src = '/icons/icon-192.png';
+                    }
+                  }}
+                />
               </div>
-              <h1 className="hero-title">
+              <h1 className="hero-title" style={{ marginTop: '0', marginBottom: '0.4rem' }}>
                 DeeperNova <span className="hero-highlight">Search</span>
               </h1>
+              {deferredPrompt && !isStandalone && (
+                <button
+                  type="button"
+                  onClick={handleInstallApp}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    background: 'linear-gradient(135deg, #0284c7 0%, #0284c7 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '6px 14px',
+                    borderRadius: '999px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)',
+                    marginBottom: '0.75rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Pasang aplikasi langsung di layar utama (Tanpa URL bar)"
+                >
+                  <Download size={13} />
+                  <span>Pasang Aplikasi (PWA Standalone)</span>
+                </button>
+              )}
             </div>
 
             {/* Hero Search Box */}

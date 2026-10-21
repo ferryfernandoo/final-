@@ -15,6 +15,10 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0b0f19" />
     
     <!-- Master High-Dominance Organic SEO Metadata (Vibe Coding, Image Generation, Typernova & Acronyms) -->
     <title>Deepernova AI (DPN) — Platform AI Otonom Indonesia | Agentic Vibe Coding, AI Bikin Gambar & Document Studio</title>
@@ -550,7 +554,7 @@
       ]
     }
     </script>
-    <script type="module" crossorigin src="/assets/index-YAJk0CjS.js"></script>
+    <script type="module" crossorigin src="/assets/index-TzFZmyOQ.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-D4M6sveU.js">
     <link rel="modulepreload" crossorigin href="/assets/dist-CUpuk5cY.js">
     <link rel="stylesheet" crossorigin href="/assets/index-CXWiM-sT.css">
@@ -879,5 +883,18 @@
       </main>
     </noscript>
     
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('[PWA-AI] ServiceWorker registered with scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('[PWA-AI] ServiceWorker registration failed:', err);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

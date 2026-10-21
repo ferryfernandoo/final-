@@ -166,12 +166,10 @@ function App() {
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
       if (path === '/dte' || hash === '#dte') return 'dte';
       if (path === '/api' || hash === '#api') return 'api';
-      if (path === '/landing' || hash === '#landing' || hash === '#home') return 'landing';
-      if (path === '/' || path === '') {
-        return isNativePlatform() ? 'chat' : 'landing';
-      }
+      // Direct Web PWA: No landing page, straight to Chat / Login
+      return 'chat';
     }
-    return isNativePlatform() ? 'chat' : 'landing';
+    return 'chat';
   };
 
   // On Native Capacitor (APK): open directly in 'chat' view (no landing page)
@@ -615,46 +613,9 @@ function App() {
     );
   }
 
-  // 1. Web Landing Page (ONLY for Web, NEVER for Native Capacitor APK)
-  if (!isNative && currentView === 'landing' && !showLoginView) {
-    return (
-      <>
-        <CookieConsent />
-        <LandingPage
-          isAuthenticated={isAuthenticated}
-          isGuest={isGuest}
-          user={user}
-          onNavigate={handleNavigate}
-          onStartChat={() => {
-            if (!isAuthenticated && !isGuest) {
-              handleGuestLogin();
-            }
-            handleNavigate('chat');
-          }}
-          onOpenOffice={() => {
-            if (!isAuthenticated && !isGuest) {
-              handleGuestLogin();
-            }
-            handleNavigate('documents');
-          }}
-          onOpenUniverse={() => {
-            if (!isAuthenticated && !isGuest) {
-              handleGuestLogin();
-            }
-            handleNavigate('universe');
-          }}
-          onOpenDrive={() => {
-            if (!isAuthenticated || isGuest) {
-              setPendingPostLoginRedirect('office');
-              setShowLoginView(true);
-              return;
-            }
-            handleNavigate('office');
-          }}
-          onOpenLogin={() => setShowLoginView(true)}
-        />
-      </>
-    );
+  // 1. Direct PWA Web: Landing page is bypassed. All root traffic goes straight to Chat / Login.
+  if (currentView === 'landing') {
+    setCurrentView('chat');
   }
 
   // 1.5. Help & Problem Solving Center (Publicly accessible without requiring login)
@@ -742,11 +703,11 @@ function App() {
       <>
         <CookieConsent />
         <div style={{ position: 'relative' }}>
-          {!isNative && (
+          {showLoginView && (
             <button
               onClick={() => {
                 setShowLoginView(false);
-                setCurrentView('landing');
+                setCurrentView('chat');
               }}
               style={{
                 position: 'fixed',
@@ -764,7 +725,7 @@ function App() {
                 backdropFilter: 'blur(10px)'
               }}
             >
-              ← Kembali ke Beranda
+              ← Kembali ke Chat
             </button>
           )}
           <Login
