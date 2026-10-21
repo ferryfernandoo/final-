@@ -23,7 +23,7 @@ export class CrawlerEngine {
     this.concurrency = Math.min(options.concurrency ?? 64, 128); // 64 parallel workers for optimal throughput without DNS/libuv threadpool choking
     this.maxDepth = options.maxDepth ?? 15;
     this.maxPages = options.maxPages ?? Infinity;
-    this.perDomainDelayMs = options.perDomainDelayMs ?? 25; // Snappy 25ms delay for fast SSD throughput
+    this.perDomainDelayMs = options.perDomainDelayMs ?? 10; // Snappy 10ms delay for fast SSD throughput
     this.allowedDomains = options.allowedDomains || null;
     this.userAgent = options.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
     this.autonomousMode = options.autonomousMode ?? true;
@@ -36,7 +36,7 @@ export class CrawlerEngine {
     this.frontier = new URLFrontier({
       maxDepth: this.maxDepth,
       perDomainDelayMs: this.perDomainDelayMs,
-      maxConcurrentPerDomain: options.maxConcurrentPerDomain ?? 8, // 8 concurrent connections per host
+      maxConcurrentPerDomain: options.maxConcurrentPerDomain ?? 12, // 12 concurrent connections per host
       allowedDomains: this.allowedDomains
     });
 

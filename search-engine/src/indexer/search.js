@@ -83,6 +83,30 @@ export function getRootDomain(domain) {
   return parts.slice(-2).join('.');
 }
 
+export function normalizeHeadline(title) {
+  if (!title) return '';
+  return title
+    .replace(/\s*[-|–—:•]\s*(detik\w*|kompas\w*|tribun\w*|antara\w*|cnn\w*|cnbc\w*|tempo\w*|liputan6\w*|merdeka\w*|kumparan\w*|sindo\w*|okezone\w*|suara\w*|viva\w*|idntimes\w*|jawapos\w*|bisnis\w*|kontan\w*|republika\w*|rri\w*|tvone\w*|inews\w*|disway\w*|katadata\w*).*$/i, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+export function headlineWordSimilarity(t1, t2) {
+  if (!t1 || !t2) return 0;
+  const w1 = new Set(t1.split(' ').filter(w => w.length >= 3));
+  const w2 = new Set(t2.split(' ').filter(w => w.length >= 3));
+  if (w1.size === 0 || w2.size === 0) return 0;
+  let inter = 0;
+  for (const w of w1) {
+    if (w2.has(w)) inter++;
+  }
+  const union = new Set([...w1, ...w2]).size;
+  return inter / union;
+}
+
 export const GENERIC_CHANNEL_PATHS = new Set([
   'berita', 'news', 'nasional', 'internasional', 'ekonomi', 'bisnis', 'finance',
   'tekno', 'teknologi', 'lifestyle', 'sport', 'sports', 'bola', 'sepakbola', 'otomotif',
@@ -255,7 +279,20 @@ export class SearchEngine {
 
     // Pre-compiled prepared statements for ultra-fast streaming execution (<20-50ms)
     try {
-      this.stmtFastTitleHeadings = this.db.prepare(`
+      this.stmtFastTitleHeadingsDesc = this.db.prepare(`
+        SELECT
+          p.id, p.url, p.domain, p.title, p.description, p.headings,
+          SUBSTR(p.content, 1, 600) as content,
+          p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
+          p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
+          p.in_links_count, p.published_at, p.crawled_at
+        FROM (
+          SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
+        ) f
+        JOIN pages p ON f.rowid = p.id
+      `);
+
+      this.stmtFastTitleHeadingsAsc = this.db.prepare(`
         SELECT
           p.id, p.url, p.domain, p.title, p.description, p.headings,
           SUBSTR(p.content, 1, 600) as content,
@@ -268,8 +305,9 @@ export class SearchEngine {
         JOIN pages p ON f.rowid = p.id
       `);
 
-      this.stmtBaseAnd = this.stmtFastTitleHeadings;
-      this.stmtBaseOr = this.stmtFastTitleHeadings;
+      this.stmtFastTitleHeadings = this.stmtFastTitleHeadingsDesc;
+      this.stmtBaseAnd = this.stmtFastTitleHeadingsDesc;
+      this.stmtBaseOr = this.stmtFastTitleHeadingsDesc;
 
       this.stmtBaseDomain = this.db.prepare(`
         SELECT
@@ -403,6 +441,58 @@ export class SearchEngine {
     }
 
     return diverse.slice(0, targetLimit);
+  }
+
+  /**
+   * Cross-Domain Headline & Version Deduplication
+   * Eliminates wire duplicates and syndicated stories across multiple regional news portals
+   */
+  _deduplicateArticles(candidates) {
+    if (!candidates || candidates.length === 0) return [];
+    const deduped = [];
+    const seenNormTitles = [];
+    const seenUrls = new Set();
+
+    for (const cand of candidates) {
+      if (!cand || !cand.url) continue;
+
+      // Canonical URL deduplication (remove query params, trailing slashes)
+      const cleanUrl = cand.url.replace(/[?#].*$/, '').replace(/\/+$/, '').toLowerCase();
+      if (seenUrls.has(cleanUrl)) continue;
+      seenUrls.add(cleanUrl);
+
+      const norm = normalizeHeadline(cand.title);
+      if (!norm || norm.length < 8) {
+        deduped.push(cand);
+        continue;
+      }
+
+      let isDup = false;
+      for (let i = 0; i < seenNormTitles.length; i++) {
+        const existing = seenNormTitles[i];
+        if (norm === existing.norm || headlineWordSimilarity(norm, existing.norm) >= 0.80) {
+          isDup = true;
+          // Keep the newer one or higher PageRank
+          const candTime = Number(cand.published_at || cand.crawled_at || 0);
+          const existingTime = Number(existing.cand.published_at || existing.cand.crawled_at || 0);
+          if (candTime > existingTime + 3600000 || (Math.abs(candTime - existingTime) <= 3600000 && (cand.pagerank || 1) > (existing.cand.pagerank || 1))) {
+            seenNormTitles[i] = { norm, cand };
+            const idxInDeduped = deduped.indexOf(existing.cand);
+            if (idxInDeduped !== -1) {
+              deduped[idxInDeduped] = cand;
+            }
+          }
+          break;
+        }
+      }
+
+      if (!isDup) {
+        seenNormTitles.push({ norm, cand });
+        deduped.push(cand);
+      }
+    }
+
+    return deduped;
   }
 
   /**
@@ -914,14 +1004,21 @@ export class SearchEngine {
       score *= 0.02; // Slashes foreign wikis so Indonesian Wikipedia and official news always dominate
     }
 
-    // 🛑 CRUCIAL: If title has ZERO matches for the core subject, severely demote
-    // (Eliminates irrelevant portal homepages like rejabar.republika or surakarta.suara ranking for "gempa" or "prabowo")
-    if (!isExactBrandQuery && !isGeneralNewsQuery && titleCoreTermsMatchedCount === 0) {
-      score *= 0.12;
+    // 🛑 CRUCIAL: If query contains specific non-generic entity terms, title MUST match at least one!
+    const specificEntityTerms = effectiveCoreTerms.filter(t => !GENERIC_CATEGORY_WORDS.has(t));
+    let titleSpecificMatchedCount = 0;
+    if (specificEntityTerms.length > 0) {
+      for (const st of specificEntityTerms) {
+        if (title.includes(st)) titleSpecificMatchedCount++;
+      }
+      if (!isExactBrandQuery && !isGeneralNewsQuery && titleSpecificMatchedCount === 0) {
+        score *= 0.05; // 95% penalty for missing the specific subject (e.g. prabowo, gempa)
+      }
+    } else if (!isExactBrandQuery && !isGeneralNewsQuery && titleCoreTermsMatchedCount === 0) {
+      score *= 0.10;
     }
 
-    // 5. Intelligent Calibrated Freshness Boost
-    // MUST ONLY apply to genuine articles/pages where the query actually matched the title/subject, NEVER to generic hubs!
+    // 5. Intelligent Recency & Freshness Overhaul (Highest weight to newest relevant content)
     const now = Date.now();
     const isQueryRelevantToArticle = (isTitlePrefix || isTitleContains || titleCoreTermsMatchedCount > 0);
     const hasExplicitPublishedAt = Boolean(row.published_at && Number(row.published_at) > 946684800000);
@@ -942,29 +1039,64 @@ export class SearchEngine {
         lowerQuery.includes('hari ini') ||
         lowerQuery.includes('update') ||
         lowerQuery.includes('gempa') ||
+        lowerQuery.includes('cuaca') ||
+        lowerQuery.includes('harga') ||
+        lowerQuery.includes('kurs') ||
         lowerQuery.includes('live') ||
-        lowerQuery.includes('skor')
+        lowerQuery.includes('skor') ||
+        lowerQuery.includes('jadwal')
       );
 
-      // Progressive multiplier & calibrated bonus (maintains relevancy without hijacking)
-      if (diffHours <= 6) {
-        score *= (isBreakingNewsQuery ? 2.0 : 1.5);
-        score += (hasExplicitPublishedAt ? 8000 : 4000);
+      const isHistoricalQuery = (
+        lowerQuery.includes('sejarah') ||
+        lowerQuery.includes('asal usul') ||
+        lowerQuery.includes('biografi') ||
+        lowerQuery.includes('definisi') ||
+        lowerQuery.includes('pengertian') ||
+        lowerQuery.includes('apa itu') ||
+        /\b(19\d\d|200\d|201\d|202[0-3])\b/.test(lowerQuery)
+      );
+
+      // Aggressive Freshness Boost (Highest weight to newest!)
+      if (diffHours <= 2) {
+        score *= (isBreakingNewsQuery ? 3.5 : 2.5);
+        score += (isBreakingNewsQuery ? 45000 : 30000);
+        if (hasMetadata) score += 3000;
+        if (hasExplicitPublishedAt) score += 5000;
+      } else if (diffHours <= 6) {
+        score *= (isBreakingNewsQuery ? 2.8 : 2.0);
+        score += (isBreakingNewsQuery ? 35000 : 20000);
         if (hasMetadata) score += 2000;
+        if (hasExplicitPublishedAt) score += 3000;
       } else if (diffHours <= 24) {
-        score *= (isBreakingNewsQuery ? 1.6 : 1.3);
-        score += (hasExplicitPublishedAt ? 5000 : 2500);
+        score *= (isBreakingNewsQuery ? 2.0 : 1.6);
+        score += (isBreakingNewsQuery ? 20000 : 12000);
         if (hasMetadata) score += 1500;
+        if (hasExplicitPublishedAt) score += 2000;
       } else if (diffHours <= 72) {
-        score *= 1.2;
-        score += (hasExplicitPublishedAt ? 3000 : 1500);
+        score *= (isBreakingNewsQuery ? 1.5 : 1.3);
+        score += (isBreakingNewsQuery ? 10000 : 6000);
+        if (hasExplicitPublishedAt) score += 1000;
       } else if (diffHours <= 168) {
-        score *= 1.1;
-        score += (hasExplicitPublishedAt ? 1500 : 500);
-      } else if (diffHours > 17520) {
-        const isOfficialReference = domain.includes('.wikipedia.org') || domain.endsWith('.gov') || domain.endsWith('.go.id') || domain.endsWith('.edu') || domain.endsWith('.ac.id');
-        if (!isOfficialReference) {
-          score *= 0.88;
+        score *= (isBreakingNewsQuery ? 1.2 : 1.1);
+        score += (isBreakingNewsQuery ? 5000 : 2000);
+      }
+
+      // Progressive Stale Penalties (Decay old web pages)
+      const isOfficialReference = domain.includes('.wikipedia.org') || domain.endsWith('.gov') || domain.endsWith('.go.id') || domain.endsWith('.edu') || domain.endsWith('.ac.id');
+      if (!isHistoricalQuery && !isOfficialReference) {
+        if (isBreakingNewsQuery && diffHours > 168) {
+          score *= 0.15; // Breaking news query older than 7 days severely demoted
+        } else if (diffHours > 26280) { // > 3 years
+          score *= 0.05;
+        } else if (diffHours > 17520) { // > 2 years
+          score *= 0.10;
+        } else if (diffHours > 8760) { // > 1 year
+          score *= 0.25;
+        } else if (diffHours > 4380) { // > 6 months
+          score *= 0.50;
+        } else if (diffHours > 2160) { // > 3 months
+          score *= 0.75;
         }
       }
     }
@@ -1152,14 +1284,15 @@ export class SearchEngine {
     const effectiveTokens = cleanTokens.length > 0 ? cleanTokens : terms.map(t => t.replace(/[^\p{L}\p{N}]/gu, '').trim()).filter(Boolean);
 
     // Stage 1: Lightning Tier - Strict Conjunction on Title, Headings & Description (Sub-30ms)
+    // Retrieves newest matching pages (ORDER BY rowid DESC) + foundational reference pages
     if (effectiveTokens.length > 0) {
       try {
         const titleHeadingsQuery = `{title headings description}: (` + effectiveTokens.map(t => `"${t}"`).join(' ') + `)`;
-        let andRows;
-        if (!filterCondition && this.stmtFastTitleHeadings) {
-          andRows = this.stmtFastTitleHeadings.all(titleHeadingsQuery, fetchQueryLimit);
+        let andRowsDesc;
+        if (!filterCondition && this.stmtFastTitleHeadingsDesc) {
+          andRowsDesc = this.stmtFastTitleHeadingsDesc.all(titleHeadingsQuery, fetchQueryLimit);
         } else {
-          const stmtAnd = this.db.prepare(`
+          const stmtAndDesc = this.db.prepare(`
             SELECT
               p.id, p.url, p.domain, p.title, p.description, p.headings,
               SUBSTR(p.content, 1, 600) as content,
@@ -1167,15 +1300,23 @@ export class SearchEngine {
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
             FROM (
-              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
+              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
             ) f
             JOIN pages p ON f.rowid = p.id
             WHERE 1=1 ${filterCondition}
           `);
-          andRows = stmtAnd.all(titleHeadingsQuery, fetchQueryLimit);
+          andRowsDesc = stmtAndDesc.all(titleHeadingsQuery, fetchQueryLimit);
         }
-        for (const r of andRows) {
+        for (const r of andRowsDesc) {
           candidatesMap.set(r.id, r);
+        }
+
+        // Also retrieve foundational/encyclopedic matches (e.g. Wikipedia, official reference sites)
+        if (!filterCondition && this.stmtFastTitleHeadingsAsc) {
+          const andRowsAsc = this.stmtFastTitleHeadingsAsc.all(titleHeadingsQuery, 25);
+          for (const r of andRowsAsc) {
+            if (!candidatesMap.has(r.id)) candidatesMap.set(r.id, r);
+          }
         }
       } catch {}
     }
@@ -1196,7 +1337,7 @@ export class SearchEngine {
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
             FROM (
-              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
+              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
             ) f
             JOIN pages p ON f.rowid = p.id
             WHERE 1=1 ${filterCondition}
@@ -1216,8 +1357,8 @@ export class SearchEngine {
       try {
         const orQuery = `{title headings description}: (` + effectiveTokens.map(t => `"${t}"`).join(' OR ') + `)`;
         let orRows;
-        if (!filterCondition && this.stmtFastTitleHeadings) {
-          orRows = this.stmtFastTitleHeadings.all(orQuery, fetchQueryLimit);
+        if (!filterCondition && this.stmtFastTitleHeadingsDesc) {
+          orRows = this.stmtFastTitleHeadingsDesc.all(orQuery, fetchQueryLimit);
         } else {
           const stmtOr = this.db.prepare(`
             SELECT
@@ -1227,7 +1368,7 @@ export class SearchEngine {
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
             FROM (
-              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
+              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
             ) f
             JOIN pages p ON f.rowid = p.id
             WHERE 1=1 ${filterCondition}
@@ -1265,29 +1406,9 @@ export class SearchEngine {
       }
     } catch {}
 
-    // Freshness & Version Deduplication:
-    // If a domain has crawled multiple versions of the same article/page, keep strictly the newest version
-    const freshCandidates = [];
-    const seenArticleKeys = new Map();
-
-    for (const row of Array.from(candidatesMap.values())) {
-      const cleanTitle = (row.title || '').trim().toLowerCase();
-      const articleKey = cleanTitle.length >= 8 ? `${row.domain}::${cleanTitle}` : row.url;
-      const existingIdx = seenArticleKeys.get(articleKey);
-
-      if (existingIdx !== undefined) {
-        const existingRow = freshCandidates[existingIdx];
-        const existingTime = existingRow.published_at || existingRow.crawled_at || 0;
-        const candidateTime = row.published_at || row.crawled_at || 0;
-        if (candidateTime > existingTime) {
-          // Replace with the newer/fresher version
-          freshCandidates[existingIdx] = row;
-        }
-      } else {
-        seenArticleKeys.set(articleKey, freshCandidates.length);
-        freshCandidates.push(row);
-      }
-    }
+    // Cross-Domain Headline & Version Deduplication:
+    // Strips publisher branding suffixes and eliminates syndicated wire duplicates across all portals
+    const freshCandidates = this._deduplicateArticles(Array.from(candidatesMap.values()));
 
     const termRegexes = coreTerms.map(term =>
       term && term.length >= 2 ? new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null
@@ -2076,6 +2197,7 @@ export class SearchEngine {
           SELECT rowid, 1.0 as bm25_score
           FROM fts_pages
           WHERE fts_pages MATCH ?
+          ORDER BY rowid DESC
           LIMIT ?
         ) f
         JOIN pages p ON f.rowid = p.id
@@ -2106,8 +2228,9 @@ export class SearchEngine {
         }
       }
 
-      // If we have enough genuine articles, use them exclusively!
-      const candidatesToScore = articleCandidates.length >= limit ? articleCandidates : [...articleCandidates, ...hubCandidates];
+      // If we have enough genuine articles, deduplicate and use them exclusively!
+      const dedupedArticles = this._deduplicateArticles(articleCandidates);
+      const candidatesToScore = dedupedArticles.length >= limit ? dedupedArticles : [...dedupedArticles, ...hubCandidates];
 
       // Calculate Google News composite score & virality for every candidate
       const scoredRows = candidatesToScore.map(row => {

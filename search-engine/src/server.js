@@ -164,14 +164,14 @@ let crawlerEngine = new CrawlerEngine(db, {
   concurrency: crawlerConcurrency, 
   maxDepth: 15, 
   perDomainDelayMs: 10,
-  maxConcurrentPerDomain: 8
+  maxConcurrentPerDomain: 12
 });
 
 // 2. Breaking News Crawler: Dedicated high-speed parallel workers for Media Portals & RSS
 const newsCrawler = new NewsCrawler(db, {
-  intervalMs: 12 * 1000,      // 12s snappy breaking news cycle (faster)
+  intervalMs: 8 * 1000,       // 8s ultra-fast breaking news cycle
   concurrency: newsCrawlerConcurrency,
-  maxArticlesPerRun: 300,     // Larger micro-batch for aggressive news ingestion
+  maxArticlesPerRun: 400,     // Large micro-batch for high-speed news ingestion
   quietMode: true
 });
 
@@ -979,6 +979,7 @@ async function handleV1Search(req, res) {
     const rawTitle = (r.rawTitle || r.title || '').replace(/<[^>]+>/g, '').trim();
     const snippet = (r.snippet || r.description || r.content || '').replace(/<[^>]+>/g, '').trim();
     const pubDate = r.publishedAt || r.published_at;
+    const formattedDate = r.formattedDate || r.date || (pubDate ? new Date(pubDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
     return {
       title: rawTitle,
       url: r.url || '',
@@ -987,6 +988,11 @@ async function handleV1Search(req, res) {
       description: snippet,
       author: r.author || null,
       published_at: pubDate ? new Date(pubDate).toISOString() : null,
+      date: formattedDate,
+      formatted_date: formattedDate,
+      formattedDate: formattedDate,
+      accuracyScore: r.accuracyScore || r.rankingScore || 0,
+      score: r.accuracyScore || r.rankingScore || 0,
       pagerank: r.pagerank || 0,
       trust_score: r.trust_score || r.trustScore || 0,
       logo_url: r.logo_url || r.logoUrl || null,
