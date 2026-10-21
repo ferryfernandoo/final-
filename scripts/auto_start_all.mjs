@@ -23,7 +23,9 @@ import net from 'node:net';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const SEARCH_DIR = fs.existsSync('C:\\deepernova-search-main')
+const SEARCH_DIR = fs.existsSync(path.join(ROOT_DIR, 'search-engine'))
+  ? path.join(ROOT_DIR, 'search-engine')
+  : (fs.existsSync('C:\\deepernova-search-main')
   ? 'C:\\deepernova-search-main'
   : (fs.existsSync('F:\\deepernova-search-main')
       ? 'F:\\deepernova-search-main'
@@ -206,7 +208,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     );
     envContent = envContent.replace(
       /VITE_SEARCH_ENGINE_URL=\S+/g,
-      `VITE_SEARCH_ENGINE_URL=${searchEngineUrl}`
+      `VITE_SEARCH_ENGINE_URL=/search`
     );
     if (dteUrl) {
       envContent = envContent.replace(
@@ -286,7 +288,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     if (searchEngineUrl) {
       apiConfigContent = apiConfigContent.replace(
         /export const SEARCH_ENGINE_URL =[\s\S]*?;/,
-        `export const SEARCH_ENGINE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||\n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:4000'\n    : '${searchEngineUrl}');`
+        `export const SEARCH_ENGINE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||\n  (typeof window !== 'undefined' ? `${window.location.origin}/search` : '/search');`
       );
     }
     fs.writeFileSync(apiConfigPath, apiConfigContent, 'utf8');
@@ -327,7 +329,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     );
     envProdContent = envProdContent.replace(
       /VITE_SEARCH_ENGINE_URL=\S+/g,
-      `VITE_SEARCH_ENGINE_URL=${searchEngineUrl}`
+      `VITE_SEARCH_ENGINE_URL=/search`
     );
     if (dteUrl) {
       envProdContent = envProdContent.replace(
@@ -374,6 +376,18 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         ]
       },
       {
+        source: "/search/(index.html)?",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate, max-age=0" }
+        ]
+      },
+      {
+        source: "/search/assets/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
         source: "/assets/(.*)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
@@ -404,11 +418,19 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     rewrites: [
       {
         source: "/search",
-        destination: `${searchEngineUrl}/search`
+        destination: "/search/index.html"
+      },
+      {
+        source: "/search/assets/:path*",
+        destination: "/search/assets/:path*"
       },
       {
         source: "/search/:path*",
-        destination: `${searchEngineUrl}/search/:path*`
+        destination: "/search/index.html"
+      },
+      {
+        source: "/api/search",
+        destination: `${searchEngineUrl}/api/search`
       },
       {
         source: "/api/v1/search",

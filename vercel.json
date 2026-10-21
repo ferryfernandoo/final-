@@ -47,6 +47,24 @@
       ]
     },
     {
+      "source": "/search/(index.html)?",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/search/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -98,11 +116,19 @@
   "rewrites": [
     {
       "source": "/search",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/search"
+      "destination": "/search/index.html"
+    },
+    {
+      "source": "/search/assets/:path*",
+      "destination": "/search/assets/:path*"
     },
     {
       "source": "/search/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/search/:path*"
+      "destination": "/search/index.html"
+    },
+    {
+      "source": "/api/search",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/search"
     },
     {
       "source": "/api/v1/search",
@@ -177,7 +203,7 @@
       "destination": "https://tobacco-warcraft-faced-oklahoma.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/((?!search|assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]

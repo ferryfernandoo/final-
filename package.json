@@ -5,7 +5,8 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/copy_search_dist.mjs",
+    "build:search": "node scripts/build_search_client.mjs && node scripts/copy_search_dist.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "start:server": "node server/server.js",
@@ -57,6 +58,7 @@
     "jszip": "^3.10.1",
     "kan": "^0.0.1",
     "katex": "^0.16.45",
+    "lucide-react": "^1.61.0",
     "mammoth": "^1.12.0",
     "msedge-tts": "^2.0.9",
     "multer": "^1.4.5-lts.1",

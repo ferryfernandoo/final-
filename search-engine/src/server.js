@@ -128,17 +128,9 @@ app.use((req, res, next) => {
 
 app.use(compression({ threshold: 1024, level: 6 }));
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(rootDir, 'public'), {
-  maxAge: '7d',
-  immutable: true,
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
-    } else if (filePath.match(/\.(js|css|woff2?|ttf|png|jpe?g|svg|ico)$/)) {
-      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
-    }
-  }
-}));
+// 🚀 PURE API & CRAWLER MODE: Frontend UI dialihkan sepenuhnya ke Vercel CDN
+// Server lokal dibebaskan dari beban menyajikan ribuan bundle static JS/CSS
+// app.use(express.static(path.join(rootDir, 'public'), ...));
 
 // Initialize Core Database and Engines (Instant Lightning Boot)
 const db = new SearchDatabase();
@@ -2009,10 +2001,18 @@ function generateLocalRagSummary(query = '', results = []) {
   }
 }
 
-// 10. SPA Fallback for client routing (e.g. /search, /admin)
+// 10. API-Only Fallback: Bebaskan server dari melayani file HTML besar
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(rootDir, 'public', 'index.html'));
+  if (req.accepts('html')) {
+    return res.status(200).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>DeeperNova Search API</title><meta http-equiv="refresh" content="3;url=/search"></head><body style="font-family:sans-serif;padding:40px;background:#0d1117;color:#c9d1d9;text-align:center;"><h2>🚀 DeeperNova Search API Engine</h2><p>Tampilan frontend berjalan di Vercel CDN (/search).</p><p><a href="/search" style="color:#58a6ff;">Buka Antarmuka Pencarian &rarr;</a></p></body></html>`);
+  }
+  res.status(200).json({
+    status: 'online',
+    service: 'DeeperNova Search & Crawler API Engine',
+    frontend: 'Hosted on Vercel CDN (/search)',
+    endpoints: ['/api/search', '/api/v1/search', '/api/v1/images', '/api/v1/news', '/api/suggestions', '/api/ai/stream']
+  });
 });
 
 const PORT = process.env.PORT || 3000;

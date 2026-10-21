@@ -11,9 +11,9 @@ import { landingTranslations } from '../locales/landingTranslations';
 import './LandingPage.css';
 
 const openSearch = (q) => {
-  const base = (SEARCH_ENGINE_URL || 'https://playstation-clearance-eight-away.trycloudflare.com').replace(/\/+$/, '');
+  const base = (SEARCH_ENGINE_URL || '/search').replace(/\/+$/, '');
   const searchBase = base.endsWith('/search') ? base : `${base}/search`;
-  const url = q ? `${searchBase}?q=${encodeURIComponent(q)}` : base;
+  const url = q ? `${searchBase}?q=${encodeURIComponent(q)}` : searchBase;
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
