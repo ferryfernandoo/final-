@@ -226,7 +226,127 @@ body[data-view="landing"] #root {
 }
 .lp-nav-links button:hover { color: var(--lp-ink); background: #f4f4f5; }
 
-.lp-nav-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.lp-nav-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* ---------- Language Picker ---------- */
+.lp-lang-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.lp-lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid var(--lp-line);
+  color: var(--lp-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.lp-lang-btn:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.lp-lang-globe {
+  color: var(--lp-orange);
+  font-size: 13px;
+}
+
+.lp-lang-flag {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.lp-lang-label {
+  letter-spacing: 0.02em;
+}
+
+.lp-lang-arrow {
+  font-size: 10px;
+  color: var(--lp-muted);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 2px;
+}
+
+.lp-lang-arrow.open {
+  transform: rotate(180deg);
+  color: var(--lp-orange);
+}
+
+.lp-lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 185px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px -6px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.06);
+  padding: 6px;
+  z-index: 100;
+  animation: lp-fade-up 0.16s ease-out;
+}
+
+.lp-lang-menu-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 10px 4px;
+}
+
+.lp-lang-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--lp-ink);
+  transition: all 0.15s ease;
+}
+
+.lp-lang-item:hover {
+  background: #f1f5f9;
+}
+
+.lp-lang-item.active {
+  background: #fff7ed;
+  color: #ea580c;
+  font-weight: 600;
+}
+
+.lp-lang-item-flag {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.lp-lang-item-name {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.lp-lang-check {
+  font-size: 11px;
+  color: #ea580c;
+}
 
 /* ---------- Hero ---------- */
 .lp-hero {
@@ -622,7 +742,55 @@ body[data-view="landing"] #root {
 }
 .lp-footer-links button:hover { color: var(--lp-ink); background: #f4f4f5; }
 
-.lp-footer-bottom { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--lp-line); font-size: 13px; color: #a1a1aa; }
+.lp-footer-bottom { 
+  margin-top: 24px; 
+  padding-top: 20px; 
+  border-top: 1px solid var(--lp-line); 
+  font-size: 13px; 
+  color: #a1a1aa; 
+}
+
+.lp-footer-bottom-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.lp-footer-lang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lp-footer-lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  border: 1px solid transparent;
+  color: var(--lp-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lp-footer-lang-btn:hover {
+  color: var(--lp-ink);
+  background: #e4e4e7;
+}
+
+.lp-footer-lang-btn.active {
+  background: #fff7ed;
+  border-color: rgba(234, 88, 12, 0.35);
+  color: #ea580c;
+  font-weight: 600;
+}
 
 /* ---------- Animation ---------- */
 @keyframes lp-fade-up {

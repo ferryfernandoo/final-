@@ -26,6 +26,7 @@ import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
+import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
 import './ChatBot.css';
 
 // Interactive Action Card for Typernova Word Agent / CodeDance IDE / Universe (Manual Click, No Auto Countdown)
@@ -1964,7 +1965,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [, setExpandedMessages] = useState({});
   const [lastMessage, setLastMessage] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 769);
-  const [userLanguage, setUserLanguage] = useState('id'); // 'id' for Indonesian, 'en' for English
+  const [userLanguage, setUserLanguage] = useState(() => detectLanguageSync());
   const [, setUserCountry] = useState('ID');
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [isPrivateChat, setIsPrivateChat] = useState(false);
@@ -4889,36 +4890,30 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     preloadRagIndex();
   }, []);
 
-  // Detect user location and language
+  // Detect user location and language according to strict country rules:
+  // - ID -> 'id'
+  // - CN/TW/HK/MO -> 'zh'
+  // - All other countries -> strictly 'en' (never Indonesian)
   useEffect(() => {
-    const detectUserLocation = async () => {
-      try {
-        // Try to use IP geolocation API (free tier)
-        const response = await fetch('https://ipapi.co/json/');
-        const data = await response.json();
-        const country = data.country_code || 'ID';
-        setUserCountry(country);
-        
-        // Determine language based on country
-        const englishCountries = ['US', 'GB', 'AU', 'CA', 'NZ', 'IE', 'SG', 'MY'];
-        const detectedLanguage = englishCountries.includes(country) ? 'en' : 'id';
-        setUserLanguage(detectedLanguage);
-        
-        // Also try browser language as fallback
-        const browserLang = navigator.language || navigator.userLanguage;
-        if (browserLang.startsWith('en')) {
-          setUserLanguage('en');
-        } else if (browserLang.startsWith('id')) {
-          setUserLanguage('id');
-        }
-      } catch (error) {
-        console.log('Location detection skipped:', error);
-        // Default to Indonesian if detection fails
-        setUserLanguage('id');
+    let isMounted = true;
+    detectLanguageAsync().then((lang) => {
+      if (isMounted && lang) {
+        setUserLanguage(lang);
+      }
+    });
+
+    const handleLanguageChanged = (e) => {
+      const nextLang = e?.detail?.language;
+      if (nextLang) {
+        setUserLanguage(nextLang);
       }
     };
+    window.addEventListener('deepernova_language_changed', handleLanguageChanged);
 
-    detectUserLocation();
+    return () => {
+      isMounted = false;
+      window.removeEventListener('deepernova_language_changed', handleLanguageChanged);
+    };
   }, []);
 
   // ==========================================
@@ -12990,10 +12985,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               <select
                 className="modern-settings-select"
                 value={userLanguage}
-                onChange={(e) => setUserLanguage(e.target.value)}
+                onChange={(e) => {
+                  const nextLang = e.target.value;
+                  setUserLanguage(nextLang);
+                  saveLanguage(nextLang);
+                }}
               >
-                <option value="id">Bahasa Indonesia</option>
-                <option value="en">English</option>
+                <option value="id">Bahasa Indonesia (ID)</option>
+                <option value="en">English (US/UK)</option>
+                <option value="zh">简体中文 (CN)</option>
               </select>
             </div>
 
