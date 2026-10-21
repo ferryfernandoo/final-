@@ -1137,6 +1137,23 @@ app.get('/api/v1/images', searchPriorityMiddleware, apiKeyAuthMiddleware, (req, 
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '12', 10)));
   const page = Math.max(1, parseInt(req.query.page || '1', 10));
 
+  if (!query) {
+    return res.json({
+      status: 'success',
+      api_version: 'v1',
+      query: '',
+      total_results: 0,
+      page,
+      limit,
+      duration_ms: 0,
+      auth: {
+        key_name: req.apiKeyInfo?.name || 'Public Demo',
+        is_demo: Boolean(req.apiKeyInfo?.isDemo)
+      },
+      results: []
+    });
+  }
+
   const tStart = performance.now();
   const result = searchEngine.searchImages(query, { page, limit });
   const latencyMs = Math.round((performance.now() - tStart) * 100) / 100;
@@ -1278,13 +1295,6 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
   const liveCrawl = req.query.liveCrawl === 'true' || req.query.liveCrawl === '1';
 
   if (!query.trim()) {
-    if (type === 'images') {
-      const result = searchEngine.getExploreImages(parseInt(req.query.limit || '24', 10), page);
-      return res.json({
-        ...result,
-        liveCrawlTriggered: false
-      });
-    }
     return res.json({ query: '', total: 0, results: [], durationMs: 0, type });
   }
 
@@ -1692,7 +1702,10 @@ app.get('/api/proxy-image', async (req, res) => {
 
 // Dedicated Images Endpoint Alias
 app.get('/api/images', searchPriorityMiddleware, (req, res) => {
-  const query = req.query.q || '';
+  const query = (req.query.q || '').trim();
+  if (!query) {
+    return res.json({ query: '', total: 0, results: [], durationMs: 0, type: 'images' });
+  }
   const page = parseInt(req.query.page || '1', 10);
   const limit = parseInt(req.query.limit || '24', 10);
 

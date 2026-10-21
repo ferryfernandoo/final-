@@ -1036,7 +1036,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     }
 
     const trimmed = (searchQuery || '').trim();
-    if (!trimmed && type !== 'images') {
+    if (!trimmed) {
       setResultsData(null);
       setHasSearched(false);
       return;
@@ -1253,7 +1253,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
   const handleSearchTypeChange = (typeId) => {
     setSearchType(typeId);
-    if (query.trim() || typeId === 'images') {
+    if (query.trim()) {
       fetchSearch(query, 1, typeId, timeFilter);
     }
   };
