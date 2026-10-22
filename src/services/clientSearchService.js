@@ -200,8 +200,8 @@ async function performDirectSearch(query, limit, includeImages, timeoutMs = 5000
     const searchUrl = new URL(`${DEEPERNOVA_SEARCH_API_URL}/search`);
     searchUrl.searchParams.append('q', query);
     searchUrl.searchParams.append('limit', String(limit));
-    searchUrl.searchParams.append('crawl', '1');
-    searchUrl.searchParams.append('fast', '0');
+    searchUrl.searchParams.append('crawl', '0');
+    searchUrl.searchParams.append('fast', '1');
 
     const searchPromise = fetch(searchUrl.toString(), {
       headers: searchHeaders,
@@ -213,8 +213,8 @@ async function performDirectSearch(query, limit, includeImages, timeoutMs = 5000
       const imagesUrl = new URL(`${DEEPERNOVA_SEARCH_API_URL}/images`);
       imagesUrl.searchParams.append('q', query);
       imagesUrl.searchParams.append('limit', String(limit));
-      imagesUrl.searchParams.append('crawl', '1');
-      imagesUrl.searchParams.append('fast', '0');
+      imagesUrl.searchParams.append('crawl', '0');
+      imagesUrl.searchParams.append('fast', '1');
       imagesPromise = fetch(imagesUrl.toString(), {
         headers: searchHeaders,
         signal: controller.signal
@@ -293,7 +293,7 @@ async function performProxySearch(query, limit, timeoutMs = 5000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=${limit}&crawl=1&fast=0`;
+    const backendProxyUrl = `${BACKEND_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=${limit}&crawl=0&fast=1`;
     const response = await fetch(backendProxyUrl, {
       credentials: 'include',
       signal: controller.signal
