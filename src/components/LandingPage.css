@@ -792,6 +792,341 @@ body[data-view="landing"] #root {
   font-weight: 600;
 }
 
+/* ---------- APK Download Section & Navigation ---------- */
+.lp-nav-apk-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+.lp-nav-apk-btn:hover {
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}
+
+.lp-btn-apk {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: #ffffff !important;
+  box-shadow: 0 6px 20px -6px rgba(16, 185, 129, 0.55);
+}
+.lp-btn-apk:hover {
+  box-shadow: 0 10px 28px -8px rgba(16, 185, 129, 0.65);
+  transform: translateY(-1px);
+}
+
+.lp-download-section {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-top: 1px solid var(--lp-line);
+  border-bottom: 1px solid var(--lp-line);
+  padding: 80px 0;
+  position: relative;
+}
+
+.lp-download-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px;
+  margin-top: 40px;
+}
+
+.lp-download-card {
+  position: relative;
+  background: #ffffff;
+  border: 1.5px solid var(--lp-line);
+  border-radius: var(--lp-radius-lg);
+  padding: 32px 28px 28px;
+  box-shadow: var(--lp-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  overflow: hidden;
+}
+
+.lp-download-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px -12px rgba(15, 23, 42, 0.12);
+}
+
+.lp-download-card.is-search:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 16px 40px -12px rgba(14, 165, 233, 0.2);
+}
+
+.lp-download-card.is-ai:hover {
+  border-color: #fb923c;
+  box-shadow: 0 16px 40px -12px rgba(234, 88, 12, 0.2);
+}
+
+.lp-download-badge {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lp-download-badge.ai-badge {
+  background: #fff7ed;
+  color: #ea580c;
+  border-color: #fed7aa;
+}
+
+.lp-download-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.lp-download-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.lp-download-icon-wrap.search-glow {
+  background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+  border-color: #bae6fd;
+}
+
+.lp-download-icon-wrap.ai-glow {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border-color: #fed7aa;
+}
+
+.lp-download-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.lp-download-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--lp-ink);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.lp-download-subtitle {
+  font-size: 13.5px;
+  color: var(--lp-muted);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.lp-download-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lp-download-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.lp-download-pill.pill-green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.lp-download-pill.pill-purple {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.lp-download-points {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-download-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.lp-download-points li i {
+  color: #10b981;
+  font-size: 14px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.lp-download-action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lp-btn-dl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lp-btn-dl-search {
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 18px -4px rgba(2, 132, 199, 0.45);
+}
+
+.lp-btn-dl-search:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+  box-shadow: 0 10px 24px -4px rgba(2, 132, 199, 0.55);
+  transform: translateY(-1px);
+}
+
+.lp-btn-dl-ai {
+  background: linear-gradient(135deg, var(--lp-orange) 0%, var(--lp-orange-2) 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 18px -4px rgba(234, 88, 12, 0.45);
+}
+
+.lp-btn-dl-ai:hover {
+  background: linear-gradient(135deg, #c2410c 0%, var(--lp-orange) 100%);
+  box-shadow: 0 10px 24px -4px rgba(234, 88, 12, 0.55);
+  transform: translateY(-1px);
+}
+
+.lp-download-note {
+  font-size: 11.5px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* Guide box */
+.lp-download-guide {
+  margin-top: 44px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--lp-radius);
+  padding: 24px 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.lp-guide-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: #0369a1;
+}
+
+.lp-guide-head i {
+  font-size: 18px;
+}
+
+.lp-guide-head h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lp-ink);
+  margin: 0;
+}
+
+.lp-guide-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.lp-guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lp-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.lp-guide-step p {
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .lp-download-grid {
+    grid-template-columns: 1fr;
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .lp-guide-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .lp-download-section {
+    padding: 56px 0;
+  }
+  .lp-download-card {
+    padding: 24px 18px 20px;
+  }
+  .lp-guide-steps {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
 /* ---------- Animation ---------- */
 @keyframes lp-fade-up {
   from { opacity: 0; transform: translateY(10px); }

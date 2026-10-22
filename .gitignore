@@ -13,6 +13,8 @@ server/node_modules/
 *.zip
 *.rar
 *.apk
+!public/DPN-Search.apk
+!dist/DPN-Search.apk
 *.mp4
 *.mkv
 *.avi

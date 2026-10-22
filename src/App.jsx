@@ -166,7 +166,8 @@ function App() {
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
       if (path === '/dte' || hash === '#dte') return 'dte';
       if (path === '/api' || hash === '#api') return 'api';
-      // Direct Web PWA: No landing page, straight to Chat / Login
+      if (path === '/landing' || hash === '#landing' || hash === '#home' || hash === '#unduh-apk') return 'landing';
+      // Direct Web PWA: Default to chat / login
       return 'chat';
     }
     return 'chat';
@@ -613,9 +614,30 @@ function App() {
     );
   }
 
-  // 1. Direct PWA Web: Landing page is bypassed. All root traffic goes straight to Chat / Login.
+  // 1. Dedicated Landing Page & Android APK Download Portal (/landing or #unduh-apk)
   if (currentView === 'landing') {
-    setCurrentView('chat');
+    return (
+      <ErrorBoundary onNavigate={handleNavigate}>
+        <LandingPage
+          onStartChat={() => {
+            if (!isAuthenticated && !isGuest) {
+              setShowLoginView(true);
+            }
+            handleNavigate('chat');
+          }}
+          onOpenOffice={() => handleNavigate('office')}
+          onOpenUniverse={() => handleNavigate('universe')}
+          onOpenLogin={() => {
+            setShowLoginView(true);
+            handleNavigate('chat');
+          }}
+          onNavigate={handleNavigate}
+          isAuthenticated={isAuthenticated}
+          isGuest={isGuest}
+          user={user}
+        />
+      </ErrorBoundary>
+    );
   }
 
   // 1.5. Help & Problem Solving Center (Publicly accessible without requiring login)
@@ -736,6 +758,31 @@ function App() {
             }}
             onSignupSuccess={handleSignupSuccess}
           />
+          <div style={{ textAlign: 'center', padding: '16px 0 24px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowLoginView(false);
+                handleNavigate('landing');
+              }}
+              style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                color: '#ea580c',
+                border: '1px solid rgba(234, 88, 12, 0.3)',
+                padding: '8px 18px',
+                borderRadius: '999px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '700',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <i className="fa-brands fa-android" /> Buka Beranda & Unduh APK Android (.apk)
+            </button>
+          </div>
         </div>
       </>
     );

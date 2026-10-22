@@ -306,6 +306,31 @@ app.use('/api/', (req, res, next) => {
   next();
 });
 
+// ===== Direct APK Downloads for Landing Page =====
+app.get('/download/deepernova-ai.apk', (req, res) => {
+  const rootDir = path.resolve(__dirname, '..');
+  const apkPath = path.join(rootDir, 'deepernova-ai.apk');
+  if (fs.existsSync(apkPath)) {
+    console.log(`[DOWNLOAD] Streaming deepernova-ai.apk (${fs.statSync(apkPath).size} bytes) to ${req.ip}`);
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', 'attachment; filename="deepernova-ai.apk"');
+    return res.download(apkPath, 'deepernova-ai.apk');
+  }
+  return res.status(404).send('File APK deepernova-ai.apk tidak ditemukan di server.');
+});
+
+app.get('/download/DPN-Search.apk', (req, res) => {
+  const rootDir = path.resolve(__dirname, '..');
+  const apkPath = path.join(rootDir, 'DPN-Search.apk');
+  if (fs.existsSync(apkPath)) {
+    console.log(`[DOWNLOAD] Streaming DPN-Search.apk (${fs.statSync(apkPath).size} bytes) to ${req.ip}`);
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', 'attachment; filename="DPN-Search.apk"');
+    return res.download(apkPath, 'DPN-Search.apk');
+  }
+  return res.status(404).send('File APK DPN-Search.apk tidak ditemukan di server.');
+});
+
 // ===== IP-Based Token Limit System =====
 const ipTokenUsageMap = new Map(); // ip -> { usedTokens: number, resetTime: number | null }
 const IP_MAX_TOKEN_LIMIT = 2000000; // 2 Million tokens limit

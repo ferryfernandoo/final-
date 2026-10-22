@@ -14,7 +14,48 @@ export const landingTranslations = {
       help: 'Bantuan',
       login: 'Login',
       startChat: 'Mulai Chat',
-      language: 'Bahasa'
+      language: 'Bahasa',
+      download: 'Unduh APK'
+    },
+    download: {
+      eyebrow: 'Aplikasi Android Resmi',
+      heading: 'Unduh Aplikasi Deepernova (.APK)',
+      sub: 'Nikmati performa maksimal dan pengalaman layar penuh tanpa gangguan browser. Tersedia untuk semua perangkat Android.',
+      searchCard: {
+        badge: 'Search Engine APK',
+        title: 'DeeperNova Search',
+        subtitle: 'Mesin Pencari Cepat & Ringan',
+        size: '8.2 MB',
+        version: 'v1.0.0',
+        points: [
+          '⚡ Ukuran ultra ringan (8.2 MB) & konsumsi memori minim',
+          '🔍 Pencarian web mandiri real-time tanpa iklan & tracker',
+          '📱 Mode layar penuh native tanpa address bar browser',
+          '🛡️ Privasi terjamin, kompatibel Android 5.0+'
+        ],
+        btn: 'Unduh Search APK (8.2 MB)'
+      },
+      aiCard: {
+        badge: 'Full AI Suite APK',
+        title: 'DeeperNova AI Assistant',
+        subtitle: 'Asisten AI & Typernova Document Studio',
+        size: '~529 MB',
+        version: 'v2.4.0',
+        points: [
+          '🧠 Multi-model AI cerdas untuk penalaran & percakapan mendalam',
+          '✍️ Typernova Studio (Otomatisasi Word, Excel, PowerPoint)',
+          '💻 Coding Agent Sandbox dengan eksekusi kode mandiri',
+          '☁️ Cloud Vault terenkripsi 3GB & sinkronisasi otomatis'
+        ],
+        btn: 'Unduh DeeperNova AI APK (529 MB)'
+      },
+      guideTitle: 'Panduan Instalasi APK Android:',
+      guideSteps: [
+        'Klik tombol unduh untuk file APK yang Anda inginkan di atas.',
+        'Setelah selesai diunduh, buka file .apk dari notifikasi atau Pengelola File.',
+        'Jika muncul peringatan keamanan, pilih Setelan (Settings) lalu aktifkan "Izinkan penginstalan dari sumber ini".',
+        'Pilih Instal (Install) dan aplikasi Deepernova siap digunakan!'
+      ]
     },
     hero: {
       titleLead: 'Asisten AI yang',
@@ -104,7 +145,48 @@ export const landingTranslations = {
       help: 'Help',
       login: 'Log In',
       startChat: 'Start Chat',
-      language: 'Language'
+      language: 'Language',
+      download: 'Download APK'
+    },
+    download: {
+      eyebrow: 'Official Android Apps',
+      heading: 'Download Deepernova Apps (.APK)',
+      sub: 'Enjoy maximum performance and a distraction-free, full-screen native experience directly on your Android phone.',
+      searchCard: {
+        badge: 'Search Engine APK',
+        title: 'DeeperNova Search',
+        subtitle: 'Ultra Lightweight & Fast Search',
+        size: '8.2 MB',
+        version: 'v1.0.0',
+        points: [
+          '⚡ Ultra lightweight (8.2 MB) & negligible memory usage',
+          '🔍 Independent real-time web search without ads or trackers',
+          '📱 Full-screen native experience without browser URL bars',
+          '🛡️ Privacy-first, compatible with Android 5.0+'
+        ],
+        btn: 'Download Search APK (8.2 MB)'
+      },
+      aiCard: {
+        badge: 'Full AI Suite APK',
+        title: 'DeeperNova AI Assistant',
+        subtitle: 'Intelligent AI Assistant & Studio',
+        size: '~529 MB',
+        version: 'v2.4.0',
+        points: [
+          '🧠 Deep reasoning multi-model AI for complex inquiries',
+          '✍️ Typernova Studio (Automated Word, Excel, PowerPoint)',
+          '💻 Coding Agent Sandbox with autonomous code execution',
+          '☁️ 3GB Encrypted Cloud Vault with auto-sync'
+        ],
+        btn: 'Download DeeperNova AI APK (529 MB)'
+      },
+      guideTitle: 'How to Install APK on Android:',
+      guideSteps: [
+        'Click the download button for your desired APK above.',
+        'Once downloaded, open the .apk file from your notification bar or Downloads folder.',
+        'If an Android security prompt appears, tap "Settings" and enable "Allow from this source".',
+        'Tap "Install" and your Deepernova app will be ready in seconds!'
+      ]
     },
     hero: {
       titleLead: 'An AI assistant that is',
@@ -194,7 +276,48 @@ export const landingTranslations = {
       help: '帮助中心',
       login: '登录',
       startChat: '开始对话',
-      language: '语言'
+      language: '语言',
+      download: '下载 APK'
+    },
+    download: {
+      eyebrow: '官方安卓客户端',
+      heading: '下载 Deepernova 安卓应用 (.APK)',
+      sub: '直接在安卓设备上享受极致性能、全屏无边框浏览与强劲的 AI 生产力。',
+      searchCard: {
+        badge: '搜索引擎客户端',
+        title: 'DeeperNova Search',
+        subtitle: '极简极速独立搜索引擎',
+        size: '8.2 MB',
+        version: 'v1.0.0',
+        points: [
+          '⚡ 8.2 MB 超轻量体积，秒级极速响应与低内存占用',
+          '🔍 独立实时网页检索，无广告、无隐私追踪',
+          '📱 原生无地址栏全屏浏览体验',
+          '🛡️ 隐私至上，完美适配 Android 5.0+'
+        ],
+        btn: '下载 Search APK (8.2 MB)'
+      },
+      aiCard: {
+        badge: '全功能 AI 客户端',
+        title: 'DeeperNova AI Assistant',
+        subtitle: '全能 AI 智能助手 & 办公工作台',
+        size: '~529 MB',
+        version: 'v2.4.0',
+        points: [
+          '🧠 深度推理多模型 AI，解答复杂问题与长文创作',
+          '✍️ Typernova 工作室（自动生成 Word、Excel、PPT）',
+          '💻 编程 Agent 沙箱与自动化代码执行工具',
+          '☁️ 3GB 高密态加密云盘与全自动云端同步'
+        ],
+        btn: '下载 DeeperNova AI APK (529 MB)'
+      },
+      guideTitle: '安卓 APK 安装指引：',
+      guideSteps: [
+        '点击上方按钮下载您需要的 APK 安装包。',
+        '下载完成后，在手机通知栏或“下载”文件夹中点击该 .apk 文件。',
+        '如弹出系统安全提示，请点击“设置”并开启“允许来自此来源的应用”。',
+        '点击“安装”按钮，稍候数秒即可尽情体验 Deepernova！'
+      ]
     },
     hero: {
       titleLead: '一款',
