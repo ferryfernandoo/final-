@@ -166,11 +166,12 @@ function App() {
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
       if (path === '/dte' || hash === '#dte') return 'dte';
       if (path === '/api' || hash === '#api') return 'api';
-      if (path === '/landing' || hash === '#landing' || hash === '#home' || hash === '#unduh-apk') return 'landing';
-      // Direct Web PWA: Default to chat / login
-      return 'chat';
+      // Native Capacitor APK opens straight in chat
+      if (isNativePlatform()) return 'chat';
+      // Web default: Landing Page (where APKs can be downloaded and user can click Start Chat)
+      return 'landing';
     }
-    return 'chat';
+    return 'landing';
   };
 
   // On Native Capacitor (APK): open directly in 'chat' view (no landing page)
