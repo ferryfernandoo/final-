@@ -4,8 +4,14 @@
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
+    "url": "https://deepernova.com/search",
+    "cleartext": true,
     "androidScheme": "https",
-    "cleartext": true
+    "allowNavigation": [
+      "deepernova.com",
+      "*.deepernova.com",
+      "*.trycloudflare.com"
+    ]
   },
   "android": {
     "allowMixedContent": true

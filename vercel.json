@@ -47,6 +47,19 @@
       ]
     },
     {
+      "source": "/(.*)\\.apk",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
       "source": "/search/(index.html)?",
       "headers": [
         {
@@ -255,6 +268,38 @@
       "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/crawl/:path*"
     },
     {
+      "source": "/api/status",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/status"
+    },
+    {
+      "source": "/api/crawl/status",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/status"
+    },
+    {
+      "source": "/api/pagerank/:path*",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/pagerank/:path*"
+    },
+    {
+      "source": "/api/database/:path*",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/database/:path*"
+    },
+    {
+      "source": "/api/crawler/:path*",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/crawler/:path*"
+    },
+    {
+      "source": "/api/keys",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/keys"
+    },
+    {
+      "source": "/api/keys/:path*",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/keys/:path*"
+    },
+    {
+      "source": "/api/ai/:path*",
+      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/ai/:path*"
+    },
+    {
       "source": "/api/economics/:path*",
       "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/economics/:path*"
     },
@@ -283,7 +328,7 @@
       "destination": "https://tobacco-warcraft-faced-oklahoma.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!search|assets/|manifest|sw\\.js|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/((?!search|assets/|.*\\.apk|manifest|sw\\.js|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]

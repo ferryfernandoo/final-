@@ -1,32 +1,23 @@
-// Cloudflare Tunnel backend URL (live proxy target)
-export const CLOUDFLARE_BACKEND_URL = 'https://tobacco-warcraft-faced-oklahoma.trycloudflare.com';
-export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
+// Production Base URL (Vercel CDN + reverse proxy)
+export const CLOUDFLARE_BACKEND_URL = 'https://deepernova.com';
+export const PUBLIC_API_BASE_URL = 'https://deepernova.com';
 
 const getApiBaseUrl = () => {
-  // 1. In browser, prioritize same-origin relative URL for known proxy hosts
-  // This leverages vercel.json rewrites so all requests are same-origin on Vercel deployments.
   if (typeof window !== 'undefined' && window.location) {
-    const isCapacitorNative = Boolean(
-      window.Capacitor?.isNativePlatform?.() ||
-      window.location.protocol === 'capacitor:' ||
-      (window.location.hostname === 'localhost' && window.location.port === '' && /Android/i.test(navigator.userAgent))
-    );
-
-    if (!isCapacitorNative) {
-      const hostname = window.location.hostname;
-      if (
-        hostname === 'localhost' ||
-        hostname === '127.0.0.1' ||
-        hostname.endsWith('.vercel.app') ||
-        hostname === 'deepernova.com' ||
-        hostname === 'www.deepernova.com'
-      ) {
-        return '';
-      }
+    const hostname = window.location.hostname;
+    // Same-origin relative URLs on production domains and dev hosts
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.endsWith('.vercel.app') ||
+      hostname === 'deepernova.com' ||
+      hostname.endsWith('.deepernova.com')
+    ) {
+      return '';
     }
   }
 
-  // 2. Custom environment override
+  // Custom environment override
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
       return import.meta.env.VITE_API_URL;
@@ -35,8 +26,8 @@ const getApiBaseUrl = () => {
     // Ignore env access issues in non-Vite runtimes
   }
 
-  // 3. Fallback direct URL when loaded outside reverse-proxy domains
-  return CLOUDFLARE_BACKEND_URL;
+  // Persistent production fallback
+  return 'https://deepernova.com';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

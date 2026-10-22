@@ -337,16 +337,16 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                     className="lp-btn lp-btn-dl lp-btn-dl-search"
                   >
                     <i className="fa-solid fa-download" />
-                    <span>{t.download?.searchCard?.btn || 'Unduh Search APK (8.2 MB)'}</span>
+                    <span>{t.download?.searchCard?.btn || 'Unduh Search APK (6.6 MB)'}</span>
                   </a>
-                  <span className="lp-download-note">Direct APK download · Kecepatan Tinggi CDN</span>
+                  <span className="lp-download-note">Web-Base PWA Container · Kecepatan Tinggi CDN</span>
                 </div>
               </div>
 
               {/* Card 2: DeeperNova AI Assistant APK */}
               <div className="lp-download-card is-ai">
                 <div className="lp-download-badge ai-badge">
-                  <i className="fa-solid fa-microchip" /> {t.download?.aiCard?.badge || 'Full AI Suite APK'}
+                  <i className="fa-solid fa-bolt" /> {t.download?.aiCard?.badge || 'Web-Base AI Cloud APK'}
                 </div>
                 <div className="lp-download-header">
                   <div className="lp-download-icon-wrap ai-glow">
@@ -356,9 +356,9 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                     <h3 className="lp-download-title">{t.download?.aiCard?.title || 'DeeperNova AI Assistant'}</h3>
                     <p className="lp-download-subtitle">{t.download?.aiCard?.subtitle || 'Asisten AI & Typernova Document Studio'}</p>
                     <div className="lp-download-meta">
-                      <span className="lp-download-pill"><i className="fa-solid fa-file-zipper" /> {t.download?.aiCard?.size || '~529 MB'}</span>
-                      <span className="lp-download-pill"><i className="fa-solid fa-tag" /> {t.download?.aiCard?.version || 'v2.4.0'}</span>
-                      <span className="lp-download-pill pill-purple"><i className="fa-brands fa-android" /> Full AI Engine</span>
+                      <span className="lp-download-pill"><i className="fa-solid fa-file-zipper" /> {t.download?.aiCard?.size || '~7 MB'}</span>
+                      <span className="lp-download-pill"><i className="fa-solid fa-tag" /> {t.download?.aiCard?.version || 'v2.5.0'}</span>
+                      <span className="lp-download-pill pill-purple"><i className="fa-brands fa-android" /> Web-Base Pure</span>
                     </div>
                   </div>
                 </div>
@@ -368,7 +368,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                     '🧠 Multi-model AI cerdas untuk penalaran & percakapan mendalam',
                     '✍️ Typernova Studio (Otomatisasi Word, Excel, PowerPoint)',
                     '💻 Coding Agent Sandbox dengan eksekusi kode mandiri',
-                    '☁️ Cloud Vault terenkripsi 3GB & sinkronisasi otomatis'
+                    '☁️ Cloud Vault terenkripsi & sinkronisasi otomatis'
                   ]).map((point, idx) => (
                     <li key={idx}><i className="fa-solid fa-circle-check" /> <span>{point}</span></li>
                   ))}
@@ -376,14 +376,14 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
 
                 <div className="lp-download-action">
                   <a
-                    href="/download/deepernova-ai.apk"
+                    href="/deepernova-ai.apk"
                     download="deepernova-ai.apk"
                     className="lp-btn lp-btn-dl lp-btn-dl-ai"
                   >
                     <i className="fa-solid fa-download" />
-                    <span>{t.download?.aiCard?.btn || 'Unduh DeeperNova AI APK (529 MB)'}</span>
+                    <span>{t.download?.aiCard?.btn || 'Unduh DeeperNova AI APK (~7 MB)'}</span>
                   </a>
-                  <span className="lp-download-note">Full Model Weights Included · High-Speed Backend</span>
+                  <span className="lp-download-note">Web-Base Ringan & Cepat · Koneksi Langsung deepernova.com</span>
                 </div>
               </div>
             </div>

@@ -15,6 +15,8 @@ server/node_modules/
 *.apk
 !public/DPN-Search.apk
 !dist/DPN-Search.apk
+!public/deepernova-ai.apk
+!dist/deepernova-ai.apk
 *.mp4
 *.mkv
 *.avi
@@ -25,7 +27,7 @@ server/*.zip
 server/*.mp4
 DeeperNovaAI-Portable.zip
 server.rar
-deepernova-ai.apk
+/deepernova-ai.apk
 *.gguf
 *.wasm
 models/

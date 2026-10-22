@@ -2,5 +2,18 @@
   "appId": "com.deepernova.ai",
   "appName": "Deepernova AI",
   "webDir": "dist",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://deepernova.com",
+    "cleartext": true,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "deepernova.com",
+      "*.deepernova.com",
+      "*.trycloudflare.com"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true
+  }
 }
