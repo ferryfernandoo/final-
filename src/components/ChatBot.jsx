@@ -376,6 +376,40 @@ const renderHighlightedCode = (highlightedHtml) => {
 };
 
 
+const formatBubbleDomainLabel = (cleanDomain) => {
+  if (!cleanDomain) return 'Web';
+  const brand = cleanDomain.split('.')[0].toLowerCase();
+  const known = {
+    'cnnindonesia': 'CNN Indo',
+    'detik': 'Detik',
+    'kompas': 'Kompas',
+    'katadata': 'Katadata',
+    'rri': 'RRI',
+    'okezone': 'Okezone',
+    'antaranews': 'Antara',
+    'tempo': 'Tempo',
+    'tribunnews': 'Tribun',
+    'cnbcindonesia': 'CNBC Indo',
+    'kumparan': 'Kumparan',
+    'liputan6': 'Liputan6',
+    'sindonews': 'Sindo',
+    'viva': 'Viva',
+    'suara': 'Suara',
+    'inews': 'iNews',
+    'wikipedia': 'Wikipedia',
+    'youtube': 'YouTube',
+    'github': 'GitHub',
+    'google': 'Google',
+    'nytimes': 'NYTimes',
+    'bbc': 'BBC',
+    'reuters': 'Reuters',
+    'bloomberg': 'Bloomberg',
+    'theguardian': 'Guardian'
+  };
+  if (known[brand]) return known[brand];
+  return brand.charAt(0).toUpperCase() + brand.slice(1, 10);
+};
+
 // ============================================================
 // Source Bubble Carousel — animasi masuk/keluar per bubble
 // ============================================================
@@ -523,7 +557,7 @@ const SourceBubbleCarousel = ({ sources = [], language, onShowAll }) => {
             {safeSources.map((source, i) => {
               const rawDomain = source.domain || (source.link ? (() => { try { return new URL(source.link).hostname; } catch(e) { return ''; } })() : '');
               const cleanDomain = rawDomain.replace(/^www\./, '');
-              const shortLabel = cleanDomain ? (cleanDomain.split('.')[0] || cleanDomain) : 'Web';
+              const shortLabel = formatBubbleDomainLabel(cleanDomain);
               const faviconUrl = cleanDomain ? `https://www.google.com/s2/favicons?sz=64&domain=${cleanDomain}` : 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png';
 
               return (
@@ -12362,6 +12396,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                           </div>
                         );
                       })}
+                      {/* Safety fallback: If none of the search steps rendered sources, but message.searchSources is present, render it */}
+                      {(!message.searchSteps.some(s => s.sources && s.sources.length > 0) && message.searchSources && message.searchSources.length > 0) && (
+                        <div className="search-sources-section" style={{ marginTop: '4px', animation: 'float-source-in 0.35s ease both' }}>
+                          <SourceBubbleCarousel
+                            key={`carousel_fallback_${message.searchSources.length}`}
+                            sources={message.searchSources}
+                            language={userLanguage}
+                            onShowAll={() => setActiveSearchSources({ query: message.searchQuery, sources: message.searchSources })}
+                          />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     // Fallback to legacy single search rendering
@@ -12469,7 +12514,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                     </div>
                   )}
 
-                  {/* Active synthesizing indicator after search completed while text is being prepared */}
+                  {/* Subtle typing indicator while AI prepares/types response after search */}
                   {((message.isStreaming || message.isThinking) && !message.text && !message.isSearching && (message.searchSteps && message.searchSteps.length > 0) && !message.isReasoning) && (
                     <div className="typing-indicator-row" style={{ marginTop: '8px', opacity: 0.85 }}>
                       <div className="typing-indicator">
@@ -12478,7 +12523,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                         <span></span>
                       </div>
                       <span className="slow-processing-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
-                        {userLanguage === 'id' ? 'Merangkum jawaban terverifikasi...' : 'Synthesizing verified answer...'}
+                        {userLanguage === 'id' ? 'Menulis jawaban...' : 'Writing response...'}
                       </span>
                     </div>
                   )}

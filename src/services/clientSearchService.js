@@ -12,13 +12,28 @@ const isLocal = typeof window !== 'undefined' && (
   window.location.hostname === ''
 );
 
-export const API_BASE_URL = 
-  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
-  (typeof window !== 'undefined'
-    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://127.0.0.1:4000/api/v1'
-        : `${window.location.origin}/api/v1`)
-    : 'https://deepernova.com/api/v1');
+export function resolveSearchApiBaseUrl() {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // Local dev: hit local ultra-fast search engine
+    if (host === 'localhost' || host === '127.0.0.1' || host === '') {
+      return 'http://127.0.0.1:4000/api/v1';
+    }
+    // Production on deepernova.com or vercel
+    if (host.includes('deepernova.com') || host.endsWith('.vercel.app')) {
+      return 'https://www.deepernova.com/api/v1';
+    }
+  }
+
+  const envUrl = import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL;
+  if (envUrl && !envUrl.includes('trycloudflare.com')) {
+    return envUrl;
+  }
+
+  return 'https://www.deepernova.com/api/v1';
+}
+
+export const API_BASE_URL = resolveSearchApiBaseUrl();
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 
@@ -312,6 +327,73 @@ async function performProxySearch(query, limit, timeoutMs = 5000) {
 }
 
 /**
+ * Helper to perform direct search against Deepernova Production Engine (CORS enabled everywhere)
+ */
+async function performCloudDirectSearch(query, limit, timeoutMs = 4000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const cloudUrl = new URL('https://www.deepernova.com/api/v1/search');
+    cloudUrl.searchParams.append('q', query);
+    cloudUrl.searchParams.append('limit', String(limit));
+    cloudUrl.searchParams.append('crawl', '0');
+    cloudUrl.searchParams.append('fast', '1');
+
+    const response = await fetch(cloudUrl.toString(), {
+      headers: {
+        'Authorization': `Bearer dn_live_d69468b9c25451f3b7cd8482e96cbcf7`,
+        'X-API-Key': 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7',
+        'Accept': 'application/json'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.results && data.results.length > 0) {
+        const organicResults = (data.results || []).map((item, idx) => {
+          let domain = item.domain || '';
+          if (!domain && item.url) {
+            try { domain = new URL(item.url).hostname.replace('www.', ''); } catch (e) {}
+          }
+          return {
+            title: cleanSearchText(item.title) || 'Untitled',
+            link: item.url || '',
+            url: item.url || '',
+            snippet: cleanSearchText(item.snippet) || cleanSearchText(item.description) || '',
+            domain: domain,
+            thumbnail: item.lead_image_url || item.logo_url || item.image || null,
+            position: idx + 1,
+            date: item.formatted_date || item.formattedDate || item.date || null,
+            publishedAt: item.published_at || item.publishedAt || item.crawledAt || null
+          };
+        });
+
+        console.log(`[ClientSearchService] ✓ Direct Cloud Search Success: ${organicResults.length} organic results (${data.duration_ms || 0}ms)`);
+
+        return {
+          success: true,
+          data: {
+            organic_results: organicResults,
+            inline_images: [],
+            search_information: {
+              query,
+              total_results: data.total_results || organicResults.length,
+              time_taken_ms: data.duration_ms || 0
+            },
+            engine: 'deepernova_cloud_direct'
+          }
+        };
+      }
+    }
+  } catch (e) {
+    clearTimeout(timeoutId);
+  }
+  return null;
+}
+
+/**
  * Execute web search. In Guest Mode, directly hits the Deepernova search engine from the frontend.
  * Guarantees sub-second execution with strict <2.4s hard ceiling (NEVER exceeds 3 seconds).
  * @param {string} query - Search query string
@@ -368,10 +450,17 @@ export async function executeWebSearch(query, options = {}) {
       return firstResult;
     }
 
-    // Fallback: wait for both to settle if neither fast-resolved
+    // Fallback 1: wait for both to settle if neither fast-resolved
     const results = await Promise.all([directPromise, proxyPromise]);
     const valid = results.find(r => r && r.data?.organic_results?.length > 0);
     if (valid) return valid;
+
+    // Fallback 2: Direct hit to production Deepernova search engine (CORS enabled everywhere)
+    console.log(`[ClientSearchService] Attempting direct cloud fallback for: "${effectiveQuery}"`);
+    const cloudFallback = await performCloudDirectSearch(effectiveQuery, limit, 4000);
+    if (cloudFallback && cloudFallback.data?.organic_results?.length > 0) {
+      return cloudFallback;
+    }
 
     return {
       success: true,
