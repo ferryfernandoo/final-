@@ -25,29 +25,29 @@ export const landingTranslations = {
         badge: 'Search Engine APK',
         title: 'DeeperNova Search',
         subtitle: 'Mesin Pencari Cepat & Ringan',
-        size: '8.2 MB',
+        size: '6.6 MB',
         version: 'v1.0.0',
         points: [
-          '⚡ Ukuran ultra ringan (8.2 MB) & konsumsi memori minim',
+          '⚡ Ukuran ultra ringan (6.6 MB) & konsumsi memori minim',
           '🔍 Pencarian web mandiri real-time tanpa iklan & tracker',
           '📱 Mode layar penuh native tanpa address bar browser',
           '🛡️ Privasi terjamin, kompatibel Android 5.0+'
         ],
-        btn: 'Unduh Search APK (8.2 MB)'
+        btn: 'Unduh Search APK (6.6 MB)'
       },
       aiCard: {
-        badge: 'Full AI Suite APK',
+        badge: 'Web-Base AI Cloud APK',
         title: 'DeeperNova AI Assistant',
         subtitle: 'Asisten AI & Typernova Document Studio',
-        size: '~529 MB',
-        version: 'v2.4.0',
+        size: '13 MB',
+        version: 'v2.5.0',
         points: [
           '🧠 Multi-model AI cerdas untuk penalaran & percakapan mendalam',
           '✍️ Typernova Studio (Otomatisasi Word, Excel, PowerPoint)',
           '💻 Coding Agent Sandbox dengan eksekusi kode mandiri',
           '☁️ Cloud Vault terenkripsi 3GB & sinkronisasi otomatis'
         ],
-        btn: 'Unduh DeeperNova AI APK (529 MB)'
+        btn: 'Unduh DeeperNova AI APK (13 MB)'
       },
       guideTitle: 'Panduan Instalasi APK Android:',
       guideSteps: [
@@ -156,29 +156,29 @@ export const landingTranslations = {
         badge: 'Search Engine APK',
         title: 'DeeperNova Search',
         subtitle: 'Ultra Lightweight & Fast Search',
-        size: '8.2 MB',
+        size: '6.6 MB',
         version: 'v1.0.0',
         points: [
-          '⚡ Ultra lightweight (8.2 MB) & negligible memory usage',
+          '⚡ Ultra lightweight (6.6 MB) & negligible memory usage',
           '🔍 Independent real-time web search without ads or trackers',
           '📱 Full-screen native experience without browser URL bars',
           '🛡️ Privacy-first, compatible with Android 5.0+'
         ],
-        btn: 'Download Search APK (8.2 MB)'
+        btn: 'Download Search APK (6.6 MB)'
       },
       aiCard: {
-        badge: 'Full AI Suite APK',
+        badge: 'Web-Base AI Cloud APK',
         title: 'DeeperNova AI Assistant',
         subtitle: 'Intelligent AI Assistant & Studio',
-        size: '~529 MB',
-        version: 'v2.4.0',
+        size: '13 MB',
+        version: 'v2.5.0',
         points: [
           '🧠 Deep reasoning multi-model AI for complex inquiries',
           '✍️ Typernova Studio (Automated Word, Excel, PowerPoint)',
           '💻 Coding Agent Sandbox with autonomous code execution',
           '☁️ 3GB Encrypted Cloud Vault with auto-sync'
         ],
-        btn: 'Download DeeperNova AI APK (529 MB)'
+        btn: 'Download DeeperNova AI APK (13 MB)'
       },
       guideTitle: 'How to Install APK on Android:',
       guideSteps: [
@@ -287,29 +287,29 @@ export const landingTranslations = {
         badge: '搜索引擎客户端',
         title: 'DeeperNova Search',
         subtitle: '极简极速独立搜索引擎',
-        size: '8.2 MB',
+        size: '6.6 MB',
         version: 'v1.0.0',
         points: [
-          '⚡ 8.2 MB 超轻量体积，秒级极速响应与低内存占用',
+          '⚡ 6.6 MB 超轻量体积，秒级极速响应与低内存占用',
           '🔍 独立实时网页检索，无广告、无隐私追踪',
           '📱 原生无地址栏全屏浏览体验',
           '🛡️ 隐私至上，完美适配 Android 5.0+'
         ],
-        btn: '下载 Search APK (8.2 MB)'
+        btn: '下载 Search APK (6.6 MB)'
       },
       aiCard: {
-        badge: '全功能 AI 客户端',
+        badge: 'Web-Base AI Cloud APK',
         title: 'DeeperNova AI Assistant',
         subtitle: '全能 AI 智能助手 & 办公工作台',
-        size: '~529 MB',
-        version: 'v2.4.0',
+        size: '13 MB',
+        version: 'v2.5.0',
         points: [
           '🧠 深度推理多模型 AI，解答复杂问题与长文创作',
           '✍️ Typernova 工作室（自动生成 Word、Excel、PPT）',
           '💻 编程 Agent 沙箱与自动化代码执行工具',
           '☁️ 3GB 高密态加密云盘与全自动云端同步'
         ],
-        btn: '下载 DeeperNova AI APK (529 MB)'
+        btn: '下载 DeeperNova AI APK (13 MB)'
       },
       guideTitle: '安卓 APK 安装指引：',
       guideSteps: [

@@ -14,9 +14,11 @@ const isLocal = typeof window !== 'undefined' && (
 
 export const API_BASE_URL = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:4000/api/v1'
-    : 'https://playstation-clearance-eight-away.trycloudflare.com/api/v1');
+  (typeof window !== 'undefined'
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://127.0.0.1:4000/api/v1'
+        : `${window.location.origin}/api/v1`)
+    : 'https://deepernova.com/api/v1');
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 
@@ -40,10 +42,61 @@ export function enrichQueryWithDateIfRecent(query, userPrompt = '', language = '
 }
 
 /**
- * Deteksi regex di awal ditiadakan.
- * Keputusan apakah perlu searching atau tidak sepenuhnya ditentukan oleh AI (LLM).
+ * Intelligent Upfront Search Intent Detection:
+ * Automatically triggers web search for current events, news, prices, weather,
+ * live facts, or explicit search queries, just like ChatGPT/Perplexity/Grok.
  */
 export function detectUpfrontSearchIntent(promptText, language = 'id') {
+  if (!promptText || typeof promptText !== 'string') return null;
+  const text = promptText.trim();
+  if (text.length < 3) return null;
+
+  // Ignore code snippets, slash commands, or pure markdown
+  if (text.startsWith('/') || text.startsWith('```') || text.startsWith('{') || text.startsWith('<')) {
+    return null;
+  }
+
+  // Ignore casual greetings and short conversational fillers
+  const isGreetingOnly = /^(?:halo|hai|hi|hello|hei|pagi|siang|sore|malam|apa kabar|assalamu['a]?laikum|terima kasih|makasih|thanks|thank you|ok|oke|sip|siap|bye|dadah|siapa kamu|kamu siapa)\b[?.!]*$/i.test(text);
+  if (isGreetingOnly) return null;
+
+  // Ignore pure math or coding instructions unless explicitly asking for web search
+  const isCodingOrMath = /^(?:buatkan (?:kode|fungsi|komponen|script|class)|tulis (?:kode|fungsi)|hitung|berapa hasil dari \d+)/i.test(text);
+  if (isCodingOrMath && !/\b(?:cari|search|web|google|berita|artikel)\b/i.test(text)) {
+    return null;
+  }
+
+  // 1. Explicit Search Requests
+  const explicitSearchMatch = text.match(/^(?:tolong\s+)?(?:cari(?:kan)?|search|googling|browsing|cek(?:kan)?|temukan|carikan info(?:rmasi)?)\s+(?:tentang|mengenai|seputar|di web|di internet)?\s*(.+)/i);
+  if (explicitSearchMatch && explicitSearchMatch[1]) {
+    const q = explicitSearchMatch[1].replace(/^(?:tentang|mengenai|seputar|di web|di internet)\s+/i, '').trim();
+    if (q.length >= 2) return q.replace(/[?!.]+$/, '').trim();
+  }
+
+  // 2. Real-time news & current events
+  const newsPatterns = [
+    /\b(?:berita|kabar|update|informasi)\s+(?:terkini|terbaru|hari ini|viral|saat ini)/i,
+    /\b(?:terbaru|terkini|hari ini|saat ini)\b.*\b(?:berita|kabar|perkembangan|kondisi|isu)\b/i,
+    /\b(?:gempa|tsunami|erupsi|banjir|kebakaran)\s+(?:terkini|terbaru|hari ini|barusan|tadi)/i,
+    /\b(?:siapa\s+(?:presiden|menteri|gubernur|ketua|juara|pemenang))\s+.*(?:sekarang|saat ini|terbaru|2025|2026)/i,
+    /\b(?:harga|kurs|nilai tukar)\s+.*\b(?:hari ini|sekarang|terbaru|terkini)/i,
+    /\b(?:cuaca|suhu|prakiraan cuaca)\s+(?:di\s+)?\w+/i,
+    /\b(?:skor|hasil pertandingan|jadwal pertandingan)\s+/i,
+    /\b(?:kapan|tanggal berapa)\s+.*\b(?:tayang|rilis|dibuka|dimulai|pemilu|asian games|piala dunia)/i,
+    /\b(?:apa yang sedang viral|lagi viral apa|ada kejadian apa)\b/i
+  ];
+
+  for (const pattern of newsPatterns) {
+    if (pattern.test(text)) {
+      // Clean query by removing polite prefixes
+      const clean = text
+        .replace(/^(?:tolong|coba|bisa|bisakah|mohon|dong|halo)?\s*(?:jelaskan|ceritakan|kasih tahu|beritahu|tampilkan)?\s*/i, '')
+        .replace(/[?!.]+$/, '')
+        .trim();
+      if (clean.length >= 3) return clean;
+    }
+  }
+
   return null;
 }
 

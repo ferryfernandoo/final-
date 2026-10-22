@@ -213,11 +213,170 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               </button>
             </div>
 
+            {/* Quick Hero APK Direct Download Bar */}
+            <div className="lp-hero-apk-quickbar">
+              <div className="lp-hero-apk-quickbar-label">
+                <i className="fa-brands fa-android" />
+                <span>{currentLang === 'id' ? 'Unduh Cepat APK Android Resmi:' : (currentLang === 'zh' ? '安卓客户端高速下载：' : 'Fast Android APK Downloads:')}</span>
+              </div>
+              <div className="lp-hero-apk-chips">
+                <a
+                  href="/DPN-Search.apk"
+                  download="DPN-Search.apk"
+                  className="lp-hero-apk-chip is-search"
+                  title="Unduh DPN Search APK"
+                >
+                  <img src="/search/icons/icon-192.png" alt="Search" className="lp-chip-icon" onError={(e) => { e.currentTarget.src = '/logo192.png'; }} />
+                  <div className="lp-chip-text">
+                    <span className="lp-chip-title">DPN Search APK</span>
+                    <span className="lp-chip-sub">6.6 MB · Mesin Pencari Cepat</span>
+                  </div>
+                  <span className="lp-chip-action"><i className="fa-solid fa-download" /> Unduh</span>
+                </a>
+
+                <a
+                  href="/deepernova-ai.apk"
+                  download="deepernova-ai.apk"
+                  className="lp-hero-apk-chip is-ai"
+                  title="Unduh DeeperNova AI Assistant APK"
+                >
+                  <img src="/logo192.png" alt="AI" className="lp-chip-icon" />
+                  <div className="lp-chip-text">
+                    <span className="lp-chip-title">DeeperNova AI APK</span>
+                    <span className="lp-chip-sub">13 MB · Asisten AI & Studio</span>
+                  </div>
+                  <span className="lp-chip-action"><i className="fa-solid fa-download" /> Unduh</span>
+                </a>
+              </div>
+            </div>
+
             <ul className="lp-trust">
               {t.hero.trust.map((item, idx) => (
                 <li key={idx}><i className="fa-solid fa-check" /> {item}</li>
               ))}
             </ul>
+          </div>
+        </section>
+
+        {/* ===== UNDUH APK ANDROID (Tepat di Bawah Hero agar Langsung Terlihat) ===== */}
+        <section id="unduh-apk" className="lp-section lp-download-section">
+          <div className="lp-container">
+            <div className="lp-section-head">
+              <span className="lp-eyebrow"><i className="fa-brands fa-android" /> {t.download?.eyebrow || 'Aplikasi Android Resmi'}</span>
+              <h2>{t.download?.heading || 'Unduh Aplikasi Deepernova (.APK)'}</h2>
+              <p>{t.download?.sub || 'Gunakan Deepernova langsung dari ponsel Android Anda dengan performa maksimal dan antarmuka mandiri tanpa hambatan browser.'}</p>
+            </div>
+
+            <div className="lp-download-grid">
+              {/* Card 1: DeeperNova Search Engine APK */}
+              <div className="lp-download-card is-search">
+                <div className="lp-download-badge">
+                  <i className="fa-solid fa-bolt" /> {t.download?.searchCard?.badge || 'Search Engine APK'}
+                </div>
+                <div className="lp-download-header">
+                  <div className="lp-download-icon-wrap search-glow">
+                    <img src="/search/icons/icon-192.png" alt="DeeperNova Search" className="lp-download-icon" onError={(e) => { e.currentTarget.src = '/logo192.png'; }} />
+                  </div>
+                  <div>
+                    <h3 className="lp-download-title">{t.download?.searchCard?.title || 'DeeperNova Search'}</h3>
+                    <p className="lp-download-subtitle">{t.download?.searchCard?.subtitle || 'Mesin Pencari Mandiri Cepat & Ringan'}</p>
+                    <div className="lp-download-meta">
+                      <span className="lp-download-pill"><i className="fa-solid fa-file-zipper" /> {t.download?.searchCard?.size || '6.6 MB'}</span>
+                      <span className="lp-download-pill"><i className="fa-solid fa-tag" /> {t.download?.searchCard?.version || 'v1.0.0'}</span>
+                      <span className="lp-download-pill pill-green"><i className="fa-brands fa-android" /> Android 5.0+</span>
+                    </div>
+                  </div>
+                </div>
+
+                <ul className="lp-download-points">
+                  {(t.download?.searchCard?.points || [
+                    '⚡ Ukuran ultra ringan (6.6 MB) & konsumsi memori minim',
+                    '🔍 Pencarian web mandiri real-time tanpa iklan & tracker',
+                    '📱 Mode layar penuh native tanpa address bar browser',
+                    '🛡️ Privasi terjamin, aman tanpa tracking personal'
+                  ]).map((point, idx) => (
+                    <li key={idx}><i className="fa-solid fa-circle-check" /> <span>{point}</span></li>
+                  ))}
+                </ul>
+
+                <div className="lp-download-action">
+                  <a
+                    href="/DPN-Search.apk"
+                    download="DPN-Search.apk"
+                    className="lp-btn lp-btn-dl lp-btn-dl-search"
+                  >
+                    <i className="fa-solid fa-download" />
+                    <span>{t.download?.searchCard?.btn || 'Unduh Search APK (6.6 MB)'}</span>
+                  </a>
+                  <span className="lp-download-note">Web-Base PWA Container · Kecepatan Tinggi CDN</span>
+                </div>
+              </div>
+
+              {/* Card 2: DeeperNova AI Assistant APK */}
+              <div className="lp-download-card is-ai">
+                <div className="lp-download-badge ai-badge">
+                  <i className="fa-solid fa-bolt" /> {t.download?.aiCard?.badge || 'Web-Base AI Cloud APK'}
+                </div>
+                <div className="lp-download-header">
+                  <div className="lp-download-icon-wrap ai-glow">
+                    <img src="/logo192.png" alt="DeeperNova AI" className="lp-download-icon" />
+                  </div>
+                  <div>
+                    <h3 className="lp-download-title">{t.download?.aiCard?.title || 'DeeperNova AI Assistant'}</h3>
+                    <p className="lp-download-subtitle">{t.download?.aiCard?.subtitle || 'Asisten AI & Typernova Document Studio'}</p>
+                    <div className="lp-download-meta">
+                      <span className="lp-download-pill"><i className="fa-solid fa-file-zipper" /> {t.download?.aiCard?.size || '13 MB'}</span>
+                      <span className="lp-download-pill"><i className="fa-solid fa-tag" /> {t.download?.aiCard?.version || 'v2.5.0'}</span>
+                      <span className="lp-download-pill pill-purple"><i className="fa-brands fa-android" /> Web-Base Pure</span>
+                    </div>
+                  </div>
+                </div>
+
+                <ul className="lp-download-points">
+                  {(t.download?.aiCard?.points || [
+                    '🧠 Multi-model AI cerdas untuk penalaran & percakapan mendalam',
+                    '✍️ Typernova Studio (Otomatisasi Word, Excel, PowerPoint)',
+                    '💻 Coding Agent Sandbox dengan eksekusi kode mandiri',
+                    '☁️ Cloud Vault terenkripsi & sinkronisasi otomatis'
+                  ]).map((point, idx) => (
+                    <li key={idx}><i className="fa-solid fa-circle-check" /> <span>{point}</span></li>
+                  ))}
+                </ul>
+
+                <div className="lp-download-action">
+                  <a
+                    href="/deepernova-ai.apk"
+                    download="deepernova-ai.apk"
+                    className="lp-btn lp-btn-dl lp-btn-dl-ai"
+                  >
+                    <i className="fa-solid fa-download" />
+                    <span>{t.download?.aiCard?.btn || 'Unduh DeeperNova AI APK (13 MB)'}</span>
+                  </a>
+                  <span className="lp-download-note">Web-Base Ringan & Cepat (13 MB) · Koneksi Langsung deepernova.com</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Guide Step-by-Step */}
+            <div className="lp-download-guide">
+              <div className="lp-guide-head">
+                <i className="fa-solid fa-circle-info" />
+                <h4>{t.download?.guideTitle || 'Panduan Instalasi APK Android:'}</h4>
+              </div>
+              <div className="lp-guide-steps">
+                {(t.download?.guideSteps || [
+                  'Klik tombol unduh untuk file APK yang Anda inginkan di atas.',
+                  'Setelah selesai diunduh, buka file .apk dari notifikasi atau Pengelola File.',
+                  'Jika muncul peringatan keamanan, pilih Setelan (Settings) lalu aktifkan "Izinkan penginstalan dari sumber ini".',
+                  'Pilih Instal (Install) dan aplikasi Deepernova siap digunakan!'
+                ]).map((step, idx) => (
+                  <div key={idx} className="lp-guide-step">
+                    <span className="lp-step-num">{idx + 1}</span>
+                    <p>{step}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -285,128 +444,6 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                 <p>{t.products.docs.desc}</p>
                 <span className="lp-link">{t.products.docs.link} <i className="fa-solid fa-arrow-right" /></span>
               </article>
-            </div>
-          </div>
-        </section>
-
-        {/* ===== UNDUH APK ANDROID ===== */}
-        <section id="unduh-apk" className="lp-section lp-download-section">
-          <div className="lp-container">
-            <div className="lp-section-head">
-              <span className="lp-eyebrow"><i className="fa-brands fa-android" /> {t.download?.eyebrow || 'Aplikasi Android Resmi'}</span>
-              <h2>{t.download?.heading || 'Unduh Aplikasi Deepernova (.APK)'}</h2>
-              <p>{t.download?.sub || 'Gunakan Deepernova langsung dari ponsel Android Anda dengan performa maksimal dan antarmuka mandiri tanpa hambatan browser.'}</p>
-            </div>
-
-            <div className="lp-download-grid">
-              {/* Card 1: DeeperNova Search Engine APK */}
-              <div className="lp-download-card is-search">
-                <div className="lp-download-badge">
-                  <i className="fa-solid fa-bolt" /> {t.download?.searchCard?.badge || 'Search Engine APK'}
-                </div>
-                <div className="lp-download-header">
-                  <div className="lp-download-icon-wrap search-glow">
-                    <img src="/search/icons/icon-192.png" alt="DeeperNova Search" className="lp-download-icon" onError={(e) => { e.currentTarget.src = '/logo192.png'; }} />
-                  </div>
-                  <div>
-                    <h3 className="lp-download-title">{t.download?.searchCard?.title || 'DeeperNova Search'}</h3>
-                    <p className="lp-download-subtitle">{t.download?.searchCard?.subtitle || 'Mesin Pencari Mandiri Cepat & Ringan'}</p>
-                    <div className="lp-download-meta">
-                      <span className="lp-download-pill"><i className="fa-solid fa-file-zipper" /> {t.download?.searchCard?.size || '8.2 MB'}</span>
-                      <span className="lp-download-pill"><i className="fa-solid fa-tag" /> {t.download?.searchCard?.version || 'v1.0.0'}</span>
-                      <span className="lp-download-pill pill-green"><i className="fa-brands fa-android" /> Android 5.0+</span>
-                    </div>
-                  </div>
-                </div>
-
-                <ul className="lp-download-points">
-                  {(t.download?.searchCard?.points || [
-                    '⚡ Ukuran ultra ringan (8.2 MB) & konsumsi memori minim',
-                    '🔍 Pencarian web mandiri real-time tanpa iklan & tracker',
-                    '📱 Mode layar penuh native tanpa address bar browser',
-                    '🛡️ Privasi terjamin, aman tanpa tracking personal'
-                  ]).map((point, idx) => (
-                    <li key={idx}><i className="fa-solid fa-circle-check" /> <span>{point}</span></li>
-                  ))}
-                </ul>
-
-                <div className="lp-download-action">
-                  <a
-                    href="/DPN-Search.apk"
-                    download="DPN-Search.apk"
-                    className="lp-btn lp-btn-dl lp-btn-dl-search"
-                  >
-                    <i className="fa-solid fa-download" />
-                    <span>{t.download?.searchCard?.btn || 'Unduh Search APK (6.6 MB)'}</span>
-                  </a>
-                  <span className="lp-download-note">Web-Base PWA Container · Kecepatan Tinggi CDN</span>
-                </div>
-              </div>
-
-              {/* Card 2: DeeperNova AI Assistant APK */}
-              <div className="lp-download-card is-ai">
-                <div className="lp-download-badge ai-badge">
-                  <i className="fa-solid fa-bolt" /> {t.download?.aiCard?.badge || 'Web-Base AI Cloud APK'}
-                </div>
-                <div className="lp-download-header">
-                  <div className="lp-download-icon-wrap ai-glow">
-                    <img src="/logo192.png" alt="DeeperNova AI" className="lp-download-icon" />
-                  </div>
-                  <div>
-                    <h3 className="lp-download-title">{t.download?.aiCard?.title || 'DeeperNova AI Assistant'}</h3>
-                    <p className="lp-download-subtitle">{t.download?.aiCard?.subtitle || 'Asisten AI & Typernova Document Studio'}</p>
-                    <div className="lp-download-meta">
-                      <span className="lp-download-pill"><i className="fa-solid fa-file-zipper" /> {t.download?.aiCard?.size || '~7 MB'}</span>
-                      <span className="lp-download-pill"><i className="fa-solid fa-tag" /> {t.download?.aiCard?.version || 'v2.5.0'}</span>
-                      <span className="lp-download-pill pill-purple"><i className="fa-brands fa-android" /> Web-Base Pure</span>
-                    </div>
-                  </div>
-                </div>
-
-                <ul className="lp-download-points">
-                  {(t.download?.aiCard?.points || [
-                    '🧠 Multi-model AI cerdas untuk penalaran & percakapan mendalam',
-                    '✍️ Typernova Studio (Otomatisasi Word, Excel, PowerPoint)',
-                    '💻 Coding Agent Sandbox dengan eksekusi kode mandiri',
-                    '☁️ Cloud Vault terenkripsi & sinkronisasi otomatis'
-                  ]).map((point, idx) => (
-                    <li key={idx}><i className="fa-solid fa-circle-check" /> <span>{point}</span></li>
-                  ))}
-                </ul>
-
-                <div className="lp-download-action">
-                  <a
-                    href="/deepernova-ai.apk"
-                    download="deepernova-ai.apk"
-                    className="lp-btn lp-btn-dl lp-btn-dl-ai"
-                  >
-                    <i className="fa-solid fa-download" />
-                    <span>{t.download?.aiCard?.btn || 'Unduh DeeperNova AI APK (~7 MB)'}</span>
-                  </a>
-                  <span className="lp-download-note">Web-Base Ringan & Cepat · Koneksi Langsung deepernova.com</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Guide Step-by-Step */}
-            <div className="lp-download-guide">
-              <div className="lp-guide-head">
-                <i className="fa-solid fa-circle-info" />
-                <h4>{t.download?.guideTitle || 'Panduan Instalasi APK Android:'}</h4>
-              </div>
-              <div className="lp-guide-steps">
-                {(t.download?.guideSteps || [
-                  'Klik tombol unduh untuk file APK yang Anda inginkan di atas.',
-                  'Setelah selesai diunduh, buka file .apk dari notifikasi atau Pengelola File.',
-                  'Jika muncul peringatan keamanan, pilih Setelan (Settings) lalu aktifkan "Izinkan penginstalan dari sumber ini".',
-                  'Pilih Instal (Install) dan aplikasi Deepernova siap digunakan!'
-                ]).map((step, idx) => (
-                  <div key={idx} className="lp-guide-step">
-                    <span className="lp-step-num">{idx + 1}</span>
-                    <p>{step}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </section>
