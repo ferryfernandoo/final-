@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/copy_search_dist.mjs",
+    "build": "vite build && node scripts/build_search_client.mjs && node scripts/copy_search_dist.mjs",
     "build:search": "node scripts/build_search_client.mjs && node scripts/copy_search_dist.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

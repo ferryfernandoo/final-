@@ -28,6 +28,7 @@ import { v4 as uuidv4 } from 'uuid';
 import apiProxyRoutes from './routes/api-proxy.js';
 import agentRoutes from './routes/agentRoutes.js';
 import { apiProxyService } from './apiProxyService.js';
+import webSearchService from './webSearchService.js';
 import ragService from './ragService.js';
 import externalFinanceService from './externalFinanceService.js';
 import sourceTracker from './sourceTracker.js';
@@ -747,6 +748,57 @@ app.get('/api/realtime/sync-stream', (req, res) => {
   req.on('close', () => {
     unregisterSyncClient(userId, clientObj);
   });
+});
+
+// GET /api/search - Ultra-fast proxy to Deepernova Search Engine
+app.get('/api/search', async (req, res) => {
+  const query = (req.query.q || req.query.query || '').trim();
+  const limit = Math.min(20, Math.max(1, parseInt(req.query.limit || '8', 10)));
+  if (!query) {
+    return res.json({ success: true, data: { organic_results: [], inline_images: [] } });
+  }
+
+  try {
+    const searchRes = await webSearchService.searchGoogle(query, limit);
+    if (searchRes.success && searchRes.results && searchRes.results.length > 0) {
+      const organicResults = searchRes.results.map((r, idx) => {
+        let domain = r.domain || '';
+        if (!domain && r.url) {
+          try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch (e) {}
+        }
+        const logoUrl = r.logo_url || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null);
+        const leadImg = r.lead_image_url || r.thumbnail || null;
+        return {
+          title: r.title || 'Untitled',
+          link: r.link || r.url || '',
+          url: r.url || r.link || '',
+          snippet: r.snippet || r.description || '',
+          domain: domain,
+          thumbnail: leadImg || logoUrl,
+          logo_url: logoUrl,
+          position: idx + 1
+        };
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          organic_results: organicResults,
+          inline_images: [],
+          search_information: {
+            query,
+            total_results: organicResults.length,
+            time_taken_ms: 50
+          },
+          engine: 'deepernova_search_proxy'
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('[ProxySearch] Error:', err.message);
+  }
+
+  return res.json({ success: true, data: { organic_results: [], inline_images: [] } });
 });
 
 // GET /api/realtime/sync-poll - Fallback polling endpoint for mobile background recovery

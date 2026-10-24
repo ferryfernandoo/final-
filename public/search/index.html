@@ -1,36 +1,111 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#090d16" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DPN Search" />
+    <meta name="application-name" content="DeeperNova Search" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="referrer" content="no-referrer" />
-    <title>Deepernova Search - Next-Gen Crawler & Search Engine</title>
-    <meta name="description" content="Ultra-efficient manual search engine web crawler with PageRank and BM25 indexer built with React." />
+    <title>DeeperNova Search — Mesin Pencari Cepat & Cerdas</title>
+    <meta name="description" content="Mesin pencari independen DeeperNova: pencarian web, gambar, berita real-time, kurs valas, dan AI overview." />
+    
+    <!-- PWA Web App Manifest & App Icons -->
+    <link rel="manifest" href="/search/manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/search/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/search/icons/favicon.png" />
+    <link rel="apple-touch-icon" href="/search/icons/apple-touch-icon.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+    
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
     <style>
       :root {
         --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       }
+      html {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-height: 100% !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scroll-behavior: smooth;
+      }
       body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-height: 100% !important;
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
         font-family: var(--font-sans);
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
+        touch-action: pan-y !important;
+        overscroll-behavior-y: auto !important;
+      }
+      #root,
+      .public-theme-wrapper,
+      .public-search-page,
+      .broadsheet-news-page,
+      .app-container,
+      .public-main,
+      .app-layout,
+      .main-container,
+      .search-results-section,
+      .dn-results-layout-grid,
+      .dn-results-primary-col,
+      .search-results-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        touch-action: pan-y !important;
+      }
+      /* Standalone PWA adjustments */
+      @media all and (display-mode: standalone) {
+        body {
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
+        }
       }
     </style>
-    <script type="module" crossorigin src="/search/assets/index-C0OQxPfK.js"></script>
-    <link rel="stylesheet" crossorigin href="/search/assets/index-CU8kBmdG.css">
+    <script type="module" crossorigin src="/search/assets/index-BDuidwBV.js"></script>
+    <link rel="stylesheet" crossorigin href="/search/assets/index-SXHzb-7N.css">
   </head>
-  <body style="background-color: #ffffff; margin: 0; padding: 0;">
+  <body style="background-color: #090d16; margin: 0; padding: 0;">
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/search/sw.js', { scope: '/search/' })
+            .then(function(reg) {
+              reg.update();
+              console.log('[PWA-Search] ServiceWorker active with scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('[PWA-Search] ServiceWorker registration warning:', err);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

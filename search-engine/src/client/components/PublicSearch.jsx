@@ -1296,6 +1296,11 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
   const handlePageChange = (newPage) => {
     fetchSearch(query, newPage, searchType, timeFilter);
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    }
   };
 
   const handleLiveCrawl = async () => {
@@ -2058,7 +2063,11 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                           <article 
                             key={`${resultsData.query || query}_${item.id || item.url || idx}`} 
                             className="search-result-card"
-                            style={{ animationDelay: `${Math.min(idx, 15) * 35}ms` }}
+                            style={{ animationDelay: `${Math.min(idx, 15) * 35}ms`, touchAction: 'pan-y' }}
+                            onClick={(e) => {
+                              if (e.target.closest('a') || e.target.closest('button')) return;
+                              if (item.url) window.open(item.url, '_blank', 'noopener,noreferrer');
+                            }}
                           >
                             <div className="result-card-main-content">
                               <div className="result-text-column">

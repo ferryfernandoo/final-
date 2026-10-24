@@ -1,5 +1,5 @@
 // DeeperNova Search Engine Service Worker (Ultra-lightweight PWA)
-const CACHE_NAME = 'dpn-search-v1';
+const CACHE_NAME = 'dpn-search-v3';
 const STATIC_ASSETS = [
   '/search',
   '/search/',
@@ -25,7 +25,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME && key.startsWith('dpn-search-'))
+        keys.filter((key) => key !== CACHE_NAME)
             .map((key) => caches.delete(key))
       );
     }).then(() => self.clients.claim())
@@ -56,7 +56,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (CSS, JS, Fonts, Images) -> Cache First with Network Fallback
+  // Static assets (CSS, JS, Fonts, Images) -> Network First with Cache Fallback
+  // (Ensures newly compiled builds are immediately served to users)
   if (
     url.pathname.startsWith('/search/assets/') ||
     url.pathname.startsWith('/search/icons/') ||
@@ -67,16 +68,15 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.woff2')
   ) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request).then((response) => {
+      fetch(event.request)
+        .then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return response;
-        });
-      })
+        })
+        .catch(() => caches.match(event.request))
     );
   }
 });

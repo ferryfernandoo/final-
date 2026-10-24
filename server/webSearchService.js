@@ -41,17 +41,16 @@ class WebSearchService {
     const searchBases = [
       'http://127.0.0.1:4000/api/v1',
       process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : (process.env.DEEPERNOVA_SEARCH_API_URL ? `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1` : null),
-      'https://aware-troops-admissions-rational.trycloudflare.com/api/v1',
-      process.env.VITE_DEEPERNOVA_SEARCH_API_URL,
+      'https://www.deepernova.com/api/v1',
       'http://localhost:4000/api/v1'
     ].filter(Boolean);
 
     for (const sBase of searchBases) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-        const response = await fetch(`${sBase}/search?q=${encodeURIComponent(query)}&limit=${maxResults}`, {
+        const response = await fetch(`${sBase}/search?q=${encodeURIComponent(query)}&limit=${maxResults}&crawl=0&fast=1`, {
           headers: {
             'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
             'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
@@ -64,17 +63,29 @@ class WebSearchService {
         if (response.ok && contentType.includes('application/json')) {
           const data = await response.json();
           if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-            const results = data.results.slice(0, maxResults).map((r, idx) => ({
-              title: cleanText(r.title) || 'Untitled',
-              url: r.url || '',
-              snippet: cleanText(r.snippet) || cleanText(r.description) || '',
-              description: cleanText(r.description) || '',
-              domain: r.domain || '',
-              published_at: r.published_at || null,
-              trust_score: r.trust_score || null,
-              pagerank: r.pagerank || null,
-              position: idx + 1
-            }));
+            const results = data.results.slice(0, maxResults).map((r, idx) => {
+              let domain = r.domain || '';
+              if (!domain && r.url) {
+                try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch (e) {}
+              }
+              const logoUrl = r.logo_url || r.logoUrl || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null);
+              const leadImg = r.lead_image_url || r.leadImageUrl || null;
+              return {
+                title: cleanText(r.title) || 'Untitled',
+                url: r.url || '',
+                link: r.url || '',
+                snippet: cleanText(r.snippet) || cleanText(r.description) || '',
+                description: cleanText(r.description) || '',
+                domain: domain,
+                published_at: r.published_at || null,
+                trust_score: r.trust_score || null,
+                pagerank: r.pagerank || null,
+                logo_url: logoUrl,
+                lead_image_url: leadImg,
+                thumbnail: leadImg || logoUrl,
+                position: idx + 1
+              };
+            });
 
             console.log(`[WebSearchService] ✓ Deepernova Search found ${results.length} results from ${sBase} (${data.duration_ms || 0}ms)`);
             return {

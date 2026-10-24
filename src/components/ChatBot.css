@@ -9868,7 +9868,11 @@ pre.code-block code {
 
 .search-modal-body {
   padding: 20px 24px;
-  overflow-y: auto;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  overscroll-behavior: contain !important;
+  min-height: 0 !important;
   flex: 1;
 }
 

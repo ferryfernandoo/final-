@@ -77,6 +77,39 @@ export function formatExecutionStepTitle(step) {
 }
 
 /**
+ * Extract structured search result items from step
+ */
+export function extractSearchResults(step) {
+  if (!step) return [];
+  if (Array.isArray(step.results) && step.results.length > 0) return step.results;
+  if (Array.isArray(step.sources) && step.sources.length > 0) return step.sources;
+
+  const text = step.detail || step.command || '';
+  if (!text) return [];
+
+  const items = [];
+  const blocks = text.split(/\n\s*\n/);
+  for (const b of blocks) {
+    const urlMatch = b.match(/URL:\s*(https?:\/\/[^\s]+)/i) || b.match(/(https?:\/\/[^\s]+)/i);
+    if (urlMatch) {
+      const url = urlMatch[1];
+      let domain = '';
+      try { domain = new URL(url).hostname.replace(/^www\./i, ''); } catch (e) {}
+      const firstLine = b.split('\n')[0].replace(/^[\d+.-]\s*/, '').trim();
+      const title = firstLine && !firstLine.startsWith('URL:') ? firstLine : (domain || 'Sumber Terverifikasi');
+      items.push({
+        title,
+        url,
+        link: url,
+        domain,
+        snippet: b.replace(urlMatch[0], '').trim()
+      });
+    }
+  }
+  return items;
+}
+
+/**
  * Clean & Extract action pills and thoughts into discrete steps
  */
 export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '', chainOfWork = []) {
@@ -105,7 +138,9 @@ export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '',
         command: cow.command || cow.meta || '',
         meta: cow.meta || '',
         detail: cow.detail || cow.output || '',
-        status: cow.status || 'completed'
+        status: cow.status || 'completed',
+        results: cow.results || cow.sources || [],
+        sources: cow.sources || cow.results || []
       });
     });
   }
@@ -236,6 +271,8 @@ export default function AgentExecutionTree({
             const isCommandOrExec = ['command', 'terminal', 'execute', 'execute_code', 'run_code'].includes(step.type);
             const isWriteOrFile = ['write', 'file_write', 'file', 'patch', 'patch_file', 'revert', 'revert_file', 'delete', 'file_delete'].includes(step.type);
             const isSkill = ['skill', 'read_skill', 'search_skill'].includes(step.type);
+            const isSearch = ['search', 'search_web'].includes(step.type);
+            const searchResults = isSearch ? extractSearchResults(step) : [];
             const isFailed = step.status === 'failed' || /error|failed|gagal/i.test(rawDetail);
 
             const inputContent = step.command || (isWriteOrFile ? rawDetail : (step.meta || ''));
@@ -388,8 +425,65 @@ export default function AgentExecutionTree({
                           </pre>
                         </div>
                       </div>
+                    ) : isSearch ? (
+                      /* CASE 4: Deepernova Search Engine Results with Bubble Favicons/Logos */
+                      <div className="agent-tree-io-grid is-search-card">
+                        <div className="agent-tree-io-card is-search">
+                          <div className="agent-tree-io-header">
+                            <span className="agent-tree-io-badge search-badge">
+                              <i className="fa-solid fa-magnifying-glass" /> Deepernova Search Engine
+                            </span>
+                            <span className="agent-tree-search-count">
+                              {searchResults.length > 0 ? `${searchResults.length} sumber terverifikasi` : 'Selesai'}
+                            </span>
+                          </div>
+                          {searchResults.length > 0 && (
+                            <div className="agent-tree-search-bubbles-wrap">
+                              {searchResults.map((res, rIdx) => {
+                                let domain = res.domain || '';
+                                if (!domain && (res.url || res.link)) {
+                                  try { domain = new URL(res.url || res.link).hostname.replace(/^www\./i, ''); } catch (e) {}
+                                }
+                                const favicon = res.logo_url || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png');
+                                return (
+                                  <a
+                                    key={`search_r_${rIdx}_${res.url || res.link || rIdx}`}
+                                    href={res.url || res.link || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="agent-search-bubble-item"
+                                    title={`${res.title || 'Untitled'}\n${res.snippet || ''}\n${res.url || res.link || ''}`}
+                                  >
+                                    <div className="agent-search-bubble-logo">
+                                      <img
+                                        src={favicon}
+                                        alt={domain || 'source'}
+                                        onError={(e) => {
+                                          if (domain && !e.target.dataset.triedDuck) {
+                                            e.target.dataset.triedDuck = 'true';
+                                            e.target.src = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="agent-search-bubble-info">
+                                      <span className="agent-search-bubble-domain">{domain || 'Sumber Web'}</span>
+                                      <span className="agent-search-bubble-title">{res.title || 'Untitled'}</span>
+                                    </div>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {rawDetail && (
+                            <pre className="agent-tree-drawer-code is-search-detail">
+                              {rawDetail}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
                     ) : (
-                      /* CASE 4: General / Thought / Exploration */
+                      /* CASE 5: General / Thought / Exploration */
                       <div className="agent-tree-io-grid">
                         {step.meta && (
                           <div className="agent-tree-drawer-meta">

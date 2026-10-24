@@ -15,6 +15,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 
 const SEARCH_PUBLIC_DIR = path.join(ROOT_DIR, 'search-engine', 'public');
 const DIST_SEARCH_DIR = path.join(ROOT_DIR, 'dist', 'search');
+const PUBLIC_SEARCH_DIR = path.join(ROOT_DIR, 'public', 'search');
 
 function copyRecursive(src, dest) {
   if (!fs.existsSync(src)) return;
@@ -36,7 +37,7 @@ function copyRecursive(src, dest) {
 }
 
 try {
-  console.log('[BUILD] 🔍 Preparing Search Engine UI for Vercel CDN deployment...');
+  console.log('[BUILD] 🔍 Preparing Search Engine UI for local server and Vercel CDN deployment...');
   
   if (!fs.existsSync(SEARCH_PUBLIC_DIR)) {
     console.warn(`[BUILD] ⚠️  ${SEARCH_PUBLIC_DIR} does not exist. Skipping search copy.`);
@@ -49,14 +50,24 @@ try {
     fs.mkdirSync(distDir, { recursive: true });
   }
 
-  // Copy to dist/search
+  // Copy to dist/search (for Vercel CDN)
   copyRecursive(SEARCH_PUBLIC_DIR, DIST_SEARCH_DIR);
 
+  // Copy to public/search (for local server / express.static)
+  copyRecursive(SEARCH_PUBLIC_DIR, PUBLIC_SEARCH_DIR);
+
+  // Copy to standalone search engine backend if present
+  const STANDALONE_PUBLIC_DIR = 'C:\\deepernova-search-main\\public';
+  if (fs.existsSync(STANDALONE_PUBLIC_DIR)) {
+    copyRecursive(SEARCH_PUBLIC_DIR, STANDALONE_PUBLIC_DIR);
+  }
+
   const indexPath = path.join(DIST_SEARCH_DIR, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    console.log('[BUILD] ✅ Search Engine UI successfully copied to dist/search for Vercel CDN!');
+  const publicIndexPath = path.join(PUBLIC_SEARCH_DIR, 'index.html');
+  if (fs.existsSync(indexPath) && fs.existsSync(publicIndexPath)) {
+    console.log('[BUILD] ✅ Search Engine UI successfully copied to dist/search, public/search, and standalone search engine!');
   } else {
-    console.warn('[BUILD] ⚠️  Search Engine index.html not found in dist/search.');
+    console.warn('[BUILD] ⚠️  Search Engine index.html verification check warning.');
   }
 } catch (err) {
   console.error('[BUILD] ❌ Error copying search engine frontend:', err.message);
