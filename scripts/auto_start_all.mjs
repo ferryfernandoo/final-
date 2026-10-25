@@ -270,7 +270,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
   if (fs.existsSync(apiConfigPath)) {
     let apiConfigContent = fs.readFileSync(apiConfigPath, 'utf8');
     apiConfigContent = apiConfigContent.replace(
-      /(?:export\s+)?const CLOUDFLARE_BACKEND_URL = '[^']+';(\s*export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;)?/,
+      /(?:export\s+)?const CLOUDFLARE_BACKEND_URL = '[^']+';(\s*export const PUBLIC_API_BASE_URL = [^;]+;)?/,
       `export const CLOUDFLARE_BACKEND_URL = '${backendUrl}';\nexport const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;`
     );
     if (finalAiUrl) {

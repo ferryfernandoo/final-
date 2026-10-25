@@ -1,7 +1,6 @@
 // Production Base URL (Vercel CDN + reverse proxy)
 export const CLOUDFLARE_BACKEND_URL = 'https://roommates-pda-turns-follow.trycloudflare.com';
 export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
-export const PUBLIC_API_BASE_URL = 'https://deepernova.com';
 
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location) {
