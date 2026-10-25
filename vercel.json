@@ -128,79 +128,79 @@
     },
     {
       "source": "/api/search",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/search"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/search"
     },
     {
       "source": "/api/v1/search",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/v1/search"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/v1/search"
     },
     {
       "source": "/api/v1/images",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/v1/images"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/v1/images"
     },
     {
       "source": "/api/v1/news",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/v1/news"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/v1/news"
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/suggest"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/suggest"
     },
     {
       "source": "/api/suggestions",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/suggestions"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/suggestions"
     },
     {
       "source": "/api/suggestions/:path*",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/suggestions/:path*"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/stream",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/ai/stream"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/ai/stream"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/news/:path*"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/geo/:path*"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/crawl/:path*"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/economics/:path*"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/proxy-image"
+      "destination": "https://portland-oops-trainers-weblogs.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/api/:path*"
+      "destination": "https://roommates-pda-turns-follow.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/auth/:path*"
+      "destination": "https://roommates-pda-turns-follow.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/v1/:path*"
+      "destination": "https://roommates-pda-turns-follow.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/download/:path*"
+      "destination": "https://roommates-pda-turns-follow.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/watermarked/:path*"
+      "destination": "https://roommates-pda-turns-follow.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
