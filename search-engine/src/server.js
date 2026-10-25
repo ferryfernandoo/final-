@@ -149,7 +149,7 @@ const crawlerConcurrency = Math.min(requestedCrawlerConcurrency, maxSafeConcurre
 if (requestedCrawlerConcurrency > crawlerConcurrency) {
   console.log(`[CRAWLER] Requested ${requestedCrawlerConcurrency} workers, capped to safe concurrency ${crawlerConcurrency} (CPUs=${cpuCount})`);
 }
-const newsCrawlerConcurrency = parseInt(process.env.NEWS_CRAWLER_CONCURRENCY, 10) || 12;
+const newsCrawlerConcurrency = parseInt(process.env.NEWS_CRAWLER_CONCURRENCY, 10) || 24;
 
 // 1. Web Text Crawler: High-throughput SSD parallel workers (Auto-throttled to 1 worker during search)
 let crawlerEngine = new CrawlerEngine(db, { 
@@ -759,8 +759,8 @@ function dbStats() {
 // ==========================================
 
 // ⚡ Autonomous QoS Search Priority Middleware:
-// Enforces a strict 5-second per-session deadline for deep crawling and instant search responses
-const MAX_SEARCH_SESSION_TIMEOUT_MS = 5000;
+// Enforces a strict 10-second per-session deadline for deep crawling and instant search responses
+const MAX_SEARCH_SESSION_TIMEOUT_MS = 10000;
 
 function searchPriorityMiddleware(req, res, next) {
   const tag = (req.query.q || req.path).slice(0, 60);
@@ -776,16 +776,16 @@ function searchPriorityMiddleware(req, res, next) {
     }
   };
 
-  // Safety guard: auto-release after 5s to guarantee activeSearches never blocks other users
+  // Safety guard: auto-release after 10s to guarantee activeSearches never blocks other users
   safetyTimeout = setTimeout(onEnd, MAX_SEARCH_SESSION_TIMEOUT_MS);
 
-  // Set 5-second hard socket/request timeout
+  // Set 10-second hard socket/request timeout
   req.setTimeout(MAX_SEARCH_SESSION_TIMEOUT_MS, () => {
     onEnd();
     if (!res.headersSent) {
       res.status(504).json({
-        error: 'Search timeout (5.0s exceeded)',
-        message: 'Batas waktu pencarian 2.2 detik per sesi tercapai agar tidak mengganggu kecepatan layanan untuk pengguna lain.'
+        error: 'Search timeout (10.0s exceeded)',
+        message: 'Batas waktu pencarian 10 detik per sesi tercapai agar tidak mengganggu kecepatan layanan untuk pengguna lain.'
       });
     }
   });
@@ -936,7 +936,7 @@ async function handleV1Search(req, res) {
         results: [],
         durationMs: MAX_SEARCH_SESSION_TIMEOUT_MS,
         timedOut: true,
-        message: 'Batas waktu pencarian 2.2 detik per sesi tercapai (QoS Protection).'
+        message: 'Batas waktu pencarian 10 detik per sesi tercapai (QoS Protection).'
       });
     }, MAX_SEARCH_SESSION_TIMEOUT_MS);
   });

@@ -48,7 +48,7 @@ class WebSearchService {
     for (const sBase of searchBases) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout for search engine
 
         const response = await fetch(`${sBase}/search?q=${encodeURIComponent(query)}&limit=${maxResults}&crawl=0&fast=1`, {
           headers: {

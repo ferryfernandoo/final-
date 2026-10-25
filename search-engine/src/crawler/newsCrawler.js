@@ -124,15 +124,31 @@ const NEWS_RSS_FEEDS = [
   'https://rss.dw.com/xml/rss-ind-all',
   'https://www.voaindonesia.com/api/z$g$pevyiq',
 
-  // World Major Wire News (International English)
+  // World Major Wire & Global News (International Rapid Ingestion)
   'https://feeds.bbci.co.uk/news/world/rss.xml',
+  'https://feeds.bbci.co.uk/news/rss.xml',
+  'https://feeds.bbci.co.uk/news/technology/rss.xml',
+  'https://feeds.bbci.co.uk/news/business/rss.xml',
   'https://www.reutersagency.com/feed/?best-topics=world&post_type=best',
   'https://www.aljazeera.com/xml/rss/all.xml',
   'http://rss.cnn.com/rss/edition_world.rss',
+  'http://rss.cnn.com/rss/edition.rss',
   'https://www.theguardian.com/world/rss',
+  'https://www.theguardian.com/technology/rss',
   'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+  'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml',
   'https://rss.dw.com/xml/rss-en-all',
-  'https://www.france24.com/en/rss'
+  'https://www.france24.com/en/rss',
+  'https://www.cnbc.com/id/100727362/device/rss/rss.html',
+  'https://www.cnbc.com/id/19854910/device/rss/rss.html',
+  'https://www.japantimes.co.jp/feed/',
+  'https://www.straitstimes.com/news/world/rss.xml',
+  'https://www.scmp.com/rss/91/feed',
+  'https://www.euronews.com/rss?format=mrss&level=theme&name=news',
+  'https://techcrunch.com/feed/',
+  'https://www.theverge.com/rss/index.xml',
+  'https://feeds.arstechnica.com/arstechnica/index',
+  'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US%3Aen'
 ];
 
 // ============================================================
@@ -584,7 +600,7 @@ export class NewsCrawler extends EventEmitter {
                   description: item.description,
                   headings: item.headings,
                   content: item.content,
-                  lang: 'id',
+                  lang: (item.domain.endsWith('.id') || item.url.includes('/indonesia/') || item.url.includes('/id/')) ? 'id' : 'en',
                   logoUrl: null,
                   leadImageUrl: item.leadImageUrl,
                   category: cat || 'news',

@@ -33,7 +33,11 @@ export function resolveSearchApiBaseUrl() {
   return 'https://www.deepernova.com/api/v1';
 }
 
-export const API_BASE_URL = resolveSearchApiBaseUrl();
+export const API_BASE_URL = 
+  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:4000/api/v1'
+    : 'https://capabilities-women-miscellaneous-male.trycloudflare.com/api/v1');
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 
@@ -195,7 +199,7 @@ function setClientSearchCache(key, data) {
 /**
  * Helper to perform direct frontend search and map results into standard format
  */
-async function performDirectSearch(query, limit, includeImages, timeoutMs = 5000) {
+async function performDirectSearch(query, limit, includeImages, timeoutMs = 10000) {
   // Only block direct fetch if page is loaded over HTTPS and target search API is an insecure HTTP URL.
   // When DEEPERNOVA_SEARCH_API_URL is already HTTPS (e.g. Cloudflare tunnel), direct hit works flawlessly!
   if (typeof window !== 'undefined' && window.location.protocol === 'https:' && DEEPERNOVA_SEARCH_API_URL.startsWith('http:')) {
@@ -304,7 +308,7 @@ async function performDirectSearch(query, limit, includeImages, timeoutMs = 5000
 /**
  * Helper to perform backend proxy search
  */
-async function performProxySearch(query, limit, timeoutMs = 5000) {
+async function performProxySearch(query, limit, timeoutMs = 10000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -329,7 +333,7 @@ async function performProxySearch(query, limit, timeoutMs = 5000) {
 /**
  * Helper to perform direct search against Deepernova Production Engine (CORS enabled everywhere)
  */
-async function performCloudDirectSearch(query, limit, timeoutMs = 4000) {
+async function performCloudDirectSearch(query, limit, timeoutMs = 10000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {

@@ -23,13 +23,13 @@ import net from 'node:net';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const SEARCH_DIR = fs.existsSync(path.join(ROOT_DIR, 'search-engine'))
-  ? path.join(ROOT_DIR, 'search-engine')
-  : (fs.existsSync('C:\\deepernova-search-main')
+const SEARCH_DIR = fs.existsSync('C:\\deepernova-search-main')
   ? 'C:\\deepernova-search-main'
+  : (fs.existsSync(path.join(ROOT_DIR, 'search-engine'))
+  ? path.join(ROOT_DIR, 'search-engine')
   : (fs.existsSync('F:\\deepernova-search-main')
       ? 'F:\\deepernova-search-main'
-      : 'F:\\search engine\\search-engine');
+      : 'F:\\search engine\\search-engine'));
 const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
 const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
 const AI_SERVER_DIR = 'F:\\llm deepernova';
@@ -288,7 +288,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     if (searchEngineUrl) {
       apiConfigContent = apiConfigContent.replace(
         /export const SEARCH_ENGINE_URL =[\s\S]*?;/,
-        `export const SEARCH_ENGINE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||\n  (typeof window !== 'undefined' ? `${window.location.origin}/search` : '/search');`
+        `export const SEARCH_ENGINE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||\n  (typeof window !== 'undefined' ? \`\${window.location.origin}/search\` : '/search');`
       );
     }
     fs.writeFileSync(apiConfigPath, apiConfigContent, 'utf8');

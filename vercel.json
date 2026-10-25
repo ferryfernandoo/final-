@@ -47,19 +47,6 @@
       ]
     },
     {
-      "source": "/(.*)\\.apk",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/vnd.android.package-archive"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate, max-age=0"
-        }
-      ]
-    },
-    {
       "source": "/search/(index.html)?",
       "headers": [
         {
@@ -124,89 +111,9 @@
           "value": "no-store, no-cache, must-revalidate, max-age=0"
         }
       ]
-    },
-    {
-      "source": "/sw.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript; charset=utf-8"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate, max-age=0"
-        }
-      ]
-    },
-    {
-      "source": "/search/sw.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript; charset=utf-8"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/search/"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate, max-age=0"
-        }
-      ]
-    },
-    {
-      "source": "/manifest.json",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json; charset=utf-8"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400"
-        }
-      ]
-    },
-    {
-      "source": "/search/manifest.json",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json; charset=utf-8"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400"
-        }
-      ]
     }
   ],
   "rewrites": [
-    {
-      "source": "/search/manifest.json",
-      "destination": "/search/manifest.json"
-    },
-    {
-      "source": "/search/sw.js",
-      "destination": "/search/sw.js"
-    },
-    {
-      "source": "/search/icons/:path*",
-      "destination": "/search/icons/:path*"
-    },
-    {
-      "source": "/manifest.json",
-      "destination": "/manifest.json"
-    },
-    {
-      "source": "/sw.js",
-      "destination": "/sw.js"
-    },
     {
       "source": "/search",
       "destination": "/search/index.html"
@@ -221,114 +128,82 @@
     },
     {
       "source": "/api/search",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/search"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/search"
     },
     {
       "source": "/api/v1/search",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/v1/search"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/v1/search"
     },
     {
       "source": "/api/v1/images",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/v1/images"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/v1/images"
     },
     {
       "source": "/api/v1/news",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/v1/news"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/v1/news"
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/suggest"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/suggest"
     },
     {
       "source": "/api/suggestions",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/suggestions"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/suggestions"
     },
     {
       "source": "/api/suggestions/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/suggestions/:path*"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/stream",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/ai/stream"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/ai/stream"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/news/:path*"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/geo/:path*"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/crawl/:path*"
-    },
-    {
-      "source": "/api/status",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/status"
-    },
-    {
-      "source": "/api/crawl/status",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/status"
-    },
-    {
-      "source": "/api/pagerank/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/pagerank/:path*"
-    },
-    {
-      "source": "/api/database/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/database/:path*"
-    },
-    {
-      "source": "/api/crawler/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/crawler/:path*"
-    },
-    {
-      "source": "/api/keys",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/keys"
-    },
-    {
-      "source": "/api/keys/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/keys/:path*"
-    },
-    {
-      "source": "/api/ai/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/ai/:path*"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/economics/:path*"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://playstation-clearance-eight-away.trycloudflare.com/api/proxy-image"
+      "destination": "https://capabilities-women-miscellaneous-male.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://tobacco-warcraft-faced-oklahoma.trycloudflare.com/api/:path*"
+      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://tobacco-warcraft-faced-oklahoma.trycloudflare.com/auth/:path*"
+      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://tobacco-warcraft-faced-oklahoma.trycloudflare.com/v1/:path*"
+      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://tobacco-warcraft-faced-oklahoma.trycloudflare.com/download/:path*"
+      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://tobacco-warcraft-faced-oklahoma.trycloudflare.com/watermarked/:path*"
+      "destination": "https://staff-generator-wellington-graphical.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!search|assets/|.*\\.apk|manifest|sw\\.js|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]
