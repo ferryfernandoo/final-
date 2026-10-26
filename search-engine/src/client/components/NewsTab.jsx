@@ -349,15 +349,29 @@ export default function NewsTab({ query: externalQuery }) {
 
   const fetchNews = async (q = query, p = 1, s = sort, subtype = newsSubView) => {
     setLoading(true);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
     try {
       const limit = subtype === 'images' ? 24 : 20;
       const url = `/api/news?q=${encodeURIComponent(q.trim())}&page=${p}&limit=${limit}&sort=${s}&subtype=${subtype}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
       const data = await res.json();
       setResultsData(data);
     } catch (err) {
-      console.error('News fetch error:', err);
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        setResultsData({
+          articles: [],
+          total: 0,
+          timedOut: true,
+          message: 'Batas waktu pencarian berita 10 detik tercapai (QoS Protection).'
+        });
+      } else {
+        console.error('News fetch error:', err);
+      }
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   };
@@ -590,6 +604,25 @@ export default function NewsTab({ query: externalQuery }) {
             </button>
           </div>
         </div>
+
+        {/* QoS 10-Second Search Deadline Notice Banner */}
+        {resultsData?.timedOut && (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            borderRadius: '10px',
+            padding: '0.85rem 1.1rem',
+            margin: '0 1rem 1.25rem 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            fontSize: '0.84rem',
+            color: 'var(--text-primary, #92400e)'
+          }}>
+            <Clock size={18} style={{ color: '#d97706', flexShrink: 0 }} />
+            <span><strong>Batas Waktu Sesi Berita (Maks 10 Detik):</strong> Pencarian berita dibatasi maksimal 10 detik per sesi (QoS Protection) untuk menjaga server bebas bloat.</span>
+          </div>
+        )}
 
         {/* ============================================================ */}
         {/* 📰 3. HALAMAN DEPAN BROADSHEET (LAPORAN UTAMA + KOLOM SAMPING) */}

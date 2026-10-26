@@ -1557,7 +1557,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             onChange={(e) => handleInputChange(e.target.value)}
             onFocus={handleInputFocus}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Mendengarkan... Silakan berbicara kata kunci" : (isHeaderMode ? "Tanya DeeperNova" : "Telusuri dengan DeeperNova atau ketik URL...")}
+            placeholder={isListening ? "Mendengarkan... Silakan berbicara kata kunci" : (isHeaderMode ? "Tanya DeeperNova (Batas maks 10s)" : "Telusuri dengan DeeperNova (Batas maks 10 detik/sesi)...")}
             className="dn-search-input"
             autoFocus={false}
             autoComplete="off"
@@ -1724,6 +1724,24 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
           <div className="google-loader-bar" />
         </div>
       )}
+      {loading && isSearchActive && (
+        <div style={{
+          textAlign: 'center',
+          padding: '0.35rem 0.75rem',
+          fontSize: '0.75rem',
+          color: '#0284c7',
+          background: 'rgba(2, 132, 199, 0.08)',
+          borderBottom: '1px solid rgba(2, 132, 199, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          fontWeight: 600
+        }}>
+          <Clock size={12} className="animate-spin" />
+          <span>Mencari jawaban ke seluruh web... (Batas waktu maksimal: 10 detik QoS)</span>
+        </div>
+      )}
 
       {/* Top Navigation Bar: FULL HEADER EXPANSIVE SEARCH BAR */}
       <header className={`public-header ${isSearchActive ? 'active-search-header' : 'home-header'}`}>
@@ -1758,6 +1776,27 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
               {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
               <span className="theme-toggle-label">{theme === 'dark' ? 'Terang' : 'Gelap'}</span>
             </button>
+
+            {/* QoS 10-Second Search Deadline Indicator */}
+            <div 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.24rem 0.65rem',
+                borderRadius: '16px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                background: 'rgba(2, 132, 199, 0.1)',
+                border: '1px solid rgba(2, 132, 199, 0.3)',
+                color: '#0284c7',
+                whiteSpace: 'nowrap'
+              }}
+              title="Proteksi QoS Aktif: Sesi pencarian dibatasi maksimal 10 detik agar server responsif dan bebas beban."
+            >
+              <Clock size={12} />
+              <span>Maks 10s</span>
+            </div>
             {showCrawlerLiveBadge && telemetry?.crawler?.state === 'RUNNING' && (
               <div 
                 className="crawler-live-pill"
@@ -1867,6 +1906,21 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
             {/* Hero Search Box */}
             {renderSearchForm(false)}
+
+            {/* QoS 10-Second Search Deadline Notice Pill */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              marginTop: '10px',
+              fontSize: '0.78rem',
+              color: 'var(--text-muted, #64748b)',
+              fontWeight: 500
+            }}>
+              <Clock size={13} style={{ color: '#0284c7' }} />
+              <span>Proteksi QoS Aktif: Batas maksimal pencarian <strong>10 detik per sesi</strong> agar respons secepat kilat dan bebas bloat.</span>
+            </div>
 
             {/* Unified Navigation Tabs under search box */}
             <div style={{ marginTop: '1.25rem' }}>
@@ -2006,25 +2060,65 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             {searchType === 'all' && viewMode === 'results' && resultsData && (
               <div className="dn-results-layout-grid">
                 <div className="dn-results-primary-col">
+                  {/* Results Meta & QoS SLA Info Bar */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingBottom: '0.65rem',
+                    marginBottom: '0.85rem',
+                    borderBottom: '1px solid var(--border-color, rgba(0,0,0,0.06))',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-muted, #64748b)'
+                  }}>
+                    <span>
+                      Sekitar {resultsData.total || (resultsData.results ? resultsData.results.length : 0)} hasil 
+                      {resultsData.durationMs ? ` (${(resultsData.durationMs / 1000).toFixed(2)} detik)` : ''}
+                    </span>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      color: resultsData.timedOut ? '#d97706' : '#0284c7',
+                      background: resultsData.timedOut ? 'rgba(245, 158, 11, 0.12)' : 'rgba(2, 132, 199, 0.08)',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: resultsData.timedOut ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(2, 132, 199, 0.25)'
+                    }}>
+                      <Clock size={11} />
+                      {resultsData.timedOut ? 'Batas 10s Tercapai (QoS)' : 'Batas Maks. 10s (QoS Aktif)'}
+                    </span>
+                  </div>
+
                   {/* QoS 10-Second Search Deadline Notice Banner */}
                   {resultsData.timedOut && (
                     <div style={{
-                      background: 'rgba(245, 158, 11, 0.1)',
-                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
                       borderRadius: '10px',
-                      padding: '0.7rem 1rem',
+                      padding: '0.85rem 1.1rem',
                       marginBottom: '1.25rem',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.65rem',
-                      fontSize: '0.82rem',
+                      alignItems: 'flex-start',
+                      gap: '0.75rem',
+                      fontSize: '0.84rem',
                       color: 'var(--text-primary, #92400e)',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                      boxShadow: '0 2px 6px rgba(245, 158, 11, 0.08)'
                     }}>
-                      <Clock size={16} style={{ color: '#d97706', flexShrink: 0 }} />
-                      <span>
-                        <strong>Batas Waktu Sesi (Maks 10 Detik):</strong> Pencarian dibatasi maksimal 10 detik per sesi tanya agar sistem tetap ringan dan tidak mengganggu kecepatan pengguna lain.
-                      </span>
+                      <Clock size={18} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
+                      <div>
+                        <div style={{ fontWeight: 700, marginBottom: '2px', color: '#b45309' }}>
+                          ⏱️ Batas Waktu 10 Detik Tercapai (QoS Protection)
+                        </div>
+                        <div>
+                          Pencarian selesai dalam batas maksimal 10 detik per sesi untuk menjaga server tetap super cepat dan mencegah beban berlebih.
+                          {resultsData.results && resultsData.results.length > 0 
+                            ? ' Menampilkan hasil terbaik yang berhasil dikumpulkan.' 
+                            : ' Belum ada hasil dalam jendela 10 detik. Silakan coba kata kunci yang lebih spesifik.'}
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -2156,10 +2250,18 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                   ) : (
                     <div className="empty-results-container">
                       <div className="empty-results-icon-wrap">
-                        <Search size={32} />
+                        {resultsData.timedOut ? <Clock size={32} style={{ color: '#d97706' }} /> : <Search size={32} />}
                       </div>
-                      <h3>Tidak ada hasil yang ditemukan untuk "{query}"</h3>
-                      <p>Coba gunakan kata kunci yang lebih umum, periksa ejaan, atau gunakan kata kunci lain.</p>
+                      <h3>
+                        {resultsData.timedOut 
+                          ? 'Batas Waktu 10 Detik Tercapai' 
+                          : `Tidak ada hasil yang ditemukan untuk "${query}"`}
+                      </h3>
+                      <p>
+                        {resultsData.timedOut 
+                          ? 'Pencarian dihentikan pada batas 10 detik demi menjaga performa server tetap responsif untuk semua pengguna. Silakan coba kata kunci yang lebih spesifik.' 
+                          : 'Coba gunakan kata kunci yang lebih umum, periksa ejaan, atau gunakan kata kunci lain.'}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -2187,6 +2289,23 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             {/* TAB 2: Image Search Gallery View */}
             {searchType === 'images' && viewMode === 'results' && resultsData && (
               <div className="images-gallery-section">
+                {resultsData.timedOut && (
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: '10px',
+                    padding: '0.85rem 1.1rem',
+                    marginBottom: '1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    fontSize: '0.84rem',
+                    color: 'var(--text-primary, #92400e)'
+                  }}>
+                    <Clock size={18} style={{ color: '#d97706', flexShrink: 0 }} />
+                    <span><strong>Batas Waktu Sesi (Maks 10 Detik):</strong> Pencarian gambar dibatasi maksimal 10 detik per sesi (QoS Protection).</span>
+                  </div>
+                )}
                 {resultsData.results && resultsData.results.length > 0 ? (
                   <div className="images-waterfall-grid">
                     {resultsData.results.map((img, i) => (
