@@ -24,7 +24,7 @@ import GlobalMemorySettings from './GlobalMemorySettings';
 import ReminderCard from './ReminderCard';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch } from '../services/clientSearchService';
+import { executeWebSearch, detectUpfrontSearchIntent } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
 import './ChatBot.css';
@@ -2442,6 +2442,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     }
   });
   const isAutoVoiceEnabledRef = useRef(isAutoVoiceEnabled);
+  const [isWebSearchForced, setIsWebSearchForced] = useState(false);
 
   useEffect(() => {
     isAutoVoiceEnabledRef.current = isAutoVoiceEnabled;
@@ -9293,6 +9294,58 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
+    // 🔍 UPFRONT SEARCH INTENT & WEB SEARCH DIRECTIVE DETECTION
+    const detectedSearchQuery = isWebSearchForced
+      ? (cleanUserText.replace(/^\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]$/i, '$1').trim() || cleanUserText)
+      : detectUpfrontSearchIntent(cleanUserText, userLanguage);
+
+    if (detectedSearchQuery) {
+      console.log('[ChatBot] 🔍 Upfront search intent detected:', detectedSearchQuery);
+      triggeredSearchRequestsRef.current.add(placeholderId);
+      currentStreamingTextRef.current = '';
+
+      // Update placeholder bot message to searching state with empty text
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === placeholderId
+            ? {
+                ...msg,
+                text: '',
+                isStreaming: false,
+                isSearching: true,
+                searchQuery: detectedSearchQuery,
+                searchResults: null,
+                searchSources: [],
+                searchSteps: [{
+                  query: detectedSearchQuery,
+                  isSearching: true,
+                  sources: [],
+                  images: []
+                }]
+              }
+            : msg
+        )
+      );
+
+      setConvLoading(true);
+      setLoading(true);
+      setError(null);
+      setIsScrolledUp(false);
+      holdScrollRef.current = false;
+      isLockedToUserAskRef.current = true;
+      lockedUserMessageIdRef.current = userMessageForChat.id;
+      scrollToUserMessage(false);
+
+      // Execute search, extract sources & media bubbles, then synthesize final answer
+      executeSearchAndSynthesize({
+        messageId: placeholderId,
+        searchQuery: detectedSearchQuery,
+        userPrompt: cleanUserText,
+        baseHistory: updatedConversationHistory
+      });
+      return;
+    }
+
     if (imagesToPass.length > 0 && !isReasoningImage) {
       setReasoningImages(imagesToPass);
       setReasoningPrompt(inputValue);
@@ -9478,6 +9531,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             isReasoning = true;
           }
           targetReasoningText += chunk.content;
+          triggerWebSearchIfNeeded(placeholderId, targetReasoningText);
+          if (triggeredSearchRequestsRef.current.has(placeholderId)) {
+            return;
+          }
           startSmoothStreamer();
           return;
         }
@@ -12115,6 +12172,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   </span>
                 </button>
               )}
+
+              {/* Web Search Mode Toggle Button */}
+              <button
+                type="button"
+                className={`claude-search-toggle-btn ${isWebSearchForced ? 'active' : ''}`}
+                onClick={() => setIsWebSearchForced(prev => !prev)}
+                title={
+                  isWebSearchForced
+                    ? (userLanguage === 'id' ? 'Web Search: AKTIF (Cari web setiap kirim)' : 'Web Search: ACTIVE (Always search web)')
+                    : (userLanguage === 'id' ? 'Web Search: OTOMATIS (Klik untuk aktifkan paksa)' : 'Web Search: AUTO (Click to force search)')
+                }
+              >
+                <span className="search-toggle-icon">🌐</span>
+                <span className="search-toggle-text">
+                  {userLanguage === 'id' ? 'Web Search' : 'Web Search'}
+                </span>
+                <span className={`reasoning-toggle-status-pill ${isWebSearchForced ? 'on' : 'off'}`}>
+                  {isWebSearchForced ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Auto' : 'Auto')}
+                </span>
+              </button>
 
               {/* Speech-to-Text Microphone Button */}
               <button
@@ -15056,6 +15133,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   </span>
                 </button>
               )}
+
+              {/* Web Search Mode Toggle Button */}
+              <button
+                type="button"
+                className={`claude-search-toggle-btn ${isWebSearchForced ? 'active' : ''}`}
+                onClick={() => setIsWebSearchForced(prev => !prev)}
+                title={
+                  isWebSearchForced
+                    ? (userLanguage === 'id' ? 'Web Search: AKTIF (Cari web setiap kirim)' : 'Web Search: ACTIVE (Always search web)')
+                    : (userLanguage === 'id' ? 'Web Search: OTOMATIS (Klik untuk aktifkan paksa)' : 'Web Search: AUTO (Click to force search)')
+                }
+              >
+                <span className="search-toggle-icon">🌐</span>
+                <span className="search-toggle-text">
+                  {userLanguage === 'id' ? 'Web Search' : 'Web Search'}
+                </span>
+                <span className={`reasoning-toggle-status-pill ${isWebSearchForced ? 'on' : 'off'}`}>
+                  {isWebSearchForced ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Auto' : 'Auto')}
+                </span>
+              </button>
 
               {/* Speech-to-Text Microphone Button */}
               <button

@@ -866,23 +866,21 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
 
     const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
       ? '\n\n🔴 KEMAMPUAN SEARCH ENGINE & LIVE WEB CRAWLER:\n' +
-        '- Kamu terhubung langsung ke DeeperNova Search Engine yang siap melakukan pencarian index dan live crawling web.\n' +
-        '- KEPUTUSAN MENCARI SEPENUHNYA DI TANGANMU (OTONOM):\n' +
-        '  * Kamu sendiri yang bebas dan cerdas menilai: apakah pertanyaan pengguna ini memerlukan pencarian di web atau tidak.\n' +
-        '  * JIKA pertanyaan bisa kamu jawab langsung dengan pengetahuan internalmu (seperti obrolan santai, sapaan, curhat, ide/kreativitas, coding/pemrograman, penjelasan konsep umum, matematika, filosofi): JAWAB LANGSUNG secara alami tanpa memanggil search engine.\n' +
-        '  * JIKA kamu merasa membutuhkan info terkini, berita hari ini, fakta spesifik, harga komoditas/pasar, verifikasi data, atau informasi mutakhir dari web: Kamu BEBAS menentukan kata kunci pencarian apa saja yang kamu inginkan, dan pancarkan di baris pertama responmu:\n' +
+        '- Kamu terhubung langsung ke DeeperNova Search Engine yang siap melakukan pencarian web dan live crawling real-time.\n' +
+        '- ATURAN PENCARIAN WEB (SANGAT PENTING):\n' +
+        '  * JIKA pengguna meminta pencarian (misal kata: "cari", "search", "googling", "cek", "info tentang"), ATAU menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto terbaru, cuaca, skor/jadwal pertandingan, pemenang/pejabat terkini, fakta mutakhir, atau riset data web:\n' +
+        '    KAMU WAJIB MEMANCARKAN PERINTAH SEARCH DI BARIS PALING PERTAMA RESPONMU DENGAN FORMAT:\n' +
         '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
-        '  * Kata kunci query bebas terserah kamu, rumuskan seringkas dan setepat sasaran mungkin sesuai data yang ingin kamu temukan.\n' +
-        '  * Search engine akan otomatis mencari dan meng-crawl web secara live lalu mengembalikan data terupdate untuk kamu olah.'
+        '  * DILARANG KERAS langsung menjawab atau berhalusinasi sebelum memancarkan [SEARCH_REQUEST: ...]. Mesin pencari internal kami akan segera mengeksekusi flag tersebut, memunculkan bubble hasil sumber terverifikasi, lalu memberikan data terupdate kepada kamu untuk kamu olah.\n' +
+        '  * JIKA pertanyaan murni berupa sapaan santai ("halo", "apa kabar"), konsep umum, matematika murni, atau logika coding internal: kamu boleh langsung menjawab secara alami tanpa memanggil search engine.'
       : '\n\n🔴 SEARCH ENGINE & LIVE WEB CRAWLER CAPABILITY:\n' +
         '- You are directly connected to DeeperNova Search Engine and live web crawler.\n' +
-        '- SEARCH DECISION IS 100% IN YOUR HANDS (AUTONOMOUS):\n' +
-        '  * You independently evaluate whether the user question requires searching the web or not.\n' +
-        '  * IF the question can be answered from your knowledge (casual conversation, greetings, creative ideas, coding, explanations, math, philosophy): ANSWER DIRECTLY without searching.\n' +
-        '  * IF you need current facts, today\'s news, dynamic market prices, or real-time web info: You are FREE to formulate any search query you desire, and emit at the first line:\n' +
-        '    [SEARCH_REQUEST: your chosen query]\n' +
-        '  * Formulate the query however you see fit (concise and targeted).\n' +
-        '  * The search engine will execute query and live crawling, returning fresh sources for you to synthesize.'
+        '- WEB SEARCH MANDATORY RULES:\n' +
+        '  * IF the user requests a search ("search", "find", "look up", "check"), OR asks about current news, today\'s events, live prices/crypto/stocks, weather, sports scores/schedules, current officials, or any dynamic web facts:\n' +
+        '    YOU MUST EMIT A SEARCH COMMAND ON THE VERY FIRST LINE OF YOUR RESPONSE IN THIS FORMAT:\n' +
+        '    [SEARCH_REQUEST: your targeted search query]\n' +
+        '  * NEVER answer directly or hallucinate without emitting [SEARCH_REQUEST: ...] when fresh/web information is needed. The search engine will execute the flag, display the verified sources bubble, and provide you with fresh context to synthesize.\n' +
+        '  * ONLY if the question is pure casual greeting ("hello", "how are you"), general knowledge, pure math, or self-contained coding logic: answer directly without search.'
     );
 
     const visionInstruction = validImageUrls.length > 0

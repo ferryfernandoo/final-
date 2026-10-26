@@ -37,7 +37,9 @@ export const API_BASE_URL =
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:4000/api/v1'
-    : 'https://portland-oops-trainers-weblogs.trycloudflare.com/api/v1');
+    : (typeof window !== 'undefined' && window.location.origin
+        ? `${window.location.origin}/api/v1`
+        : 'https://portland-oops-trainers-weblogs.trycloudflare.com/api/v1'));
 
 export const API_KEY = 
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY || 
@@ -68,15 +70,23 @@ export function enrichQueryWithDateIfRecent(query, userPrompt = '', language = '
 export function detectUpfrontSearchIntent(promptText, language = 'id') {
   if (!promptText || typeof promptText !== 'string') return null;
   const text = promptText.trim();
-  if (text.length < 3) return null;
+  if (text.length < 2) return null;
 
-  // Ignore code snippets, slash commands, or pure markdown
-  if (text.startsWith('/') || text.startsWith('```') || text.startsWith('{') || text.startsWith('<')) {
+  // 0. Explicit tag / flag extraction if user or system sends flag directly
+  const directFlagMatch = text.match(/^\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]$/i) || 
+                          text.match(/\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]/i) ||
+                          text.match(/^<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>$/i);
+  if (directFlagMatch && directFlagMatch[1]) {
+    return directFlagMatch[1].replace(/["']/g, '').trim();
+  }
+
+  // Ignore code snippets, slash commands, or pure json/object notation
+  if (text.startsWith('/') || text.startsWith('```') || text.startsWith('{')) {
     return null;
   }
 
   // Ignore casual greetings and short conversational fillers
-  const isGreetingOnly = /^(?:halo|hai|hi|hello|hei|pagi|siang|sore|malam|apa kabar|assalamu['a]?laikum|terima kasih|makasih|thanks|thank you|ok|oke|sip|siap|bye|dadah|siapa kamu|kamu siapa)\b[?.!]*$/i.test(text);
+  const isGreetingOnly = /^(?:halo|hai|hi|hello|hey|hei|pagi|siang|sore|malam|apa kabar|assalamu['a]?laikum|terima kasih|makasih|thanks|thank you|ok|oke|sip|siap|bye|dadah|siapa kamu|kamu siapa)\b[?.!]*$/i.test(text);
   if (isGreetingOnly) return null;
 
   // Ignore pure math or coding instructions unless explicitly asking for web search
@@ -85,34 +95,37 @@ export function detectUpfrontSearchIntent(promptText, language = 'id') {
     return null;
   }
 
-  // 1. Explicit Search Requests
-  const explicitSearchMatch = text.match(/^(?:tolong\s+)?(?:cari(?:kan)?|search|googling|browsing|cek(?:kan)?|temukan|carikan info(?:rmasi)?)\s+(?:tentang|mengenai|seputar|di web|di internet)?\s*(.+)/i);
+  // 1. Explicit Search Requests (Indonesian & English)
+  const explicitSearchMatch = text.match(/^(?:tolong\s+|mohon\s+|coba\s+|bisa\s+)?(?:cari(?:kan)?|search(?:\s+for)?|googling|browsing|cek(?:kan)?|temukan|carikan info(?:rmasi)?|look\s+up|find(?:\s+info(?:\s+about)?)?)\s+(?:tentang|mengenai|seputar|di web|di internet|on the web|the web for)?\s*(.+)/i);
   if (explicitSearchMatch && explicitSearchMatch[1]) {
-    const q = explicitSearchMatch[1].replace(/^(?:tentang|mengenai|seputar|di web|di internet)\s+/i, '').trim();
+    const q = explicitSearchMatch[1].replace(/^(?:tentang|mengenai|seputar|di web|di internet|on the web|about|for)\s+/i, '').trim();
     if (q.length >= 2) return q.replace(/[?!.]+$/, '').trim();
   }
 
-  // 2. Real-time news & current events
+  // 2. Real-time news & current events (Indonesian & English)
   const newsPatterns = [
-    /\b(?:berita|kabar|update|informasi)\s+(?:terkini|terbaru|hari ini|viral|saat ini)/i,
-    /\b(?:terbaru|terkini|hari ini|saat ini)\b.*\b(?:berita|kabar|perkembangan|kondisi|isu)\b/i,
-    /\b(?:gempa|tsunami|erupsi|banjir|kebakaran)\s+(?:terkini|terbaru|hari ini|barusan|tadi)/i,
-    /\b(?:siapa\s+(?:presiden|menteri|gubernur|ketua|juara|pemenang))\s+.*(?:sekarang|saat ini|terbaru|2025|2026)/i,
-    /\b(?:harga|kurs|nilai tukar)\s+.*\b(?:hari ini|sekarang|terbaru|terkini)/i,
-    /\b(?:cuaca|suhu|prakiraan cuaca)\s+(?:di\s+)?\w+/i,
-    /\b(?:skor|hasil pertandingan|jadwal pertandingan)\s+/i,
-    /\b(?:kapan|tanggal berapa)\s+.*\b(?:tayang|rilis|dibuka|dimulai|pemilu|asian games|piala dunia)/i,
-    /\b(?:apa yang sedang viral|lagi viral apa|ada kejadian apa)\b/i
+    /\b(?:berita|kabar|update|informasi|news)\s+(?:terkini|terbaru|hari ini|viral|saat ini|latest|today|breaking)/i,
+    /\b(?:terbaru|terkini|hari ini|saat ini|today|latest)\b.*\b(?:berita|kabar|perkembangan|kondisi|isu|news|update)\b/i,
+    /\b(?:gempa|tsunami|erupsi|banjir|kebakaran|earthquake|flood)\s+(?:terkini|terbaru|hari ini|barusan|tadi|today|latest)/i,
+    /\b(?:siapa\s+(?:presiden|menteri|gubernur|ketua|juara|pemenang|ceo))\b/i,
+    /\b(?:who\s+(?:is\s+the\s+current\s+|is\s+|won\s+the\s+)?(?:president|prime\s+minister|ceo|governor|champion|winner))\b/i,
+    /\b(?:harga|kurs|nilai tukar|price\s+of|stock\s+price|market\s+price)\s+.*\b(?:hari ini|sekarang|terbaru|terkini|today|now|current)/i,
+    /\b(?:harga\s+(?:emas|bitcoin|btc|eth|crypto|saham|bbm|minyak|dolar|usd))\b/i,
+    /\b(?:cuaca|suhu|prakiraan cuaca|weather\s+in|weather\s+forecast)\s+(?:di\s+|in\s+)?\w+/i,
+    /\b(?:skor|hasil pertandingan|jadwal pertandingan|match\s+score|fixtures|standings)\s+/i,
+    /\b(?:kapan|tanggal berapa|when\s+is)\s+.*\b(?:tayang|rilis|dibuka|dimulai|pemilu|asian games|piala dunia|world cup|olympics|release date)/i,
+    /\b(?:apa yang sedang viral|lagi viral apa|ada kejadian apa|what's happening in)\b/i,
+    /\b(?:2025|2026|2027)\b.*\b(?:siapa|kapan|jadwal|berita|hasil|harga|perkembangan)\b/i
   ];
 
   for (const pattern of newsPatterns) {
     if (pattern.test(text)) {
       // Clean query by removing polite prefixes
       const clean = text
-        .replace(/^(?:tolong|coba|bisa|bisakah|mohon|dong|halo)?\s*(?:jelaskan|ceritakan|kasih tahu|beritahu|tampilkan)?\s*/i, '')
+        .replace(/^(?:tolong|coba|bisa|bisakah|mohon|dong|halo|please|can you)?\s*(?:jelaskan|ceritakan|kasih tahu|beritahu|tampilkan|tell me about|explain)?\s*/i, '')
         .replace(/[?!.]+$/, '')
         .trim();
-      if (clean.length >= 3) return clean;
+      if (clean.length >= 2) return clean;
     }
   }
 
