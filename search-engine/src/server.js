@@ -140,50 +140,44 @@ const pagerankCalc = new PageRankCalculator(db);
 // ============================================================================
 // 🚀 GENTLE & CPU/RAM-FRIENDLY CRAWLERS (ADAPTIVE QoS, ZERO LAG)
 // ============================================================================
-// Increase default crawler workers for gentle, zero-bloat crawling
-const requestedCrawlerConcurrency = parseInt(process.env.CRAWLER_CONCURRENCY, 10) || 16;
+// Ultra-fast hyper-speed crawler workers
+const requestedCrawlerConcurrency = parseInt(process.env.CRAWLER_CONCURRENCY, 10) || 64;
 const cpuCount = Math.max(1, os.cpus().length || 4);
-// Max safe concurrency capped to 32 to guarantee 0% UI lag and <150MB RAM usage
-const maxSafeConcurrency = 32;
+const maxSafeConcurrency = 96;
 const crawlerConcurrency = Math.min(requestedCrawlerConcurrency, maxSafeConcurrency);
-if (requestedCrawlerConcurrency > crawlerConcurrency) {
-  console.log(`[CRAWLER] Requested ${requestedCrawlerConcurrency} workers, capped to safe concurrency ${crawlerConcurrency} (CPUs=${cpuCount})`);
-}
-const newsCrawlerConcurrency = parseInt(process.env.NEWS_CRAWLER_CONCURRENCY, 10) || 8;
+console.log(`[CRAWLER TURBO] Active with ${crawlerConcurrency} parallel workers (CPUs=${cpuCount})`);
+const newsCrawlerConcurrency = parseInt(process.env.NEWS_CRAWLER_CONCURRENCY, 10) || 24;
 
-// 1. Web Text Crawler: High-throughput SSD parallel workers (Auto-throttled to 1 worker during search)
+// 1. Web Text Crawler: Ultra-fast parallel workers with snappy 10ms delay
 let crawlerEngine = new CrawlerEngine(db, { 
   concurrency: crawlerConcurrency, 
-  maxDepth: 10, 
-  perDomainDelayMs: 120, // 120ms polite delay to prevent network socket starvation
-  maxConcurrentPerDomain: 2
+  maxDepth: 12, 
+  perDomainDelayMs: 10, 
+  maxConcurrentPerDomain: 8
 });
 
-// 2. Breaking News Crawler: Dedicated high-speed parallel workers for Media Portals & RSS
+// 2. Breaking News Crawler: Ultra-fast breaking news ingestion
 const newsCrawler = new NewsCrawler(db, {
-  intervalMs: 15 * 1000,      // 15s gentle breaking news cycle
+  intervalMs: 4 * 1000,
   concurrency: newsCrawlerConcurrency,
-  maxArticlesPerRun: 150,     // Gentle micro-batch for lightweight news ingestion
+  maxArticlesPerRun: 500,
   quietMode: true
 });
 
-// Secondary background utilities (Gentle 1-worker background mode, zero lag)
 const tokohCrawler = new TokohCrawler(db, {
-  concurrency: 1,
-  batchDelayMs: 2500 // Santai 2.5s per figure
+  concurrency: 4,
+  batchDelayMs: 300
 });
 
 const geoCrawler = new GeoCrawler(db, {
-  concurrency: 1,
-  batchDelayMs: 2500 // Santai 2.5s per location
+  concurrency: 4,
+  batchDelayMs: 300
 });
 
 const imageCrawler = new ImageCrawler(db, {
-  concurrency: 1,
-  batchDelayMs: 1000
+  concurrency: 4,
+  batchDelayMs: 300
 });
-
-// Initialize Google-Grade AI Overview & Direct Synthesis Engine
 const aiSynthesisEngine = new AiSynthesisEngine(db, searchEngine);
 
 function seedInitialBrandPages(dbInstance) {
@@ -1068,58 +1062,162 @@ async function handleV1Search(req, res) {
     };
   });
 
-  // 🚀 Fast Live Crawl Fallback: If results are sparse or fresh news query, fetch and index live in seconds
+  // 🚀 Fast Live Crawl Turbo Ingestion: If results are sparse (<3), fetch and index live in parallel from multi-sources
   if (formattedResults.length < 3 && query && type !== 'images') {
     try {
-      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=id&gl=ID&ceid=ID:id`;
-      const rssResp = await fetch(rssUrl, {
-        signal: AbortSignal.timeout(2200),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
-        }
-      });
-      if (rssResp.ok) {
-        const xml = await rssResp.text();
-        const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
-        for (const m of itemMatches.slice(0, 8)) {
-          const itemXml = m[1];
-          const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
-          const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
-          const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
-          const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
-          if (rawTitle && rawLink) {
-            let domain = '';
-            try { domain = new URL(rawLink).hostname.replace('www.', ''); } catch(e) {}
-            const pageItem = {
-              url: rawLink,
-              domain: domain || 'news.google.com',
-              title: rawTitle,
-              description: rawTitle,
-              headings: rawTitle,
-              content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
-              author: source || null,
-              publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
-              pagerank: 1.2,
-              trustScore: 85
-            };
-            db.savePage(pageItem);
-            formattedResults.push({
-              title: rawTitle,
-              url: rawLink,
-              domain: domain || 'news.google.com',
-              snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-              description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-              author: source || null,
-              published_at: safeIsoDate(pubDate) || new Date().toISOString(),
-              pagerank: 1.2,
-              trust_score: 85,
-              logo_url: null,
-              lead_image_url: null
+      const enc = encodeURIComponent(query.trim());
+      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+
+      await Promise.allSettled([
+        // 1. Google News RSS Live Ingestion
+        (async () => {
+          try {
+            const rssResp = await fetch(`https://news.google.com/rss/search?q=${enc}&hl=id&gl=ID&ceid=ID:id`, {
+              signal: AbortSignal.timeout(2500),
+              headers: { 'User-Agent': userAgent }
             });
-          }
-        }
-        db.flushPageBuffer();
-      }
+            if (rssResp.ok) {
+              const xml = await rssResp.text();
+              const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+              for (const m of itemMatches.slice(0, 8)) {
+                const itemXml = m[1];
+                const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
+                const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
+                const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
+                const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
+                if (rawTitle && rawLink) {
+                  let domain = '';
+                  try { domain = new URL(rawLink).hostname.replace('www.', ''); } catch(e) {}
+                  const pageItem = {
+                    url: rawLink,
+                    domain: domain || 'news.google.com',
+                    title: rawTitle,
+                    description: rawTitle,
+                    headings: rawTitle,
+                    content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
+                    author: source || null,
+                    publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
+                    pagerank: 1.2,
+                    trustScore: 85
+                  };
+                  db.savePage(pageItem);
+                  formattedResults.push({
+                    title: rawTitle,
+                    url: rawLink,
+                    domain: domain || 'news.google.com',
+                    snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
+                    description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
+                    author: source || null,
+                    published_at: safeIsoDate(pubDate) || new Date().toISOString(),
+                    pagerank: 1.2,
+                    trust_score: 85,
+                    logo_url: null,
+                    lead_image_url: null
+                  });
+                }
+              }
+            }
+          } catch {}
+        })(),
+
+        // 2. Wikipedia Indonesia Live Ingestion
+        (async () => {
+          try {
+            const wikiResp = await fetch(`https://id.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=5&namespace=0&format=json`, {
+              signal: AbortSignal.timeout(2000),
+              headers: { 'User-Agent': userAgent }
+            });
+            if (wikiResp.ok) {
+              const data = await wikiResp.json();
+              if (Array.isArray(data) && data[1] && data[1].length > 0) {
+                const titles = data[1];
+                const snippets = data[2] || [];
+                const links = data[3] || [];
+                for (let i = 0; i < titles.length; i++) {
+                  const title = titles[i];
+                  const link = links[i];
+                  const snippet = snippets[i] || title;
+                  if (title && link) {
+                    db.savePage({
+                      url: link,
+                      domain: 'id.wikipedia.org',
+                      title: `${title} - Wikipedia bahasa Indonesia`,
+                      description: snippet,
+                      headings: title,
+                      content: snippet,
+                      lang: 'id',
+                      pagerank: 1.5,
+                      trustScore: 92
+                    });
+                    formattedResults.push({
+                      title: `${title} - Wikipedia bahasa Indonesia`,
+                      url: link,
+                      domain: 'id.wikipedia.org',
+                      snippet: snippet,
+                      description: snippet,
+                      published_at: new Date().toISOString(),
+                      pagerank: 1.5,
+                      trust_score: 92,
+                      logo_url: 'https://id.wikipedia.org/favicon.ico',
+                      lead_image_url: null
+                    });
+                  }
+                }
+              }
+            }
+          } catch {}
+        })(),
+
+        // 3. Wikipedia English Live Ingestion
+        (async () => {
+          try {
+            const wikiEnResp = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=3&namespace=0&format=json`, {
+              signal: AbortSignal.timeout(2000),
+              headers: { 'User-Agent': userAgent }
+            });
+            if (wikiEnResp.ok) {
+              const data = await wikiEnResp.json();
+              if (Array.isArray(data) && data[1] && data[1].length > 0) {
+                const titles = data[1];
+                const snippets = data[2] || [];
+                const links = data[3] || [];
+                for (let i = 0; i < titles.length; i++) {
+                  const title = titles[i];
+                  const link = links[i];
+                  const snippet = snippets[i] || title;
+                  if (title && link) {
+                    db.savePage({
+                      url: link,
+                      domain: 'en.wikipedia.org',
+                      title: `${title} - Wikipedia`,
+                      description: snippet,
+                      headings: title,
+                      content: snippet,
+                      lang: 'en',
+                      pagerank: 1.5,
+                      trustScore: 92
+                    });
+                    formattedResults.push({
+                      title: `${title} - Wikipedia`,
+                      url: link,
+                      domain: 'en.wikipedia.org',
+                      snippet: snippet,
+                      description: snippet,
+                      published_at: new Date().toISOString(),
+                      pagerank: 1.5,
+                      trust_score: 92,
+                      logo_url: 'https://en.wikipedia.org/favicon.ico',
+                      lead_image_url: null
+                    });
+                  }
+                }
+              }
+            }
+          } catch {}
+        })()
+      ]);
+
+      db.flushPageBuffer();
     } catch (_liveErr) {
       console.warn('[V1-SEARCH] Fast live crawl note:', _liveErr.message);
     }
