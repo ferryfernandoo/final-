@@ -11,7 +11,7 @@ import { deepernovaTtsService } from '../services/deepernovaTtsService';
 import { saveImageToGallery, downloadImageDirectly } from '../services/imageStorageService';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, detectUpfrontSearchIntent } from '../services/clientSearchService';
+import { executeWebSearch } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
 import {
@@ -4165,7 +4165,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       .replace(/<[^>]+>/g, ' ')
       .replace(/\[(?:FILE_DOWNLOAD_START|FILEDOWNLOADSTART):[\s\S]*?\]/gi, '')
       .replace(/\[(?:FILE_DOWNLOAD_END|FILEDOWNLOADEND)\]/gi, '')
-      .replace(/\[(?:MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|REMINDER_REQUEST|NAVIGATE_UNIVERSE|SEARCH_REQUEST)[\s\S]*?\]/gi, '')
+      .replace(/\[(?:MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|REMINDER_REQUEST|NAVIGATE_UNIVERSE|EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH)[\s\S]*?\]/gi, '')
       .replace(/```[\s\S]*?```/g, ' ')
       .replace(/`([^`]+)`/g, '$1')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
@@ -4334,7 +4334,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (!isAutoVoiceEnabledRef.current) return;
     if (!streamingSeenIdsRef.current.has(candidate.id)) return; // skip loaded history
     if (autoSpokenIdsRef.current.has(candidate.id)) return;
-    if (!text || /\[SEARCH_REQUEST:/i.test(text)) return;
+    if (!text || /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(text)) return;
 
     // Small debounce so follow-up updates (search/memory/finalization) settle first
     if (autoVoiceTimerRef.current) clearTimeout(autoVoiceTimerRef.current);
@@ -5650,59 +5650,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // 🔍 UPFRONT SEARCH INTENT & WEB SEARCH DIRECTIVE DETECTION
-    // Autonomous AI search instinct (no manual Web Search button) — skipped when files/images are attached
-    const hasAttachmentContext = imagesToPass.length > 0 || filesToDisplay.length > 0 || textQueue.length > 0;
-    const detectedSearchQuery = hasAttachmentContext
-      ? null
-      : detectUpfrontSearchIntent(cleanUserText, userLanguage);
-
-    if (detectedSearchQuery) {
-      console.log('[ChatBot] 🔍 Upfront search intent detected:', detectedSearchQuery);
-      triggeredSearchRequestsRef.current.add(placeholderId);
-      currentStreamingTextRef.current = '';
-
-      // Update placeholder bot message to searching state with empty text
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === placeholderId
-            ? {
-                ...msg,
-                text: '',
-                isStreaming: false,
-                isSearching: true,
-                searchQuery: detectedSearchQuery,
-                searchResults: null,
-                searchSources: [],
-                searchSteps: [{
-                  query: detectedSearchQuery,
-                  isSearching: true,
-                  sources: [],
-                  images: []
-                }]
-              }
-            : msg
-        )
-      );
-
-      setConvLoading(true);
-      setLoading(true);
-      setError(null);
-      setIsScrolledUp(false);
-      holdScrollRef.current = false;
-      isLockedToUserAskRef.current = true;
-      lockedUserMessageIdRef.current = userMessageForChat.id;
-      scrollToUserMessage(false);
-
-      // Execute search, extract sources & media bubbles, then synthesize final answer
-      executeSearchAndSynthesize({
-        messageId: placeholderId,
-        searchQuery: detectedSearchQuery,
-        userPrompt: cleanUserText,
-        baseHistory: updatedConversationHistory
-      });
-      return;
-    }
+    // 🔍 AI SEARCH DECISION VIA EXECUTION FLAG:
+    // Web search is 100% decided by the AI itself by emitting [EXECUTE_SEARCH: ...] or [SEARCH_REQUEST: ...].
+    // No client-side upfront heuristic interception is performed here.
 
     if (imagesToPass.length > 0 && !isReasoningImage) {
       setReasoningImages(imagesToPass);
@@ -5792,8 +5742,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       let smoothStreamTimer = null;
 
       const flushSmoothTick = () => {
-        // Bail immediately if aborted (stop button pressed)
-        if (abortController.signal.aborted) {
+        // Bail immediately if aborted or if AI search flag was triggered
+        if (
+          abortController.signal.aborted ||
+          triggeredSearchRequestsRef.current.has(placeholderId) ||
+          triggeredRecallRequestsRef.current.has(placeholderId)
+        ) {
           if (smoothStreamTimer) {
             clearInterval(smoothStreamTimer);
             smoothStreamTimer = null;
@@ -5880,6 +5834,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         // Handle live reasoning chunk from DeepSeek / Boron
         if (typeof chunk === 'object' && chunk.type === 'reasoning') {
+          targetReasoningText += chunk.content;
+          triggerWebSearchIfNeeded(placeholderId, targetReasoningText);
+          if (triggeredSearchRequestsRef.current.has(placeholderId)) {
+            return;
+          }
           if (!isReasoningCapable || !isReasoningEnabled) {
             // When reasoning mode is OFF or model does not support reasoning (like Gold), do not show reasoning box or stream reasoning text
             return;
@@ -5887,11 +5846,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           if (!reasoningStartTime) {
             reasoningStartTime = Date.now();
             isReasoning = true;
-          }
-          targetReasoningText += chunk.content;
-          triggerWebSearchIfNeeded(placeholderId, targetReasoningText);
-          if (triggeredSearchRequestsRef.current.has(placeholderId)) {
-            return;
           }
           startSmoothStreamer();
           return;
@@ -5915,13 +5869,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           if (triggeredSearchRequestsRef.current.has(placeholderId) || triggeredRecallRequestsRef.current.has(placeholderId)) {
             return;
           }
-          // Hold rendering while a (possibly split) search tag is still arriving, so raw
-          // "[SEARCH_REQUEST: ..." or preamble text is never flashed before the result bubbles.
+          // Hold rendering while a (possibly split) search execution flag is still arriving, so raw
+          // "[SEARCH_REQUEST: ..." or "[EXECUTE_SEARCH: ..." is never flashed before the result bubbles.
           const leadingText = rawText.trimStart();
           const isPartialSearchTag =
-            /^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH)(?:_|_R|_RE|_REQ|_REQU|_REQUE|_REQUES|_REQUEST)?(?::[^\]]*)?$/i.test(leadingText) ||
+            /^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(leadingText) ||
             /^<(?:s|se|sea|sear|searc|search)(?:_request)?(?:>[\s\S]*)?$/i.test(leadingText) && !/<\/search(?:_request)?>/i.test(leadingText) ||
-            /\[(?:SEARCH_REQUEST|SEARCH):[^\]]*$/i.test(rawText);
+            /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*$/i.test(rawText);
           if (isPartialSearchTag) {
             return;
           }
@@ -5931,13 +5885,28 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }, abortController.signal);
       streamUsage = streamResult?.usage || null;
 
-      if (abortController.signal.aborted || isUserStoppedRef.current) {
+      // Ensure any search flag present in rawText or reasoning is triggered before finalizing
+      triggerWebSearchIfNeeded(placeholderId, rawText || targetReasoningText);
+
+      if (
+        abortController.signal.aborted ||
+        isUserStoppedRef.current ||
+        triggeredSearchRequestsRef.current.has(placeholderId) ||
+        triggeredRecallRequestsRef.current.has(placeholderId) ||
+        isSearchAbortedRef.current ||
+        isRecallAbortedRef.current
+      ) {
         if (smoothStreamTimer) {
           clearInterval(smoothStreamTimer);
           smoothStreamTimer = null;
           smoothStreamTimerRef.current = null;
         }
-        if (!isSearchAbortedRef.current && !isRecallAbortedRef.current) {
+        if (
+          !isSearchAbortedRef.current &&
+          !isRecallAbortedRef.current &&
+          !triggeredSearchRequestsRef.current.has(placeholderId) &&
+          !triggeredRecallRequestsRef.current.has(placeholderId)
+        ) {
           setConvLoading(false);
           setLoading(false);
           setLoadingPhase(null);
@@ -6029,10 +5998,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // This must happen FIRST so the search flow can take over
       // and the normal cleanup doesn't interfere.
       // ============================================================
-      const hasSearchFlag = /\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]/i.test(fullText) || /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullText);
+      const combinedForSearchCheck = `${rawText || ''}\n${fullText || ''}`;
+      const hasSearchFlag =
+        /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/i.test(combinedForSearchCheck) ||
+        /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(combinedForSearchCheck);
       if (hasSearchFlag) {
         // Trigger search immediately — this will handle its own cleanup
-        triggerWebSearchIfNeeded(placeholderId, fullText);
+        triggerWebSearchIfNeeded(placeholderId, combinedForSearchCheck);
         // Skip ALL normal completion cleanup — search flow handles it
         return;
       }
@@ -6261,7 +6233,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                         (err.message && /abort|cancel/i.test(err.message));
 
       if (isAborted) {
-        if (isSearchAbortedRef.current || isRecallAbortedRef.current) {
+        if (
+          isSearchAbortedRef.current ||
+          isRecallAbortedRef.current ||
+          triggeredSearchRequestsRef.current.has(placeholderId) ||
+          triggeredRecallRequestsRef.current.has(placeholderId)
+        ) {
           // DON'T reset the flag here — the search/recall flow will handle it
           return;
         }
@@ -6366,12 +6343,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         clearTimeout(timeoutInternetCheckRef.current);
         timeoutInternetCheckRef.current = null;
       }
-      isProcessingRef.current = false;
-      setIsSendGenerating(false);
-      isSendGeneratingRef.current = false;
-      setLoading(false);
-      setConvLoading(false);
-      console.log('[ChatBot] 🔓 Finished message processing & fully restored send button');
+      if (
+        !isSearchAbortedRef.current &&
+        !isRecallAbortedRef.current &&
+        !triggeredSearchRequestsRef.current.has(placeholderId) &&
+        !triggeredRecallRequestsRef.current.has(placeholderId)
+      ) {
+        isProcessingRef.current = false;
+        setIsSendGenerating(false);
+        isSendGeneratingRef.current = false;
+        setLoading(false);
+        setConvLoading(false);
+        console.log('[ChatBot] 🔓 Finished message processing & fully restored send button');
+      }
     }
   };
 
@@ -6848,7 +6832,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    - Jawab HANYA berdasarkan "Pertanyaan Pengguna" di atas dan data hasil pencarian web terkait.
    - Jika pertanyaan pengguna di atas adalah topik baru yang berbeda dari percakapan sebelumnya, DILARANG KERAS memaksakan mengaitkan, menghubungkan, atau mengungkit topik lama yang tidak relevan!
 
-7. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] lagi.\n\n[PERINGATAN SANGAT PENTING: Jawab HANYA tentang "${userQuery}" dan data web di atas! DILARANG KERAS menjawab atau menyinggung topik obrolan sebelumnya!]`;
+7. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] atau [EXECUTE_SEARCH] lagi.\n\n[PERINGATAN SANGAT PENTING: Jawab HANYA tentang "${userQuery}" dan data web di atas! DILARANG KERAS menjawab atau menyinggung topik obrolan sebelumnya!]`;
       
       console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
       
@@ -6865,7 +6849,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         .filter(msg => msg && msg.id !== messageId)
         .filter(msg => {
           const txt = (msg.text || msg.content || '').trim();
-          return !txt.startsWith('[SEARCH_REQUEST:') && !msg.isSearching;
+          return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt) && !msg.isSearching;
         })
         .slice(-2); // Limit to max 2 recent turns to prevent cross-topic pollution
 
@@ -7137,7 +7121,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           .filter(msg => msg && msg.id !== messageId)
           .filter(msg => {
             const txt = (msg.text || msg.content || '').trim();
-            return !txt.startsWith('[SEARCH_REQUEST:');
+            return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt);
           });
 
         const newAbortController = new AbortController();
@@ -7357,7 +7341,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const triggerWebSearchIfNeeded = (messageId, text) => {
     if (!text) return;
     let searchQuery = null;
-    const searchRequestMatch = text.match(/\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]/i) || text.match(/<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i);
+    const searchRequestMatch =
+      text.match(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/i) ||
+      text.match(/<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i);
     if (searchRequestMatch && searchRequestMatch[1]) {
       searchQuery = searchRequestMatch[1].trim();
     } else {
@@ -7369,6 +7355,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return; // Already triggered!
       }
       triggeredSearchRequestsRef.current.add(messageId);
+      isSearchAbortedRef.current = true;
       
       const currentTurnText = (lastSentUserInputTextRef.current || '').trim();
       const historyPool = (currentConversationHistoryRef.current && currentConversationHistoryRef.current.length > 0)
@@ -7385,11 +7372,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
       // 2) Stop current stream if still active
       if (abortControllerRef.current) {
-        isSearchAbortedRef.current = true;
         abortControllerRef.current.abort();
       }
       
-      // 3) Stop typing animation and status updates immediately
+      // 3) Stop typing animation, smooth streamer, and status updates immediately
+      if (smoothStreamTimerRef.current) {
+        clearInterval(smoothStreamTimerRef.current);
+        smoothStreamTimerRef.current = null;
+      }
       if (typingTimerRef.current) {
         clearInterval(typingTimerRef.current);
         typingTimerRef.current = null;
@@ -7798,7 +7788,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
             const cleanedFinalText = finalResponseText
               .replace(/\[RECALL_MEMORY:\s*(.+?)\]/g, '')
-              .replace(/\[SEARCH_REQUEST:\s*(.+?)\]/g, '')
+              .replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/gi, '')
               .replace(/\[REMINDER_REQUEST:\s*\{[\s\S]*?\}\]/g, '')
               .trim();
 
@@ -7941,6 +7931,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             accumulatedRetryText += textChunk;
             currentStreamingTextRef.current = initialText + accumulatedRetryText;
             triggerInlineImageIfNeeded(msgId, initialText + accumulatedRetryText);
+            triggerWebSearchIfNeeded(msgId, initialText + accumulatedRetryText);
+            if (triggeredSearchRequestsRef.current.has(msgId)) return;
             startTypingAnimation();
           }
         }, abortController.signal);
@@ -8012,6 +8004,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             accumulatedFullRetryText += textChunk;
             currentStreamingTextRef.current = accumulatedFullRetryText;
             triggerInlineImageIfNeeded(placeholderId, accumulatedFullRetryText);
+            triggerWebSearchIfNeeded(placeholderId, accumulatedFullRetryText);
+            if (triggeredSearchRequestsRef.current.has(placeholderId)) return;
             startTypingAnimation();
           }
         }, abortController.signal);
@@ -8126,6 +8120,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           accumulatedAutoRetryText += textChunk;
           currentStreamingTextRef.current = initialText + accumulatedAutoRetryText;
           triggerInlineImageIfNeeded(msgId, initialText + accumulatedAutoRetryText);
+          triggerWebSearchIfNeeded(msgId, initialText + accumulatedAutoRetryText);
+          if (triggeredSearchRequestsRef.current.has(msgId)) return;
           startTypingAnimation();
         }
       }, abortController.signal);

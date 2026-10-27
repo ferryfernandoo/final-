@@ -456,7 +456,8 @@ export const cleanResponseText = (text) => {
   if (!text || typeof text !== 'string') return text || '';
 
   let cleaned = text;
-  cleaned = cleaned.replace(/\[SEARCH_REQUEST:[\s\S]*?\]/g, '');
+  cleaned = cleaned.replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[\s\S]*?\]/gi, '');
+  cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>/gi, '');
   cleaned = cleaned.replace(/\[RECALL_MEMORY:[\s\S]*?\]/g, '');
   cleaned = cleaned.replace(/\[(MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|MEMORY_RECALL):[\s\S]*?\]/gi, '');
   cleaned = cleaned.replace(/<\/?reasoning>/gi, '');
@@ -571,8 +572,8 @@ export const sanitizeStreamingText = (text) => {
   if (!text || typeof text !== 'string') return text;
 
   let cleaned = text;
-  cleaned = cleaned.replace(/\[(?:SEARCH_REQUEST|SEARCH):[\s\S]*?\]/gi, '');
-  cleaned = cleaned.replace(/\[(?:SEARCH_REQUEST|SEARCH):[\s\S]*$/gi, '');
+  cleaned = cleaned.replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[\s\S]*?\]/gi, '');
+  cleaned = cleaned.replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[\s\S]*$/gi, '');
   cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>/gi, '');
   cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*$/gi, '');
   cleaned = cleaned.replace(/\[RECALL_MEMORY:[\s\S]*?\]/g, '');

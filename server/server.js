@@ -3386,7 +3386,7 @@ app.post('/api/chat', async (req, res) => {
               'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
               '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi. ' +
               '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-              'KEMAMPUAN SEARCH ENGINE & LIVE WEB CRAWLER: Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. JIKA pengguna meminta pencarian ("cari", "search", "googling", "cek"), atau menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto terkini, fakta mutakhir, skor/jadwal, atau riset data web: KAMU WAJIB MEMANCARKAN PERINTAH SEARCH DI BARIS PERTAMA RESPONMU DENGAN FORMAT: [SEARCH_REQUEST: kata kunci pilihanmu]. DILARANG MENJAWAB DULUAN SEBELUM MEMANCARKAN SEARCH REQUEST. Jika pertanyaan murni berupa sapaan, konsep umum, matematika, atau coding mandiri: jawab langsung secara alami tanpa search. ' +
+              'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian ("cari", "search", "googling", "cek", "info"), atau menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto/kurs terkini, cuaca, fakta spesifik dunia nyata, skor/jadwal, atau riset data web: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] (atau [EXECUTE_SEARCH: kata kunci pilihanmu]) DAN LANGSUNG BERHENTI. Dilarang menulis jawaban spekulatif sebelum menerima hasil pencarian! Jika pertanyaan murni berupa sapaan, konsep umum, matematika, atau coding mandiri: jawab langsung secara alami tanpa flag search. ' +
               'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
           }
           
@@ -3647,9 +3647,11 @@ app.post('/api/chat', async (req, res) => {
           let clientDisconnected = false;
           req.on('close', () => { clientDisconnected = true; });
           let fullResponseText = '';
+          let searchFlagTriggeredOnServer = false;
 
           // Read stream chunks from active stream body
           activeStreamBody.on('data', (chunk) => {
+            if (searchFlagTriggeredOnServer) return;
             let chunkStr = chunk.toString();
 
             // Rebrand any upstream AI identity dynamically so user always receives DeeperNova AI
@@ -3685,6 +3687,24 @@ app.post('/api/chat', async (req, res) => {
                 } catch (_e) {}
               }
             }
+
+            // If AI decided to execute a search flag, halt upstream generation immediately after forwarding the flag
+            if (
+              !isSearchConclusion &&
+              (/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*([^\]]+)\]/i.test(fullResponseText) ||
+                /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullResponseText))
+            ) {
+              searchFlagTriggeredOnServer = true;
+              console.log('[CHAT] 🔍 AI emitted search execution flag; halting initial stream so client can execute search.');
+              try {
+                if (!clientDisconnected && !res.writableEnded) {
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                }
+                if (upstreamAbortController) upstreamAbortController.abort();
+                if (reqRecord.responseStream?.body?.destroy) reqRecord.responseStream.body.destroy();
+              } catch (_haltErr) {}
+            }
           });
 
           activeStreamBody.on('end', () => {
@@ -3695,8 +3715,8 @@ app.post('/api/chat', async (req, res) => {
               } catch (_endErr) {}
             }
 
-            // PERSIST TO DATABASE: Save complete AI response once finished!
-            if (fullResponseText && sessionId && req.isAuthenticated()) {
+            // PERSIST TO DATABASE: Save complete AI response once finished (skip intermediate search flag turns)
+            if (fullResponseText && !searchFlagTriggeredOnServer && sessionId && req.isAuthenticated()) {
               try {
                 const assistantMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
                 messageDb.create(assistantMsgId, sessionId, req.user.id, 'assistant', fullResponseText, personality);
