@@ -66,7 +66,7 @@ import { RealChartFetcher } from './indexer/realChartFetcher.js';
 import { AiSynthesisEngine } from './indexer/aiSynthesisEngine.js';
 import { SEED_CATEGORIES, getAllGlobalSeeds, getTotalSeedCount } from './crawler/seeds.js';
 import { priorityGovernor } from './indexer/governor.js';
-import { installNodeSecurityShield, nodeSecurityMiddleware } from './utils/nodeSecurityShield.js';
+import { installNodeSecurityShield, nodeSecurityMiddleware, validateSafeUrl } from './utils/nodeSecurityShield.js';
 installNodeSecurityShield();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -922,7 +922,7 @@ function apiKeyAuthMiddleware(req, res, next) {
 }
 
 // 1. API Key Generation & Listing Endpoints
-app.post('/api/keys/generate', (req, res) => {
+app.post('/api/keys/generate', requireAdminOrLocal, (req, res) => {
   const { name } = req.body || {};
   const result = db.createApiKey(name || 'Developer API Key');
   if (result.success) {
@@ -936,7 +936,7 @@ app.post('/api/keys/generate', (req, res) => {
   }
 });
 
-app.get('/api/keys', (req, res) => {
+app.get('/api/keys', requireAdminOrLocal, (req, res) => {
   const keys = db.listApiKeys(50);
   res.json({
     status: 'success',
@@ -1883,7 +1883,11 @@ app.get('/api/proxy-image', async (req, res) => {
           return null;
         }
 
-        const buffer = Buffer.from(await response.arrayBuffer());
+        const clen = parseInt(response.headers.get('content-length') || '0', 10);
+        if (clen > 5 * 1024 * 1024) { failedImageUrls.set(imageUrl, Date.now()); return null; }
+        const arrayBuf = await response.arrayBuffer();
+        if (arrayBuf.byteLength > 5 * 1024 * 1024) { failedImageUrls.set(imageUrl, Date.now()); return null; }
+        const buffer = Buffer.from(arrayBuf);
         setCachedProxyImage(imageUrl, buffer, rawContentType);
         return { buffer, contentType: rawContentType };
       } catch (err) {
@@ -1987,7 +1991,7 @@ app.get('/api/news/images', (req, res) => {
 });
 
 // Manual News Crawl Trigger
-app.post('/api/news/crawl', async (req, res) => {
+app.post('/api/news/crawl', requireAdminOrLocal, async (req, res) => {
   try {
     newsCrawler.triggerManualCrawl();
     res.json({ success: true, message: 'News crawl triggered', stats: newsCrawler.getStats() });
@@ -2012,7 +2016,7 @@ app.get('/api/tokoh/recent', (req, res) => {
   res.json({ total: items.length, results: items });
 });
 
-app.post('/api/tokoh/crawl', async (req, res) => {
+app.post('/api/tokoh/crawl', requireAdminOrLocal, async (req, res) => {
   tokohCrawler.triggerManualCrawl();
   res.json({ success: true, message: 'Tokoh crawl triggered', stats: tokohCrawler.getStats() });
 });
@@ -2028,7 +2032,7 @@ app.get('/api/geo/recent', (req, res) => {
   res.json({ total: items.length, results: items });
 });
 
-app.post('/api/geo/crawl', async (req, res) => {
+app.post('/api/geo/crawl', requireAdminOrLocal, async (req, res) => {
   geoCrawler.harvestCategories(true);
   res.json({ success: true, message: 'Geo crawl triggered', stats: geoCrawler.getStats() });
 });
@@ -2044,7 +2048,7 @@ app.get('/api/images/recent', (req, res) => {
   res.json({ total: items.length, results: items });
 });
 
-app.post('/api/images/crawl', async (req, res) => {
+app.post('/api/images/crawl', requireAdminOrLocal, async (req, res) => {
   imageCrawler.harvestChannels(true);
   res.json({ success: true, message: 'Image crawl triggered', stats: imageCrawler.getStats() });
 });

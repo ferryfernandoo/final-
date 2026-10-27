@@ -246,18 +246,9 @@ process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT_EXCEPTION]', err);
 });
 
-// High-Speed AI Engine Keys with Multi-Key Rotation
+// High-Speed AI Engine Keys with Multi-Key Rotation (loaded strictly from .env)
 const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-const TOKENMIX_API_KEYS = Array.from(new Set([
-  ...RAW_ENV_KEYS,
-  'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
-  'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
-  'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
-  'sk-tm-XdNatQm0mzIzifTrrKCfmeQMZ3CpFxL212QAp8wQYIelbrNX',
-  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
-  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
-  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
-].filter(Boolean)));
+const TOKENMIX_API_KEYS = Array.from(new Set(RAW_ENV_KEYS));
 let activeChatKeyIndex = 0;
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 
