@@ -662,20 +662,26 @@ export class SearchEngine {
     }
 
     // 🛑 CORE SUBJECT MANDATORY GUARD:
-    // If user searched for a specific subject ("claude", "jokowi", "bbca") alongside conversational words ("itu apa"),
-    // this page MUST match at least one core term! A page matching only stop words receives score 0.
-    const BROAD_NEWS_WORDS = new Set(['berita', 'terbaru', 'terkini', 'hari', 'ini', 'indonesia', 'nasional', 'dunia', 'internasional', 'update', 'info', 'kabar', 'news', 'latest', 'today', 'breaking', 'viral', 'trending', 'utama', 'populer', 'terpopuler', 'sekarang']);
+    // If user searched for a specific subject ("claude", "jokowi", "bbca", "nodejs bug"),
+    // this page MUST match the primary/specific subject terms, not just a single incidental word like "security" or "kemarin"!
+    const BROAD_NEWS_WORDS = new Set(['berita', 'terbaru', 'terkini', 'hari', 'ini', 'indonesia', 'nasional', 'dunia', 'internasional', 'update', 'info', 'kabar', 'news', 'latest', 'today', 'breaking', 'viral', 'trending', 'utama', 'populer', 'terpopuler', 'sekarang', 'kemarin', 'cari', 'ditemukan', 'katanya', 'ada']);
     const isBroadNewsIntent = effectiveCoreTerms.length > 0 && effectiveCoreTerms.every(t => BROAD_NEWS_WORDS.has(t));
+    const specificSubjectTerms = effectiveCoreTerms.filter(t => !BROAD_NEWS_WORDS.has(t));
 
-    if (effectiveCoreTerms.length > 0 && !isBroadNewsIntent) {
-      let matchedCoreCount = 0;
-      for (const ct of effectiveCoreTerms) {
-        if (title.includes(ct) || domain.includes(ct) || headings.includes(ct) || description.includes(ct) || content.includes(ct)) {
-          matchedCoreCount++;
-        }
+    if (specificSubjectTerms.length > 0 && !isBroadNewsIntent) {
+      let matchedSubjectCount = 0;
+      let matchedInTitleOrHeading = 0;
+      for (const ct of specificSubjectTerms) {
+        const inTitleOrHead = title.includes(ct) || domain.includes(ct) || headings.includes(ct);
+        const inBody = inTitleOrHead || description.includes(ct) || content.includes(ct);
+        if (inTitleOrHead) matchedInTitleOrHeading++;
+        if (inBody) matchedSubjectCount++;
       }
-      if (matchedCoreCount === 0) {
-        return 0; // Pure noise page that only matched stopwords
+      const minRequired = specificSubjectTerms.length === 1
+        ? 1
+        : Math.max(2, Math.ceil(specificSubjectTerms.length * 0.5));
+      if (matchedSubjectCount < minRequired && matchedInTitleOrHeading < Math.min(2, specificSubjectTerms.length)) {
+        return 0; // Reject tangential pages that only matched 1 incidental word (e.g. "security" without "nodejs")
       }
     }
 

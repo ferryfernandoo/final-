@@ -291,7 +291,7 @@ class WebSearchService {
 
     // Step 1: Try Local DeeperNova Engine (Port 4000) first — responds in < 5ms - 35ms!
     // Simultaneously prepare Live News & Knowledge promises so there is zero sequential waiting if needed!
-    const isRealtimeNewsIntent = /\b(berita|terbaru|terkini|hari ini|sekarang|breaking|viral|trending|harga|kurs|skor|jadwal|gempa|cuaca|2025|2026)\b/i.test(cleanQ);
+    const isRealtimeNewsIntent = /\b(berita|terbaru|terkini|hari ini|kemarin|sekarang|breaking|viral|trending|harga|kurs|skor|jadwal|gempa|cuaca|bug|cve|vulnerability|celah|keamanan|security|exploit|patch|rilis|2025|2026)\b/i.test(cleanQ);
 
     const localPromise = this._fetchLocalDeeperNova(cleanQ, maxResults);
     const liveNewsPromise = this._fetchLiveNewsRss(cleanQ, maxResults);
@@ -300,11 +300,21 @@ class WebSearchService {
     // Wait up to 350ms for local Port 4000 first
     const localResults = await localPromise;
 
-    // Fast path: if local Port 4000 returned plenty of results and query is not explicitly asking for live breaking news
-    if (localResults.length >= Math.min(5, maxResults) && !isRealtimeNewsIntent) {
+    // Check if local results strongly match the query's specific terms in their titles
+    const stopSet = new Set(['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'untuk', 'dengan', 'pada', 'adalah', 'apa', 'siapa', 'berita', 'terbaru', 'terkini', 'hari', 'kemarin', 'cari', 'katanya', 'ditemukan', 'the', 'and', 'in', 'of', 'to', 'for']);
+    const specificTerms = cleanQ.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 2 && !stopSet.has(w));
+    const strongLocalMatches = localResults.filter(r => {
+      if (specificTerms.length === 0) return true;
+      const t = `${r.title || ''} ${r.snippet || ''}`.toLowerCase();
+      const matched = specificTerms.filter(w => t.includes(w)).length;
+      return matched >= Math.max(1, Math.ceil(specificTerms.length * 0.6));
+    });
+
+    // Fast path: only return purely local if we have strong title/snippet matches AND not a live news/CVE query
+    if (strongLocalMatches.length >= Math.min(5, maxResults) && !isRealtimeNewsIntent) {
       const responseObj = {
         success: true,
-        results: localResults.slice(0, maxResults),
+        results: strongLocalMatches.slice(0, maxResults),
         query: cleanQ,
         engine: 'deepernova_ultra_fast_local',
         duration_ms: Date.now() - startTime
@@ -313,7 +323,7 @@ class WebSearchService {
       return responseObj;
     }
 
-    // Parallel Merge Path: Combine Local Index + Live News RSS + Live Knowledge (< 400ms - 900ms total)
+    // Parallel Merge Path: Combine Live News RSS + Strong Local Index + Live Knowledge (< 400ms - 800ms total)
     const [liveNews, liveKnowledge] = await Promise.all([
       liveNewsPromise,
       liveKnowledgePromise
@@ -323,10 +333,10 @@ class WebSearchService {
     const seenUrls = new Set();
     const seenTitles = new Set();
 
-    // If realtime news intent, prioritize live news RSS + fresh local news first
-    const orderedPools = isRealtimeNewsIntent
-      ? [liveNews, localResults, liveKnowledge]
-      : [localResults, liveNews, liveKnowledge];
+    // If realtime news intent or weak local match, prioritize live news RSS first!
+    const orderedPools = (isRealtimeNewsIntent || strongLocalMatches.length < 3)
+      ? [liveNews, strongLocalMatches, liveKnowledge, localResults]
+      : [strongLocalMatches, liveNews, liveKnowledge, localResults];
 
     for (const pool of orderedPools) {
       for (const item of pool) {

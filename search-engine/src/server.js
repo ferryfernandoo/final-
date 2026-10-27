@@ -66,6 +66,8 @@ import { RealChartFetcher } from './indexer/realChartFetcher.js';
 import { AiSynthesisEngine } from './indexer/aiSynthesisEngine.js';
 import { SEED_CATEGORIES, getAllGlobalSeeds, getTotalSeedCount } from './crawler/seeds.js';
 import { priorityGovernor } from './indexer/governor.js';
+import { installNodeSecurityShield, nodeSecurityMiddleware } from './utils/nodeSecurityShield.js';
+installNodeSecurityShield();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,6 +128,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(nodeSecurityMiddleware);
 app.use(compression({ threshold: 1024, level: 6 }));
 app.use(express.json({ limit: '10mb' }));
 // 🚀 PURE API & CRAWLER MODE: Frontend UI dialihkan sepenuhnya ke Vercel CDN

@@ -26,6 +26,11 @@ export class HTTPFetcher {
 
     try {
       const fetchPromise = (async () => {
+        // CVE-2026-105482 / CVE-2026-105483: block NUL bytes & fullwidth IP spoofing in crawled URLs
+        if (!urlStr || /[\x00-\x1f\x7f\uff10-\uff19]|%00/i.test(urlStr)) {
+          throw new Error('Blocked unsafe URL characters (CVE-2026-105482/105483)');
+        }
+
         const response = await fetch(urlStr, {
           signal: AbortSignal.timeout(this.timeoutMs),
           redirect: 'follow',
@@ -33,7 +38,8 @@ export class HTTPFetcher {
             'User-Agent': this.userAgent,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,text/xml,application/rss+xml,application/atom+xml,text/plain,*/*;q=0.8',
             'Accept-Language': 'id,id-ID;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
+            // CVE-2026-111497 ("Node2Shell"): Never advertise 'br' (Brotli) to untrusted web servers
+            'Accept-Encoding': 'gzip, deflate',
             'Sec-Ch-Ua': '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
             'Sec-Ch-Ua-Mobile': '?0',
             'Sec-Ch-Ua-Platform': '"Windows"',

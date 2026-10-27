@@ -37,6 +37,10 @@ import DocumentGeneratorService from './documentGeneratorService.js';
 import sharp from 'sharp';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
+import { installNodeSecurityShield, nodeSecurityMiddleware, validateSafeUrl } from './nodeSecurityShield.js';
+
+// Activate process-wide Node.js security shield (CVE-2026-111497 Node2Shell, CVE-2026-105482 DNS NUL, CVE-2026-105483/106069)
+installNodeSecurityShield();
 
 /**
  * Helper: Apply faststart optimization to MP4/video files (-movflags +faststart)
@@ -177,7 +181,9 @@ const getSafeSubprocessEnv = (extra = {}) => {
  */
 const isSafeExternalUrl = (urlStr) => {
   try {
-    const parsed = new URL(urlStr);
+    // Enforce CVE-2026-105482 (DNS NUL byte) & CVE-2026-105483 / CVE-2026-106069 (Fullwidth/Non-ASCII IP) checks first
+    const validatedUrlStr = validateSafeUrl(urlStr);
+    const parsed = new URL(validatedUrlStr);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
     const host = (parsed.hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
     if (!host) return false;
@@ -191,12 +197,21 @@ const isSafeExternalUrl = (urlStr) => {
       host === '0.0.0.0' ||
       host.startsWith('fe80:') ||
       host.startsWith('fc00:') ||
-      host.startsWith('fd00:')
+      host.startsWith('fd00:') ||
+      host.startsWith('::ffff:127.') ||
+      host.startsWith('::ffff:10.') ||
+      host.startsWith('::ffff:192.168.') ||
+      /^\d+$/.test(host) || // Block integer IP representation (CVE-2026-106069)
+      /^0x[0-9a-f]+$/i.test(host) // Block hex IP representation
     ) {
       return false;
     }
     const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (ipv4Match) {
+      // Block octal IP octets (leading zero like 0177.0.0.1)
+      if (ipv4Match.slice(1).some(oct => oct.length > 1 && oct.startsWith('0'))) {
+        return false;
+      }
       const [, a, b] = ipv4Match.map(Number);
       if (
         a === 0 ||
@@ -252,6 +267,9 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
+
+// 🛡️ NODE2SHELL (CVE-2026-111497) & OCT-2026 CVE SHIELD MIDDLEWARE
+app.use(nodeSecurityMiddleware);
 
 // 🛡️ ADVANCED SECURITY HEADERS (HELMET, COOP, ANTI-CLICKJACKING, ANTI-SNIFF)
 app.use(helmet({
