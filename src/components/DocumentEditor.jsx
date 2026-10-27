@@ -3155,7 +3155,12 @@ Tulis isi Bab "${currentSection}" secara lengkap dan mengagumkan sekarang:`;
         setEditorType('docx');
         const decoder = new TextDecoder('utf-8');
         const textContent = decoder.decode(arrayBuffer);
-        const codeHtml = `<pre style="white-space:pre-wrap; font-family:monospace; padding:16px; background:#f8fafc; border-radius:8px;">${textContent}</pre>`;
+        const escapedText = textContent
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+        const codeHtml = `<pre style="white-space:pre-wrap; font-family:monospace; padding:16px; background:#f8fafc; border-radius:8px;">${escapedText}</pre>`;
         setContent([{ id: Date.now(), type: 'html', text: codeHtml }]);
         docxTextRef.current = codeHtml;
         setTimeout(() => {
@@ -3171,8 +3176,13 @@ Tulis isi Bab "${currentSection}" secara lengkap dan mengagumkan sekarang:`;
     } catch (err) {
       console.error('[CloudStorage] Failed to parse binary file:', err);
       setAiError(`Gagal membaca berkas ${name}: ${err.message}`);
+      const safeName = String(name || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
       const fallbackHtml = `<div style="padding:24px; text-align:center; color:#64748b;">
-        <h3>⚠️ Berkas ${name}</h3>
+        <h3>⚠️ Berkas ${safeName}</h3>
         <p>Tidak dapat memuat pratinjau biner secara langsung. Anda dapat mengedit berkas ini secara manual di Typernova.</p>
       </div>`;
       setContent([{ id: Date.now(), type: 'html', text: fallbackHtml }]);

@@ -161,16 +161,10 @@ const escapeHtml = (text) => {
  * Strategi: highlight dulu pada konten asli, lalu escape HTML
  */
 export const highlightCode = (code, language = 'javascript') => {
-  // First clean markdown artifacts
-  let cleanCode = code
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
-    .replace(/~~(.+?)~~/g, '$1');
-  
+  if (typeof code !== 'string') return '';
+
   // Strip any existing highlight markup from prior render passes so we don't leak tags into raw code
-  cleanCode = cleanCode
+  let cleanCode = code
     .replace(/<span\s+class="hl-[^"]*">/gi, '')
     .replace(/<\/span>/gi, '');
 
@@ -188,21 +182,19 @@ export const highlightCode = (code, language = 'javascript') => {
     }
   }
   
-  // Now escape HTML in the highlighted result
-  // But preserve the <span> tags we just added
-  // Strategy: temporarily replace <span> with a placeholder, escape, then restore
-  const SPAN_OPEN_PLACEHOLDER = '%%SPAN_OPEN%%';
+  // Escape HTML in the highlighted result while preserving the complete <span class="hl-..."> tags
+  const SPAN_OPEN_REGEX = /<span class="hl-([a-zA-Z0-9_-]+)">/g;
   const SPAN_CLOSE_PLACEHOLDER = '%%SPAN_CLOSE%%';
   
   let processed = highlighted
-    .replace(/<span class="hl-/g, SPAN_OPEN_PLACEHOLDER)
+    .replace(SPAN_OPEN_REGEX, '%%SPAN_OPEN_$1%%')
     .replace(/<\/span>/g, SPAN_CLOSE_PLACEHOLDER);
   
   let escaped = escapeHtml(processed);
   
-  // Restore the <span> tags
+  // Restore the <span> tags cleanly without double-escaping quotes or brackets
   escaped = escaped
-    .replace(new RegExp(escapeRegExp(SPAN_OPEN_PLACEHOLDER), 'g'), '<span class="hl-')
+    .replace(/%%SPAN_OPEN_([a-zA-Z0-9_-]+)%%/g, '<span class="hl-$1">')
     .replace(new RegExp(escapeRegExp(SPAN_CLOSE_PLACEHOLDER), 'g'), '</span>');
   
   return escaped;

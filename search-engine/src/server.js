@@ -804,6 +804,65 @@ app.get('/api/governor', (req, res) => {
 // 🔑 DEVELOPER & AI AGENT SEARCH API (v1)
 // ============================================================================
 
+// Per-key / per-IP sliding window rate limiter for /api/v1/*
+const apiKeyRateBuckets = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, bucket] of apiKeyRateBuckets.entries()) {
+    if (now > bucket.resetAt) apiKeyRateBuckets.delete(k);
+  }
+}, 60000).unref();
+
+// Admin / Loopback protection middleware for destructive or state-mutating endpoints
+function requireAdminOrLocal(req, res, next) {
+  const adminToken = process.env.SEARCH_ADMIN_TOKEN;
+  const providedToken = req.headers['x-admin-token'] || req.query.admin_token;
+  if (adminToken && providedToken === adminToken) {
+    return next();
+  }
+  const ip = String(req.ip || req.socket?.remoteAddress || '');
+  const isLoopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  if (isLoopback && !req.headers['cf-connecting-ip'] && !req.headers['x-forwarded-for']) {
+    return next();
+  }
+  return res.status(403).json({
+    status: 'error',
+    code: 'FORBIDDEN_ADMIN_ONLY',
+    message: 'Endpoint administratif ini hanya dapat diakses dari localhost atau menggunakan X-Admin-Token yang valid.'
+  });
+}
+
+function safeIsoDate(val) {
+  if (!val) return null;
+  const d = new Date(val);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function isSafeProxyImageUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (
+      host === 'localhost' ||
+      host === '0.0.0.0' ||
+      host === '::1' ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // API Key Authentication Middleware for /api/v1/*
 function apiKeyAuthMiddleware(req, res, next) {
   let key = null;
@@ -822,28 +881,46 @@ function apiKeyAuthMiddleware(req, res, next) {
     key = String(req.body.apiKey).trim();
   }
 
-  // If no key provided, allow demo mode
-  if (!key) {
-    req.apiKeyInfo = { name: 'Anonymous Free User', apiKey: 'dn_live_free_public_demo', isDemo: true };
-    return next();
+  let keyInfo = null;
+  if (!key || key === 'dn_live_free_public_demo') {
+    keyInfo = {
+      name: key ? 'Public Free Demo Key' : 'Anonymous Free User',
+      apiKey: 'dn_live_free_public_demo',
+      isDemo: true,
+      rateLimitPerMin: 120
+    };
+  } else {
+    const validation = db.validateApiKey(key);
+    if (!validation.valid) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'UNAUTHORIZED',
+        message: `Invalid API Key: ${validation.reason}. Dapatkan API key gratis di dashboard DeeperNova atau gunakan key demo: 'dn_live_free_public_demo'.`
+      });
+    }
+    keyInfo = validation.keyInfo;
   }
 
-  // Allow default public demo key
-  if (key === 'dn_live_free_public_demo') {
-    req.apiKeyInfo = { name: 'Public Free Demo Key', apiKey: key, isDemo: true };
-    return next();
+  // Enforce per-minute rate limit per key + client IP
+  const clientIp = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'unknown').split(',')[0].trim();
+  const bucketKey = `${keyInfo.apiKey || key}:${clientIp}`;
+  const limitPerMin = Number(keyInfo.rate_limit_per_min || keyInfo.rateLimitPerMin) || 120;
+  const now = Date.now();
+  let bucket = apiKeyRateBuckets.get(bucketKey);
+  if (!bucket || now > bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + 60000 };
+    apiKeyRateBuckets.set(bucketKey, bucket);
   }
-
-  const validation = db.validateApiKey(key);
-  if (!validation.valid) {
-    return res.status(401).json({
+  bucket.count++;
+  if (bucket.count > limitPerMin) {
+    return res.status(429).json({
       status: 'error',
-      code: 'UNAUTHORIZED',
-      message: `Invalid API Key: ${validation.reason}. Dapatkan API key gratis di dashboard DeeperNova atau gunakan key demo: 'dn_live_free_public_demo'.`
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: `Batas rate limit (${limitPerMin} req/menit) terlampaui. Silakan coba lagi beberapa saat.`
     });
   }
 
-  req.apiKeyInfo = validation.keyInfo;
+  req.apiKeyInfo = keyInfo;
   next();
 }
 
@@ -869,8 +946,7 @@ app.get('/api/keys', (req, res) => {
     keys: keys.map(k => ({
       id: k.id,
       name: k.name,
-      apiKey: k.api_key,
-      maskedKey: k.api_key.slice(0, 12) + '...' + k.api_key.slice(-4),
+      maskedKey: k.api_key ? (k.api_key.slice(0, 12) + '...' + k.api_key.slice(-4)) : '***',
       requestsCount: k.requests_count,
       rateLimitPerMin: k.rate_limit_per_min,
       isActive: Boolean(k.is_active),
@@ -979,7 +1055,7 @@ async function handleV1Search(req, res) {
       snippet: snippet,
       description: snippet,
       author: r.author || null,
-      published_at: pubDate ? new Date(pubDate).toISOString() : null,
+      published_at: safeIsoDate(pubDate),
       date: formattedDate,
       formatted_date: formattedDate,
       formattedDate: formattedDate,
@@ -1022,7 +1098,7 @@ async function handleV1Search(req, res) {
               headings: rawTitle,
               content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
               author: source || null,
-              publishedAt: pubDate ? new Date(pubDate).getTime() : Date.now(),
+              publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
               pagerank: 1.2,
               trustScore: 85
             };
@@ -1034,7 +1110,7 @@ async function handleV1Search(req, res) {
               snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
               description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
               author: source || null,
-              published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+              published_at: safeIsoDate(pubDate) || new Date().toISOString(),
               pagerank: 1.2,
               trust_score: 85,
               logo_url: null,
@@ -1106,7 +1182,7 @@ app.get('/api/v1/news', searchPriorityMiddleware, apiKeyAuthMiddleware, (req, re
       snippet: snippet,
       description: snippet,
       author: r.author || null,
-      published_at: pubDate ? new Date(pubDate).toISOString() : null,
+      published_at: safeIsoDate(pubDate),
       category: r.category || 'news',
       lead_image_url: r.leadImageUrl || r.lead_image_url || null,
       logo_url: r.logoUrl || r.logo_url || null
@@ -1241,7 +1317,7 @@ app.get('/api/tunnel/info', (req, res) => {
   });
 });
 
-app.post('/api/tunnel/update', express.json(), (req, res) => {
+app.post('/api/tunnel/update', requireAdminOrLocal, express.json(), (req, res) => {
   const { serverTunnel, clientTunnel } = req.body || {};
   try {
     const activeFile = path.resolve('scratch/active_tunnel.json');
@@ -1630,6 +1706,11 @@ app.get('/api/proxy-image', async (req, res) => {
     return res.status(400).send('Missing url parameter');
   }
 
+  // SSRF & Protocol Guard: block loopback, link-local, and RFC1918 private networks
+  if (!isSafeProxyImageUrl(imageUrl)) {
+    return res.status(403).send('Forbidden image URL');
+  }
+
   // 1. Check Negative Cache (Skip known broken URLs immediately in 0.01ms)
   const failedTime = failedImageUrls.get(imageUrl);
   if (failedTime && (Date.now() - failedTime < 300000)) {
@@ -1640,6 +1721,8 @@ app.get('/api/proxy-image', async (req, res) => {
   const cached = getCachedProxyImage(imageUrl);
   if (cached) {
     res.setHeader('Content-Type', cached.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
     res.setHeader('X-Proxy-Cache', 'HIT');
     return res.send(cached.buffer);
@@ -1656,24 +1739,41 @@ app.get('/api/proxy-image', async (req, res) => {
 
         const response = await fetch(imageUrl, {
           signal: controller.signal,
+          redirect: 'follow',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept': 'image/avif,image/webp,image/apng,image/png,image/jpeg,image/gif;q=0.9',
             'Referer': `${parsedUrl.protocol}//${parsedUrl.host}/`
           }
         });
 
         clearTimeout(timeout);
 
-        if (!response.ok) {
+        if (!response.ok || (response.url && !isSafeProxyImageUrl(response.url))) {
           failedImageUrls.set(imageUrl, Date.now());
           return null;
         }
 
-        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        const rawContentType = (response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase();
+        const allowedMimeTypes = new Set([
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/webp',
+          'image/gif',
+          'image/avif',
+          'image/bmp',
+          'image/x-icon',
+          'image/vnd.microsoft.icon'
+        ]);
+        if (!allowedMimeTypes.has(rawContentType)) {
+          failedImageUrls.set(imageUrl, Date.now());
+          return null;
+        }
+
         const buffer = Buffer.from(await response.arrayBuffer());
-        setCachedProxyImage(imageUrl, buffer, contentType);
-        return { buffer, contentType };
+        setCachedProxyImage(imageUrl, buffer, rawContentType);
+        return { buffer, contentType: rawContentType };
       } catch (err) {
         failedImageUrls.set(imageUrl, Date.now());
         return null;
@@ -1692,11 +1792,13 @@ app.get('/api/proxy-image', async (req, res) => {
     }
 
     res.setHeader('Content-Type', result.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
     res.setHeader('X-Proxy-Cache', 'MISS');
     return res.send(result.buffer);
   } catch (err) {
-    return res.status(500).send('Proxy error: ' + err.message);
+    return res.status(500).send('Proxy error');
   }
 });
 
@@ -1835,18 +1937,6 @@ app.post('/api/images/crawl', async (req, res) => {
   res.json({ success: true, message: 'Image crawl triggered', stats: imageCrawler.getStats() });
 });
 
-// DeeperNova Economics Comprehensive Live Market Data API
-app.get('/api/economics', (req, res) => {
-  res.json({
-    success: true,
-    lastUpdated: Date.now(),
-    lastUpdatedText: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    forex: CurrencyEngine.liveRates,
-    crypto: MarketDataEngine.liveCrypto,
-    stocks: MarketDataEngine.liveStocks
-  });
-});
-
 // Seeds Metadata & Categories API
 app.get('/api/crawler/seeds', (req, res) => {
   const categoryCounts = {};
@@ -1861,7 +1951,7 @@ app.get('/api/crawler/seeds', (req, res) => {
 });
 
 // 2. Start Crawler
-app.post('/api/crawl/start', (req, res) => {
+app.post('/api/crawl/start', requireAdminOrLocal, (req, res) => {
   const {
     seeds = [],
     concurrency = 4,
@@ -1898,19 +1988,19 @@ app.post('/api/crawl/start', (req, res) => {
 });
 
 // 3. Pause Crawler
-app.post('/api/crawl/pause', (req, res) => {
+app.post('/api/crawl/pause', requireAdminOrLocal, (req, res) => {
   crawlerEngine.pause();
   res.json({ success: true, status: crawlerEngine.getStatus() });
 });
 
 // 4. Resume Crawler
-app.post('/api/crawl/resume', (req, res) => {
+app.post('/api/crawl/resume', requireAdminOrLocal, (req, res) => {
   crawlerEngine.resume();
   res.json({ success: true, status: crawlerEngine.getStatus() });
 });
 
 // 5. Stop Crawler
-app.post('/api/crawl/stop', async (req, res) => {
+app.post('/api/crawl/stop', requireAdminOrLocal, async (req, res) => {
   await crawlerEngine.stop();
   res.json({ success: true, status: crawlerEngine.getStatus() });
 });
@@ -1929,7 +2019,7 @@ app.get('/api/status', (req, res) => {
 });
 
 // 6b. Toggle Live Log Stream (Low-CPU Mode)
-app.post('/api/telemetry/toggle', express.json(), (req, res) => {
+app.post('/api/telemetry/toggle', requireAdminOrLocal, express.json(), (req, res) => {
   const { liveLogs } = req.body || {};
   if (typeof liveLogs === 'boolean') {
     liveLogsEnabled = liveLogs;
@@ -1938,7 +2028,7 @@ app.post('/api/telemetry/toggle', express.json(), (req, res) => {
 });
 
 // 7. Calculate PageRank (Asynchronous & Non-Blocking)
-app.post('/api/pagerank/calculate', async (req, res) => {
+app.post('/api/pagerank/calculate', requireAdminOrLocal, async (req, res) => {
   try {
     const result = await pagerankCalc.calculateAsync();
     res.json({ success: true, result });
@@ -1948,7 +2038,7 @@ app.post('/api/pagerank/calculate', async (req, res) => {
 });
 
 // 8. Reset Database
-app.post('/api/database/reset', async (req, res) => {
+app.post('/api/database/reset', requireAdminOrLocal, async (req, res) => {
   if (crawlerEngine.state === CrawlerState.RUNNING) {
     await crawlerEngine.stop();
   }
@@ -1958,7 +2048,7 @@ app.post('/api/database/reset', async (req, res) => {
 });
 
 // 8b. Checkpoint & Shrink SQLite WAL File
-app.post('/api/database/checkpoint', (req, res) => {
+app.post('/api/database/checkpoint', requireAdminOrLocal, (req, res) => {
   const result = db.checkpoint('TRUNCATE');
   res.json({ success: true, checkpoint: result });
 });
@@ -1968,7 +2058,8 @@ app.get('/api/economics', (req, res) => {
   try {
     res.json({
       success: true,
-      forex: CurrencyEngine.liveForex || {},
+      lastUpdated: MarketDataEngine.lastSyncTime || Date.now(),
+      forex: CurrencyEngine.liveForex || CurrencyEngine.liveRates || {},
       crypto: MarketDataEngine.liveCrypto || {},
       stocks: MarketDataEngine.liveStocks || {},
       lastSyncTime: MarketDataEngine.lastSyncTime || Date.now(),

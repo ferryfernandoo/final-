@@ -145,7 +145,8 @@ class RAGService {
     const docLength = doc.tokens.length;
 
     for (const token of queryTokens) {
-      const termFreq = (doc.termFreq[token] || 0) / docLength;
+      const freqVal = Object.prototype.hasOwnProperty.call(doc.termFreq, token) ? doc.termFreq[token] : 0;
+      const termFreq = freqVal / docLength;
       // IDF approximation: log(total_docs / docs_with_term)
       const idf = Math.log(doc.vocabulary.length + 1);
       tfidfScore += termFreq * idf;
@@ -186,7 +187,7 @@ class RAGService {
    * Calculate term frequency for each token
    */
   calculateTermFrequency(tokens) {
-    const freq = {};
+    const freq = Object.create(null);
     for (const token of tokens) {
       freq[token] = (freq[token] || 0) + 1;
     }

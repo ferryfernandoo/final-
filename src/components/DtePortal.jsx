@@ -1,8 +1,21 @@
 import React from 'react';
 import { ORDER_DTE_URL } from '../apiConfig';
+import { validateDteTargetUrl } from '../services/securityShield';
 import './DtePortal.css';
 
 const DtePortal = ({ onNavigate }) => {
+  const safeOrderUrl = validateDteTargetUrl(ORDER_DTE_URL);
+
+  const handleOpenOrderPortal = (e) => {
+    if (!safeOrderUrl) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    const newWin = window.open(safeOrderUrl, '_blank', 'noopener,noreferrer');
+    if (newWin) newWin.opener = null;
+  };
+
   return (
     <div className="dte-simple-page">
       {/* Top Navbar */}
@@ -30,7 +43,7 @@ const DtePortal = ({ onNavigate }) => {
         <div className="dte-card-box">
           <div className="dte-badge">
             <span className="dte-badge-icon">🏭</span>
-            <span>PORTAL RESMI DTE</span>
+            <span>PORTAL RESMI DTE • TERPROTEKSI DTE SHIELD</span>
           </div>
 
           <h1 className="dte-main-title">
@@ -43,9 +56,11 @@ const DtePortal = ({ onNavigate }) => {
 
           <div className="dte-action-wrap">
             <a 
-              href={ORDER_DTE_URL} 
+              href={safeOrderUrl || '#'} 
               target="_blank" 
               rel="noopener noreferrer" 
+              referrerPolicy="no-referrer"
+              onClick={handleOpenOrderPortal}
               className="dte-order-btn"
             >
               <span>Order Sekarang</span>

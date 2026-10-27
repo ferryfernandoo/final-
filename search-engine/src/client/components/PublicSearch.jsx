@@ -1307,11 +1307,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     if (!query.trim()) return;
     setLiveCrawling(true);
     try {
-      await fetch('/api/crawl', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim() })
-      });
+      await fetch(`/api/search?q=${encodeURIComponent(query.trim())}&liveCrawl=true&page=1&limit=10`);
       // Invalidate cache and refetch
       clientSearchCache.current.clear();
       await fetchSearch(query, 1, searchType, timeFilter);

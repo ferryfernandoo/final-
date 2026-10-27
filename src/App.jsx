@@ -473,9 +473,9 @@ function App() {
     setUser((prevUser) => {
       const nextUser = { ...(prevUser || {}), ...updatedFields };
       if (isAuthenticated) {
-        localStorage.setItem('authUser', JSON.stringify(nextUser));
+        safeSetItem('authUser', JSON.stringify(nextUser));
       } else if (isGuest) {
-        localStorage.setItem('guestSession', JSON.stringify(nextUser));
+        safeSetItem('guestSession', JSON.stringify(nextUser));
       }
       return nextUser;
     });
@@ -490,6 +490,7 @@ function App() {
     } catch (error) {
       console.error('Logout request failed:', error);
     } finally {
+      ConversationPersistenceService.clearMemoryCache();
       // Clear ALL localStorage keys to prevent AI hallucinations from stale cache
       const ALL_STORAGE_KEYS = [
         'authUser',
@@ -502,13 +503,21 @@ function App() {
         'deepernova_rag_index_v1',
         'deepernova_reminders_v1',
         'deepernova_saved_images',
+        'typernova_last_edited_document',
         'research_anonymous_id',
         'guest_global_memory',
         'guest_global_memory_updated',
       ];
       ALL_STORAGE_KEYS.forEach((key) => {
-        try { localStorage.removeItem(key); } catch (_e) {}
+        safeRemoveItem(key);
       });
+      try {
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith('deepernova_cloud_files_') || k.startsWith('deepernova_')) {
+            localStorage.removeItem(k);
+          }
+        });
+      } catch (_e) {}
       try { sessionStorage.clear(); } catch (_e) {}
       if (typeof window !== 'undefined') window.deepernova_file_cache = null;
       console.log('[App] User logged out — ALL localStorage & sessionStorage cleared');

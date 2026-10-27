@@ -368,7 +368,7 @@ export class SearchEngine {
           1.0 as bm25_score
         FROM images img
         LEFT JOIN pages p ON img.page_id = p.id
-        WHERE (img.domain = ? OR img.domain = ? OR img.domain LIKE ?)
+        WHERE (img.domain = ? OR img.domain = ?)
         LIMIT ?
       `);
     } catch {}
@@ -559,12 +559,27 @@ export class SearchEngine {
   }
 
   /**
+   * Escapes raw HTML entities before wrapping search highlights to prevent Stored/Reflected XSS
+   */
+  escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /**
    * Highlights keywords in text snippet
    */
   createSnippet(text, terms, maxLength = 220) {
     if (!text) return '';
     const cleanText = text.replace(/\s+/g, ' ').trim();
-    if (terms.length === 0) return cleanText.slice(0, maxLength) + (cleanText.length > maxLength ? '...' : '');
+    if (terms.length === 0) {
+      return this.escapeHtml(cleanText.slice(0, maxLength) + (cleanText.length > maxLength ? '...' : ''));
+    }
 
     // Find first occurrence of any search term
     const lowerText = cleanText.toLowerCase();
@@ -591,10 +606,13 @@ export class SearchEngine {
     if (start > 0) snippet = '...' + snippet;
     if (start + maxLength < cleanText.length) snippet += '...';
 
+    snippet = this.escapeHtml(snippet);
+
     // Highlight terms
     for (const term of terms) {
       if (!term || term.length < 2) continue;
-      const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      const escapedTerm = this.escapeHtml(term);
+      const regex = new RegExp(`(${escapedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
       snippet = snippet.replace(regex, '<mark class="hl">$1</mark>');
     }
 
@@ -1445,11 +1463,12 @@ export class SearchEngine {
     const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
 
     const results = pageRows.map((row, idx) => {
-      // Highlight matching query terms in title with stabilo
-      let highlightedTitle = row.title || '';
+      // Highlight matching query terms in title with stabilo (escape HTML first to prevent XSS)
+      let highlightedTitle = this.escapeHtml(row.title || '');
       for (const term of terms) {
         if (term && term.length >= 2) {
-          const r = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+          const escapedTerm = this.escapeHtml(term);
+          const r = new RegExp(`(${escapedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
           highlightedTitle = highlightedTitle.replace(r, '<mark class="hl">$1</mark>');
         }
       }
@@ -1919,7 +1938,7 @@ export class SearchEngine {
     const likePattern = `%${clean}%`;
     const stmt = stmtTitleOnly;
 
-    const rows = stmt.all(likePattern, likePattern, likePattern, limit, offset);
+    const rows = stmt.all(likePattern, likePattern, limit, offset);
     const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
 
     const results = rows.map(row => ({
@@ -2288,10 +2307,11 @@ export class SearchEngine {
       const pageRows = diverseRows.slice(0, limit);
 
       const results = pageRows.map(row => {
-        let highlightedTitle = row.title || '';
+        let highlightedTitle = this.escapeHtml(row.title || '');
         for (const term of terms) {
           if (term && term.length >= 2) {
-            const r = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            const escapedTerm = this.escapeHtml(term);
+            const r = new RegExp(`(${escapedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
             highlightedTitle = highlightedTitle.replace(r, '<mark class="hl">$1</mark>');
           }
         }
@@ -2600,10 +2620,11 @@ export class SearchEngine {
       const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
 
       const results = diverseRows.map(row => {
-        let highlightedTitle = row.title || '';
+        let highlightedTitle = this.escapeHtml(row.title || '');
         for (const term of terms) {
           if (term && term.length >= 2) {
-            const r = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            const escapedTerm = this.escapeHtml(term);
+            const r = new RegExp(`(${escapedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
             highlightedTitle = highlightedTitle.replace(r, '<mark class="hl">$1</mark>');
           }
         }

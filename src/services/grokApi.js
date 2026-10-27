@@ -1484,7 +1484,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
     
     if (abortSignal?.aborted && err.name === 'AbortError') {
       console.log('Stream reading aborted by user');
-      return fullText;
+      return { fullText, usage: streamUsage, aborted: true };
     }
     
     // Re-throw with more context

@@ -119,48 +119,23 @@ export class SearchDatabase {
         published_at INTEGER,
         crawled_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS recent_news_cache (
+        page_id INTEGER PRIMARY KEY,
+        url TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        title TEXT,
+        description TEXT,
+        lead_image_url TEXT,
+        logo_url TEXT,
+        pagerank REAL,
+        in_links_count INTEGER,
+        category TEXT DEFAULT 'news',
+        published_at INTEGER,
+        crawled_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_recent_news_published_at ON recent_news_cache(published_at DESC);
     `);
-
-    // Schedule background refresh for recent news cache to keep hot-news queries fast
-    try {
-      this._recentNewsRefreshInterval = null;
-      this.refreshRecentNews = (limit = 5000, windowMs = 24 * 3600 * 1000) => {
-        try {
-          const cutoff = Date.now() - windowMs;
-          const insertStmt = this.db.prepare(`
-            INSERT INTO recent_news_cache (page_id, url, domain, title, description, lead_image_url, logo_url, pagerank, in_links_count, category, published_at, crawled_at)
-            SELECT id, url, domain, title, description, lead_image_url, logo_url, pagerank, in_links_count, COALESCE(category, 'news'), published_at, crawled_at
-            FROM pages
-            WHERE (published_at >= ? OR crawled_at >= ?)
-              AND title IS NOT NULL AND LENGTH(title) > 20
-            ORDER BY COALESCE(published_at, crawled_at) DESC,
-                     COALESCE(in_links_count, 0) DESC,
-                     pagerank DESC
-            LIMIT ?;
-          `);
-
-          this.db.exec('BEGIN IMMEDIATE');
-          this.db.exec('DELETE FROM recent_news_cache;');
-          insertStmt.run(cutoff, cutoff, limit);
-          this.db.exec('COMMIT;');
-        } catch (e) {
-          try { this.db.exec('ROLLBACK;'); } catch {}
-        }
-      };
-
-      // Defer heavy refresh until the app is idle; skip large DBs to avoid startup lockups.
-      const stat = (() => { try { return fs.statSync(this.dbPath); } catch { return null; }})();
-      const skipInitial = stat && stat.size && stat.size > (5 * 1024 * 1024 * 1024); // 5GB
-      if (!skipInitial) {
-        this._recentNewsRefreshTimer = setTimeout(() => {
-          try { this.refreshRecentNews(5000, 24 * 3600 * 1000); } catch {}
-        }, 60000);
-      }
-      this._recentNewsRefreshInterval = setInterval(() => {
-        try { this.refreshRecentNews(5000, 24 * 3600 * 1000); } catch {}
-      }, 5 * 60 * 1000);
-      if (this._recentNewsRefreshInterval.unref) this._recentNewsRefreshInterval.unref();
-    } catch (e) {}
 
     // Ensure backwards compatibility columns exist
     try { this.db.exec(`ALTER TABLE pages ADD COLUMN published_at INTEGER;`); } catch { }
@@ -387,6 +362,47 @@ export class SearchDatabase {
       this.db.exec(`DELETE FROM geo_entities WHERE keyword_key IN ('web', 'website', 'google', 'youtube', 'facebook', 'deepseek', 'chatgpt', 'openai', 'react', 'python', 'tutorial', 'download', 'game', 'berita');`);
     } catch { }
     } // End if (!isSchemaInitialized)
+
+    // Schedule background refresh for recent news cache on every boot (even when schema was already initialized)
+    try {
+      this._recentNewsRefreshInterval = null;
+      this.refreshRecentNews = (limit = 5000, windowMs = 24 * 3600 * 1000) => {
+        try {
+          const cutoff = Date.now() - windowMs;
+          const insertStmt = this.db.prepare(`
+            INSERT INTO recent_news_cache (page_id, url, domain, title, description, lead_image_url, logo_url, pagerank, in_links_count, category, published_at, crawled_at)
+            SELECT id, url, domain, title, description, lead_image_url, logo_url, pagerank, in_links_count, COALESCE(category, 'news'), published_at, crawled_at
+            FROM pages
+            WHERE (published_at >= ? OR crawled_at >= ?)
+              AND title IS NOT NULL AND LENGTH(title) > 20
+            ORDER BY COALESCE(published_at, crawled_at) DESC,
+                     COALESCE(in_links_count, 0) DESC,
+                     pagerank DESC
+            LIMIT ?;
+          `);
+
+          this.db.exec('BEGIN IMMEDIATE');
+          this.db.exec('DELETE FROM recent_news_cache;');
+          insertStmt.run(cutoff, cutoff, limit);
+          this.db.exec('COMMIT;');
+        } catch (e) {
+          try { this.db.exec('ROLLBACK;'); } catch {}
+        }
+      };
+
+      const stat = (() => { try { return fs.statSync(this.dbPath); } catch { return null; }})();
+      const skipInitial = stat && stat.size && stat.size > (5 * 1024 * 1024 * 1024); // 5GB
+      if (!skipInitial) {
+        this._recentNewsRefreshTimer = setTimeout(() => {
+          try { this.refreshRecentNews(5000, 24 * 3600 * 1000); } catch {}
+        }, 60000);
+        if (this._recentNewsRefreshTimer.unref) this._recentNewsRefreshTimer.unref();
+      }
+      this._recentNewsRefreshInterval = setInterval(() => {
+        try { this.refreshRecentNews(5000, 24 * 3600 * 1000); } catch {}
+      }, 5 * 60 * 1000);
+      if (this._recentNewsRefreshInterval.unref) this._recentNewsRefreshInterval.unref();
+    } catch (e) {}
 
 
 

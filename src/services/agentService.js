@@ -222,11 +222,12 @@ class AgentService {
       } else {
         const buffer = await file.arrayBuffer();
         const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        const chunks = [];
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+          chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize)));
         }
-        payload.base64 = btoa(binary);
+        payload.base64 = btoa(chunks.join(''));
       }
 
       const res = await fetch(`${API_BASE_URL}/api/agent/upload`, {

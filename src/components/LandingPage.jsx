@@ -11,7 +11,7 @@ import { landingTranslations } from '../locales/landingTranslations';
 import './LandingPage.css';
 
 const openSearch = (q) => {
-  const base = (SEARCH_ENGINE_URL || 'https://portland-oops-trainers-weblogs.trycloudflare.com').replace(/\/+$/, '');
+  const base = (SEARCH_ENGINE_URL || 'https://kent-correlation-bass-flickr.trycloudflare.com').replace(/\/+$/, '');
   const searchBase = base.endsWith('/search') ? base : `${base}/search`;
   const url = q ? `${searchBase}?q=${encodeURIComponent(q)}` : base;
   window.open(url, '_blank', 'noopener,noreferrer');

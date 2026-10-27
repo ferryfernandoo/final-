@@ -588,7 +588,7 @@ export class AntiTypoEngine {
 
     const lower = clean.toLowerCase();
     const queryTokens = lower.split(/\s+/).filter(Boolean);
-    if (queryTokens.some(token => token.length <= 2)) {
+    if (queryTokens.every(token => token.length <= 2)) {
       return {
         isCorrected: false,
         originalQuery: clean,

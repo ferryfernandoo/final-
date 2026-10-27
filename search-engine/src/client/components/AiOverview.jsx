@@ -75,7 +75,14 @@ function MarkdownRenderer({ content, sources = [] }) {
   };
 
   const formatInline = (text, sourcesList) => {
-    let formatted = text
+    const escaped = String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+    let formatted = escaped
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="ai-inline-link">$1</a>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -208,14 +215,14 @@ export default function AiOverview({ query, results = [] }) {
     }
   };
 
-  const fetchSummary = async (targetQuery = query, targetResults = results) => {
+  const fetchSummary = async (targetQuery = query, targetResults = results, forceRefresh = false) => {
     if (!targetQuery || !targetQuery.trim()) {
       setSummary('');
       return;
     }
 
     const normKey = targetQuery.trim().toLowerCase();
-    if (aiOverviewClientCache.has(normKey)) {
+    if (!forceRefresh && aiOverviewClientCache.has(normKey)) {
       const cached = aiOverviewClientCache.get(normKey);
       setSummary(cached.summary);
       setThinking(cached.thinking || '');
@@ -340,8 +347,12 @@ export default function AiOverview({ query, results = [] }) {
                 if (data.engine) setEngineName(data.engine);
                 setLoading(false);
 
-                // Cache in memory for instant 0ms access
+                // Cache in memory for instant 0ms access (bounded by AI_CACHE_MAX)
                 if (targetQuery && finalSumm) {
+                  if (aiOverviewClientCache.size >= AI_CACHE_MAX) {
+                    const oldestKey = aiOverviewClientCache.keys().next().value;
+                    if (oldestKey !== undefined) aiOverviewClientCache.delete(oldestKey);
+                  }
                   aiOverviewClientCache.set(targetQuery.trim().toLowerCase(), {
                     summary: finalSumm,
                     thinking: finalThink,
@@ -472,7 +483,7 @@ export default function AiOverview({ query, results = [] }) {
 
             <button
               type="button"
-              onClick={() => fetchSummary(query, results)}
+              onClick={() => fetchSummary(query, results, true)}
               disabled={loading}
               title="Perbarui ringkasan"
               className="ai-compact-icon-btn"

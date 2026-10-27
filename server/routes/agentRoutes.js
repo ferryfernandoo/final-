@@ -201,6 +201,8 @@ router.get('/file/raw', (req, res) => {
     if (!fs.existsSync(fullPath)) {
       return res.status(404).send('File tidak ditemukan di sandbox');
     }
+    res.setHeader('Content-Security-Policy', 'sandbox allow-scripts allow-forms allow-modals');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.sendFile(fullPath);
   } catch (err) {
     console.error('[AGENT_ROUTES] Raw file error:', err);
@@ -339,6 +341,8 @@ router.get('/preview/:sessionId/*', (req, res) => {
     const { sessionId } = req.params;
     const requestedFile = req.params[0] || 'index.html';
     const filePath = agentSandboxService.safeResolvePath(sessionId, requestedFile);
+    res.setHeader('Content-Security-Policy', 'sandbox allow-scripts allow-forms allow-modals');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
     if (!fs.existsSync(filePath)) {
       // If index.html requested but not found, try to find any .html file

@@ -1,6 +1,6 @@
 /**
  * Web Search Service
- * Integrates Google Search results via SerpAPI with DeepSeek
+ * Integrates Deepernova Search Engine (BM25 + Live Crawl) with SerpAPI & Wikipedia fallback
  */
 
 import fetch from 'node-fetch';
@@ -16,12 +16,12 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
 const SERPAPI_URL = 'https://serpapi.com/search';
-const DEEPERNOVA_SEARCH_API_URL = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:3000/api/v1';
+const DEEPERNOVA_SEARCH_API_URL = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000/api/v1';
 const DEEPERNOVA_SEARCH_API_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
 
 function cleanText(str) {
   if (!str) return '';
-  return str.replace(/<\/?mark[^>]*>/gi, '').trim();
+  return str.replace(/<\/?mark[^>]*>/gi, '').replace(/<[^>]+>/g, '').trim();
 }
 
 class WebSearchService {
@@ -30,14 +30,13 @@ class WebSearchService {
   }
 
   /**
-   * Search via Deepernova BM25 Search Engine with SerpAPI fallback
+   * Search via Deepernova BM25 Search Engine (with automatic live-crawl retry) + SerpAPI + Wikipedia fallback
    * @param {string} query - Search query
    * @param {number} maxResults - Maximum results to return (default 5)
    * @param {string} language - Language code (default 'id')
    * @returns {Promise<{success: boolean, results: Array, error?: string}>}
    */
   async searchGoogle(query, maxResults = 5, language = 'id') {
-    // 1. Primary Engine: Deepernova High-Speed Search API (Local Port 4000 & Active Cloudflare Tunnel)
     const searchBases = [
       'http://127.0.0.1:4000/api/v1',
       process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : (process.env.DEEPERNOVA_SEARCH_API_URL ? `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1` : null),
@@ -45,175 +44,169 @@ class WebSearchService {
       'http://localhost:4000/api/v1'
     ].filter(Boolean);
 
-    for (const sBase of searchBases) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout for search engine
+    const mapResults = (rawList) => rawList.slice(0, maxResults).map((r, idx) => {
+      let domain = r.domain || '';
+      if (!domain && r.url) {
+        try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch (e) {}
+      }
+      const logoUrl = r.logo_url || r.logoUrl || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null);
+      const leadImg = r.lead_image_url || r.leadImageUrl || null;
+      return {
+        title: cleanText(r.title) || 'Untitled',
+        url: r.url || '',
+        link: r.url || '',
+        snippet: cleanText(r.snippet) || cleanText(r.description) || '',
+        description: cleanText(r.description) || '',
+        domain: domain,
+        published_at: r.published_at || null,
+        trust_score: r.trust_score || null,
+        pagerank: r.pagerank || null,
+        logo_url: logoUrl,
+        lead_image_url: leadImg,
+        thumbnail: leadImg || logoUrl,
+        position: idx + 1
+      };
+    });
 
-        const response = await fetch(`${sBase}/search?q=${encodeURIComponent(query)}&limit=${maxResults}&crawl=0&fast=1`, {
-          headers: {
-            'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
-            'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
-          },
+    // Pass 1: Fast BM25 Cache (crawl=0&fast=1), then Pass 2: Live Web Crawl (crawl=1)
+    for (const crawlParam of ['crawl=0&fast=1', 'crawl=1']) {
+      for (const sBase of searchBases) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+          const response = await fetch(`${sBase}/search?q=${encodeURIComponent(query)}&limit=${maxResults}&${crawlParam}`, {
+            headers: {
+              'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
+              'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
+            },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          const contentType = response.headers.get('content-type') || '';
+          if (response.ok && contentType.includes('application/json')) {
+            const data = await response.json();
+            if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+              const results = mapResults(data.results);
+              console.log(`[WebSearchService] ✓ Deepernova Search (${crawlParam}) found ${results.length} results from ${sBase} (${data.duration_ms || 0}ms)`);
+              return {
+                success: true,
+                results,
+                query,
+                engine: 'deepernova_search',
+                ai_context: data.ai_context || ''
+              };
+            }
+          }
+        } catch (dnErr) {
+          console.warn(`[WebSearchService] Deepernova search error on ${sBase} (${dnErr.message})`);
+        }
+      }
+    }
+
+    // 2. Fallback: SerpAPI (Google) if configured
+    if (SERPAPI_KEY) {
+      const languageMap = {
+        'id': { gl: 'id', hl: 'id' },
+        'en': { gl: 'us', hl: 'en' },
+        'ja': { gl: 'jp', hl: 'ja' },
+        'zh': { gl: 'cn', hl: 'zh-cn' }
+      };
+      const langConfig = languageMap[language] || languageMap['id'];
+
+      const params = new URLSearchParams({
+        q: query,
+        api_key: SERPAPI_KEY,
+        engine: 'google',
+        num: String(maxResults),
+        gl: langConfig.gl,
+        hl: langConfig.hl
+      });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      try {
+        const response = await fetch(`${SERPAPI_URL}?${params.toString()}`, {
           signal: controller.signal
         });
         clearTimeout(timeoutId);
 
-        const contentType = response.headers.get('content-type') || '';
-        if (response.ok && contentType.includes('application/json')) {
+        if (response.ok) {
           const data = await response.json();
-          if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-            const results = data.results.slice(0, maxResults).map((r, idx) => {
-              let domain = r.domain || '';
-              if (!domain && r.url) {
-                try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch (e) {}
-              }
-              const logoUrl = r.logo_url || r.logoUrl || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null);
-              const leadImg = r.lead_image_url || r.leadImageUrl || null;
+          if (data.organic_results && Array.isArray(data.organic_results) && data.organic_results.length > 0) {
+            const results = data.organic_results.slice(0, maxResults).map((result, idx) => {
+              let domain = '';
+              try { domain = new URL(result.link).hostname.replace(/^www\./i, ''); } catch (e) {}
               return {
-                title: cleanText(r.title) || 'Untitled',
-                url: r.url || '',
-                link: r.url || '',
-                snippet: cleanText(r.snippet) || cleanText(r.description) || '',
-                description: cleanText(r.description) || '',
-                domain: domain,
-                published_at: r.published_at || null,
-                trust_score: r.trust_score || null,
-                pagerank: r.pagerank || null,
-                logo_url: logoUrl,
-                lead_image_url: leadImg,
-                thumbnail: leadImg || logoUrl,
-                position: idx + 1
+                title: result.title || '',
+                url: result.link || '',
+                link: result.link || '',
+                snippet: result.snippet || '',
+                domain,
+                logo_url: domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null,
+                thumbnail: domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null,
+                position: result.position || idx + 1
               };
             });
-
-            console.log(`[WebSearchService] ✓ Deepernova Search found ${results.length} results from ${sBase} (${data.duration_ms || 0}ms)`);
             return {
               success: true,
               results,
-              query,
-              engine: 'deepernova_search',
-              ai_context: data.ai_context || ''
+              query
             };
           }
         }
-      } catch (dnErr) {
-        console.warn(`[WebSearchService] Deepernova search error on ${sBase} (${dnErr.message})`);
+      } catch (error) {
+        clearTimeout(timeoutId);
       }
     }
 
-    // 2. Fallback: SerpAPI (Google)
-    if (!SERPAPI_KEY) {
-      return {
-        success: false,
-        error: 'Search engine tidak merespons',
-        results: []
-      };
-    }
-
-    // Determine language code for SerpAPI
-    const languageMap = {
-      'id': { gl: 'id', hl: 'id' },
-      'en': { gl: 'us', hl: 'en' },
-      'ja': { gl: 'jp', hl: 'ja' },
-      'zh': { gl: 'cn', hl: 'zh-cn' }
-    };
-    const langConfig = languageMap[language] || languageMap['id'];
-
-    const params = new URLSearchParams({
-      q: query,
-      api_key: SERPAPI_KEY,
-      engine: 'google',
-      num: maxResults,
-      gl: langConfig.gl,
-      hl: langConfig.hl
-    });
-
-    // Add timeout to prevent hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);  // 15 second timeout
-
+    // 3. Fallback: Wikipedia Open Search API (ID + EN) so `/api/search` never returns empty
     try {
-      const response = await fetch(`${SERPAPI_URL}?${params.toString()}`, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.error(`[WebSearchService] SerpAPI error: ${response.status}`);
-        return {
-          success: false,
-          error: `SerpAPI returned status ${response.status}`,
-          results: []
-        };
-      }
-
-      const data = await response.json();
-
-      // Check for error in response body (API limit, invalid key, etc)
-      if (data.error) {
-        console.error(`[WebSearchService] SerpAPI error in response: ${data.error}`);
-        return {
-          success: false,
-          error: `SerpAPI error: ${data.error}`,
-          results: []
-        };
-      }
-
-      // Extract organic search results
-      const results = [];
-
-      if (data.organic_results && Array.isArray(data.organic_results)) {
-        for (const result of data.organic_results.slice(0, maxResults)) {
-          results.push({
-            title: result.title || '',
-            url: result.link || '',
-            snippet: result.snippet || '',
-            position: result.position || results.length + 1
-          });
+      const wikiResults = [];
+      for (const lang of ['id', 'en']) {
+        if (wikiResults.length >= maxResults) break;
+        const wikiUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&srlimit=4`;
+        const res = await fetch(wikiUrl, { timeout: 4000 });
+        if (res.ok) {
+          const data = await res.json();
+          const items = data?.query?.search || [];
+          for (const item of items) {
+            if (wikiResults.length >= maxResults) break;
+            const title = cleanText(item.title);
+            const url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/\s+/g, '_'))}`;
+            const domain = `${lang}.wikipedia.org`;
+            wikiResults.push({
+              title: `${title} — Wikipedia (${lang.toUpperCase()})`,
+              url,
+              link: url,
+              snippet: cleanText(item.snippet) || title,
+              domain,
+              logo_url: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+              thumbnail: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+              position: wikiResults.length + 1
+            });
+          }
         }
       }
-
-      // If no results found
-      if (results.length === 0) {
+      if (wikiResults.length > 0) {
         return {
-          success: false,
-          error: 'Tidak ada hasil pencarian ditemukan',
-          results: []
+          success: true,
+          results: wikiResults,
+          query,
+          engine: 'wikipedia_fallback'
         };
       }
+    } catch (_wikiErr) {}
 
-      console.log(`[WebSearchService] ✓ Found ${results.length} results for query: "${query}"`);
-
-      return {
-        success: true,
-        results,
-        query
-      };
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        console.error('[WebSearchService] SerpAPI request timeout (15s)');
-        return {
-          success: false,
-          error: 'Search timeout - SerpAPI tidak merespons',
-          results: []
-        };
-      }
-      console.error('[WebSearchService] Error during search:', error.message);
-      return {
-        success: false,
-        error: error.message,
-        results: []
-      };
-    }
+    return {
+      success: false,
+      error: 'Tidak ada hasil pencarian ditemukan',
+      results: []
+    };
   }
 
-  /**
-   * Format search results into context string for DeepSeek
-   * @param {Array} results - Search results from searchGoogle()
-   * @returns {string} Formatted context
-   */
   formatSearchResultsForPrompt(results, aiContext = '') {
     if (aiContext && aiContext.trim()) {
       return `${aiContext.trim()}\n\n---\nGunakan data pencarian Deepernova Search Engine di atas sebagai acuan fakta utama dalam jawaban Anda.\n\n`;
@@ -247,22 +240,12 @@ class WebSearchService {
     return context;
   }
 
-  /**
-   * Process web search and inject into system prompt
-   * @param {string} userQuery - User's question
-   * @param {string} currentSystemPrompt - Existing system prompt
-   * @returns {Promise<{systemPrompt: string, searchResults: Array, searchPerformed: boolean}>}
-   */
   async augmentPromptWithWebSearch(userQuery, currentSystemPrompt) {
     try {
-      // Perform the search
       const searchResult = await this.searchGoogle(userQuery, 5);
-
       if (searchResult.success) {
-        // Format results and inject into system prompt
         const searchContext = this.formatSearchResultsForPrompt(searchResult.results);
         const augmentedPrompt = currentSystemPrompt + '\n\n' + searchContext;
-
         return {
           systemPrompt: augmentedPrompt,
           searchResults: searchResult.results,
@@ -270,8 +253,6 @@ class WebSearchService {
           query: userQuery
         };
       } else {
-        // Search failed - return original prompt
-        console.log(`[WebSearchService] Search failed: ${searchResult.error}`);
         return {
           systemPrompt: currentSystemPrompt,
           searchResults: [],
@@ -280,7 +261,6 @@ class WebSearchService {
         };
       }
     } catch (error) {
-      console.error('[WebSearchService] Error in augmentPromptWithWebSearch:', error.message);
       return {
         systemPrompt: currentSystemPrompt,
         searchResults: [],
@@ -290,16 +270,9 @@ class WebSearchService {
     }
   }
 
-  /**
-   * Get error message for user (in Indonesian)
-   * @returns {string} Indonesian error message
-   */
   getErrorMessage() {
     return 'Maaf, search web gagal tidak tersedia untuk saat ini. Silahkan coba bertanya tanpa web search atau coba lagi nanti.';
   }
 }
 
-// Export singleton instance
-const webSearchService = new WebSearchService();
-
-export default webSearchService;
+export default new WebSearchService();

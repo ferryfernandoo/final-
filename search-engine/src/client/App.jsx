@@ -109,9 +109,11 @@ export default function App() {
             if (type === 'init') {
               if (data) {
                 setTelemetry(prev => ({
+                  ...prev,
                   crawler: data.crawler || prev.crawler,
                   db: data.db || prev.db,
-                  system: data.system || prev.system
+                  system: data.system || prev.system,
+                  governor: data.governor || prev.governor
                 }));
                 if (!isStealthModeRef.current && data.db?.recentLogs && data.db.recentLogs.length > 0) {
                   setLogs(prev => prev.length === 0 ? data.db.recentLogs : prev);
@@ -129,9 +131,11 @@ export default function App() {
                 if (isAdmin || (now - lastPublicTelemetryUpdateRef.current > 5000)) {
                   lastPublicTelemetryUpdateRef.current = now;
                   setTelemetry(prev => ({
+                    ...prev,
                     crawler: data.crawler || prev.crawler,
                     db: data.db || prev.db,
-                    system: data.system || prev.system
+                    system: data.system || prev.system,
+                    governor: data.governor || prev.governor
                   }));
                   if (isAdmin && data.point) {
                     setHistory(prev => [...prev.slice(-120), data.point]);

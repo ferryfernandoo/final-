@@ -110,20 +110,45 @@ export function extractSearchResults(step) {
 }
 
 /**
- * Clean & Extract action pills and thoughts into discrete steps
+ * Clean & Extract action pills and thoughts into discrete steps,
+ * including stripping any <think>/<thought> or partial streaming <action_pill> tags
+ * so raw XML never leaks into the chat bubble.
  */
 export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '', chainOfWork = []) {
   let content = String(rawContent || '');
+  let combinedReasoning = String(reasoning || '').trim();
   const steps = [];
 
+  // 0. Extract closed <think>, <thought>, <thinking>, <reasoning> tags from content
+  const closedThoughtRegex = /<(?:think|thought|thinking|reasoning)>([\s\S]*?)<\/(?:think|thought|thinking|reasoning)>/gi;
+  let tMatch;
+  while ((tMatch = closedThoughtRegex.exec(content)) !== null) {
+    const extracted = tMatch[1].trim();
+    if (extracted && !combinedReasoning.includes(extracted)) {
+      combinedReasoning += (combinedReasoning ? '\n\n' : '') + extracted;
+    }
+  }
+  content = content.replace(closedThoughtRegex, '');
+
+  // Strip unclosed <think> / <thought> tag at the end while streaming
+  const unclosedThoughtRegex = /<(?:think|thought|thinking|reasoning)>([\s\S]*)$/i;
+  const unclosedThoughtMatch = content.match(unclosedThoughtRegex);
+  if (unclosedThoughtMatch) {
+    const extracted = unclosedThoughtMatch[1].trim();
+    if (extracted && !combinedReasoning.includes(extracted)) {
+      combinedReasoning += (combinedReasoning ? '\n\n' : '') + extracted;
+    }
+    content = content.replace(unclosedThoughtRegex, '');
+  }
+
   // 1. Thought / Reasoning step
-  if (reasoning && reasoning.trim()) {
+  if (combinedReasoning) {
     steps.push({
       id: 'step_thought',
       type: 'thought',
-      title: 'Catatan Berpikir AI',
+      title: 'Penalaran & strategi',
       duration: '1s',
-      detail: reasoning.trim(),
+      detail: combinedReasoning,
       status: 'completed'
     });
   }
@@ -134,7 +159,7 @@ export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '',
       steps.push({
         id: cow.id || `cow_${idx}`,
         type: cow.type || 'command',
-        title: cow.title || 'Action',
+        title: cow.title || 'Langkah eksekusi',
         command: cow.command || cow.meta || '',
         meta: cow.meta || '',
         detail: cow.detail || cow.output || '',
@@ -145,12 +170,11 @@ export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '',
     });
   }
 
-  // 3. Extract <action_pill> tags from streamed content
+  // 3. Extract completed <action_pill> tags from streamed content
   const pillRegex = /<action_pill\s+id="([^"]*)"\s+type="([^"]*)"\s+title="([^"]*)"(?:\s+meta="([^"]*)")?(?:\s+status="([^"]*)")?>([\s\S]*?)<\/action_pill>/gi;
   let match;
   while ((match = pillRegex.exec(content)) !== null) {
     const pillId = match[1];
-    // Avoid duplicate if already exists in chainOfWork
     if (!steps.some(s => s.id === pillId)) {
       steps.push({
         id: pillId,
@@ -163,15 +187,20 @@ export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '',
     }
   }
 
-  // Remove action pills from the final narrative text
-  const cleanContent = content.replace(pillRegex, '').trim();
+  // Remove completed action pills and any trailing unclosed <action_pill... during streaming
+  const cleanContent = content
+    .replace(pillRegex, '')
+    .replace(/<action_pill[\s\S]*$/i, '')
+    .trim();
 
   return { cleanContent, steps };
 }
 
 /**
  * ============================================================================
- * ⚡ AGENT EXECUTION TREE (Claude / Cursor / Antigravity Agent Standard)
+ * ⚡ ULTRA-CLEAN MINIMALIST EXECUTION TREE
+ * Collapsed by default (even while streaming) so the UI stays calm & simple.
+ * Shows a single quiet status line; click to expand steps if needed.
  * ============================================================================
  */
 export default function AgentExecutionTree({ 
@@ -182,12 +211,11 @@ export default function AgentExecutionTree({
   onSelectFile,
   onOpenDrawer
 }) {
-  // Closed by default when AI is done or loaded from history, open while streaming
-  const [isTreeOpen, setIsTreeOpen] = useState(Boolean(isStreaming));
+  // Always collapsed by default for maximum simplicity! User can click to inspect.
+  const [isTreeOpen, setIsTreeOpen] = useState(false);
   const [activeStepId, setActiveStepId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [elapsedSec, setElapsedSec] = useState(1);
-  const prevStreamingRef = useRef(isStreaming);
 
   useEffect(() => {
     if (!isStreaming || !startTime) return;
@@ -198,34 +226,26 @@ export default function AgentExecutionTree({
     return () => clearInterval(timer);
   }, [isStreaming, startTime]);
 
-  // When AI finishes answering (isStreaming transitions from true to false),
-  // automatically collapse into closed state!
-  useEffect(() => {
-    if (prevStreamingRef.current && !isStreaming) {
-      setIsTreeOpen(false);
-    } else if (!prevStreamingRef.current && isStreaming) {
-      setIsTreeOpen(true);
-    }
-    prevStreamingRef.current = isStreaming;
-  }, [isStreaming]);
-
   if (!steps || (steps.length === 0 && !isStreaming)) {
     return null;
   }
 
   const formatDurationText = (sec) => {
-    if (!sec || sec < 60) return `${sec || 1}s`;
+    if (!sec || sec < 60) return `${sec || 1}d`;
     const m = Math.floor(sec / 60);
     const s = sec % 60;
-    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+    return s > 0 ? `${m}m ${s}d` : `${m}m`;
   };
 
   const durText = duration || (elapsedSec ? formatDurationText(elapsedSec) : null);
+  const lastStep = steps.length > 0 ? steps[steps.length - 1] : null;
+  const activeStepTitle = lastStep
+    ? formatExecutionStepTitle(lastStep).replace(/\s*·\s*\d+[smhd].*$/i, '')
+    : 'Memproses permintaan...';
 
-  // Label changes to 'Lihat langkah...' when closed, and 'Sembunyikan langkah' when open
   const mainLabel = isStreaming
-    ? 'Menjalankan tugas'
-    : (isTreeOpen ? 'Sembunyikan langkah' : 'Lihat langkah...');
+    ? activeStepTitle
+    : `${steps.length} langkah selesai`;
 
   const handleCopyText = (e, text, idKey) => {
     e.stopPropagation();
@@ -238,11 +258,11 @@ export default function AgentExecutionTree({
 
   return (
     <div className={`agent-execution-tree ${isTreeOpen ? 'is-open' : 'is-collapsed'}`}>
-      {/* 1. Collapsible Root Summary ("Lihat langkah... · 2s ›") */}
-      <div 
+      <button
+        type="button"
         className="agent-tree-summary-row" 
         onClick={() => setIsTreeOpen(!isTreeOpen)}
-        title={isTreeOpen ? "Klik untuk menyembunyikan rincian langkah" : "Klik untuk melihat rincian langkah eksekusi"}
+        title={isTreeOpen ? "Sembunyikan rincian langkah" : "Lihat rincian langkah kerja AI"}
       >
         <div className="agent-tree-summary-left">
           {isStreaming ? (
@@ -250,262 +270,98 @@ export default function AgentExecutionTree({
               <i className="fa-solid fa-circle-notch fa-spin" />
             </span>
           ) : (
-            <span className="agent-tree-done-icon">✓</span>
+            <span className="agent-tree-done-icon">
+              <i className="fa-solid fa-check" />
+            </span>
           )}
           <span className="agent-tree-summary-text">{mainLabel}</span>
           {durText && <span className="agent-tree-summary-time">· {durText}</span>}
         </div>
         <span className="agent-tree-summary-chevron">
-          {isTreeOpen ? '▾' : '›'}
+          <i className={`fa-solid fa-chevron-${isTreeOpen ? 'up' : 'down'}`} />
         </span>
-      </div>
+      </button>
 
-      {/* 2. Sub-steps Tree Items */}
       {isTreeOpen && steps.length > 0 && (
         <div className="agent-tree-items-list">
           {steps.map((step, idx) => {
             const stepId = step.id || `step_${idx}`;
             const isExpanded = activeStepId === stepId;
-            const formattedTitle = formatExecutionStepTitle(step);
+            const formattedTitle = formatExecutionStepTitle(step).replace(/\s*·\s*\d+[smhd].*$/i, '');
             const rawDetail = step.detail ? String(step.detail).trim() : '';
-            const isCommandOrExec = ['command', 'terminal', 'execute', 'execute_code', 'run_code'].includes(step.type);
-            const isWriteOrFile = ['write', 'file_write', 'file', 'patch', 'patch_file', 'revert', 'revert_file', 'delete', 'file_delete'].includes(step.type);
-            const isSkill = ['skill', 'read_skill', 'search_skill'].includes(step.type);
+            const isWriteOrFile = ['write', 'file_write', 'file', 'patch', 'patch_file'].includes(step.type);
             const isSearch = ['search', 'search_web'].includes(step.type);
             const searchResults = isSearch ? extractSearchResults(step) : [];
-            const isFailed = step.status === 'failed' || /error|failed|gagal/i.test(rawDetail);
-
-            const inputContent = step.command || (isWriteOrFile ? rawDetail : (step.meta || ''));
-            const outputContent = isCommandOrExec ? (rawDetail || '(Proses selesai tanpa error tambahan)') : (rawDetail || 'Selesai');
+            const isFailed = step.status === 'failed';
+            const detailText = rawDetail || step.command || step.meta || '';
 
             return (
               <div key={stepId} className="agent-tree-node">
                 <div 
-                  className={`agent-tree-node-row ${isExpanded ? 'is-open' : ''}`}
-                  onClick={() => setActiveStepId(isExpanded ? null : stepId)}
-                  title="Klik untuk memeriksa input dan output aksi ini"
+                  className={`agent-tree-node-row ${isExpanded ? 'is-open' : ''} ${isFailed ? 'is-failed' : ''}`}
+                  onClick={() => detailText && setActiveStepId(isExpanded ? null : stepId)}
                 >
                   <span className="agent-tree-node-title">{formattedTitle}</span>
-                  <span className="agent-tree-node-chevron">{isExpanded ? '▾' : '›'}</span>
+                  {detailText && (
+                    <span className="agent-tree-node-chevron">{isExpanded ? '▾' : '›'}</span>
+                  )}
                 </div>
 
-                {/* Expanded Input / Output Drawer */}
-                {isExpanded && (
+                {isExpanded && detailText && (
                   <div className="agent-tree-node-drawer">
-                    {/* CASE 1: Terminal Command or Code Execution -> Distinct Input & Output Boxes */}
-                    {isCommandOrExec ? (
-                      <div className="agent-tree-io-grid">
-                        {/* INPUT BOX */}
-                        <div className="agent-tree-io-card is-input">
-                          <div className="agent-tree-io-header">
-                            <span className="agent-tree-io-badge input-badge">
-                              <i className="fa-solid fa-terminal" /> Input Terminal / Perintah
-                            </span>
-                            <button
-                              type="button"
-                              className="agent-tree-io-copy-btn"
-                              onClick={(e) => handleCopyText(e, inputContent, `${stepId}_in`)}
-                              title="Salin perintah terminal"
+                    {isSearch && searchResults.length > 0 && (
+                      <div className="agent-tree-search-bubbles-wrap">
+                        {searchResults.slice(0, 6).map((res, rIdx) => {
+                          let domain = res.domain || '';
+                          if (!domain && (res.url || res.link)) {
+                            try { domain = new URL(res.url || res.link).hostname.replace(/^www\./i, ''); } catch (e) {}
+                          }
+                          return (
+                            <a
+                              key={`search_r_${rIdx}`}
+                              href={res.url || res.link || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="agent-search-bubble-item"
                             >
-                              <i className={copiedId === `${stepId}_in` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-                              <span>{copiedId === `${stepId}_in` ? 'Tersalin' : 'Salin'}</span>
-                            </button>
-                          </div>
-                          <pre className="agent-tree-drawer-code is-terminal-input">
-                            $ {inputContent || '(perintah internal)'}
-                          </pre>
-                        </div>
-
-                        {/* OUTPUT BOX */}
-                        <div className="agent-tree-io-card is-output">
-                          <div className="agent-tree-io-header">
-                            <span className={`agent-tree-io-badge ${isFailed ? 'failed-badge' : 'output-badge'}`}>
-                              <i className={isFailed ? "fa-solid fa-triangle-exclamation" : "fa-solid fa-circle-check"} />
-                              {isFailed ? ' Output Terminal (Eror)' : ' Output Terminal (Berhasil)'}
-                            </span>
-                            <button
-                              type="button"
-                              className="agent-tree-io-copy-btn"
-                              onClick={(e) => handleCopyText(e, outputContent, `${stepId}_out`)}
-                              title="Salin luaran terminal"
-                            >
-                              <i className={copiedId === `${stepId}_out` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-                              <span>{copiedId === `${stepId}_out` ? 'Tersalin' : 'Salin'}</span>
-                            </button>
-                          </div>
-                          <pre className={`agent-tree-drawer-code is-terminal-output ${isFailed ? 'has-error' : ''}`}>
-                            {outputContent}
-                          </pre>
-                        </div>
-                      </div>
-                    ) : isWriteOrFile ? (
-                      /* CASE 2: File Creation -> Code / File Content & Status Box */
-                      <div className="agent-tree-io-grid">
-                        <div className="agent-tree-io-card is-input">
-                          <div className="agent-tree-io-header">
-                            <span className="agent-tree-io-badge file-badge">
-                              <i className="fa-solid fa-file-lines" /> Isi Berkas: {step.meta || 'berkas'}
-                            </span>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button
-                                type="button"
-                                className="agent-tree-io-copy-btn"
-                                onClick={(e) => handleCopyText(e, inputContent, `${stepId}_code`)}
-                                title="Salin isi berkas"
-                              >
-                                <i className={copiedId === `${stepId}_code` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-                                <span>{copiedId === `${stepId}_code` ? 'Tersalin' : 'Salin'}</span>
-                              </button>
-                              {step.meta && (
-                                <button
-                                  type="button"
-                                  className="agent-tree-io-editor-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSelectFile?.(step.meta);
-                                    onOpenDrawer?.('files');
-                                  }}
-                                  title="Buka file ini di Editor"
-                                >
-                                  <i className="fa-solid fa-code" />
-                                  <span>Editor</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <pre className="agent-tree-drawer-code is-file-content">
-                            {inputContent || '(Berkas kosong)'}
-                          </pre>
-                        </div>
-                        <div className="agent-tree-io-status-bar">
-                          <i className="fa-solid fa-circle-check" style={{ color: '#10b981' }} />
-                          <span>Berkas <strong>{step.meta || 'file'}</strong> tersimpan sukses di workspace sandbox.</span>
-                        </div>
-                      </div>
-                    ) : isSkill ? (
-                      /* CASE 3: Skill Book / Guideline Adherence */
-                      <div className="agent-tree-io-grid is-skill-card">
-                        <div className="agent-tree-io-card is-skill">
-                          <div className="agent-tree-io-header">
-                            <span className="agent-tree-io-badge skill-badge">
-                              <i className="fa-solid fa-book-bookmark" /> Buku Panduan Spesialis
-                            </span>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button
-                                type="button"
-                                className="agent-tree-io-copy-btn"
-                                onClick={(e) => handleCopyText(e, rawDetail, `${stepId}_skill`)}
-                                title="Salin rincian skill"
-                              >
-                                <i className={copiedId === `${stepId}_skill` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-                                <span>{copiedId === `${stepId}_skill` ? 'Tersalin' : 'Salin'}</span>
-                              </button>
-                              <button
-                                type="button"
-                                className="agent-tree-io-editor-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onOpenDrawer?.('skill');
-                                }}
-                                title="Buka buku panduan lengkap di tab SKILL.md"
-                              >
-                                <i className="fa-solid fa-book-open" />
-                                <span>Buka SKILL.md</span>
-                              </button>
-                            </div>
-                          </div>
-                          {step.meta && (
-                            <div className="agent-tree-drawer-meta">
-                              <span className="drawer-meta-key">Berkas Skill:</span>
-                              <span className="drawer-meta-val">{step.meta}</span>
-                            </div>
-                          )}
-                          <pre className="agent-tree-drawer-code is-skill-content">
-                            {rawDetail || 'Buku panduan keahlian berhasil dimuat dan dipatuhi secara ketat.'}
-                          </pre>
-                        </div>
-                      </div>
-                    ) : isSearch ? (
-                      /* CASE 4: Deepernova Search Engine Results with Bubble Favicons/Logos */
-                      <div className="agent-tree-io-grid is-search-card">
-                        <div className="agent-tree-io-card is-search">
-                          <div className="agent-tree-io-header">
-                            <span className="agent-tree-io-badge search-badge">
-                              <i className="fa-solid fa-magnifying-glass" /> Deepernova Search Engine
-                            </span>
-                            <span className="agent-tree-search-count">
-                              {searchResults.length > 0 ? `${searchResults.length} sumber terverifikasi` : 'Selesai'}
-                            </span>
-                          </div>
-                          {searchResults.length > 0 && (
-                            <div className="agent-tree-search-bubbles-wrap">
-                              {searchResults.map((res, rIdx) => {
-                                let domain = res.domain || '';
-                                if (!domain && (res.url || res.link)) {
-                                  try { domain = new URL(res.url || res.link).hostname.replace(/^www\./i, ''); } catch (e) {}
-                                }
-                                const favicon = res.logo_url || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png');
-                                return (
-                                  <a
-                                    key={`search_r_${rIdx}_${res.url || res.link || rIdx}`}
-                                    href={res.url || res.link || '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="agent-search-bubble-item"
-                                    title={`${res.title || 'Untitled'}\n${res.snippet || ''}\n${res.url || res.link || ''}`}
-                                  >
-                                    <div className="agent-search-bubble-logo">
-                                      <img
-                                        src={favicon}
-                                        alt={domain || 'source'}
-                                        onError={(e) => {
-                                          if (domain && !e.target.dataset.triedDuck) {
-                                            e.target.dataset.triedDuck = 'true';
-                                            e.target.src = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-                                          }
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="agent-search-bubble-info">
-                                      <span className="agent-search-bubble-domain">{domain || 'Sumber Web'}</span>
-                                      <span className="agent-search-bubble-title">{res.title || 'Untitled'}</span>
-                                    </div>
-                                  </a>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {rawDetail && (
-                            <pre className="agent-tree-drawer-code is-search-detail">
-                              {rawDetail}
-                            </pre>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      /* CASE 5: General / Thought / Exploration */
-                      <div className="agent-tree-io-grid">
-                        {step.meta && (
-                          <div className="agent-tree-drawer-meta">
-                            <span className="drawer-meta-key">Target:</span>
-                            <span className="drawer-meta-val">{step.meta}</span>
-                          </div>
-                        )}
-                        <pre className="agent-tree-drawer-code">
-                          {rawDetail || step.command || '(Selesai tanpa luaran tambahan)'}
-                        </pre>
-                        <div className="agent-tree-drawer-actions">
-                          <button 
-                            type="button" 
-                            className="agent-tree-copy-btn"
-                            onClick={(e) => handleCopyText(e, rawDetail || step.command || step.meta, `${stepId}_gen`)}
-                          >
-                            <i className={copiedId === `${stepId}_gen` ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-                            <span>{copiedId === `${stepId}_gen` ? 'Tersalin' : 'Salin'}</span>
-                          </button>
-                        </div>
+                              <div className="agent-search-bubble-info">
+                                <span className="agent-search-bubble-domain">{domain || 'Web'}</span>
+                                <span className="agent-search-bubble-title">{res.title || domain}</span>
+                              </div>
+                            </a>
+                          );
+                        })}
                       </div>
                     )}
+
+                    <pre className="agent-tree-drawer-code">
+                      {detailText.length > 2000 ? detailText.slice(0, 2000) + '\n...' : detailText}
+                    </pre>
+
+                    <div className="agent-tree-drawer-actions">
+                      <button 
+                        type="button" 
+                        className="agent-tree-copy-btn"
+                        onClick={(e) => handleCopyText(e, detailText, stepId)}
+                      >
+                        <i className={copiedId === stepId ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                        <span>{copiedId === stepId ? 'Tersalin' : 'Salin'}</span>
+                      </button>
+                      {isWriteOrFile && step.meta && (
+                        <button
+                          type="button"
+                          className="agent-tree-editor-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectFile?.(step.meta);
+                            onOpenDrawer?.('files');
+                          }}
+                        >
+                          <i className="fa-solid fa-code" />
+                          <span>Buka di Workspace</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
