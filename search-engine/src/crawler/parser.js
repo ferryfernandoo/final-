@@ -12,7 +12,7 @@ export class HTMLParser {
     }
 
     try {
-      const safeHtml = html.length > 1572864 ? html.slice(0, 1572864) : html;
+      const safeHtml = html.length > 350000 ? html.slice(0, 350000) : html;
 
       // 0. Auto-Detect XML Sitemaps & RSS/Atom Feeds
       const isXml = safeHtml.trim().startsWith('<?xml') ||
@@ -28,6 +28,7 @@ export class HTMLParser {
 
         // 0a. Parse standard XML Sitemap (<url><loc>...</loc></url> or <sitemap><loc>...</loc></sitemap>)
         $xml('loc').each((_, el) => {
+          if (outgoingLinks.length >= 200) return false;
           const rawLoc = $xml(el).text().trim();
           const resolved = canonicalizeUrl(rawLoc, baseUrl);
           if (resolved && !seen.has(resolved) && !TrustGatekeeper.isSpamUrl(resolved) && !TrustGatekeeper.isCompromisedGovEduSpam(resolved)) {
@@ -38,6 +39,7 @@ export class HTMLParser {
 
         // 0b. Parse RSS / Atom Feeds (<item><link>...</link></item> or <entry><link href="..."/></entry>)
         $xml('item > link, item > guid, entry > link').each((_, el) => {
+          if (outgoingLinks.length >= 250) return false;
           const rawLink = $xml(el).attr('href') || $xml(el).text().trim();
           const resolved = canonicalizeUrl(rawLink, baseUrl);
           if (resolved && !seen.has(resolved) && !TrustGatekeeper.isSpamUrl(resolved) && !TrustGatekeeper.isCompromisedGovEduSpam(resolved)) {
@@ -199,7 +201,7 @@ export class HTMLParser {
       const seenImageUrls = new Set();
 
       $('img').each((_, el) => {
-        if (extractedImages.length >= 30) return false;
+        if (extractedImages.length >= 6) return false;
 
         const rawSrc = $(el).attr('src') ||
                        $(el).attr('data-src') ||
@@ -228,11 +230,7 @@ export class HTMLParser {
         const alt = ($(el).attr('alt') || '').replace(/\s+/g, ' ').trim().slice(0, 200);
         const imgTitle = ($(el).attr('title') || '').replace(/\s+/g, ' ').trim().slice(0, 200);
         
-        // Nearby context from parent figcaption, headings, or paragraph
-        let context = $(el).closest('figure').find('figcaption').text().replace(/\s+/g, ' ').trim().slice(0, 180);
-        if (!context) {
-          context = $(el).closest('p, article, div.content, .post-content, section').text().replace(/\s+/g, ' ').trim().slice(0, 160);
-        }
+        const context = (alt || imgTitle || title || description).slice(0, 160);
 
         const className = ($(el).attr('class') || '').toLowerCase();
         const idName = ($(el).attr('id') || '').toLowerCase();
@@ -294,6 +292,7 @@ export class HTMLParser {
       });
 
       $('a[href]').each((_, el) => {
+        if (outgoingLinks.length >= 120) return false;
         const href = $(el).attr('href');
         const anchorText = $(el).text().replace(/\s+/g, ' ').trim().slice(0, 100);
         const rel = ($(el).attr('rel') || '').toLowerCase();

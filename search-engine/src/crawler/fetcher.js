@@ -1,8 +1,8 @@
 export class HTTPFetcher {
   constructor(options = {}) {
     this.userAgent = options.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
-    this.timeoutMs = options.timeoutMs ?? 5000; // 5s snappy timeout for high-throughput crawling
-    this.maxBytes = options.maxBytes ?? (4 * 1024 * 1024); // 4 MB limit
+    this.timeoutMs = options.timeoutMs ?? 3200; // 3.2s ultra-snappy timeout for hyper-speed crawling
+    this.maxBytes = options.maxBytes ?? (2.5 * 1024 * 1024); // 2.5 MB snappy limit
   }
 
   async fetch(urlStr) {
@@ -18,10 +18,10 @@ export class HTTPFetcher {
 
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
-        const err = new Error('Request Timeout (Hard Limit)');
+        const err = new Error('Request Timeout (Snappy Limit)');
         err.name = 'TimeoutError';
         reject(err);
-      }, this.timeoutMs + 1500);
+      }, this.timeoutMs + 800);
     });
 
     try {
@@ -50,10 +50,10 @@ export class HTTPFetcher {
 
         // Verify Content-Type (HTML, XHTML, XML, RSS, Atom, Plain text)
         const isAcceptable = contentType.includes('text/html') ||
-                             contentType.includes('application/xhtml+xml') ||
-                             contentType.includes('xml') ||
-                             contentType.includes('text/plain') ||
-                             contentType === '';
+          contentType.includes('application/xhtml+xml') ||
+          contentType.includes('xml') ||
+          contentType.includes('text/plain') ||
+          contentType === '';
 
         if (!isAcceptable) {
           return {
@@ -90,8 +90,9 @@ export class HTTPFetcher {
           };
         }
 
-        // Read response body safely with native response.text()
-        const html = await response.text();
+        // Read response body safely with native response.text() (capped at 500KB for ultra-fast non-blocking DOM parsing)
+        const rawHtml = await response.text();
+        const html = rawHtml.length > 500000 ? rawHtml.slice(0, 500000) : rawHtml;
         const totalBytes = Buffer.byteLength(html, 'utf8');
 
         return {

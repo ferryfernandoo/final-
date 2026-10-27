@@ -373,7 +373,8 @@ export class SearchDatabase {
             INSERT INTO recent_news_cache (page_id, url, domain, title, description, lead_image_url, logo_url, pagerank, in_links_count, category, published_at, crawled_at)
             SELECT id, url, domain, title, description, lead_image_url, logo_url, pagerank, in_links_count, COALESCE(category, 'news'), published_at, crawled_at
             FROM pages
-            WHERE (published_at >= ? OR crawled_at >= ?)
+            WHERE id > (SELECT IFNULL(MAX(id), 0) - 15000 FROM pages)
+              AND (published_at >= ? OR crawled_at >= ?)
               AND title IS NOT NULL AND LENGTH(title) > 20
             ORDER BY COALESCE(published_at, crawled_at) DESC,
                      COALESCE(in_links_count, 0) DESC,
@@ -1046,26 +1047,28 @@ export class SearchDatabase {
   getStats() {
     const now = Date.now();
 
-    if (!this._cachedTopDomains || now - (this._lastTopDomainsCalc || 0) > 10000) {
-      this._lastTopDomainsCalc = now;
+    // Seed domainCounts in <1ms from recent 2000 rows by PK if empty (NEVER full-table scan 20GB pages table!)
+    if (this.domainCounts.size === 0 && !this._seededRecentDomains) {
+      this._seededRecentDomains = true;
       try {
-        const rows = this.db.prepare('SELECT domain, COUNT(*) as c FROM pages GROUP BY domain ORDER BY c DESC LIMIT 6').all() || [];
-        this._cachedTopDomains = rows.map((row) => ({ domain: row.domain, count: Number(row.c || 0) }));
-      } catch {
-        this._cachedTopDomains = [];
-      }
+        const rows = this.db.prepare('SELECT domain FROM pages WHERE id > (SELECT IFNULL(MAX(id), 0) - 2000 FROM pages)').all() || [];
+        for (const r of rows) {
+          if (r.domain) {
+            this.domainCounts.set(r.domain, (this.domainCounts.get(r.domain) || 0) + 1);
+          }
+        }
+      } catch {}
     }
 
-    if (!this._cachedDomainCount || now - (this._lastDomainCountCalc || 0) > 60000) {
-      this._lastDomainCountCalc = now;
-      this._cachedDomainCount = this.domainCounts.size || 0;
-      if (this._cachedDomainCount === 0) {
-        try {
-          const row = this.db.prepare('SELECT COUNT(DISTINCT domain) as c FROM pages').get();
-          this._cachedDomainCount = Number(row?.c || 0);
-        } catch { }
-      }
+    if (!this._cachedTopDomains || now - (this._lastTopDomainsCalc || 0) > 5000) {
+      this._lastTopDomainsCalc = now;
+      this._cachedTopDomains = [...this.domainCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([domain, count]) => ({ domain, count }));
     }
+
+    this._cachedDomainCount = Math.max(this.domainCounts.size, 1);
 
     return {
       totalPages: this.totalPagesCount || 0,
