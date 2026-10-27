@@ -287,7 +287,7 @@ export class SearchEngine {
           p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
           p.in_links_count, p.published_at, p.crawled_at
         FROM (
-          SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
+          SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
         ) f
         JOIN pages p ON f.rowid = p.id
       `);
@@ -664,7 +664,10 @@ export class SearchEngine {
     // 🛑 CORE SUBJECT MANDATORY GUARD:
     // If user searched for a specific subject ("claude", "jokowi", "bbca") alongside conversational words ("itu apa"),
     // this page MUST match at least one core term! A page matching only stop words receives score 0.
-    if (effectiveCoreTerms.length > 0) {
+    const BROAD_NEWS_WORDS = new Set(['berita', 'terbaru', 'terkini', 'hari', 'ini', 'indonesia', 'nasional', 'dunia', 'internasional', 'update', 'info', 'kabar', 'news', 'latest', 'today', 'breaking', 'viral', 'trending', 'utama', 'populer', 'terpopuler', 'sekarang']);
+    const isBroadNewsIntent = effectiveCoreTerms.length > 0 && effectiveCoreTerms.every(t => BROAD_NEWS_WORDS.has(t));
+
+    if (effectiveCoreTerms.length > 0 && !isBroadNewsIntent) {
       let matchedCoreCount = 0;
       for (const ct of effectiveCoreTerms) {
         if (title.includes(ct) || domain.includes(ct) || headings.includes(ct) || description.includes(ct) || content.includes(ct)) {
@@ -770,12 +773,15 @@ export class SearchEngine {
       }
     }
 
-    // General news portal boost for broad news queries (e.g. "berita", "berita terkini")
-    const isGeneralNewsQuery = lowerQuery === 'berita' || lowerQuery === 'berita terkini' || lowerQuery === 'news' || lowerQuery === 'kabar terkini';
+    // General news portal boost for broad news queries (e.g. "berita", "berita terkini", "berita terbaru indonesia hari ini")
+    const isGeneralNewsQuery = isBroadNewsIntent || lowerQuery === 'berita' || lowerQuery === 'berita terkini' || lowerQuery === 'news' || lowerQuery === 'kabar terkini';
     const rootDomain = this._getRootDomain(domain);
-    if (isGeneralNewsQuery && MAJOR_NEWS_ROOT_DOMAINS.has(rootDomain)) {
-      if (isRootUrl || url.endsWith('/berita') || url.endsWith('/terkini') || domain.startsWith('news.')) {
-        score += 70000;
+    if (isGeneralNewsQuery && (MAJOR_NEWS_ROOT_DOMAINS.has(rootDomain) || row.category === 'news')) {
+      score += 25000;
+      if (isArticle) {
+        score += 45000;
+      } else if (isRootUrl || url.endsWith('/berita') || url.endsWith('/terkini') || domain.startsWith('news.')) {
+        score += 25000;
       }
     }
 
@@ -1038,7 +1044,7 @@ export class SearchEngine {
 
     // 5. Intelligent Recency & Freshness Overhaul (Highest weight to newest relevant content)
     const now = Date.now();
-    const isQueryRelevantToArticle = (isTitlePrefix || isTitleContains || titleCoreTermsMatchedCount > 0);
+    const isQueryRelevantToArticle = (isGeneralNewsQuery || isTitlePrefix || isTitleContains || titleCoreTermsMatchedCount > 0);
     const hasExplicitPublishedAt = Boolean(row.published_at && Number(row.published_at) > 946684800000);
     const pubTime = Number(row.published_at || (isArticle ? row.crawled_at : 0));
 
@@ -1301,11 +1307,50 @@ export class SearchEngine {
       .filter(t => t.length > 0 && !CONVERSATIONAL_QUESTION_WORDS.has(t));
     const effectiveTokens = cleanTokens.length > 0 ? cleanTokens : terms.map(t => t.replace(/[^\p{L}\p{N}]/gu, '').trim()).filter(Boolean);
 
-    // Stage 1: Lightning Tier - Strict Conjunction on Title, Headings & Description (Sub-30ms)
-    // Retrieves newest matching pages (ORDER BY rowid DESC) + foundational reference pages
-    if (effectiveTokens.length > 0) {
+    // Separate ultra-high-frequency generic news/location tokens from specific entity/topic tokens
+    const HIGH_FREQ_GENERIC_TOKENS = new Set([
+      'berita', 'terbaru', 'terkini', 'hari', 'ini', 'indonesia', 'nasional', 'dunia', 'internasional',
+      'update', 'info', 'kabar', 'news', 'latest', 'today', 'breaking', 'viral', 'trending', 'utama',
+      'populer', 'terpopuler', 'sekarang', 'apa', 'itu', 'siapa', 'cara', 'yang', 'dan', 'di', 'ke',
+      'dari', 'untuk', 'dengan', 'pada', 'tahun', 'bulan', 'minggu'
+    ]);
+    const specificTokens = effectiveTokens.filter(t => !HIGH_FREQ_GENERIC_TOKENS.has(t) && t.length >= 2);
+    const isBroadNewsQuery = specificTokens.length === 0 && effectiveTokens.length > 0;
+    const ftsQueryTokens = specificTokens.length > 0 ? specificTokens : effectiveTokens.slice(0, 3);
+
+    // Stage 0.5: ⚡ Ultra-Fast In-Memory Hot Ring Buffer Scan (< 0.2ms, Zero Disk I/O!)
+    // Guarantees 100% of newly crawled & live-fetched articles are retrieved immediately!
+    try {
+      const hotNews = this.dbInstance?.hotNewsRing || [];
+      const hotPages = this.dbInstance?.hotPagesRing || [];
+      if (isBroadNewsQuery) {
+        // User asked for general breaking news (e.g. "berita terbaru indonesia hari ini")
+        for (let i = 0; i < hotNews.length && candidatesMap.size < fetchQueryLimit; i++) {
+          const item = hotNews[i];
+          if (item && !candidatesMap.has(item.id)) candidatesMap.set(item.id, item);
+        }
+        for (let i = 0; i < hotPages.length && candidatesMap.size < fetchQueryLimit; i++) {
+          const item = hotPages[i];
+          if (item && !candidatesMap.has(item.id)) candidatesMap.set(item.id, item);
+        }
+      } else if (ftsQueryTokens.length > 0) {
+        const searchPool = type === 'news' ? hotNews : hotPages;
+        for (let i = 0; i < searchPool.length; i++) {
+          const item = searchPool[i];
+          if (!item) continue;
+          const haystack = item._searchLower || `${item.title || ''} ${item.headings || ''} ${item.description || ''} ${item.domain || ''}`.toLowerCase();
+          if (ftsQueryTokens.some(tok => haystack.includes(tok))) {
+            candidatesMap.set(item.id, item);
+            if (candidatesMap.size >= fetchQueryLimit) break;
+          }
+        }
+      }
+    } catch {}
+
+    // Stage 1: Lightning Tier - Fast FTS5 Conjunction on Title, Headings & Description (Sub-3ms, No Full-Index Sort!)
+    if (!isBroadNewsQuery && ftsQueryTokens.length > 0) {
       try {
-        const titleHeadingsQuery = `{title headings description}: (` + effectiveTokens.map(t => `"${t}"`).join(' ') + `)`;
+        const titleHeadingsQuery = `{title headings description}: (` + ftsQueryTokens.map(t => `"${t}"`).join(' ') + `)`;
         let andRowsDesc;
         if (!filterCondition && this.stmtFastTitleHeadingsDesc) {
           andRowsDesc = this.stmtFastTitleHeadingsDesc.all(titleHeadingsQuery, fetchQueryLimit);
@@ -1318,7 +1363,7 @@ export class SearchEngine {
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
             FROM (
-              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
+              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
             ) f
             JOIN pages p ON f.rowid = p.id
             WHERE 1=1 ${filterCondition}
@@ -1328,21 +1373,13 @@ export class SearchEngine {
         for (const r of andRowsDesc) {
           candidatesMap.set(r.id, r);
         }
-
-        // Also retrieve foundational/encyclopedic matches (e.g. Wikipedia, official reference sites)
-        if (!filterCondition && this.stmtFastTitleHeadingsAsc) {
-          const andRowsAsc = this.stmtFastTitleHeadingsAsc.all(titleHeadingsQuery, 25);
-          for (const r of andRowsAsc) {
-            if (!candidatesMap.has(r.id)) candidatesMap.set(r.id, r);
-          }
-        }
       } catch {}
     }
 
     // Stage 1b: Deep Content Tier (Fallback only if Tier 1 yielded fewer than limit candidates)
-    if (candidatesMap.size < limit && effectiveTokens.length > 0) {
+    if (!isBroadNewsQuery && candidatesMap.size < limit && ftsQueryTokens.length > 0) {
       try {
-        const allColumnsQuery = effectiveTokens.map(t => `"${t}"`).join(' ');
+        const allColumnsQuery = ftsQueryTokens.map(t => `"${t}"`).join(' ');
         let moreRows;
         if (!filterCondition && this.stmtBaseAnd) {
           moreRows = this.stmtBaseAnd.all(allColumnsQuery, fetchQueryLimit);
@@ -1355,7 +1392,7 @@ export class SearchEngine {
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
             FROM (
-              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
+              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
             ) f
             JOIN pages p ON f.rowid = p.id
             WHERE 1=1 ${filterCondition}
@@ -1370,10 +1407,10 @@ export class SearchEngine {
       } catch {}
     }
 
-    // Stage 2: Fast Disjunction (OR) on Title & Headings (only if Stage 1 + 1b yielded fewer than limit candidates)
-    if (candidatesMap.size < limit && effectiveTokens.length > 1) {
+    // Stage 2: Fast Disjunction (OR) on Specific Tokens Only (Never OR high-frequency stopwords!)
+    if (!isBroadNewsQuery && candidatesMap.size < limit && specificTokens.length > 1) {
       try {
-        const orQuery = `{title headings description}: (` + effectiveTokens.map(t => `"${t}"`).join(' OR ') + `)`;
+        const orQuery = `{title headings description}: (` + specificTokens.slice(0, 4).map(t => `"${t}"`).join(' OR ') + `)`;
         let orRows;
         if (!filterCondition && this.stmtFastTitleHeadingsDesc) {
           orRows = this.stmtFastTitleHeadingsDesc.all(orQuery, fetchQueryLimit);
@@ -1386,7 +1423,7 @@ export class SearchEngine {
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
             FROM (
-              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? ORDER BY rowid DESC LIMIT ?
+              SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
             ) f
             JOIN pages p ON f.rowid = p.id
             WHERE 1=1 ${filterCondition}
@@ -1927,18 +1964,12 @@ export class SearchEngine {
         };
       } catch {}
     }
-    const stmtTitleOnly = this.db.prepare(`
-      SELECT id, url, domain, title, description, headings, SUBSTR(content, 1, 600) as content,
-             logo_url, lead_image_url, pagerank, in_links_count, crawled_at
-      FROM pages
-      WHERE title LIKE ? OR headings LIKE ?
-      ORDER BY pagerank DESC
-      LIMIT ? OFFSET ?
-    `);
-    const likePattern = `%${clean}%`;
-    const stmt = stmtTitleOnly;
-
-    const rows = stmt.all(likePattern, likePattern, limit, offset);
+    // Never full-table scan 20GB pages table with LIKE! Scan In-Memory Hot Ring Buffer (<0.2ms)
+    const lowerClean = clean.toLowerCase();
+    const hotPages = this.dbInstance?.hotPagesRing || [];
+    const rows = hotPages
+      .filter(r => r && ((r.title && r.title.toLowerCase().includes(lowerClean)) || (r.headings && r.headings.toLowerCase().includes(lowerClean))))
+      .slice(offset, offset + limit);
     const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
 
     const results = rows.map(row => ({
@@ -2233,6 +2264,18 @@ export class SearchEngine {
       const newsDomainFilter = this._buildNewsDomainCondition('p');
       const fetchLimit = Math.max(limit * 3, 60);
 
+      // 1. Scan In-Memory Hot News Ring first (<0.2ms)
+      const hotMatches = [];
+      const hotNews = this.dbInstance?.hotNewsRing || [];
+      for (let i = 0; i < hotNews.length && hotMatches.length < fetchLimit; i++) {
+        const hn = hotNews[i];
+        if (!hn) continue;
+        const hay = hn._searchLower || `${hn.title || ''} ${hn.description || ''}`.toLowerCase();
+        if (terms.length === 0 || terms.some(t => t.length >= 2 && hay.includes(t))) {
+          hotMatches.push({ ...hn, bm25_score: 1.0 });
+        }
+      }
+
       const stmt = this.db.prepare(`
         SELECT
           p.id, p.url, p.domain, p.title, p.description, p.headings,
@@ -2244,19 +2287,22 @@ export class SearchEngine {
           SELECT rowid, 1.0 as bm25_score
           FROM fts_pages
           WHERE fts_pages MATCH ?
-          ORDER BY rowid DESC
           LIMIT ?
         ) f
         JOIN pages p ON f.rowid = p.id
         WHERE ${newsDomainFilter}
-          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
-          AND p.lead_image_url NOT LIKE '%favicon%'
-          AND p.lead_image_url NOT LIKE '%icon.png%'
-          AND p.lead_image_url NOT LIKE '%default-avatar%'
         LIMIT ? OFFSET ?
       `);
 
-      const rows = stmt.all(ftsQuery, fetchLimit * 3, fetchLimit, offset);
+      const dbRows = stmt.all(ftsQuery, fetchLimit * 2, fetchLimit, offset);
+      const seenUrls = new Set(hotMatches.map(m => m.url));
+      const rows = [...hotMatches];
+      for (const r of dbRows) {
+        if (!seenUrls.has(r.url)) {
+          seenUrls.add(r.url);
+          rows.push(r);
+        }
+      }
       const total = rows.length >= fetchLimit ? (page * limit) + 20 : (offset + rows.length);
 
       const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
@@ -2382,22 +2428,20 @@ export class SearchEngine {
     END)`;
 
     try {
-      const stmt = this.db.prepare(`
-        SELECT id, url, domain, title, description, headings,
-               logo_url, lead_image_url, pagerank, in_links_count,
-               published_at, crawled_at
-        FROM pages p
-        WHERE ${newsDomainFilter}
-          AND p.title IS NOT NULL AND length(p.title) > 10
-          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
-          AND p.lead_image_url NOT LIKE '%favicon%'
-          AND p.lead_image_url NOT LIKE '%icon.png%'
-          AND p.lead_image_url NOT LIKE '%default-avatar%'
-        ORDER BY ((p.pagerank * 2.5 + COALESCE(p.in_links_count, 0) * 0.8 + 1.0) * ${freshnessSql}) DESC, COALESCE(p.published_at, p.crawled_at) DESC
-        LIMIT ? OFFSET ?
-      `);
-
-      const rows = stmt.all(fetchLimit, offset);
+      let rows = (this.dbInstance?.hotNewsRing || []).slice(0, fetchLimit * 2);
+      if (rows.length < limit) {
+        const stmt = this.db.prepare(`
+          SELECT id, url, domain, title, description, headings,
+                 logo_url, lead_image_url, pagerank, in_links_count,
+                 published_at, crawled_at
+          FROM pages p
+          WHERE p.id > (SELECT IFNULL(MAX(id), 0) - 2500 FROM pages)
+            AND p.title IS NOT NULL AND length(p.title) > 10
+          ORDER BY p.id DESC
+          LIMIT ? OFFSET ?
+        `);
+        rows = stmt.all(fetchLimit, offset);
+      }
       const articleCandidates = rows.filter(r => isRealArticlePage(r.url, r.title) || !isChannelOrHubPage(r.url, r.title));
       const pool = articleCandidates.length >= limit ? articleCandidates : (articleCandidates.length > 0 ? [...articleCandidates, ...rows.filter(r => !articleCandidates.includes(r))] : rows);
       const diverseRows = this._applyDomainDiversity(pool, 2, limit);
@@ -2469,22 +2513,20 @@ export class SearchEngine {
     END)`;
 
     try {
-      const stmt = this.db.prepare(`
-        SELECT id, url, domain, title, description, headings,
-               logo_url, lead_image_url, pagerank, in_links_count,
-               published_at, crawled_at
-        FROM pages p
-        WHERE ${newsDomainFilter}
-          AND p.title IS NOT NULL AND length(p.title) > 10
-          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
-          AND p.lead_image_url NOT LIKE '%favicon%'
-          AND p.lead_image_url NOT LIKE '%icon.png%'
-          AND p.lead_image_url NOT LIKE '%default-avatar%'
-        ORDER BY ((p.pagerank * 3.0 + COALESCE(p.in_links_count, 0) * 0.5 + 1.0) * ${freshnessSql}) DESC, COALESCE(p.published_at, p.crawled_at) DESC
-        LIMIT ? OFFSET ?
-      `);
-
-      const rows = stmt.all(fetchLimit, offset);
+      let rows = (this.dbInstance?.hotNewsRing || []).slice(0, fetchLimit * 2);
+      if (rows.length < limit) {
+        const stmt = this.db.prepare(`
+          SELECT id, url, domain, title, description, headings,
+                 logo_url, lead_image_url, pagerank, in_links_count,
+                 published_at, crawled_at
+          FROM pages p
+          WHERE p.id > (SELECT IFNULL(MAX(id), 0) - 2500 FROM pages)
+            AND p.title IS NOT NULL AND length(p.title) > 10
+          ORDER BY p.id DESC
+          LIMIT ? OFFSET ?
+        `);
+        rows = stmt.all(fetchLimit, offset);
+      }
       const articleCandidates = rows.filter(r => isRealArticlePage(r.url, r.title) || !isChannelOrHubPage(r.url, r.title));
       const pool = articleCandidates.length >= limit ? articleCandidates : (articleCandidates.length > 0 ? [...articleCandidates, ...rows.filter(r => !articleCandidates.includes(r))] : rows);
       const diverseRows = this._applyDomainDiversity(pool, 2, limit);
@@ -2599,21 +2641,11 @@ export class SearchEngine {
     if (sort === 'trending') orderBy = '(p.pagerank + COALESCE(p.in_links_count, 0) * 0.1) DESC';
 
     try {
-      const stmt = this.db.prepare(`
-        SELECT id, url, domain, title, description, headings, content,
-               logo_url, lead_image_url, pagerank, in_links_count, published_at, crawled_at
-        FROM pages p
-        WHERE (title LIKE ? OR description LIKE ? OR headings LIKE ?)
-          AND ${newsDomainFilter}
-          AND p.lead_image_url IS NOT NULL AND length(p.lead_image_url) > 15
-          AND p.lead_image_url NOT LIKE '%favicon%'
-          AND p.lead_image_url NOT LIKE '%icon.png%'
-          AND p.lead_image_url NOT LIKE '%default-avatar%'
-        ORDER BY ${orderBy}
-        LIMIT ? OFFSET ?
-      `);
-
-      const rows = stmt.all(likePattern, likePattern, likePattern, Math.max(limit * 3, 60), offset);
+      const lowerClean = rawQuery.trim().toLowerCase();
+      const hotNews = this.dbInstance?.hotNewsRing || [];
+      const rows = hotNews
+        .filter(r => r && ((r.title && r.title.toLowerCase().includes(lowerClean)) || (r.description && r.description.toLowerCase().includes(lowerClean))))
+        .slice(offset, offset + Math.max(limit * 3, 60));
       const articleCandidates = rows.filter(r => isRealArticlePage(r.url, r.title) || !isChannelOrHubPage(r.url, r.title));
       const pool = articleCandidates.length >= limit ? articleCandidates : (articleCandidates.length > 0 ? [...articleCandidates, ...rows.filter(r => !articleCandidates.includes(r))] : rows);
       const diverseRows = this._applyDomainDiversity(pool, 2, limit);

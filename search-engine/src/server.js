@@ -1062,8 +1062,8 @@ async function handleV1Search(req, res) {
     };
   });
 
-  // 🚀 Fast Live Crawl Turbo Ingestion: If results are sparse (<3), fetch and index live in parallel from multi-sources
-  if (formattedResults.length < 3 && query && type !== 'images') {
+  // 🚀 Fast Live Crawl Turbo Ingestion: If results are sparse (<3), fetch and index live in parallel (<1.1s max)
+  const runLiveIngestion = async (targetList = null) => {
     try {
       const enc = encodeURIComponent(query.trim());
       const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
@@ -1073,7 +1073,7 @@ async function handleV1Search(req, res) {
         (async () => {
           try {
             const rssResp = await fetch(`https://news.google.com/rss/search?q=${enc}&hl=id&gl=ID&ceid=ID:id`, {
-              signal: AbortSignal.timeout(2500),
+              signal: AbortSignal.timeout(1100),
               headers: { 'User-Agent': userAgent }
             });
             if (rssResp.ok) {
@@ -1085,35 +1085,39 @@ async function handleV1Search(req, res) {
                 const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
                 const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
                 const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
+                const sourceUrl = (itemXml.match(/<source[^>]*url=["']([^"']+)["']/i)?.[1] || '').trim();
                 if (rawTitle && rawLink) {
                   let domain = '';
-                  try { domain = new URL(rawLink).hostname.replace('www.', ''); } catch(e) {}
+                  try { domain = new URL(sourceUrl || rawLink).hostname.replace('www.', ''); } catch(e) {}
                   const pageItem = {
                     url: rawLink,
                     domain: domain || 'news.google.com',
                     title: rawTitle,
-                    description: rawTitle,
+                    description: `${rawTitle} — ${source || 'Berita Terkini'} (${pubDate || 'Hari ini'})`,
                     headings: rawTitle,
                     content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
                     author: source || null,
+                    category: 'news',
                     publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
-                    pagerank: 1.2,
-                    trustScore: 85
+                    pagerank: 2.5,
+                    trustScore: 88
                   };
                   db.savePage(pageItem);
-                  formattedResults.push({
-                    title: rawTitle,
-                    url: rawLink,
-                    domain: domain || 'news.google.com',
-                    snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-                    description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-                    author: source || null,
-                    published_at: safeIsoDate(pubDate) || new Date().toISOString(),
-                    pagerank: 1.2,
-                    trust_score: 85,
-                    logo_url: null,
-                    lead_image_url: null
-                  });
+                  if (targetList) {
+                    targetList.push({
+                      title: rawTitle,
+                      url: rawLink,
+                      domain: domain || 'news.google.com',
+                      snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
+                      description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
+                      author: source || null,
+                      published_at: safeIsoDate(pubDate) || new Date().toISOString(),
+                      pagerank: 2.5,
+                      trust_score: 88,
+                      logo_url: domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null,
+                      lead_image_url: null
+                    });
+                  }
                 }
               }
             }
@@ -1124,7 +1128,7 @@ async function handleV1Search(req, res) {
         (async () => {
           try {
             const wikiResp = await fetch(`https://id.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=5&namespace=0&format=json`, {
-              signal: AbortSignal.timeout(2000),
+              signal: AbortSignal.timeout(1000),
               headers: { 'User-Agent': userAgent }
             });
             if (wikiResp.ok) {
@@ -1146,21 +1150,23 @@ async function handleV1Search(req, res) {
                       headings: title,
                       content: snippet,
                       lang: 'id',
-                      pagerank: 1.5,
+                      pagerank: 1.8,
                       trustScore: 92
                     });
-                    formattedResults.push({
-                      title: `${title} - Wikipedia bahasa Indonesia`,
-                      url: link,
-                      domain: 'id.wikipedia.org',
-                      snippet: snippet,
-                      description: snippet,
-                      published_at: new Date().toISOString(),
-                      pagerank: 1.5,
-                      trust_score: 92,
-                      logo_url: 'https://id.wikipedia.org/favicon.ico',
-                      lead_image_url: null
-                    });
+                    if (targetList) {
+                      targetList.push({
+                        title: `${title} - Wikipedia bahasa Indonesia`,
+                        url: link,
+                        domain: 'id.wikipedia.org',
+                        snippet: snippet,
+                        description: snippet,
+                        published_at: new Date().toISOString(),
+                        pagerank: 1.8,
+                        trust_score: 92,
+                        logo_url: 'https://id.wikipedia.org/favicon.ico',
+                        lead_image_url: null
+                      });
+                    }
                   }
                 }
               }
@@ -1172,7 +1178,7 @@ async function handleV1Search(req, res) {
         (async () => {
           try {
             const wikiEnResp = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=3&namespace=0&format=json`, {
-              signal: AbortSignal.timeout(2000),
+              signal: AbortSignal.timeout(1000),
               headers: { 'User-Agent': userAgent }
             });
             if (wikiEnResp.ok) {
@@ -1194,21 +1200,23 @@ async function handleV1Search(req, res) {
                       headings: title,
                       content: snippet,
                       lang: 'en',
-                      pagerank: 1.5,
+                      pagerank: 1.8,
                       trustScore: 92
                     });
-                    formattedResults.push({
-                      title: `${title} - Wikipedia`,
-                      url: link,
-                      domain: 'en.wikipedia.org',
-                      snippet: snippet,
-                      description: snippet,
-                      published_at: new Date().toISOString(),
-                      pagerank: 1.5,
-                      trust_score: 92,
-                      logo_url: 'https://en.wikipedia.org/favicon.ico',
-                      lead_image_url: null
-                    });
+                    if (targetList) {
+                      targetList.push({
+                        title: `${title} - Wikipedia`,
+                        url: link,
+                        domain: 'en.wikipedia.org',
+                        snippet: snippet,
+                        description: snippet,
+                        published_at: new Date().toISOString(),
+                        pagerank: 1.8,
+                        trust_score: 92,
+                        logo_url: 'https://en.wikipedia.org/favicon.ico',
+                        lead_image_url: null
+                      });
+                    }
                   }
                 }
               }
@@ -1216,11 +1224,14 @@ async function handleV1Search(req, res) {
           } catch {}
         })()
       ]);
+    } catch (_liveErr) {}
+  };
 
-      db.flushPageBuffer();
-    } catch (_liveErr) {
-      console.warn('[V1-SEARCH] Fast live crawl note:', _liveErr.message);
-    }
+  if (formattedResults.length < 3 && query && type !== 'images') {
+    await runLiveIngestion(formattedResults);
+  } else if (query && type !== 'images') {
+    // Asynchronously refresh hot RAM ring buffer in background without delaying HTTP response!
+    setImmediate(() => { runLiveIngestion(null); });
   }
 
   const aiContext = formatAiContext(query, formattedResults);

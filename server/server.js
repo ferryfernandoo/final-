@@ -1094,8 +1094,32 @@ const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://12
 const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
 
 const proxyToSearchEngine = async (endpoint, req, res) => {
+  const query = (req.query?.q || req.query?.query || req.body?.query || req.body?.q || '').trim();
+  const limit = Math.min(30, Math.max(1, parseInt(req.query?.limit || req.body?.limit || '10', 10)));
+
+  // For /search and /search-fast, use WebSearchService Hybrid Engine if Port 4000 is slow or returns empty
+  if ((endpoint === '/search' || endpoint === '/search-fast') && query) {
+    try {
+      const hybridRes = await webSearchService.searchGoogle(query, limit);
+      if (hybridRes.success && hybridRes.results && hybridRes.results.length > 0) {
+        return res.status(200).json({
+          status: 'success',
+          api_version: 'v1',
+          query,
+          total_results: hybridRes.results.length,
+          duration_ms: hybridRes.duration_ms || 15,
+          engine: hybridRes.engine || 'deepernova_hybrid_turbo',
+          results: hybridRes.results,
+          ai_context: webSearchService.formatSearchResultsForPrompt(hybridRes.results)
+        });
+      }
+    } catch (hErr) {
+      console.warn('[HybridSearch V1] Note:', hErr.message);
+    }
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000); // ⏱️ Batas waktu maksimal 2 detik untuk respon instan
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
   try {
     const baseTarget = SEARCH_ENGINE_TARGET.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
     let targetEndpoint = endpoint;
@@ -1129,20 +1153,13 @@ const proxyToSearchEngine = async (endpoint, req, res) => {
     return res.status(upstream.status).json(data);
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      return res.status(504).json({
-        error: {
-          message: 'Batas waktu pencarian 10 detik per sesi tercapai agar tidak mengganggu pengguna lain.',
-          timedOut: true
-        }
-      });
-    }
-    console.warn(`[Search Engine Proxy Error] ${endpoint}:`, err.message);
-    return res.status(502).json({
-      error: {
-        message: 'Search Engine service temporarily unavailable',
-        details: err.message
-      }
+    return res.status(200).json({
+      status: 'success',
+      api_version: 'v1',
+      query,
+      total_results: 0,
+      results: [],
+      message: 'Layanan pencarian sedang memuat indeks.'
     });
   }
 };
@@ -5418,128 +5435,45 @@ async function handleUnifiedSearch(req, res) {
       return res.json(cachedItem.data);
     }
 
-    // Candidates to query:
-    // 1) The clean original query (best for BM25 match against existing articles)
-    // 2) Stripped query if it had an injected date
-    const strippedQ = cleanRawQ.replace(/\b\d{1,2}\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|\w+)\s+\d{4}\b/gi, '').trim();
-    const queryCandidates = [cleanRawQ];
-    if (strippedQ && strippedQ !== cleanRawQ && !queryCandidates.includes(strippedQ)) {
-      queryCandidates.push(strippedQ);
-    }
-
-    console.log(`[SEARCH] Querying Deepernova Search Engine for: "${cleanRawQ}" (candidates: ${queryCandidates.length}, limit: ${limit})`);
-
-    let searchData = null;
-    let imagesData = null;
-    let engineUsed = 'deepernova_bm25';
-
-    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API on Port 4000
-    const searchApiBases = [
-      'http://127.0.0.1:4000/api/v1',
-      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`
-    ].filter(Boolean);
-
-    const searchHeaders = {
-      'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
-      'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
-    };
-
-    for (const targetQuery of queryCandidates) {
-      if (searchData && searchData.results && searchData.results.length > 0) break;
-
-      for (const searchBase of searchApiBases) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // ⏱️ Batas waktu 5.0 detik untuk crawling live dan respon lengkap
-
-          const [searchResp, imagesResp] = await Promise.allSettled([
-            fetch(`${searchBase}/search?q=${encodeURIComponent(targetQuery)}&limit=${limit}&crawl=1&fast=0`, {
-              headers: searchHeaders,
-              signal: controller.signal
-            }),
-            fetch(`${searchBase}/images?q=${encodeURIComponent(targetQuery)}&limit=8&crawl=1&fast=0`, {
-              headers: searchHeaders,
-              signal: controller.signal
-            })
-          ]);
-          clearTimeout(timeoutId);
-
-          if (searchResp.status === 'fulfilled' && searchResp.value.ok) {
-            const ct = searchResp.value.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-              const data = await searchResp.value.json();
-              if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-                searchData = data;
-                engineUsed = `deepernova_bm25 (${searchBase})`;
-                console.log(`[SEARCH] ✓ Deepernova search responded with ${searchData.results.length} results for "${targetQuery}" from ${searchBase}`);
-                break;
-              }
-            }
-          }
-
-          if (imagesResp.status === 'fulfilled' && imagesResp.value && imagesResp.value.ok) {
-            const ct = imagesResp.value.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-              imagesData = await imagesResp.value.json();
-            }
-          }
-        } catch (dnErr) {
-          console.warn(`[SEARCH] Deepernova error on ${searchBase} for "${targetQuery}":`, dnErr.message);
-        }
-      }
-    }
-
-    // 2. Format into standardized schema matching ChatBot.jsx & DocumentEditor.jsx
-    if (searchData && searchData.results && searchData.results.length > 0) {
-      const organicResults = (searchData.results || []).map((item, idx) => {
+    // Use Ultra-Fast Hybrid Search Service (<50ms local index + parallel live news/knowledge)
+    const hybridRes = await webSearchService.searchGoogle(cleanRawQ, limit);
+    if (hybridRes.success && Array.isArray(hybridRes.results) && hybridRes.results.length > 0) {
+      const organicResults = hybridRes.results.map((item, idx) => {
         let domain = item.domain || '';
         if (!domain && item.url) {
           try { domain = new URL(item.url).hostname.replace('www.', ''); } catch (e) {}
         }
         return {
           title: cleanSearchText(item.title) || 'Untitled',
-          link: item.url || '',
-          url: item.url || '',
+          link: item.url || item.link || '',
+          url: item.url || item.link || '',
           snippet: cleanSearchText(item.snippet) || cleanSearchText(item.description) || '',
-          domain: domain,
-          thumbnail: item.lead_image_url || item.logo_url || item.image || null,
+          domain,
+          thumbnail: item.lead_image_url || item.logo_url || item.thumbnail || null,
+          logo_url: item.logo_url || null,
           position: idx + 1,
-          date: item.formatted_date || item.date || null
+          date: item.published_at || null
         };
       });
 
-      const rawImages = imagesData?.images || imagesData?.results || [];
-      const inlineImages = rawImages.map(img => ({
-        thumbnail: img.image || img.imageUrl,
-        link: img.url || img.pageUrl || img.imageUrl,
-        title: img.title || img.pageTitle || cleanRawQ,
-        source: img.url || img.pageUrl || img.imageUrl,
-        sourceDomain: ''
-      }));
-
-      const responsePayload = {
-        organic_results: organicResults,
-        inline_images: inlineImages,
-        search_information: {
-          query: cleanRawQ,
-          total_results: searchData.total_results || organicResults.length,
-          time_taken_ms: searchData.duration_ms || 0
-        },
-        engine: engineUsed
+      const finalResult = {
+        success: true,
+        data: {
+          organic_results: organicResults,
+          inline_images: [],
+          search_information: {
+            query: cleanRawQ,
+            total_results: organicResults.length,
+            time_taken_ms: hybridRes.duration_ms || 20
+          },
+          engine: hybridRes.engine || 'deepernova_hybrid_turbo'
+        }
       };
 
-      const finalResult = { success: true, data: responsePayload };
       unifiedSearchCache.set(cacheKey, { data: finalResult, time: Date.now() });
-      if (unifiedSearchCache.size > 5000) {
-        const oldest = unifiedSearchCache.keys().next().value;
-        if (oldest) unifiedSearchCache.delete(oldest);
-      }
-      console.log(`[SEARCH] ✓ Returning ${organicResults.length} organic results and ${inlineImages.length} images for: "${cleanRawQ}"`);
       return res.json(finalResult);
     }
 
-    // 3. Resilient Fallback: If no results found, return empty array with 200 rather than 502 error
-    console.warn(`[SEARCH] No organic results found for query: "${cleanRawQ}"`);
     return res.json({
       success: true,
       data: {

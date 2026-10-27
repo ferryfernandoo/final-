@@ -281,18 +281,24 @@ async function performDirectSearch(query, limit, includeImages, timeoutMs = 6000
         }).catch(() => null);
       }
 
-      const [searchResp, imagesResp] = await Promise.allSettled([searchPromise, imagesPromise]);
-      clearTimeout(timeoutId);
-
+      const searchResp = await searchPromise;
       let searchJson = null;
-      let imagesJson = null;
+      if (searchResp && searchResp.ok) {
+        searchJson = await searchResp.json().catch(() => null);
+      }
 
-      if (searchResp.status === 'fulfilled' && searchResp.value && searchResp.value.ok) {
-        searchJson = await searchResp.value.json().catch(() => null);
+      // Give images at most 250ms extra once text search is ready so text results are NEVER delayed!
+      let imagesJson = null;
+      if (includeImages && !allowCrawl) {
+        const imagesResp = await Promise.race([
+          imagesPromise,
+          new Promise(r => setTimeout(() => r(null), 250))
+        ]);
+        if (imagesResp && imagesResp.ok) {
+          imagesJson = await imagesResp.json().catch(() => null);
+        }
       }
-      if (imagesResp.status === 'fulfilled' && imagesResp.value && imagesResp.value.ok) {
-        imagesJson = await imagesResp.value.json().catch(() => null);
-      }
+      clearTimeout(timeoutId);
 
       if (searchJson && Array.isArray(searchJson.results) && searchJson.results.length > 0) {
         const organicResults = mapRawResultsToOrganic(searchJson.results);
@@ -560,37 +566,38 @@ export async function executeWebSearch(query, options = {}) {
         }).catch(() => resolve(null));
       });
 
-    const directPromise = wrapSearchResult(performDirectSearch(effectiveQuery, limit, includeImages, 5500));
-    const proxyPromise = wrapSearchResult(performProxySearch(effectiveQuery, limit, 5500));
+    const directPromise = wrapSearchResult(performDirectSearch(effectiveQuery, limit, includeImages, 2200));
+    const proxyPromise = wrapSearchResult(performProxySearch(effectiveQuery, limit, 2500));
+
+    // Staggered backup race: if primary local/proxy doesn't resolve within 750ms, fire cloud + public fallback in parallel!
+    const staggeredFallbackPromise = new Promise((resolve) => {
+      const timer = setTimeout(async () => {
+        const [cloudRes, publicRes] = await Promise.all([
+          wrapSearchResult(performCloudDirectSearch(effectiveQuery, limit, 2500)),
+          wrapSearchResult(performPublicWebFallback(effectiveQuery, limit, 2500))
+        ]);
+        resolve(cloudRes || publicRes || null);
+      }, 750);
+      // Clean up timer if primary resolves fast
+      directPromise.then(r => { if (r) clearTimeout(timer); });
+      proxyPromise.then(r => { if (r) clearTimeout(timer); });
+    });
 
     // Fast-path: whichever returns valid results first wins immediately!
     const firstResult = await Promise.race([
       directPromise.then(r => r ? r : new Promise(() => { })),
-      proxyPromise.then(r => r ? r : new Promise(() => { }))
+      proxyPromise.then(r => r ? r : new Promise(() => { })),
+      staggeredFallbackPromise.then(r => r ? r : new Promise(() => { }))
     ]).catch(() => null);
 
     if (firstResult) {
       return firstResult;
     }
 
-    // Fallback 1: wait for both to settle if neither fast-resolved
-    const results = await Promise.all([directPromise, proxyPromise]);
+    // Fallback: wait for all to settle if none fast-resolved
+    const results = await Promise.all([directPromise, proxyPromise, staggeredFallbackPromise]);
     const valid = results.find(r => r && r.data?.organic_results?.length > 0);
     if (valid) return valid;
-
-    // Fallback 2: Direct hit to production Deepernova search engine + Public Web Fallback in parallel
-    console.log(`[ClientSearchService] Attempting cloud & public web fallback for: "${effectiveQuery}"`);
-    const [cloudFallback, publicFallback] = await Promise.all([
-      wrapSearchResult(performCloudDirectSearch(effectiveQuery, limit, 4000)),
-      wrapSearchResult(performPublicWebFallback(effectiveQuery, limit, 4000))
-    ]);
-
-    if (cloudFallback && cloudFallback.data?.organic_results?.length > 0) {
-      return cloudFallback;
-    }
-    if (publicFallback && publicFallback.data?.organic_results?.length > 0) {
-      return publicFallback;
-    }
 
     return {
       success: true,
@@ -598,7 +605,7 @@ export async function executeWebSearch(query, options = {}) {
     };
   };
 
-  // Hard global timeout at 8500ms
+  // Hard global timeout at 4000ms
   const hardTimeoutPromise = new Promise((resolve) => {
     setTimeout(() => {
       resolve({
@@ -606,10 +613,10 @@ export async function executeWebSearch(query, options = {}) {
         data: {
           organic_results: [],
           inline_images: [],
-          search_information: { query: effectiveQuery, total_results: 0, time_taken_ms: 8500, timed_out: true }
+          search_information: { query: effectiveQuery, total_results: 0, time_taken_ms: 4000, timed_out: true }
         }
       });
-    }, 8500);
+    }, 4000);
   });
 
   const finalResult = await Promise.race([executeWithTimeout(), hardTimeoutPromise]);

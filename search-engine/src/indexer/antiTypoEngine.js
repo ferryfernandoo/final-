@@ -219,21 +219,7 @@ export class AntiTypoEngine {
     if (this.commonWords.has(lower) || this.vocabMap.has(lower)) return true;
     if (lower.length <= 2) return true; // Keep short particles untouched
 
-    // Check if word exists in database domains (uses idx_pages_domain, <0.1ms)
-    if (this.db) {
-      try {
-        const targetDb = this.db.db || this.db;
-        if (targetDb && typeof targetDb.prepare === 'function') {
-          const row = targetDb.prepare('SELECT 1 FROM pages WHERE domain = ? OR domain = ? OR domain = ? LIMIT 1')
-            .get(lower, `${lower}.com`, `${lower}.go.id`);
-          if (row) {
-            this.commonWords.add(lower);
-            this.vocabMap.set(lower, { term: lower, freq: 300, type: 'domain_dynamic' });
-            return true;
-          }
-        }
-      } catch {}
-    }
+    // 100% In-Memory dictionary check (zero SQLite roundtrip per token)
 
     // Check basic Indonesian morphology (e.g. ber-, me-, di-, pe-, ke-, -kan, -an, -nya)
     if (lower.endsWith('nya') && this.isKnownWord(lower.slice(0, -3))) return true;
@@ -327,9 +313,9 @@ export class AntiTypoEngine {
         }
       } catch {}
 
-      // Ingest top indexed domains instantly, and defer full 150k+ domain scan to non-blocking background
+      // Ingest recent domains from PK tail in <1ms (zero full-table scan)
       try {
-        const topDomainRows = targetDb.prepare('SELECT domain FROM pages ORDER BY pagerank DESC LIMIT 1000').all() || [];
+        const topDomainRows = targetDb.prepare('SELECT domain FROM pages WHERE id > (SELECT IFNULL(MAX(id), 0) - 800 FROM pages) LIMIT 400').all() || [];
         for (const row of topDomainRows) {
           if (row.domain) {
             const cleanDomain = row.domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').trim();
@@ -343,26 +329,6 @@ export class AntiTypoEngine {
             this.commonWords.add(cleanDomain);
           }
         }
-
-        // Full 150k+ domain dictionary background ingestion (zero boot delay)
-        setImmediate(() => {
-          try {
-            const domainRows = targetDb.prepare('SELECT domain FROM pages ORDER BY pagerank DESC LIMIT 5000').all() || [];
-            for (const row of domainRows) {
-              if (row.domain) {
-                const cleanDomain = row.domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').trim();
-                const parts = cleanDomain.split('.');
-                const baseBrand = parts[0];
-                if (baseBrand && baseBrand.length >= 2) {
-                  this.addTerm(baseBrand, 350, 'domain_brand');
-                  this.commonWords.add(baseBrand);
-                }
-                this.addTerm(cleanDomain, 350, 'domain_full');
-                this.commonWords.add(cleanDomain);
-              }
-            }
-          } catch {}
-        });
       } catch {}
     } catch (e) {}
   }
