@@ -204,7 +204,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     let envContent = fs.readFileSync(envPath, 'utf8');
     envContent = envContent.replace(
       /VITE_DEEPERNOVA_SEARCH_API_URL=\S+/g,
-      `VITE_DEEPERNOVA_SEARCH_API_URL=${searchEngineUrl}/api/v1`
+      `VITE_DEEPERNOVA_SEARCH_API_URL=/api/v1`
     );
     envContent = envContent.replace(
       /VITE_SEARCH_ENGINE_URL=\S+/g,
@@ -295,29 +295,11 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     log.success('src/apiConfig.js berhasil diperbarui.');
   }
 
-  // 4. Update src/services/clientSearchService.js
-  const searchServicePath = path.join(ROOT_DIR, 'src', 'services', 'clientSearchService.js');
-  if (fs.existsSync(searchServicePath)) {
-    let searchContent = fs.readFileSync(searchServicePath, 'utf8');
-    searchContent = searchContent.replace(
-      /export const API_BASE_URL =[\s\S]*?;/,
-      `export const API_BASE_URL = \n  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL || \n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://127.0.0.1:4000/api/v1'\n    : '${searchEngineUrl}/api/v1');`
-    );
-    fs.writeFileSync(searchServicePath, searchContent, 'utf8');
-    log.success('src/services/clientSearchService.js berhasil diperbarui.');
-  }
+  // 4. Ensure src/services/clientSearchService.js uses Vercel Edge Rewrite (/api/v1) in production
+  log.success('src/services/clientSearchService.js siap dengan Vercel Edge Rewrite (/api/v1).');
 
-  // 5. Update src/components/LandingPage.jsx
-  const landingPagePath = path.join(ROOT_DIR, 'src', 'components', 'LandingPage.jsx');
-  if (fs.existsSync(landingPagePath)) {
-    let lpContent = fs.readFileSync(landingPagePath, 'utf8');
-    lpContent = lpContent.replace(
-      /const openSearch = \(q\) => \{[\s\S]*?\};/,
-      `const openSearch = (q) => {\n  const base = (SEARCH_ENGINE_URL || '${searchEngineUrl}').replace(/\\/+$/, '');\n  const searchBase = base.endsWith('/search') ? base : \`\${base}/search\`;\n  const url = q ? \`\${searchBase}?q=\${encodeURIComponent(q)}\` : base;\n  window.open(url, '_blank', 'noopener,noreferrer');\n};`
-    );
-    fs.writeFileSync(landingPagePath, lpContent, 'utf8');
-    log.success('src/components/LandingPage.jsx berhasil diperbarui.');
-  }
+  // 5. Ensure src/components/LandingPage.jsx always opens /search on Vercel CDN
+  log.success('src/components/LandingPage.jsx siap dengan Vercel CDN (/search).');
 
   // 6. Update .env.production
   const envProdPath = path.join(ROOT_DIR, '.env.production');
@@ -325,7 +307,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     let envProdContent = fs.readFileSync(envProdPath, 'utf8');
     envProdContent = envProdContent.replace(
       /VITE_DEEPERNOVA_SEARCH_API_URL=\S+/g,
-      `VITE_DEEPERNOVA_SEARCH_API_URL=${searchEngineUrl}/api/v1`
+      `VITE_DEEPERNOVA_SEARCH_API_URL=/api/v1`
     );
     envProdContent = envProdContent.replace(
       /VITE_SEARCH_ENGINE_URL=\S+/g,
@@ -421,8 +403,28 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         destination: "/search/index.html"
       },
       {
+        source: "/search/",
+        destination: "/search/index.html"
+      },
+      {
         source: "/search/assets/:path*",
         destination: "/search/assets/:path*"
+      },
+      {
+        source: "/search/icons/:path*",
+        destination: "/search/icons/:path*"
+      },
+      {
+        source: "/search/manifest.json",
+        destination: "/search/manifest.json"
+      },
+      {
+        source: "/search/sw.js",
+        destination: "/search/sw.js"
+      },
+      {
+        source: "/search/favicon.png",
+        destination: "/search/favicon.png"
       },
       {
         source: "/search/:path*",
@@ -433,20 +435,16 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         destination: `${searchEngineUrl}/api/search`
       },
       {
-        source: "/api/v1/search",
-        destination: `${searchEngineUrl}/api/v1/search`
-      },
-      {
-        source: "/api/v1/images",
-        destination: `${searchEngineUrl}/api/v1/images`
-      },
-      {
-        source: "/api/v1/news",
-        destination: `${searchEngineUrl}/api/v1/news`
+        source: "/api/status",
+        destination: `${searchEngineUrl}/api/status`
       },
       {
         source: "/api/v1/suggest",
         destination: `${searchEngineUrl}/suggest`
+      },
+      {
+        source: "/api/v1/:path*",
+        destination: `${searchEngineUrl}/api/v1/:path*`
       },
       {
         source: "/api/suggestions",
@@ -457,24 +455,44 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         destination: `${searchEngineUrl}/api/suggestions/:path*`
       },
       {
-        source: "/api/ai/stream",
-        destination: `${searchEngineUrl}/api/ai/stream`
+        source: "/api/ai/:path*",
+        destination: `${searchEngineUrl}/api/ai/:path*`
+      },
+      {
+        source: "/api/news",
+        destination: `${searchEngineUrl}/api/news`
       },
       {
         source: "/api/news/:path*",
         destination: `${searchEngineUrl}/api/news/:path*`
       },
       {
+        source: "/api/tokoh",
+        destination: `${searchEngineUrl}/api/tokoh`
+      },
+      {
         source: "/api/tokoh/:path*",
         destination: `${searchEngineUrl}/api/tokoh/:path*`
+      },
+      {
+        source: "/api/geo",
+        destination: `${searchEngineUrl}/api/geo`
       },
       {
         source: "/api/geo/:path*",
         destination: `${searchEngineUrl}/api/geo/:path*`
       },
       {
+        source: "/api/crawl",
+        destination: `${searchEngineUrl}/api/crawl`
+      },
+      {
         source: "/api/crawl/:path*",
         destination: `${searchEngineUrl}/api/crawl/:path*`
+      },
+      {
+        source: "/api/economics",
+        destination: `${searchEngineUrl}/api/economics`
       },
       {
         source: "/api/economics/:path*",
@@ -505,7 +523,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         destination: `${backendUrl}/watermarked/:path*`
       },
       {
-        source: "/((?!assets/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+        source: "/((?!assets/|search/|api/|auth/|v1/|download/|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
         destination: "/index.html"
       }
     ]

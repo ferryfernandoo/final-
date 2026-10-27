@@ -13,7 +13,12 @@ export default function App() {
   const getInitialView = () => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      if (path.startsWith('/admin') || path.startsWith('/crawler')) {
+      if (
+        path.startsWith('/admin') ||
+        path.startsWith('/crawler') ||
+        path.startsWith('/search/admin') ||
+        path.startsWith('/search/crawler')
+      ) {
         return 'admin';
       }
     }
@@ -22,7 +27,7 @@ export default function App() {
 
   const getInitialAdminTab = () => {
     if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
+      const path = window.location.pathname.replace(/^\/search/, '');
       if (path.startsWith('/crawler') || path === '/admin') return 'crawler';
       if (path.startsWith('/economics')) return 'economics';
       if (path.startsWith('/news')) return 'news';
@@ -68,7 +73,9 @@ export default function App() {
   // Switch view handler with clean browser history push
   const handleSwitchView = (view) => {
     setCurrentView(view);
-    const newPath = view === 'admin' ? '/admin' : '/';
+    const isHostedUnderSearch = window.location.pathname.startsWith('/search');
+    const basePrefix = isHostedUnderSearch ? '/search' : '';
+    const newPath = view === 'admin' ? `${basePrefix}/admin` : (basePrefix || '/');
     if (window.location.pathname !== newPath) {
       window.history.pushState(null, '', newPath);
     }
@@ -185,7 +192,8 @@ export default function App() {
 
         ws.onclose = () => {
           setIsWsConnected(false);
-          timeoutId = setTimeout(connect, 500);
+          const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          timeoutId = setTimeout(connect, isLocalHost ? 1500 : 15000);
         };
 
         ws.onerror = () => {
@@ -193,7 +201,8 @@ export default function App() {
         };
       } catch (err) {
         console.error('WS Init Error:', err);
-        timeoutId = setTimeout(connect, 500);
+        const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        timeoutId = setTimeout(connect, isLocalHost ? 1500 : 15000);
       }
     }
 
@@ -208,9 +217,11 @@ export default function App() {
         .then(data => {
           if (data) {
             setTelemetry(prev => ({
+              ...prev,
               crawler: data.crawler || prev.crawler,
               db: data.db || prev.db,
-              system: prev.system
+              system: data.system || prev.system,
+              governor: data.governor || prev.governor
             }));
             if (data.db?.recentLogs && data.db.recentLogs.length > 0) {
               setLogs(prev => {

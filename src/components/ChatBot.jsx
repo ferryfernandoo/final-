@@ -444,6 +444,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [expandedMemoryId, setExpandedMemoryId] = useState(null); // Track which message has expanded memory modal
   const [showGlobalMemorySettings, setShowGlobalMemorySettings] = useState(false); // Show global memory settings modal
   const [showConnectionErrorModal, setShowConnectionErrorModal] = useState(false); // Show connection error modal
+  const [connectionErrorMessage, setConnectionErrorMessage] = useState(''); // Connection error message
   const [searchQuery, setSearchQuery] = useState('');
 
   const searchResults = useMemo(() => {
@@ -3501,14 +3502,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           setAttachmentQueueMinimized(false);
 
           let gotPublicUrl = false;
+          let uploadedUrl = null;
           try {
             const uploadResult = await uploadImageToServer(file);
+            uploadedUrl = uploadResult?.url || null;
             setUploadedImages(prev => prev.map(img => 
               img.id === imageId
-                ? { ...img, publicUrl: uploadResult.url, status: 'analyzed' }
+                ? { ...img, publicUrl: uploadedUrl, status: 'analyzed' }
                 : img
             ));
-            gotPublicUrl = true;
+            gotPublicUrl = Boolean(uploadedUrl);
           } catch (uploadError) {
             console.log('[ChatBot] Server upload offline — using compressed base64 dataUrl for vision:', uploadError.message);
             setUploadedImages(prev => prev.map(img => 
@@ -3522,7 +3525,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           saveImageToGallery({
             id: imageId,
             prompt: `Unggahan: ${file.name}`,
-            imageUrl: gotPublicUrl ? uploadResult.url : base64Data,
+            imageUrl: (gotPublicUrl && uploadedUrl) ? uploadedUrl : base64Data,
             type: 'uploaded',
             model: 'user-upload'
           }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Auto-save uploaded image error:', e));
@@ -7072,7 +7075,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 isReasoning: false,
                 isReasoningComplete: !!(searchReasoningText || msg.reasoningText),
                 searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : finalizedSources,
-                searchSteps: (msg.searchSteps && msg.searchSteps.length > 0) ? msg.searchSteps : (updatedSteps || [])
+                searchSteps: (msg.searchSteps && msg.searchSteps.length > 0) ? msg.searchSteps : [{ query: searchQuery, isSearching: false, sources: finalizedSources, images: uniqueImages.slice(0, 6) }]
               }
             : msg
         );
@@ -7277,7 +7280,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             msg.id === messageId
               ? { 
                   ...msg, 
-                  text: replaceCitationsWithLinks(cleanResponseText(finalResponseText)), 
+                  text: cleanResponseText(finalResponseText), 
                   reasoningText: searchReasoningText || msg.reasoningText,
                   reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
                   isStreaming: false, 

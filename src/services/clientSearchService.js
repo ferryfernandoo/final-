@@ -13,33 +13,32 @@ const isLocal = typeof window !== 'undefined' && (
 );
 
 export function resolveSearchApiBaseUrl() {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname;
     // Local dev: hit local ultra-fast search engine
     if (host === 'localhost' || host === '127.0.0.1' || host === '') {
       return 'http://127.0.0.1:4000/api/v1';
     }
-    // Production on deepernova.com or vercel
-    if (host.includes('deepernova.com') || host.endsWith('.vercel.app')) {
-      return 'https://www.deepernova.com/api/v1';
+    // Production on deepernova.com or vercel: ALWAYS use same-origin Vercel Edge Rewrite (/api/v1)
+    if (window.location.origin && !window.location.origin.includes('trycloudflare.com')) {
+      return `${window.location.origin}/api/v1`;
     }
   }
 
   const envUrl = import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL;
   if (envUrl && !envUrl.includes('trycloudflare.com')) {
-    return envUrl;
+    if (envUrl.startsWith('/') && typeof window !== 'undefined' && window.location?.origin) {
+      return `${window.location.origin}${envUrl}`;
+    }
+    if (envUrl.startsWith('http')) {
+      return envUrl;
+    }
   }
 
   return 'https://www.deepernova.com/api/v1';
 }
 
-export const API_BASE_URL =
-  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_URL ||
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:4000/api/v1'
-    : (typeof window !== 'undefined' && window.location.origin
-      ? `${window.location.origin}/api/v1`
-      : 'https://portland-oops-trainers-weblogs.trycloudflare.com/api/v1'));
+export const API_BASE_URL = resolveSearchApiBaseUrl();
 
 export const API_KEY =
   import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY ||
