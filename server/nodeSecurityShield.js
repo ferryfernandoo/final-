@@ -155,64 +155,74 @@ export function installNodeSecurityShield() {
   // 2. Patch node:dns against CVE-2026-105482 (DNS NUL byte truncation) & CVE-2026-105483
   const dnsMethodsToWrap = ['lookup', 'resolve', 'resolve4', 'resolve6', 'resolveAny', 'resolveCname', 'resolveMx', 'resolveNs', 'resolveTxt', 'reverse'];
   for (const method of dnsMethodsToWrap) {
-    if (typeof dns[method] === 'function') {
-      const orig = dns[method].bind(dns);
-      dns[method] = function hardenedDns(hostname, ...args) {
-        try {
-          const safeHost = validateSafeHostname(hostname);
-          return orig(safeHost, ...args);
-        } catch (err) {
-          const cb = args[args.length - 1];
-          if (typeof cb === 'function') {
-            return process.nextTick(() => cb(err));
+    try {
+      if (typeof dns[method] === 'function') {
+        const orig = dns[method].bind(dns);
+        dns[method] = function hardenedDns(hostname, ...args) {
+          try {
+            const safeHost = validateSafeHostname(hostname);
+            return orig(safeHost, ...args);
+          } catch (err) {
+            const cb = args[args.length - 1];
+            if (typeof cb === 'function') {
+              return process.nextTick(() => cb(err));
+            }
+            throw err;
           }
-          throw err;
-        }
-      };
-    }
-    if (dns.promises && typeof dns.promises[method] === 'function') {
-      const origPromise = dns.promises[method].bind(dns.promises);
-      dns.promises[method] = async function hardenedDnsPromise(hostname, ...args) {
-        const safeHost = validateSafeHostname(hostname);
-        return origPromise(safeHost, ...args);
-      };
-    }
+        };
+      }
+    } catch {}
+    try {
+      if (dns.promises && typeof dns.promises[method] === 'function') {
+        const origPromise = dns.promises[method].bind(dns.promises);
+        dns.promises[method] = async function hardenedDnsPromise(hostname, ...args) {
+          const safeHost = validateSafeHostname(hostname);
+          return origPromise(safeHost, ...args);
+        };
+      }
+    } catch {}
   }
 
-  // 3. Harden node:zlib Brotli methods with strict output memory ceiling (CVE-2026-111497)
+  // 3. Harden node:zlib Brotli methods with strict output memory ceiling where writable (CVE-2026-111497)
   const MAX_SAFE_BROTLI_BYTES = 4 * 1024 * 1024; // 4 MB strict ceiling
-  if (typeof zlib.createBrotliDecompress === 'function') {
-    const origCreateBrotli = zlib.createBrotliDecompress.bind(zlib);
-    zlib.createBrotliDecompress = function hardenedCreateBrotliDecompress(options = {}) {
-      return origCreateBrotli({
-        ...options,
-        maxOutputLength: Math.min(options?.maxOutputLength || MAX_SAFE_BROTLI_BYTES, MAX_SAFE_BROTLI_BYTES)
-      });
-    };
-  }
-  if (typeof zlib.brotliDecompress === 'function') {
-    const origBrotli = zlib.brotliDecompress.bind(zlib);
-    zlib.brotliDecompress = function hardenedBrotliDecompress(buf, options, callback) {
-      if (typeof options === 'function') {
-        callback = options;
-        options = {};
-      }
-      const safeOpts = {
-        ...(options || {}),
-        maxOutputLength: Math.min(options?.maxOutputLength || MAX_SAFE_BROTLI_BYTES, MAX_SAFE_BROTLI_BYTES)
+  try {
+    if (typeof zlib.createBrotliDecompress === 'function') {
+      const origCreateBrotli = zlib.createBrotliDecompress.bind(zlib);
+      zlib.createBrotliDecompress = function hardenedCreateBrotliDecompress(options = {}) {
+        return origCreateBrotli({
+          ...options,
+          maxOutputLength: Math.min(options?.maxOutputLength || MAX_SAFE_BROTLI_BYTES, MAX_SAFE_BROTLI_BYTES)
+        });
       };
-      return origBrotli(buf, safeOpts, callback);
-    };
-  }
-  if (typeof zlib.brotliDecompressSync === 'function') {
-    const origBrotliSync = zlib.brotliDecompressSync.bind(zlib);
-    zlib.brotliDecompressSync = function hardenedBrotliDecompressSync(buf, options = {}) {
-      return origBrotliSync(buf, {
-        ...options,
-        maxOutputLength: Math.min(options?.maxOutputLength || MAX_SAFE_BROTLI_BYTES, MAX_SAFE_BROTLI_BYTES)
-      });
-    };
-  }
+    }
+  } catch {}
+  try {
+    if (typeof zlib.brotliDecompress === 'function') {
+      const origBrotli = zlib.brotliDecompress.bind(zlib);
+      zlib.brotliDecompress = function hardenedBrotliDecompress(buf, options, callback) {
+        if (typeof options === 'function') {
+          callback = options;
+          options = {};
+        }
+        const safeOpts = {
+          ...(options || {}),
+          maxOutputLength: Math.min(options?.maxOutputLength || MAX_SAFE_BROTLI_BYTES, MAX_SAFE_BROTLI_BYTES)
+        };
+        return origBrotli(buf, safeOpts, callback);
+      };
+    }
+  } catch {}
+  try {
+    if (typeof zlib.brotliDecompressSync === 'function') {
+      const origBrotliSync = zlib.brotliDecompressSync.bind(zlib);
+      zlib.brotliDecompressSync = function hardenedBrotliDecompressSync(buf, options = {}) {
+        return origBrotliSync(buf, {
+          ...options,
+          maxOutputLength: Math.min(options?.maxOutputLength || MAX_SAFE_BROTLI_BYTES, MAX_SAFE_BROTLI_BYTES)
+        });
+      };
+    }
+  } catch {}
 
   console.log('🛡️ [NodeSecurityShield] Active: Protected against CVE-2026-111497 (Node2Shell Brotli RCE), CVE-2026-105482 (DNS NUL), & CVE-2026-105483/106069 (TLS/SSRF Bypass).');
 }
@@ -244,3 +254,4 @@ export function nodeSecurityMiddleware(req, res, next) {
 
   next();
 }
+
