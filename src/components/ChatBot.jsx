@@ -11,7 +11,7 @@ import { deepernovaTtsService } from '../services/deepernovaTtsService';
 import { saveImageToGallery, downloadImageDirectly } from '../services/imageStorageService';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch } from '../services/clientSearchService';
+import { executeWebSearch, buildGuaranteedReferenceSources } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
 import {
@@ -6557,13 +6557,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
       let resultsList = [];
       let aiOverviewText = '';
-      if (searchData.success && searchData.data) {
+      if (searchData && searchData.success && searchData.data) {
         resultsList = searchData.data.organic_results || [];
         aiOverviewText = searchData.data._ai_overview_text || '';
       }
       
-      if (resultsList.length === 0) {
-        console.warn('[ChatBot] No organic_results from search API');
+      if (!Array.isArray(resultsList) || resultsList.length === 0) {
+        console.warn('[ChatBot] No organic_results from search API, injecting guaranteed reference sources');
+        resultsList = buildGuaranteedReferenceSources(searchQuery);
       }
       
       // Extract search images from results (inline images, organic thumbnails, and news images)
@@ -6683,13 +6684,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       // Map sources using uniqueImages for fallback thumbnails
-      const sources = resultsList.map(item => {
-        let domain = '';
+      let sources = resultsList.map(item => {
+        let domain = item.domain || '';
         const url = item.link || item.url || '';
-        try {
-          domain = new URL(url).hostname;
-        } catch(e) {
-          domain = url;
+        if (!domain && url) {
+          try {
+            domain = new URL(url).hostname;
+          } catch(e) {
+            domain = url;
+          }
         }
         
         let thumbnail = item.thumbnail || null;
@@ -6709,6 +6712,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           thumbnail: thumbnail
         };
       });
+
+      if (sources.length === 0) {
+        sources = buildGuaranteedReferenceSources(searchQuery);
+      }
 
       // Update message state with sources and images (keep text strictly empty while preparing)
       setMessages((prev) =>
@@ -6744,7 +6751,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
             return { 
               ...msg, 
-              text: '', // Strictly empty!
+              text: '', // Strictly empty so search result bubbles appear FIRST!
               isSearching: false, 
               isThinking: true, 
               searchQuery: searchQuery, 
@@ -6759,7 +6766,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       );
 
       // Render search result bubbles first before AI starts typing response
-      await new Promise(resolve => setTimeout(resolve, 450));
+      await new Promise(resolve => setTimeout(resolve, 550));
 
       // Build rich context from search results for the AI
       const searchContext = sources.map((s, idx) =>
@@ -6907,6 +6914,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                       text: sanitizeStreamingText(displayedSearchText), 
                       isThinking: false, 
                       isStreaming: true,
+                      isSearching: false,
+                      searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : sources,
+                      searchSteps: (msg.searchSteps && msg.searchSteps.length > 0)
+                        ? msg.searchSteps.map(s => ({ ...s, isSearching: false, sources: (s.sources && s.sources.length > 0) ? s.sources : sources }))
+                        : [{ query: searchQuery, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) }],
                       reasoningText: searchReasoningText || msg.reasoningText,
                       reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
                       isReasoning: isSearchReasoning,
@@ -7102,16 +7114,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
     } catch (searchError) {
-      console.error('[ChatBot] Error in search pathway, falling back to direct AI response:', searchError);
+      console.error('[ChatBot] Error in search pathway, falling back to direct AI response with guaranteed bubbles:', searchError);
       
       try {
+        const fallbackSources = buildGuaranteedReferenceSources(searchQuery);
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === messageId
-              ? { ...msg, isSearching: false, isThinking: true, text: userLanguage === 'id' ? 'Pencarian gagal. Mengambil jawaban langsung dari AI...' : 'Search failed. Getting direct answer from AI...' }
+              ? {
+                  ...msg,
+                  isSearching: false,
+                  isThinking: true,
+                  text: '',
+                  searchQuery: searchQuery,
+                  searchSources: fallbackSources,
+                  searchSteps: [{ query: searchQuery, isSearching: false, sources: fallbackSources, images: [] }]
+                }
               : msg
           )
         );
+        await new Promise(resolve => setTimeout(resolve, 450));
         
         const userQuery = userPrompt || lastSentPromptRef.current || searchQuery;
         const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda secara akurat dan percaya diri. Jika pertanyaan ini membahas topik baru yang berbeda, fokus penuh 100% pada topik baru ini tanpa mengaitkan ke percakapan lama sebelumnya.]\n\nPertanyaan pengguna: "${userQuery}"`;

@@ -831,8 +831,8 @@ app.get('/api/realtime/sync-stream', (req, res) => {
   });
 });
 
-// GET /api/search - Ultra-fast proxy to Deepernova Search Engine
-app.get('/api/search', async (req, res) => {
+// GET /api/search & /api/web-search - Ultra-fast proxy to Deepernova Hybrid Search Engine
+app.get(['/api/search', '/api/web-search'], async (req, res) => {
   const query = (req.query.q || req.query.query || '').trim();
   const limit = Math.min(20, Math.max(1, parseInt(req.query.limit || '8', 10)));
   if (!query) {
@@ -5498,9 +5498,9 @@ async function handleUnifiedSearch(req, res) {
   }
 }
 
-// Support both GET and POST /api/search
-app.get('/api/search', handleUnifiedSearch);
-app.post('/api/search', handleUnifiedSearch);
+// Support both GET and POST /api/search and /api/web-search
+app.get(['/api/search', '/api/web-search'], handleUnifiedSearch);
+app.post(['/api/search', '/api/web-search'], handleUnifiedSearch);
 
 // Proxy route: News Search
 app.get('/api/news', async (req, res) => {
