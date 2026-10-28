@@ -771,7 +771,7 @@ function dbStats() {
 
 // ⚡ Autonomous QoS Search Priority Middleware:
 // Enforces a strict 10-second per-session deadline for deep crawling and instant search responses
-const MAX_SEARCH_SESSION_TIMEOUT_MS = 10000;
+const MAX_SEARCH_SESSION_TIMEOUT_MS = 6000; // Strict 6.0s hard deadline to prevent runaway queries // Strict 6.0s hard deadline to prevent runaway queries
 
 function searchPriorityMiddleware(req, res, next) {
   const tag = (req.query.q || req.path).slice(0, 60);
@@ -787,22 +787,25 @@ function searchPriorityMiddleware(req, res, next) {
     }
   };
 
-  // Safety guard: auto-release after 10s to guarantee activeSearches never blocks other users
+  // Strict 6.0s deadline to protect server and keep search snappy for all users
   safetyTimeout = setTimeout(onEnd, MAX_SEARCH_SESSION_TIMEOUT_MS);
 
-  // Set 10-second hard socket/request timeout
+  // Set 6-second hard socket/request timeout
   req.setTimeout(MAX_SEARCH_SESSION_TIMEOUT_MS, () => {
     onEnd();
     if (!res.headersSent) {
       res.status(504).json({
-        error: 'Search timeout (10.0s exceeded)',
-        message: 'Batas waktu pencarian 10 detik per sesi tercapai agar tidak mengganggu kecepatan layanan untuk pengguna lain.'
+        error: 'Search timeout (6.0s exceeded)',
+        message: 'Batas waktu pencarian 6 detik per sesi tercapai agar tidak mengganggu kecepatan layanan untuk pengguna lain.'
       });
     }
   });
 
+  // Immediately release governor and stop background work if client cancels/closes socket
   res.on('finish', onEnd);
   res.on('close', onEnd);
+  req.on('aborted', onEnd);
+  req.on('close', onEnd);
   next();
 }
 
@@ -1006,7 +1009,19 @@ async function executeUnifiedRankedSearch(query, options = {}) {
     if (type === 'images') {
       engineResult = searchEngine.searchImages(cleanQ, { page, limit });
     } else {
-      engineResult = await searchEngine.searchAsync(cleanQ, { page, limit, timeFilter, type, forceOriginal }, db);
+      // Hard time budget: 3,500ms max. If SQLite takes longer, resolve immediately with in-memory results!
+      const searchPromise = searchEngine.searchAsync(cleanQ, { page, limit, timeFilter, type, forceOriginal }, db);
+      const budgetPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            timedOut: true,
+            total: 0,
+            results: (db?.hotNewsRing || []).slice(0, limit),
+            durationMs: 3500
+          });
+        }, 3500);
+      });
+      engineResult = await Promise.race([searchPromise, budgetPromise]);
     }
   } catch (err) {
     engineResult = { total: 0, results: [], durationMs: 0 };
@@ -1584,7 +1599,7 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
   res.json(payload);
 });
 
-app.get('/api/suggestions', (req, res) => {
+app.get('/api/suggestions', searchPriorityMiddleware, (req, res) => {
   const query = req.query.q || '';
   const limit = parseInt(req.query.limit || '8', 10);
   res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');

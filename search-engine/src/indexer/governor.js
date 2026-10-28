@@ -21,7 +21,7 @@ import EventEmitter from 'node:events';
 export class SearchPriorityGovernor extends EventEmitter {
   constructor(options = {}) {
     super();
-    this.cooldownMs = options.cooldownMs ?? 200; // shorter cooldown keeps search priority responsive
+    this.cooldownMs = options.cooldownMs ?? 2500; // 2.5s cooldown protects disk I/O between consecutive searches and keystrokes
     this.activeSearches = 0;
     this.lastSearchAt = 0;
     this.fullBurstUntil = 0;
