@@ -1276,7 +1276,7 @@ export class SearchEngine {
     }
 
     const candidatesMap = new Map();
-    const fetchQueryLimit = Math.min(Math.max(limit * 2, 24), 36);
+    const fetchQueryLimit = Math.min(Math.max(limit * 2, 16), 24);
 
     // Stage 0: DOMAIN-FIRST Candidate Retrieval (Guarantee official domains like youtube, detik, kompas enter pool)
     const isGenericNavQuery = GENERIC_CATEGORY_WORDS.has(coreSubject) || COMMON_NON_BRAND_WORDS.has(coreSubject) || GENERIC_CATEGORY_WORDS.has(cleanRaw);
@@ -1322,7 +1322,7 @@ export class SearchEngine {
     ]);
     const specificTokens = effectiveTokens.filter(t => !HIGH_FREQ_GENERIC_TOKENS.has(t) && t.length >= 2);
     const isBroadNewsQuery = specificTokens.length === 0 && effectiveTokens.length > 0;
-    const ftsQueryTokens = specificTokens.length > 0 ? specificTokens : effectiveTokens.slice(0, 3);
+    const ftsQueryTokens = specificTokens.length > 0 ? specificTokens.slice(0, 3) : effectiveTokens.slice(0, 3);
 
     // Stage 0.5: ⚡ Ultra-Fast In-Memory Hot Ring Buffer Scan (< 0.2ms, Zero Disk I/O!)
     // Guarantees 100% of newly crawled & live-fetched articles are retrieved immediately!
@@ -1356,7 +1356,7 @@ export class SearchEngine {
     // Stage 1: Lightning Tier - Fast FTS5 Conjunction on Title, Headings & Description (Sub-3ms, No Full-Index Sort!)
     if (!isBroadNewsQuery && ftsQueryTokens.length > 0) {
       try {
-        const titleHeadingsQuery = `{title headings description}: (` + ftsQueryTokens.map(t => `"${t}"`).join(' ') + `)`;
+        const titleHeadingsQuery = `{title headings description}: (` + ftsQueryTokens.slice(0, 3).map(t => `"${t}"`).join(' ') + `)`;
         let andRowsDesc;
         if (!filterCondition && this.stmtFastTitleHeadingsDesc) {
           andRowsDesc = this.stmtFastTitleHeadingsDesc.all(titleHeadingsQuery, fetchQueryLimit);
@@ -1382,10 +1382,10 @@ export class SearchEngine {
       } catch {}
     }
 
-    // Stage 1b: Deep Content Tier (Fallback only if Tier 1 yielded fewer than limit candidates)
-    if (!isBroadNewsQuery && candidatesMap.size < Math.min(limit, 6) && ftsQueryTokens.length > 0) {
+    // Stage 1b: Deep Content Tier (ONLY IF Stage 0.5 and Stage 1 found ZERO candidates and elapsed time < 1000ms)
+    if (!isBroadNewsQuery && candidatesMap.size === 0 && ftsQueryTokens.length > 0 && (performance.now() - startTime < 1000)) {
       try {
-        const allColumnsQuery = ftsQueryTokens.map(t => `"${t}"`).join(' ');
+        const allColumnsQuery = ftsQueryTokens.slice(0, 2).map(t => `"${t}"`).join(' ');
         let moreRows;
         if (!filterCondition && this.stmtBaseAnd) {
           moreRows = this.stmtBaseAnd.all(allColumnsQuery, fetchQueryLimit);
@@ -1413,10 +1413,10 @@ export class SearchEngine {
       } catch {}
     }
 
-    // Stage 2: Fast Disjunction (OR) on Specific Tokens Only (Never OR high-frequency stopwords!)
-    if (!isBroadNewsQuery && candidatesMap.size < Math.min(limit, 4) && specificTokens.length > 1) {
+    // Stage 2: Fast Disjunction (OR) (ONLY IF candidatesMap has fewer than 2 candidates AND elapsed time < 1200ms)
+    if (!isBroadNewsQuery && candidatesMap.size < 2 && specificTokens.length > 1 && (performance.now() - startTime < 1200)) {
       try {
-        const orQuery = `{title headings description}: (` + specificTokens.slice(0, 4).map(t => `"${t}"`).join(' OR ') + `)`;
+        const orQuery = `{title headings description}: (` + specificTokens.slice(0, 3).map(t => `"${t}"`).join(' OR ') + `)`;
         let orRows;
         if (!filterCondition && this.stmtFastTitleHeadingsDesc) {
           orRows = this.stmtFastTitleHeadingsDesc.all(orQuery, fetchQueryLimit);
@@ -2009,48 +2009,37 @@ export class SearchEngine {
   }
 
   fallbackImageSearch(rawQuery, limit, offset, startTime, terms) {
-    const clean = rawQuery ? rawQuery.trim() : '';
-    const likePattern = `%${clean}%`;
-    const stmt = this.db.prepare(`
-      SELECT
-        img.id, img.image_url, img.page_url, img.domain, img.alt_text, img.title, img.context_text, img.is_logo, img.width, img.height,
-        p.title as page_title, p.logo_url, p.pagerank
-      FROM images img
-      LEFT JOIN pages p ON img.page_id = p.id
-      WHERE img.alt_text LIKE ? OR img.title LIKE ? OR img.domain LIKE ? OR img.context_text LIKE ? OR p.title LIKE ?
-      ORDER BY COALESCE(p.pagerank, 1.0) DESC
-      LIMIT ? OFFSET ?
-    `);
-
-    const rows = stmt.all(likePattern, likePattern, likePattern, likePattern, likePattern, limit, offset);
+    const clean = rawQuery ? rawQuery.trim().toLowerCase() : '';
+    const hotPages = this.dbInstance?.hotPagesRing || [];
+    const results = [];
+    for (let i = 0; i < hotPages.length && results.length < limit; i++) {
+      const p = hotPages[i];
+      if (p && p.lead_image_url && (!clean || (p.title && p.title.toLowerCase().includes(clean)))) {
+        results.push({
+          id: p.id,
+          imageUrl: p.lead_image_url,
+          pageUrl: p.url,
+          pageTitle: p.title || p.domain,
+          alt: p.title || 'Gambar web',
+          title: p.title || '',
+          context: p.description || '',
+          domain: p.domain,
+          logoUrl: p.logo_url || null,
+          isLogo: false,
+          width: 800,
+          height: 600,
+          pagerank: p.pagerank || 1.0
+        });
+      }
+    }
     const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
-
-    const results = rows.map(row => ({
-      id: row.id,
-      imageUrl: row.image_url,
-      pageUrl: row.page_url,
-      pageTitle: row.page_title || row.title || row.domain,
-      alt: row.alt_text || row.title || row.page_title || 'Gambar web',
-      title: row.title || row.alt_text || row.page_title || '',
-      context: row.context_text || '',
-      domain: row.domain,
-      logoUrl: row.logo_url || null,
-      isLogo: Boolean(row.is_logo),
-      width: row.width || null,
-      height: row.height || null,
-      pagerank: row.pagerank || 1.0
-    }));
-
     return {
       query: rawQuery,
       total: results.length,
       page: 1,
       durationMs,
       type: 'images',
-      algorithm: {
-        name: "Image Search Fallback LIKE",
-        fallback: true
-      },
+      algorithm: { name: "Fast In-Memory Image Fallback", fallback: true },
       results
     };
   }
