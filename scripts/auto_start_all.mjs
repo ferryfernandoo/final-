@@ -669,7 +669,7 @@ async function main() {
     if (await checkPortOpen(5173)) {
       log.success('DTE Frontend sudah aktif di port 5173.');
     } else {
-      startProcess('npm', ['run', 'dev'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend', 'dte-frontend.log');
+      startProcess('node', ['fast-server.mjs'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend', 'dte-frontend.log');
       log.info('Menunggu DTE Frontend siap di port 5173 (max 15 detik)...');
       if (await waitForPort(5173, 15000)) {
         log.success('DTE Frontend siap di port 5173.');

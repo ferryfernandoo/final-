@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ORDER_DTE_URL } from '../apiConfig';
 import { validateDteTargetUrl } from '../services/securityShield';
 import './DtePortal.css';
 
 const DtePortal = ({ onNavigate }) => {
   const safeOrderUrl = validateDteTargetUrl(ORDER_DTE_URL);
+
+  // Preconnect & warm up the DTE Order Panel tunnel so opening is instantaneous
+  useEffect(() => {
+    if (!safeOrderUrl) return;
+    fetch(`${safeOrderUrl}/api/ping`, { mode: 'no-cors', priority: 'high' }).catch(() => {});
+  }, [safeOrderUrl]);
 
   const handleOpenOrderPortal = (e) => {
     if (!safeOrderUrl) {
