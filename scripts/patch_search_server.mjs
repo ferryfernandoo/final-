@@ -446,3 +446,4 @@ if (fs.existsSync(localServerPath)) {
 }
 
 console.log('✅ server.js optimized and synced successfully!');
+

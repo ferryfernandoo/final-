@@ -32,3 +32,4 @@ if (fs.existsSync(localSearchPath)) {
 }
 
 console.log('✅ search.js optimized and synced successfully!');
+
