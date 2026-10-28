@@ -38,6 +38,29 @@ function cleanText(str) {
     .trim();
 }
 
+
+export function extractSearchKeywords(query) {
+  if (!query) return '';
+  const conversationalStopwords = new Set([
+    'cari', 'carikan', 'tolong', 'coba', 'apakah', 'bagaimana', 'apa', 'kenapa', 'mengapa',
+    'siapa', 'kapan', 'dimana', 'mana', 'katanya', 'ada', 'yang', 'dan', 'di', 'ke', 'dari',
+    'ini', 'itu', 'untuk', 'dengan', 'pada', 'adalah', 'yaitu', 'tentang', 'mengenai', 'seputar',
+    'perkuat', 'cek', 'periksa', 'lihat', 'dong', 'sih', 'ya', 'kan', 'deh', 'lah', 'pun',
+    'kemarin', 'tadi', 'lalu', 'search', 'find', 'tell', 'me', 'about', 'what', 'is', 'how', 'why', 'who', 'please'
+  ]);
+  
+  const words = query.trim().split(/\s+/);
+  const filtered = words.filter(w => {
+    const cleanW = w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    return cleanW.length >= 2 && !conversationalStopwords.has(cleanW);
+  });
+  
+  if (filtered.length >= 1) {
+    return filtered.join(' ');
+  }
+  return query.trim();
+}
+
 class WebSearchService {
   constructor() {
     this.cache = new Map();
@@ -130,9 +153,12 @@ class WebSearchService {
    * Fetch Live Real-Time News from Google News RSS (ID & EN) + Bing News RSS (< 600ms)
    */
   async _fetchLiveNewsRss(query, maxResults = 8) {
-    const enc = encodeURIComponent(query.trim());
+    const cleanKw = extractSearchKeywords(query);
+    const targetQ = (cleanKw && cleanKw.length >= 2) ? cleanKw : query.trim();
+    const enc = encodeURIComponent(targetQ);
     const feeds = [
       `https://news.google.com/rss/search?q=${enc}&hl=id&gl=ID&ceid=ID:id`,
+      `https://news.google.com/rss/search?q=${enc}&hl=en-US&gl=US&ceid=US:en`,
       `https://www.bing.com/news/search?q=${enc}&format=rss`
     ];
 

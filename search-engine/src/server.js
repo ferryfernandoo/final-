@@ -1,3 +1,21 @@
+
+function extractSearchKeywords(query) {
+  if (!query) return '';
+  const conversationalStopwords = new Set([
+    'cari', 'carikan', 'tolong', 'coba', 'apakah', 'bagaimana', 'apa', 'kenapa', 'mengapa',
+    'siapa', 'kapan', 'dimana', 'mana', 'katanya', 'ada', 'yang', 'dan', 'di', 'ke', 'dari',
+    'ini', 'itu', 'untuk', 'dengan', 'pada', 'adalah', 'yaitu', 'tentang', 'mengenai', 'seputar',
+    'perkuat', 'cek', 'periksa', 'lihat', 'dong', 'sih', 'ya', 'kan', 'deh', 'lah', 'pun',
+    'kemarin', 'tadi', 'lalu', 'search', 'find', 'tell', 'me', 'about', 'what', 'is', 'how', 'why', 'who', 'please'
+  ]);
+  const words = query.trim().split(/\s+/);
+  const filtered = words.filter(w => {
+    const cleanW = w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    return cleanW.length >= 2 && !conversationalStopwords.has(cleanW);
+  });
+  return filtered.length >= 1 ? filtered.join(' ') : query.trim();
+}
+
 async function warmTopQueries() {
   const topQueries = [
     'indonesia', 'deepseek ai', 'deepernova', 'youtube', 'kecerdasan buatan',
@@ -1044,8 +1062,10 @@ async function executeUnifiedRankedSearch(query, options = {}) {
         // 1. Google News RSS (Indonesia & Global)
         (async () => {
           try {
+            const cleanKw = extractSearchKeywords(cleanQ);
+            const targetEnc = encodeURIComponent((cleanKw && cleanKw.length >= 2) ? cleanKw : cleanQ);
             const feedUrls = [
-              `https://news.google.com/rss/search?q=${enc}&hl=id&gl=ID&ceid=ID:id`,
+              `https://news.google.com/rss/search?q=${targetEnc}&hl=id&gl=ID&ceid=ID:id`,
               `https://news.google.com/rss/search?q=${enc}&hl=en-US&gl=US&ceid=US:en`
             ];
             await Promise.allSettled(feedUrls.map(async (u) => {
