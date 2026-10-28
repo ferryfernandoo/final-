@@ -10,11 +10,7 @@ async function warmTopQueries() {
       const res = await searchEngine.searchAsync(q, { page: 1, limit: 12, type: 'all', timeFilter: 'all' }, db);
       const cacheKey = `${q.trim().toLowerCase()}|1|12|all|all|false`;
       setHttpSearchCache(cacheKey, { ...res, type: 'all', timeFilter: 'all', liveCrawlTriggered: false });
-
-      // Pre-warm images query into RAM
-      const imgRes = searchEngine.searchImages(q, { page: 1, limit: 24 });
-      const imgCacheKey = `${q.trim().toLowerCase()}|1|24|images|all|false`;
-      setHttpSearchCache(imgCacheKey, { ...imgRes, liveCrawlTriggered: false });
+      await new Promise(r => setTimeout(r, 20));
     } catch {}
   }
   console.log('[Server Cache] ✅ Top search queries pre-warmed into RAM!');
@@ -66,6 +62,8 @@ import { RealChartFetcher } from './indexer/realChartFetcher.js';
 import { AiSynthesisEngine } from './indexer/aiSynthesisEngine.js';
 import { SEED_CATEGORIES, getAllGlobalSeeds, getTotalSeedCount } from './crawler/seeds.js';
 import { priorityGovernor } from './indexer/governor.js';
+import { installNodeSecurityShield, nodeSecurityMiddleware, validateSafeUrl } from './utils/nodeSecurityShield.js';
+installNodeSecurityShield();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,6 +124,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(nodeSecurityMiddleware);
 app.use(compression({ threshold: 1024, level: 6 }));
 app.use(express.json({ limit: '10mb' }));
 // 🚀 PURE API & CRAWLER MODE: Frontend UI dialihkan sepenuhnya ke Vercel CDN
@@ -140,50 +139,44 @@ const pagerankCalc = new PageRankCalculator(db);
 // ============================================================================
 // 🚀 GENTLE & CPU/RAM-FRIENDLY CRAWLERS (ADAPTIVE QoS, ZERO LAG)
 // ============================================================================
-// Increase default crawler workers for gentle, zero-bloat crawling
-const requestedCrawlerConcurrency = parseInt(process.env.CRAWLER_CONCURRENCY, 10) || 16;
+// Ultra-fast hyper-speed crawler workers
+const requestedCrawlerConcurrency = parseInt(process.env.CRAWLER_CONCURRENCY, 10) || 64;
 const cpuCount = Math.max(1, os.cpus().length || 4);
-// Max safe concurrency capped to 32 to guarantee 0% UI lag and <150MB RAM usage
-const maxSafeConcurrency = 32;
+const maxSafeConcurrency = 96;
 const crawlerConcurrency = Math.min(requestedCrawlerConcurrency, maxSafeConcurrency);
-if (requestedCrawlerConcurrency > crawlerConcurrency) {
-  console.log(`[CRAWLER] Requested ${requestedCrawlerConcurrency} workers, capped to safe concurrency ${crawlerConcurrency} (CPUs=${cpuCount})`);
-}
-const newsCrawlerConcurrency = parseInt(process.env.NEWS_CRAWLER_CONCURRENCY, 10) || 8;
+console.log(`[CRAWLER TURBO] Active with ${crawlerConcurrency} parallel workers (CPUs=${cpuCount})`);
+const newsCrawlerConcurrency = parseInt(process.env.NEWS_CRAWLER_CONCURRENCY, 10) || 24;
 
-// 1. Web Text Crawler: High-throughput SSD parallel workers (Auto-throttled to 1 worker during search)
+// 1. Web Text Crawler: Ultra-fast parallel workers with snappy 10ms delay
 let crawlerEngine = new CrawlerEngine(db, { 
   concurrency: crawlerConcurrency, 
-  maxDepth: 10, 
-  perDomainDelayMs: 120, // 120ms polite delay to prevent network socket starvation
-  maxConcurrentPerDomain: 2
+  maxDepth: 12, 
+  perDomainDelayMs: 10, 
+  maxConcurrentPerDomain: 8
 });
 
-// 2. Breaking News Crawler: Dedicated high-speed parallel workers for Media Portals & RSS
+// 2. Breaking News Crawler: Ultra-fast breaking news ingestion
 const newsCrawler = new NewsCrawler(db, {
-  intervalMs: 15 * 1000,      // 15s gentle breaking news cycle
+  intervalMs: 4 * 1000,
   concurrency: newsCrawlerConcurrency,
-  maxArticlesPerRun: 150,     // Gentle micro-batch for lightweight news ingestion
+  maxArticlesPerRun: 500,
   quietMode: true
 });
 
-// Secondary background utilities (Gentle 1-worker background mode, zero lag)
 const tokohCrawler = new TokohCrawler(db, {
-  concurrency: 1,
-  batchDelayMs: 2500 // Santai 2.5s per figure
+  concurrency: 4,
+  batchDelayMs: 300
 });
 
 const geoCrawler = new GeoCrawler(db, {
-  concurrency: 1,
-  batchDelayMs: 2500 // Santai 2.5s per location
+  concurrency: 4,
+  batchDelayMs: 300
 });
 
 const imageCrawler = new ImageCrawler(db, {
-  concurrency: 1,
-  batchDelayMs: 1000
+  concurrency: 4,
+  batchDelayMs: 300
 });
-
-// Initialize Google-Grade AI Overview & Direct Synthesis Engine
 const aiSynthesisEngine = new AiSynthesisEngine(db, searchEngine);
 
 function seedInitialBrandPages(dbInstance) {
@@ -804,6 +797,65 @@ app.get('/api/governor', (req, res) => {
 // 🔑 DEVELOPER & AI AGENT SEARCH API (v1)
 // ============================================================================
 
+// Per-key / per-IP sliding window rate limiter for /api/v1/*
+const apiKeyRateBuckets = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, bucket] of apiKeyRateBuckets.entries()) {
+    if (now > bucket.resetAt) apiKeyRateBuckets.delete(k);
+  }
+}, 60000).unref();
+
+// Admin / Loopback protection middleware for destructive or state-mutating endpoints
+function requireAdminOrLocal(req, res, next) {
+  const adminToken = process.env.SEARCH_ADMIN_TOKEN;
+  const providedToken = req.headers['x-admin-token'] || req.query.admin_token;
+  if (adminToken && providedToken === adminToken) {
+    return next();
+  }
+  const ip = String(req.ip || req.socket?.remoteAddress || '');
+  const isLoopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  if (isLoopback && !req.headers['cf-connecting-ip'] && !req.headers['x-forwarded-for']) {
+    return next();
+  }
+  return res.status(403).json({
+    status: 'error',
+    code: 'FORBIDDEN_ADMIN_ONLY',
+    message: 'Endpoint administratif ini hanya dapat diakses dari localhost atau menggunakan X-Admin-Token yang valid.'
+  });
+}
+
+function safeIsoDate(val) {
+  if (!val) return null;
+  const d = new Date(val);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function isSafeProxyImageUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (
+      host === 'localhost' ||
+      host === '0.0.0.0' ||
+      host === '::1' ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // API Key Authentication Middleware for /api/v1/*
 function apiKeyAuthMiddleware(req, res, next) {
   let key = null;
@@ -822,33 +874,51 @@ function apiKeyAuthMiddleware(req, res, next) {
     key = String(req.body.apiKey).trim();
   }
 
-  // If no key provided, allow demo mode
-  if (!key) {
-    req.apiKeyInfo = { name: 'Anonymous Free User', apiKey: 'dn_live_free_public_demo', isDemo: true };
-    return next();
+  let keyInfo = null;
+  if (!key || key === 'dn_live_free_public_demo') {
+    keyInfo = {
+      name: key ? 'Public Free Demo Key' : 'Anonymous Free User',
+      apiKey: 'dn_live_free_public_demo',
+      isDemo: true,
+      rateLimitPerMin: 120
+    };
+  } else {
+    const validation = db.validateApiKey(key);
+    if (!validation.valid) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'UNAUTHORIZED',
+        message: `Invalid API Key: ${validation.reason}. Dapatkan API key gratis di dashboard DeeperNova atau gunakan key demo: 'dn_live_free_public_demo'.`
+      });
+    }
+    keyInfo = validation.keyInfo;
   }
 
-  // Allow default public demo key
-  if (key === 'dn_live_free_public_demo') {
-    req.apiKeyInfo = { name: 'Public Free Demo Key', apiKey: key, isDemo: true };
-    return next();
+  // Enforce per-minute rate limit per key + client IP
+  const clientIp = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'unknown').split(',')[0].trim();
+  const bucketKey = `${keyInfo.apiKey || key}:${clientIp}`;
+  const limitPerMin = Number(keyInfo.rate_limit_per_min || keyInfo.rateLimitPerMin) || 120;
+  const now = Date.now();
+  let bucket = apiKeyRateBuckets.get(bucketKey);
+  if (!bucket || now > bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + 60000 };
+    apiKeyRateBuckets.set(bucketKey, bucket);
   }
-
-  const validation = db.validateApiKey(key);
-  if (!validation.valid) {
-    return res.status(401).json({
+  bucket.count++;
+  if (bucket.count > limitPerMin) {
+    return res.status(429).json({
       status: 'error',
-      code: 'UNAUTHORIZED',
-      message: `Invalid API Key: ${validation.reason}. Dapatkan API key gratis di dashboard DeeperNova atau gunakan key demo: 'dn_live_free_public_demo'.`
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: `Batas rate limit (${limitPerMin} req/menit) terlampaui. Silakan coba lagi beberapa saat.`
     });
   }
 
-  req.apiKeyInfo = validation.keyInfo;
+  req.apiKeyInfo = keyInfo;
   next();
 }
 
 // 1. API Key Generation & Listing Endpoints
-app.post('/api/keys/generate', (req, res) => {
+app.post('/api/keys/generate', requireAdminOrLocal, (req, res) => {
   const { name } = req.body || {};
   const result = db.createApiKey(name || 'Developer API Key');
   if (result.success) {
@@ -862,15 +932,14 @@ app.post('/api/keys/generate', (req, res) => {
   }
 });
 
-app.get('/api/keys', (req, res) => {
+app.get('/api/keys', requireAdminOrLocal, (req, res) => {
   const keys = db.listApiKeys(50);
   res.json({
     status: 'success',
     keys: keys.map(k => ({
       id: k.id,
       name: k.name,
-      apiKey: k.api_key,
-      maskedKey: k.api_key.slice(0, 12) + '...' + k.api_key.slice(-4),
+      maskedKey: k.api_key ? (k.api_key.slice(0, 12) + '...' + k.api_key.slice(-4)) : '***',
       requestsCount: k.requests_count,
       rateLimitPerMin: k.rate_limit_per_min,
       isActive: Boolean(k.is_active),
@@ -899,12 +968,300 @@ function formatAiContext(query, results) {
 }
 
 // Dedicated Developer & AI Search API Handler (v1)
+
+
+// ============================================================================
+// 🚀 DEEPERNOVA ULTRA-FAST NEURAL RANKED HYBRID SEARCH ENGINE
+// ============================================================================
+async function executeUnifiedRankedSearch(query, options = {}) {
+  const cleanQ = (query || '').trim();
+  const page = Math.max(1, parseInt(options.page || '1', 10));
+  const limit = Math.min(50, Math.max(1, parseInt(options.limit || '10', 10)));
+  const timeFilter = options.timeFilter || 'all';
+  const type = options.type || 'all';
+  const forceOriginal = options.forceOriginal === true || options.forceOriginal === '1';
+
+  const tStart = performance.now();
+
+  let engineResult;
+  try {
+    if (type === 'images') {
+      engineResult = searchEngine.searchImages(cleanQ, { page, limit });
+    } else {
+      engineResult = await searchEngine.searchAsync(cleanQ, { page, limit, timeFilter, type, forceOriginal }, db);
+    }
+  } catch (err) {
+    engineResult = { total: 0, results: [], durationMs: 0 };
+  }
+
+  const terms = cleanQ.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(t => t.length >= 2);
+  const intentInfo = typeof searchEngine.parseQueryIntent === 'function' ? searchEngine.parseQueryIntent(cleanQ) : null;
+
+  let formattedResults = (engineResult.results || []).map(r => {
+    const rawTitle = (r.rawTitle || r.title || '').replace(/<[^>]+>/g, '').trim();
+    const snippet = (r.snippet || r.description || r.content || '').replace(/<[^>]+>/g, '').trim();
+    const pubDate = r.publishedAt || r.published_at || r.crawledAt || r.crawled_at;
+    const formattedDate = r.formattedDate || r.date || (pubDate ? new Date(pubDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
+    const score = Number(r.accuracyScore || r.score || r.rankingScore || 75);
+    return {
+      id: r.id || undefined,
+      title: rawTitle,
+      rawTitle,
+      url: r.url || '',
+      link: r.url || '',
+      domain: r.domain || '',
+      snippet,
+      description: snippet,
+      content: r.content || snippet,
+      author: r.author || null,
+      published_at: safeIsoDate(pubDate),
+      publishedAt: pubDate || null,
+      date: formattedDate,
+      formatted_date: formattedDate,
+      formattedDate: formattedDate,
+      accuracyScore: Math.round(score * 10) / 10,
+      score: Math.round(score * 10) / 10,
+      pagerank: Number(r.pagerank || 1.5),
+      trustScore: Number(r.trustScore || r.trust_score || 80),
+      trust_score: Number(r.trustScore || r.trust_score || 80),
+      bm25: Number(r.bm25 || 1.0),
+      logo_url: r.logo_url || r.logoUrl || (r.domain ? `https://www.google.com/s2/favicons?sz=64&domain=${r.domain}` : null),
+      lead_image_url: r.lead_image_url || r.leadImageUrl || null,
+      sitelinks: r.sitelinks || []
+    };
+  });
+
+  // If local results are sparse (< 5), trigger parallel live web/news ingestion (< 850ms)
+  const isNewsOrTechQuery = /\b(berita|terbaru|terkini|hari ini|kemarin|sekarang|bug|cve|vulnerability|celah|security|patch|update|rilis|nodejs|python|ai|deepseek|openai|google)\b/i.test(cleanQ);
+  if (formattedResults.length < 5 && cleanQ && type !== 'images') {
+    try {
+      const enc = encodeURIComponent(cleanQ);
+      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+      const liveItems = [];
+
+      await Promise.allSettled([
+        // 1. Google News RSS (Indonesia & Global)
+        (async () => {
+          try {
+            const feedUrls = [
+              `https://news.google.com/rss/search?q=${enc}&hl=id&gl=ID&ceid=ID:id`,
+              `https://news.google.com/rss/search?q=${enc}&hl=en-US&gl=US&ceid=US:en`
+            ];
+            await Promise.allSettled(feedUrls.map(async (u) => {
+              const resp = await fetch(u, {
+                signal: AbortSignal.timeout(1000),
+                headers: { 'User-Agent': userAgent }
+              });
+              if (!resp.ok) return;
+              const xml = await resp.text();
+              const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+              for (const m of itemMatches.slice(0, 6)) {
+                const itemXml = m[1];
+                const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
+                const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
+                const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
+                const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
+                const sourceUrl = (itemXml.match(/<source[^>]*url=["']([^"']+)["']/i)?.[1] || '').trim();
+                if (rawTitle && rawLink) {
+                  let domain = '';
+                  try { domain = new URL(sourceUrl || rawLink).hostname.replace('www.', ''); } catch (e) {}
+                  liveItems.push({
+                    url: rawLink,
+                    domain: domain || 'news.google.com',
+                    title: rawTitle,
+                    description: `${rawTitle} — ${source || 'Berita Web Terverifikasi'} (${pubDate || 'Hari ini'})`,
+                    headings: rawTitle,
+                    content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
+                    author: source || null,
+                    category: 'news',
+                    publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
+                    pagerank: 3.5,
+                    trustScore: 92
+                  });
+                }
+              }
+            }));
+          } catch {}
+        })(),
+
+        // 2. Bing News RSS
+        (async () => {
+          try {
+            const resp = await fetch(`https://www.bing.com/news/search?q=${enc}&format=rss`, {
+              signal: AbortSignal.timeout(950),
+              headers: { 'User-Agent': userAgent }
+            });
+            if (!resp.ok) return;
+            const xml = await resp.text();
+            const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+            for (const m of items.slice(0, 5)) {
+              const itemXml = m[1];
+              const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
+              const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
+              const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
+              const rawDesc = (itemXml.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || '').replace(/<[^>]+>/g, '').trim();
+              if (rawTitle && rawLink) {
+                let domain = '';
+                try { domain = new URL(rawLink).hostname.replace('www.', ''); } catch (e) {}
+                liveItems.push({
+                  url: rawLink,
+                  domain: domain || 'bing.com',
+                  title: rawTitle,
+                  description: rawDesc || rawTitle,
+                  headings: rawTitle,
+                  content: rawDesc || rawTitle,
+                  category: 'news',
+                  publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
+                  pagerank: 3.2,
+                  trustScore: 89
+                });
+              }
+            }
+          } catch {}
+        })(),
+
+        // 3. Wikipedia (CAPPED TO AT MOST 1 SUPPLEMENTARY ITEM unless query explicitly searches for wikipedia)
+        (async () => {
+          try {
+            const wantsWiki = cleanQ.toLowerCase().includes('wikipedia') || cleanQ.toLowerCase().includes('definisi') || cleanQ.toLowerCase().includes('arti');
+            if (isNewsOrTechQuery && !wantsWiki && liveItems.length > 0) return;
+
+            const wikiResp = await fetch(`https://id.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=2&namespace=0&format=json`, {
+              signal: AbortSignal.timeout(800),
+              headers: { 'User-Agent': userAgent }
+            });
+            if (wikiResp.ok) {
+              const data = await wikiResp.json();
+              if (Array.isArray(data) && data[1] && data[1].length > 0) {
+                const title = data[1][0];
+                const snippet = (data[2] && data[2][0]) || title;
+                const link = (data[3] && data[3][0]) || '';
+                if (title && link) {
+                  liveItems.push({
+                    url: link,
+                    domain: 'id.wikipedia.org',
+                    title: `${title} — Wikipedia Bahasa Indonesia`,
+                    description: snippet,
+                    headings: title,
+                    content: snippet,
+                    lang: 'id',
+                    category: 'knowledge',
+                    publishedAt: Date.now() - 86400000,
+                    pagerank: 2.0,
+                    trustScore: 85
+                  });
+                }
+              }
+            }
+          } catch {}
+        })()
+      ]);
+
+      const seenUrls = new Set(formattedResults.map(r => (r.url || '').toLowerCase().replace(/\/+$/, '')));
+
+      for (const item of liveItems) {
+        const normUrl = (item.url || '').toLowerCase().replace(/\/+$/, '');
+        if (seenUrls.has(normUrl)) continue;
+        seenUrls.add(normUrl);
+
+        let calculatedScore = 78.0;
+        try {
+          if (typeof searchEngine.calculateQueryAccuracyScore === 'function') {
+            calculatedScore = searchEngine.calculateQueryAccuracyScore(item, cleanQ, terms, null, intentInfo);
+          }
+        } catch {}
+
+        if (item.category === 'news') {
+          calculatedScore = Math.max(calculatedScore, 88.5);
+        } else if (item.domain.includes('wikipedia.org')) {
+          calculatedScore = Math.min(calculatedScore, 82.0);
+        }
+
+        const pubDate = item.publishedAt;
+        const formattedDate = pubDate ? new Date(pubDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+
+        try { db.savePage(item); } catch {}
+
+        formattedResults.push({
+          title: item.title,
+          rawTitle: item.title,
+          url: item.url,
+          link: item.url,
+          domain: item.domain,
+          snippet: item.description,
+          description: item.description,
+          content: item.content || item.description,
+          author: item.author || null,
+          published_at: safeIsoDate(pubDate),
+          publishedAt: pubDate,
+          date: formattedDate,
+          formatted_date: formattedDate,
+          formattedDate: formattedDate,
+          accuracyScore: Math.round(calculatedScore * 10) / 10,
+          score: Math.round(calculatedScore * 10) / 10,
+          pagerank: item.pagerank || 3.0,
+          trustScore: item.trustScore || 90,
+          trust_score: item.trustScore || 90,
+          bm25: 1.0,
+          logo_url: item.domain ? `https://www.google.com/s2/favicons?sz=64&domain=${item.domain}` : null,
+          lead_image_url: null,
+          sitelinks: []
+        });
+      }
+    } catch {}
+  }
+
+  // Sort strictly by accuracyScore DESC (Neural Ranking)
+  formattedResults.sort((a, b) => (b.accuracyScore || 0) - (a.accuracyScore || 0));
+
+  // Cap per root domain (Publisher diversity)
+  const diverseList = [];
+  const domainCount = new Map();
+  for (const r of formattedResults) {
+    const rootD = (r.domain || '').replace(/^www\./i, '').toLowerCase();
+    const count = domainCount.get(rootD) || 0;
+    if (count < 2) {
+      domainCount.set(rootD, count + 1);
+      diverseList.push(r);
+    }
+  }
+
+  const finalPageRows = diverseList.slice((page - 1) * limit, page * limit).map((r, idx) => ({
+    ...r,
+    position: idx + 1
+  }));
+
+  const latencyMs = Math.round((performance.now() - tStart) * 100) / 100;
+
+  return {
+    query: cleanQ,
+    actualQuery: cleanQ,
+    total: diverseList.length,
+    page,
+    limit,
+    durationMs: latencyMs,
+    duration_ms: latencyMs,
+    instantAnswer: engineResult.instantAnswer || null,
+    correction: engineResult.correction || null,
+    type,
+    algorithm: {
+      name: "DeeperNova High-Trust Neural Search Ranking Engine",
+      formula: "AccuracyScore = ExactTitleBonus + QueryTermCoverage + PageRank + EEAT_TrustScore + RecencyBoost",
+      terms
+    },
+    results: finalPageRows
+  };
+}
+
+
+// Dedicated Developer & AI Search API Handler (v1)
 async function handleV1Search(req, res) {
   const query = (req.query.q || req.body?.query || req.body?.q || '').trim();
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || req.body?.limit || '10', 10)));
   const page = Math.max(1, parseInt(req.query.page || req.body?.page || '1', 10));
   const timeFilter = req.query.timeFilter || req.body?.timeFilter || 'all';
-  const type = req.query.type || req.body?.type || 'all'; // 'all' | 'news' | 'images'
+  const type = req.query.type || req.body?.type || 'all';
   const forceCrawl = req.query.crawl === '1' || req.query.crawl === 'true';
 
   if (!query) {
@@ -915,7 +1272,6 @@ async function handleV1Search(req, res) {
     });
   }
 
-  // ⚡ Check High-Speed In-Memory HTTP Cache first (<1ms response)
   const cacheKey = `v1|${query.toLowerCase()}|${page}|${limit}|${timeFilter}|${type}`;
   if (!forceCrawl) {
     const cached = getHttpSearchCache(cacheKey);
@@ -926,145 +1282,24 @@ async function handleV1Search(req, res) {
     }
   }
 
-  const tStart = performance.now();
-  let result;
-  let searchTimer = null;
-  const timeoutPromise = new Promise((resolve) => {
-    searchTimer = setTimeout(() => {
-      resolve({
-        total: 0,
-        results: [],
-        durationMs: MAX_SEARCH_SESSION_TIMEOUT_MS,
-        timedOut: true,
-        message: 'Batas waktu pencarian 10 detik per sesi tercapai (QoS Protection).'
-      });
-    }, MAX_SEARCH_SESSION_TIMEOUT_MS);
-  });
-
-  const searchExecution = (async () => {
-    if (type === 'images') {
-      return searchEngine.searchImages(query, { page, limit });
-    } else {
-      return await searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal: false }, db);
-    }
-  })();
-
-  result = await Promise.race([searchExecution, timeoutPromise]);
-  if (searchTimer) clearTimeout(searchTimer);
-  const latencyMs = Math.round((performance.now() - tStart) * 100) / 100;
-
-  // Autonomous on-demand crawl injection: keep crawler fed with user/AI queries
-  if (query && crawlerEngine && typeof crawlerEngine.injectSeeds === 'function') {
-    try {
-      const encoded = encodeURIComponent(query.trim());
-      const querySeeds = [
-        `https://id.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-        `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-        `https://news.google.com/rss/search?q=${encoded}&hl=id&gl=ID&ceid=ID:id`,
-        `https://news.google.com/rss/search?q=${encoded}&hl=en-US&gl=US&ceid=US:en`
-      ];
-      crawlerEngine.injectSeeds(querySeeds, 35);
-    } catch (_cErr) {}
-  }
-
-  const formattedResults = (result.results || []).map(r => {
-    const rawTitle = (r.rawTitle || r.title || '').replace(/<[^>]+>/g, '').trim();
-    const snippet = (r.snippet || r.description || r.content || '').replace(/<[^>]+>/g, '').trim();
-    const pubDate = r.publishedAt || r.published_at;
-    const formattedDate = r.formattedDate || r.date || (pubDate ? new Date(pubDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
-    return {
-      title: rawTitle,
-      url: r.url || '',
-      domain: r.domain || '',
-      snippet: snippet,
-      description: snippet,
-      author: r.author || null,
-      published_at: pubDate ? new Date(pubDate).toISOString() : null,
-      date: formattedDate,
-      formatted_date: formattedDate,
-      formattedDate: formattedDate,
-      accuracyScore: r.accuracyScore || r.rankingScore || 0,
-      score: r.accuracyScore || r.rankingScore || 0,
-      pagerank: r.pagerank || 0,
-      trust_score: r.trust_score || r.trustScore || 0,
-      logo_url: r.logo_url || r.logoUrl || null,
-      lead_image_url: r.lead_image_url || r.leadImageUrl || null
-    };
-  });
-
-  // 🚀 Fast Live Crawl Fallback: If results are sparse or fresh news query, fetch and index live in seconds
-  if (formattedResults.length < 3 && query && type !== 'images') {
-    try {
-      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=id&gl=ID&ceid=ID:id`;
-      const rssResp = await fetch(rssUrl, {
-        signal: AbortSignal.timeout(2200),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
-        }
-      });
-      if (rssResp.ok) {
-        const xml = await rssResp.text();
-        const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
-        for (const m of itemMatches.slice(0, 8)) {
-          const itemXml = m[1];
-          const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
-          const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
-          const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
-          const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
-          if (rawTitle && rawLink) {
-            let domain = '';
-            try { domain = new URL(rawLink).hostname.replace('www.', ''); } catch(e) {}
-            const pageItem = {
-              url: rawLink,
-              domain: domain || 'news.google.com',
-              title: rawTitle,
-              description: rawTitle,
-              headings: rawTitle,
-              content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
-              author: source || null,
-              publishedAt: pubDate ? new Date(pubDate).getTime() : Date.now(),
-              pagerank: 1.2,
-              trustScore: 85
-            };
-            db.savePage(pageItem);
-            formattedResults.push({
-              title: rawTitle,
-              url: rawLink,
-              domain: domain || 'news.google.com',
-              snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-              description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-              author: source || null,
-              published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
-              pagerank: 1.2,
-              trust_score: 85,
-              logo_url: null,
-              lead_image_url: null
-            });
-          }
-        }
-        db.flushPageBuffer();
-      }
-    } catch (_liveErr) {
-      console.warn('[V1-SEARCH] Fast live crawl note:', _liveErr.message);
-    }
-  }
-
-  const aiContext = formatAiContext(query, formattedResults);
+  const result = await executeUnifiedRankedSearch(query, { page, limit, timeFilter, type, forceOriginal: false });
+  const aiContext = formatAiContext(query, result.results);
 
   const payload = {
     status: 'success',
     api_version: 'v1',
     query,
-    total_results: result.total || formattedResults.length,
+    total_results: result.total,
     page,
     limit,
-    duration_ms: result.durationMs || latencyMs,
-    client_latency_ms: latencyMs,
+    duration_ms: result.durationMs,
+    client_latency_ms: result.durationMs,
+    algorithm: result.algorithm,
     auth: {
       key_name: req.apiKeyInfo?.name || 'Public Demo',
       is_demo: Boolean(req.apiKeyInfo?.isDemo)
     },
-    results: formattedResults,
+    results: result.results,
     ai_context: aiContext
   };
 
@@ -1074,6 +1309,7 @@ async function handleV1Search(req, res) {
 
   res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
   res.setHeader('X-Cache', 'MISS');
+  res.setHeader('X-Response-Time', `${result.durationMs}ms`);
   res.json(payload);
 }
 
@@ -1106,7 +1342,7 @@ app.get('/api/v1/news', searchPriorityMiddleware, apiKeyAuthMiddleware, (req, re
       snippet: snippet,
       description: snippet,
       author: r.author || null,
-      published_at: pubDate ? new Date(pubDate).toISOString() : null,
+      published_at: safeIsoDate(pubDate),
       category: r.category || 'news',
       lead_image_url: r.leadImageUrl || r.lead_image_url || null,
       logo_url: r.logoUrl || r.logo_url || null
@@ -1241,7 +1477,7 @@ app.get('/api/tunnel/info', (req, res) => {
   });
 });
 
-app.post('/api/tunnel/update', express.json(), (req, res) => {
+app.post('/api/tunnel/update', requireAdminOrLocal, express.json(), (req, res) => {
   const { serverTunnel, clientTunnel } = req.body || {};
   try {
     const activeFile = path.resolve('scratch/active_tunnel.json');
@@ -1287,59 +1523,21 @@ let cachedTrendingTime = 0;
 
 // 1. Search Query Endpoint with Web & Image Search support
 app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
-  const query = req.query.q || '';
+  const query = (req.query.q || '').trim();
   const page = parseInt(req.query.page || '1', 10);
   const limit = parseInt(req.query.limit || '15', 10);
-  const timeFilter = req.query.timeFilter || 'all';
-  const type = req.query.type || 'all'; // 'all' | 'images'
+  const timeFilter = req.query.timeFilter || req.query.time || 'all';
+  const type = req.query.type || 'all';
   const liveCrawl = req.query.liveCrawl === 'true' || req.query.liveCrawl === '1';
 
-  if (!query.trim()) {
+  if (!query) {
     return res.json({ query: '', total: 0, results: [], durationMs: 0, type });
   }
 
-  // Set lightweight cache header for repeated queries
   res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=60');
-
-  // Log user search query asynchronously (0ms overhead)
   db.logQuery(query);
 
-  // Trigger On-Demand Live Web Crawl in Background if requested
-  if (liveCrawl) {
-    const encoded = encodeURIComponent(query.trim());
-    const querySeeds = [
-      `https://id.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-      `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-      `https://dev.to/search?q=${encoded}`,
-      `https://news.ycombinator.com`
-    ];
-    crawlerEngine.injectSeeds(querySeeds, 10);
-  }
-
-  if (type === 'images') {
-    const cacheKey = `${query.trim().toLowerCase()}|${page}|${limit}|images|all|false`;
-    if (!liveCrawl) {
-      const cached = getHttpSearchCache(cacheKey);
-      if (cached) {
-        res.setHeader('X-Cache', 'HIT');
-        return res.json(cached);
-      }
-    }
-    const result = searchEngine.searchImages(query, { page, limit: parseInt(req.query.limit || '24', 10) });
-    const payload = {
-      ...result,
-      liveCrawlTriggered: liveCrawl
-    };
-    if (!liveCrawl) {
-      setHttpSearchCache(cacheKey, payload);
-    }
-    res.setHeader('X-Cache', 'MISS');
-    return res.json(payload);
-  }
-
-  const forceOriginal = req.query.forceOriginal === 'true' || req.query.forceOriginal === '1';
-  const cacheKey = `${query.trim().toLowerCase()}|${page}|${limit}|${timeFilter}|${type}|${forceOriginal}`;
-
+  const cacheKey = `${query.toLowerCase()}|${page}|${limit}|${timeFilter}|${type}|${liveCrawl}`;
   if (!liveCrawl) {
     const cachedResponse = getHttpSearchCache(cacheKey);
     if (cachedResponse) {
@@ -1349,36 +1547,12 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
     }
   }
 
-  const t_start = performance.now();
-  let searchTimer = null;
-  const timeoutPromise = new Promise((resolve) => {
-    searchTimer = setTimeout(() => {
-      resolve({
-        timedOut: true,
-        query,
-        total: 0,
-        results: [],
-        durationMs: MAX_SEARCH_SESSION_TIMEOUT_MS,
-        message: 'Batas waktu pencarian 10 detik tercapai (QoS Protection). Layanan dibatasi demi menjaga kecepatan bersama.'
-      });
-    }, MAX_SEARCH_SESSION_TIMEOUT_MS);
-  });
-
-  const searchExecution = searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal }, db);
-  const result = await Promise.race([searchExecution, timeoutPromise]);
-  if (searchTimer) clearTimeout(searchTimer);
-
-  const t_diff = performance.now() - t_start;
-  if (t_diff > 30) {
-    console.log(`[PERF-SEARCH] query="${query}" async=${t_diff.toFixed(1)}ms engine=${result.durationMs}ms`);
-  }
-
+  const result = await executeUnifiedRankedSearch(query, { page, limit, timeFilter, type, liveCrawl });
   const payload = {
     ...result,
     type,
     timeFilter,
-    liveCrawlTriggered: liveCrawl,
-    maxProcessTimeMs: MAX_SEARCH_SESSION_TIMEOUT_MS
+    liveCrawlTriggered: liveCrawl
   };
 
   if (!liveCrawl) {
@@ -1386,11 +1560,10 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
   }
 
   res.setHeader('X-Cache', 'MISS');
-  res.setHeader('X-Response-Time', `${t_diff.toFixed(2)}ms`);
+  res.setHeader('X-Response-Time', `${result.durationMs}ms`);
   res.json(payload);
 });
 
-// Autocomplete & Trending Search Suggestions (Google-style, Non-blocking In-Memory Speed)
 app.get('/api/suggestions', (req, res) => {
   const query = req.query.q || '';
   const limit = parseInt(req.query.limit || '8', 10);
@@ -1630,6 +1803,11 @@ app.get('/api/proxy-image', async (req, res) => {
     return res.status(400).send('Missing url parameter');
   }
 
+  // SSRF & Protocol Guard: block loopback, link-local, and RFC1918 private networks
+  if (!isSafeProxyImageUrl(imageUrl)) {
+    return res.status(403).send('Forbidden image URL');
+  }
+
   // 1. Check Negative Cache (Skip known broken URLs immediately in 0.01ms)
   const failedTime = failedImageUrls.get(imageUrl);
   if (failedTime && (Date.now() - failedTime < 300000)) {
@@ -1640,6 +1818,8 @@ app.get('/api/proxy-image', async (req, res) => {
   const cached = getCachedProxyImage(imageUrl);
   if (cached) {
     res.setHeader('Content-Type', cached.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
     res.setHeader('X-Proxy-Cache', 'HIT');
     return res.send(cached.buffer);
@@ -1656,24 +1836,45 @@ app.get('/api/proxy-image', async (req, res) => {
 
         const response = await fetch(imageUrl, {
           signal: controller.signal,
+          redirect: 'follow',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept': 'image/avif,image/webp,image/apng,image/png,image/jpeg,image/gif;q=0.9',
             'Referer': `${parsedUrl.protocol}//${parsedUrl.host}/`
           }
         });
 
         clearTimeout(timeout);
 
-        if (!response.ok) {
+        if (!response.ok || (response.url && !isSafeProxyImageUrl(response.url))) {
           failedImageUrls.set(imageUrl, Date.now());
           return null;
         }
 
-        const contentType = response.headers.get('content-type') || 'image/jpeg';
-        const buffer = Buffer.from(await response.arrayBuffer());
-        setCachedProxyImage(imageUrl, buffer, contentType);
-        return { buffer, contentType };
+        const rawContentType = (response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase();
+        const allowedMimeTypes = new Set([
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/webp',
+          'image/gif',
+          'image/avif',
+          'image/bmp',
+          'image/x-icon',
+          'image/vnd.microsoft.icon'
+        ]);
+        if (!allowedMimeTypes.has(rawContentType)) {
+          failedImageUrls.set(imageUrl, Date.now());
+          return null;
+        }
+
+        const clen = parseInt(response.headers.get('content-length') || '0', 10);
+        if (clen > 5 * 1024 * 1024) { failedImageUrls.set(imageUrl, Date.now()); return null; }
+        const arrayBuf = await response.arrayBuffer();
+        if (arrayBuf.byteLength > 5 * 1024 * 1024) { failedImageUrls.set(imageUrl, Date.now()); return null; }
+        const buffer = Buffer.from(arrayBuf);
+        setCachedProxyImage(imageUrl, buffer, rawContentType);
+        return { buffer, contentType: rawContentType };
       } catch (err) {
         failedImageUrls.set(imageUrl, Date.now());
         return null;
@@ -1692,11 +1893,13 @@ app.get('/api/proxy-image', async (req, res) => {
     }
 
     res.setHeader('Content-Type', result.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
     res.setHeader('X-Proxy-Cache', 'MISS');
     return res.send(result.buffer);
   } catch (err) {
-    return res.status(500).send('Proxy error: ' + err.message);
+    return res.status(500).send('Proxy error');
   }
 });
 
@@ -1773,7 +1976,7 @@ app.get('/api/news/images', (req, res) => {
 });
 
 // Manual News Crawl Trigger
-app.post('/api/news/crawl', async (req, res) => {
+app.post('/api/news/crawl', requireAdminOrLocal, async (req, res) => {
   try {
     newsCrawler.triggerManualCrawl();
     res.json({ success: true, message: 'News crawl triggered', stats: newsCrawler.getStats() });
@@ -1798,7 +2001,7 @@ app.get('/api/tokoh/recent', (req, res) => {
   res.json({ total: items.length, results: items });
 });
 
-app.post('/api/tokoh/crawl', async (req, res) => {
+app.post('/api/tokoh/crawl', requireAdminOrLocal, async (req, res) => {
   tokohCrawler.triggerManualCrawl();
   res.json({ success: true, message: 'Tokoh crawl triggered', stats: tokohCrawler.getStats() });
 });
@@ -1814,7 +2017,7 @@ app.get('/api/geo/recent', (req, res) => {
   res.json({ total: items.length, results: items });
 });
 
-app.post('/api/geo/crawl', async (req, res) => {
+app.post('/api/geo/crawl', requireAdminOrLocal, async (req, res) => {
   geoCrawler.harvestCategories(true);
   res.json({ success: true, message: 'Geo crawl triggered', stats: geoCrawler.getStats() });
 });
@@ -1830,21 +2033,9 @@ app.get('/api/images/recent', (req, res) => {
   res.json({ total: items.length, results: items });
 });
 
-app.post('/api/images/crawl', async (req, res) => {
+app.post('/api/images/crawl', requireAdminOrLocal, async (req, res) => {
   imageCrawler.harvestChannels(true);
   res.json({ success: true, message: 'Image crawl triggered', stats: imageCrawler.getStats() });
-});
-
-// DeeperNova Economics Comprehensive Live Market Data API
-app.get('/api/economics', (req, res) => {
-  res.json({
-    success: true,
-    lastUpdated: Date.now(),
-    lastUpdatedText: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    forex: CurrencyEngine.liveRates,
-    crypto: MarketDataEngine.liveCrypto,
-    stocks: MarketDataEngine.liveStocks
-  });
 });
 
 // Seeds Metadata & Categories API
@@ -1861,7 +2052,7 @@ app.get('/api/crawler/seeds', (req, res) => {
 });
 
 // 2. Start Crawler
-app.post('/api/crawl/start', (req, res) => {
+app.post('/api/crawl/start', requireAdminOrLocal, (req, res) => {
   const {
     seeds = [],
     concurrency = 4,
@@ -1898,19 +2089,19 @@ app.post('/api/crawl/start', (req, res) => {
 });
 
 // 3. Pause Crawler
-app.post('/api/crawl/pause', (req, res) => {
+app.post('/api/crawl/pause', requireAdminOrLocal, (req, res) => {
   crawlerEngine.pause();
   res.json({ success: true, status: crawlerEngine.getStatus() });
 });
 
 // 4. Resume Crawler
-app.post('/api/crawl/resume', (req, res) => {
+app.post('/api/crawl/resume', requireAdminOrLocal, (req, res) => {
   crawlerEngine.resume();
   res.json({ success: true, status: crawlerEngine.getStatus() });
 });
 
 // 5. Stop Crawler
-app.post('/api/crawl/stop', async (req, res) => {
+app.post('/api/crawl/stop', requireAdminOrLocal, async (req, res) => {
   await crawlerEngine.stop();
   res.json({ success: true, status: crawlerEngine.getStatus() });
 });
@@ -1929,7 +2120,7 @@ app.get('/api/status', (req, res) => {
 });
 
 // 6b. Toggle Live Log Stream (Low-CPU Mode)
-app.post('/api/telemetry/toggle', express.json(), (req, res) => {
+app.post('/api/telemetry/toggle', requireAdminOrLocal, express.json(), (req, res) => {
   const { liveLogs } = req.body || {};
   if (typeof liveLogs === 'boolean') {
     liveLogsEnabled = liveLogs;
@@ -1938,7 +2129,7 @@ app.post('/api/telemetry/toggle', express.json(), (req, res) => {
 });
 
 // 7. Calculate PageRank (Asynchronous & Non-Blocking)
-app.post('/api/pagerank/calculate', async (req, res) => {
+app.post('/api/pagerank/calculate', requireAdminOrLocal, async (req, res) => {
   try {
     const result = await pagerankCalc.calculateAsync();
     res.json({ success: true, result });
@@ -1948,7 +2139,7 @@ app.post('/api/pagerank/calculate', async (req, res) => {
 });
 
 // 8. Reset Database
-app.post('/api/database/reset', async (req, res) => {
+app.post('/api/database/reset', requireAdminOrLocal, async (req, res) => {
   if (crawlerEngine.state === CrawlerState.RUNNING) {
     await crawlerEngine.stop();
   }
@@ -1958,7 +2149,7 @@ app.post('/api/database/reset', async (req, res) => {
 });
 
 // 8b. Checkpoint & Shrink SQLite WAL File
-app.post('/api/database/checkpoint', (req, res) => {
+app.post('/api/database/checkpoint', requireAdminOrLocal, (req, res) => {
   const result = db.checkpoint('TRUNCATE');
   res.json({ success: true, checkpoint: result });
 });
@@ -1968,7 +2159,8 @@ app.get('/api/economics', (req, res) => {
   try {
     res.json({
       success: true,
-      forex: CurrencyEngine.liveForex || {},
+      lastUpdated: MarketDataEngine.lastSyncTime || Date.now(),
+      forex: CurrencyEngine.liveForex || CurrencyEngine.liveRates || {},
       crypto: MarketDataEngine.liveCrypto || {},
       stocks: MarketDataEngine.liveStocks || {},
       lastSyncTime: MarketDataEngine.lastSyncTime || Date.now(),
@@ -2048,15 +2240,7 @@ server.listen(PORT, '0.0.0.0', () => {
     } catch {}
   }, 1000);
 
-  // Non-blocking WAL checkpoint on boot to keep read queries <20ms
-  setTimeout(() => {
-    try {
-      const ck = db.checkpoint('PASSIVE');
-      if (ck && !ck.error) {
-        console.log('⚡ SQLite WAL Checkpointed Successfully (Zero Disk Bloat)');
-      }
-    } catch {}
-  }, 2500);
+  // Boot checkpoint removed to prevent event-loop stalls on 115GB DB
 
   const autoStartCrawler = process.env.AUTO_START_CRAWLER !== 'false';
 

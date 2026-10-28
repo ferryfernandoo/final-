@@ -28,17 +28,20 @@ const ALLOWED_LIBRARIES = [
   'scipy', 'scikit-learn', 'csv', 'xml', 'html'
 ];
 
-// Dangerous functions to block
+// Dangerous functions to block (NO /g flag so RegExp.prototype.test remains stateless)
 const BLOCKED_PATTERNS = [
-  /exec\s*\(/gi,
-  /eval\s*\(/gi,
-  /compile\s*\(/gi,
-  /__import__/gi,
-  /subprocess/gi,
-  /os\.system/gi,
-  /open\s*\(/gi,
-  /socket/gi,
-  /threading/gi,
+  /exec\s*\(/i,
+  /eval\s*\(/i,
+  /compile\s*\(/i,
+  /__import__/i,
+  /subprocess/i,
+  /\bos\s*\.\s*(system|popen|spawn|exec|remove|unlink|rmdir|environ)/i,
+  /\bimport\s+(os|subprocess|shutil|pty|ctypes|socket)\b/i,
+  /\bfrom\s+(os|subprocess|shutil|pty|ctypes|socket)\s+import\b/i,
+  /getattr\s*\(/i,
+  /open\s*\(/i,
+  /socket/i,
+  /threading/i,
 ];
 
 class PythonExecutor {

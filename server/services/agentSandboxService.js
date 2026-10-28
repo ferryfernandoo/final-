@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exec, spawn } from 'child_process';
+import { exec, execFile, spawn } from 'child_process';
 import JSZip from 'jszip';
 import { agentSessionDb, agentMessageDb } from '../database.js';
 
@@ -692,7 +692,7 @@ export function getSandboxDir(sessionId) {
       if (!existingSkill.includes('KEAHLIAN SUPER #5') || !existingSkill.includes('table.rows.index') || !existingSkill.includes('pptx_designer.py')) {
         fs.writeFileSync(skillPath, DEFAULT_SKILL_MD, 'utf8');
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // Ensure kits/ folder exists in session sandbox for instant Python automation
@@ -701,7 +701,7 @@ export function getSandboxDir(sessionId) {
     if (!fs.existsSync(sessionKitsDir) || !fs.existsSync(path.join(sessionKitsDir, 'pptx_designer.py'))) {
       try {
         fs.cpSync(KITS_SOURCE_DIR, sessionKitsDir, { recursive: true });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 
@@ -711,7 +711,7 @@ export function getSandboxDir(sessionId) {
     if (!fs.existsSync(sessionTemplatesDir) || !fs.existsSync(path.join(sessionTemplatesDir, 'pptx_agribisnis_sapi_modern_spec.json'))) {
       try {
         fs.cpSync(TEMPLATES_SOURCE_DIR, sessionTemplatesDir, { recursive: true });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 
@@ -722,11 +722,11 @@ export function getSandboxDir(sessionId) {
  * Safely resolve a path inside the sandbox directory, preventing directory traversal
  */
 export function safeResolvePath(sessionId, relativePath) {
-  const sandboxDir = getSandboxDir(sessionId);
+  const sandboxDir = path.resolve(getSandboxDir(sessionId));
   const cleanRelative = String(relativePath || '').replace(/^[\\/]+/, '');
   const targetPath = path.resolve(sandboxDir, cleanRelative);
 
-  if (!targetPath.startsWith(sandboxDir)) {
+  if (targetPath !== sandboxDir && !targetPath.startsWith(sandboxDir + path.sep)) {
     throw new Error('Akses ditolak: Percobaan path traversal di luar sandbox terdeteksi.');
   }
   return targetPath;
@@ -839,7 +839,7 @@ export function writeFile(sessionId, relativePath, content) {
   if (fs.existsSync(filePath)) {
     try {
       createCheckpoint(sessionId, cleanRelativePath, 'Sebelum overwrite writeFile');
-    } catch (_) {}
+    } catch (_) { }
   }
 
   const parentDir = path.dirname(filePath);
@@ -1100,7 +1100,7 @@ export function grepSearch(sessionId, { query, includes = '', caseInsensitive = 
               if (results.length >= maxResults) return;
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }
@@ -1149,7 +1149,7 @@ export async function testFile(sessionId, relativePath) {
 
   if (ext === 'py') {
     return new Promise((resolve) => {
-      exec(`python -m py_compile "${filePath}"`, { timeout: 15000 }, (err, stdout, stderr) => {
+      execFile('python', ['-m', 'py_compile', filePath], { timeout: 15000, env: getSterileEnv(sessionId) }, (err, stdout, stderr) => {
         if (err) {
           resolve({ success: false, message: `Sintaks Python error pada '${relativePath}'.`, detail: stderr || stdout || err.message });
         } else {
@@ -1161,7 +1161,7 @@ export async function testFile(sessionId, relativePath) {
 
   if (ext === 'js' || ext === 'mjs' || ext === 'cjs') {
     return new Promise((resolve) => {
-      exec(`node --check "${filePath}"`, { timeout: 15000 }, (err, stdout, stderr) => {
+      execFile('node', ['--check', filePath], { timeout: 15000, env: getSterileEnv(sessionId) }, (err, stdout, stderr) => {
         if (err) {
           resolve({ success: false, message: `Sintaks JavaScript error pada '${relativePath}'.`, detail: stderr || stdout || err.message });
         } else {
@@ -1261,7 +1261,7 @@ export function killSessionProcesses(sessionId) {
         }
         killed++;
       }
-    } catch (_) {}
+    } catch (_) { }
   }
   activeProcesses.delete(sessionId);
   return killed;
@@ -1285,16 +1285,21 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
   }
 
   if (command && command.trim()) {
-    // Sanitize command against dangerous commands
+    // Sanitize command against dangerous commands and parent traversal / secret access
     const dangerousPatterns = [
       /rm\s+-rf\s+\//i,
       /format\s+[a-z]:/i,
+      /del\s+\/[sfq]/i,
+      /rmdir\s+\/s/i,
       /shutdown/i,
       /reboot/i,
-      /powershell\s+-enc/i,
+      /powershell\s+-(?:e|enc|encodedcommand)/i,
       /:(){ :|:& };:/i,
       /mkfs/i,
-      /dd\s+if=/i
+      /dd\s+if=/i,
+      /\.\.[\\/]/,
+      /\.env\b/i,
+      /deepernova\.db/i
     ];
     for (const pattern of dangerousPatterns) {
       if (pattern.test(command)) {
@@ -1506,13 +1511,13 @@ export async function executeInSandbox(sessionId, { language = 'node', code = ''
                     fs.writeFileSync(fullScriptPath, scriptContent, 'utf8');
                     return runProcess(cmdToRun, retryCount + 1);
                   }
-                } catch (_) {}
+                } catch (_) { }
               }
             }
           }
 
           if (createdRunnerFile && fs.existsSync(createdRunnerFile)) {
-            try { fs.unlinkSync(createdRunnerFile); } catch {}
+            try { fs.unlinkSync(createdRunnerFile); } catch { }
           }
 
           resolve({
@@ -1837,7 +1842,7 @@ export function getRelevantDeliverables(files = [], userPrompt = '') {
   // Check if web project exists
   const hasHtml = cleanFiles.some(f => f.ext === 'html');
   if (hasHtml) {
-    const webFiles = cleanFiles.filter(f => 
+    const webFiles = cleanFiles.filter(f =>
       ['html', 'css', 'js', 'json', 'svg', 'png', 'jpg', 'webp'].includes(f.ext) &&
       !f.name.startsWith('generate_') &&
       !f.name.startsWith('buat_')

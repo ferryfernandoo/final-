@@ -141,6 +141,18 @@ export class PageRankCalculator {
    * Fully non-blocking asynchronous PageRank calculation with batching and event loop yields
    */
   async calculateAsync() {
+    if (this._isCalculating) {
+      return this._calcPromise;
+    }
+    this._isCalculating = true;
+    this._calcPromise = this._runCalculateAsync().finally(() => {
+      this._isCalculating = false;
+      this._calcPromise = null;
+    });
+    return this._calcPromise;
+  }
+
+  async _runCalculateAsync() {
     const startTime = performance.now();
 
     // 1. Fetch top connected indexed pages (capped to 25,000 to maintain low memory footprint)

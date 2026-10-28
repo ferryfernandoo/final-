@@ -9,7 +9,10 @@
 
 const NON_CRITICAL_KEYS = [
   'rag_index',
+  'deepernova_rag_index_v1',
+  'deepernova_saved_images',
   'deepernova_saved_images_gallery',
+  'typernova_last_edited_document',
   'brainstorm_messages_word',
   'brainstorm_messages_excel',
   'brainstorm_messages_ppt',
@@ -45,9 +48,9 @@ export const safeSetItem = (key, value) => {
           size: (localStorage.getItem(k) || '').length
         })).sort((a, b) => b.size - a.size);
 
-        // Remove largest keys that aren't critical auth keys
+        // Remove largest keys that aren't critical auth or active conversation keys
         for (const item of sizedKeys) {
-          if (item.key !== key && item.key !== 'authUser' && item.key !== 'guestSession') {
+          if (item.key !== key && item.key !== 'authUser' && item.key !== 'guestSession' && item.key !== 'chatbot_conversations') {
             localStorage.removeItem(item.key);
             try {
               localStorage.setItem(key, value);

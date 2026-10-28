@@ -369,9 +369,17 @@ class ConversationPersistenceService {
   }
 
   /**
+   * Clear in-memory cache (used on logout / session switch)
+   */
+  static clearMemoryCache() {
+    _memoryCache = null;
+  }
+
+  /**
    * Clear all conversations
    */
   static async clearAll(isAuthenticated, isGuest) {
+    _memoryCache = null;
     try {
       if (this.shouldUseBackendStorage(isAuthenticated, isGuest)) {
         // For backend, just make a delete request

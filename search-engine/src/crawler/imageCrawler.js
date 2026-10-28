@@ -318,19 +318,30 @@ export class ImageCrawler extends EventEmitter {
                   INSERT OR IGNORE INTO images (page_id, page_url, domain, image_url, alt_text, title, context_text, is_logo, width, height, created_at)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
-                stmt.run(
+                const altText = item.alt_text || item.title || '';
+                const titleText = item.title || '';
+                const contextText = item.category || 'High-Resolution Photography';
+                const domainText = item.domain || 'wikimedia.org';
+                const info = stmt.run(
                   0,
                   item.page_url || item.url,
-                  item.domain || 'wikimedia.org',
+                  domainText,
                   item.url,
-                  item.alt_text || item.title,
-                  item.title,
-                  item.category || 'High-Resolution Photography',
+                  altText,
+                  titleText,
+                  contextText,
                   0,
                   item.width || 1200,
                   item.height || 800,
                   Date.now()
                 );
+                if (info && info.changes > 0 && info.lastInsertRowid) {
+                  const ftsStmt = this.db.db.prepare(`
+                    INSERT INTO fts_images (rowid, alt_text, title, context_text, domain)
+                    VALUES (?, ?, ?, ?, ?)
+                  `);
+                  ftsStmt.run(info.lastInsertRowid, altText, titleText, contextText, domainText);
+                }
               } catch {}
             }
 

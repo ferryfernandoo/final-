@@ -252,11 +252,19 @@ router.get(['/usage', '/usage/history'], apiKeyMiddleware, async (req, res) => {
 
 /**
  * GET /admin/stats
- * Aggregated server-side metrics from api_usage_logs for future admin dashboard
+ * Aggregated server-side metrics from api_usage_logs (requires authenticated API key or session)
  */
-router.get('/admin/stats', async (req, res) => {
+router.get('/admin/stats', apiKeyMiddleware, async (req, res) => {
   try {
     const summary = apiLogDb.getAdminSummary();
+    // Redact sensitive PII (emails and raw IPs) in recent logs
+    if (summary && Array.isArray(summary.recentLogs)) {
+      summary.recentLogs = summary.recentLogs.map(log => ({
+        ...log,
+        userEmail: log.userEmail ? log.userEmail.replace(/^(..).*(@.*)$/, '$1***$2') : null,
+        ipAddress: log.ipAddress ? log.ipAddress.replace(/\.\d+$/, '.xxx') : null
+      }));
+    }
     res.json({
       success: true,
       service: 'DeeperNova API Management Platform',

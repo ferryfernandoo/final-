@@ -191,6 +191,7 @@ export default function NewsTab({ query: externalQuery }) {
   };
 
   const suggestionDebounceRef = useRef(null);
+  const editorialAbortRef = useRef(null);
   const inputRef = useRef(null);
   const searchContainerRef = useRef(null);
 
@@ -242,15 +243,27 @@ export default function NewsTab({ query: externalQuery }) {
     if (validNewsWithImages && validNewsWithImages.length > 0 && newsSubView === 'articles') {
       streamAiEditorial(query, validNewsWithImages);
     }
-  }, [resultsData, query, failedImageKeys.size]);
+    return () => {
+      if (editorialAbortRef.current) {
+        editorialAbortRef.current.abort();
+      }
+    };
+  }, [resultsData, query, newsSubView]);
 
   const streamAiEditorial = async (searchQuery, articles) => {
+    if (editorialAbortRef.current) {
+      editorialAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    editorialAbortRef.current = controller;
+
     setAiEditorial({ text: '', loading: true, isStreaming: true });
     try {
       const topItems = (articles || []).slice(0, 12);
       const res = await fetch('/api/ai/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           query: searchQuery ? searchQuery.trim() : 'Peristiwa Berita Terhangat Nasional',
           results: topItems,
@@ -293,7 +306,8 @@ export default function NewsTab({ query: externalQuery }) {
       }
 
       setAiEditorial({ text: cleanEditorialText(accumulated), loading: false, isStreaming: false });
-    } catch {
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
       generateLocalEditorial(searchQuery, (articles || []).slice(0, 10));
     }
   };
@@ -362,7 +376,7 @@ export default function NewsTab({ query: externalQuery }) {
       clearTimeout(timer);
       if (err.name === 'AbortError') {
         setResultsData({
-          articles: [],
+          results: [],
           total: 0,
           timedOut: true,
           message: 'Batas waktu pencarian berita 10 detik tercapai (QoS Protection).'

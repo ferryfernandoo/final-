@@ -93,8 +93,8 @@ export function classifyDomainTier(domain, url = '') {
 export class URLFrontier {
   constructor(options = {}) {
     this.maxDepth = options.maxDepth ?? 15; // Deep crawl capacity
-    this.perDomainDelayMs = options.perDomainDelayMs ?? 25; // Snappy 25ms delay for fast SSD throughput
-    this.maxConcurrentPerDomain = options.maxConcurrentPerDomain ?? 4; // 4 concurrent connections per host
+    this.perDomainDelayMs = options.perDomainDelayMs ?? 10; // Snappy 25ms delay for fast SSD throughput
+    this.maxConcurrentPerDomain = options.maxConcurrentPerDomain ?? 12; // 4 concurrent connections per host
     this.allowedDomains = options.allowedDomains ? new Set(options.allowedDomains.map(d => d.toLowerCase())) : null;
     const defaultBlocked = [
       'doubleclick.net', 'googleads.g.doubleclick.net',

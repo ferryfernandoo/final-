@@ -334,7 +334,7 @@ export class CrawlerEngine {
         const item = this.frontier.popNextEligible();
         if (!item) {
           // Frontier queue empty or domains throttled -> jittered yield to prevent event loop storms
-          const waitMs = 80 + Math.floor(Math.random() * 120);
+          const waitMs = 15 + Math.floor(Math.random() * 25);
           await new Promise(r => setTimeout(r, waitMs));
           continue;
         }
@@ -347,7 +347,7 @@ export class CrawlerEngine {
         } finally {
           this.activeWorkers = Math.max(0, this.activeWorkers - 1);
           // Cooperative yield: snappy 5ms for max throughput while keeping event loop responsive
-          await new Promise(r => setTimeout(r, 5));
+          await new Promise(r => setTimeout(r, 8));
         }
       }
     } finally {
@@ -548,7 +548,8 @@ export class CrawlerEngine {
       // Successful fetch -> reset network error counter
       this.consecutiveNetErrors = 0;
 
-      // 3. Parse HTML and extract metadata & links
+      // 3. Yield to I/O poll phase before heavy CPU DOM parsing so HTTP API requests never wait
+      await new Promise(r => setTimeout(r, 3));
       const parsedDoc = HTMLParser.parse(fetchRes.html, fetchRes.finalUrl || url);
 
       if (!parsedDoc) {

@@ -661,6 +661,7 @@ export class NewsCrawler extends EventEmitter {
               const result = await this.fetcher.fetch(seedUrl);
               if (!result || !result.html) return [];
 
+              await new Promise(r => setTimeout(r, 3));
               const parsed = HTMLParser.parse(result.html, seedUrl);
               if (!parsed) return [];
 
@@ -740,6 +741,7 @@ export class NewsCrawler extends EventEmitter {
               const result = await this.fetcher.fetch(articleUrl);
               if (!result || !result.html) return;
 
+              await new Promise(r => setTimeout(r, 3));
               const parsed = HTMLParser.parse(result.html, articleUrl);
               if (!parsed || !parsed.title || parsed.title.length < 10) return;
 

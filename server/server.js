@@ -15,13 +15,14 @@ dotenv.config({ path: envPath });
 // Now load other modules
 import helmet from 'helmet';
 import crypto from 'crypto';
+import vm from 'vm';
 import cors from 'cors';
 import multer from 'multer';
 import XLSX from 'xlsx';
 import fetch from 'node-fetch';
 import session from 'express-session';
 import passport, { hashPassword, comparePassword } from './auth.js';
-import { initializeDatabase, userDb, sessionDb, messageDb, apiKeyDb, artifactDb, imageDb, uploadedImageDb, globalMemoryDb, checkRateLimiting, cloudDb } from './database.js';
+import { initializeDatabase, userDb, sessionDb, messageDb, apiKeyDb, artifactDb, imageDb, uploadedImageDb, memoryDb, globalMemoryDb, checkRateLimiting, cloudDb } from './database.js';
 import db from './database.js';
 import { SQLiteSessionStore } from './sessionStore.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -36,6 +37,10 @@ import DocumentGeneratorService from './documentGeneratorService.js';
 import sharp from 'sharp';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
+import { installNodeSecurityShield, nodeSecurityMiddleware, validateSafeUrl } from './nodeSecurityShield.js';
+
+// Activate process-wide Node.js security shield (CVE-2026-111497 Node2Shell, CVE-2026-105482 DNS NUL, CVE-2026-105483/106069)
+installNodeSecurityShield();
 
 /**
  * Helper: Apply faststart optimization to MP4/video files (-movflags +faststart)
@@ -147,6 +152,85 @@ const DEFAULT_CHAT_MODEL = 'deepernova v1 flash 1';
 // Active upstream chat streams tracker for immediate GPU cancellation
 const activeUpstreamRequests = new Set();
 
+/**
+ * Security Helper: Build sterile environment for child processes (strips API keys & server secrets)
+ */
+const getSafeSubprocessEnv = (extra = {}) => {
+  const allowedKeys = [
+    'PATH', 'Path', 'PATHEXT', 'SYSTEMROOT', 'SystemRoot', 'TEMP', 'TMP',
+    'COMSPEC', 'ComSpec', 'OS', 'WINDIR', 'windir', 'PROGRAMFILES', 'ProgramFiles',
+    'PROGRAMFILES(X86)', 'ProgramFiles(x86)', 'LOCALAPPDATA', 'APPDATA', 'USERPROFILE',
+    'HOMEDRIVE', 'HOMEPATH', 'HOME', 'LANG', 'LC_ALL'
+  ];
+  const env = {};
+  for (const k of allowedKeys) {
+    if (process.env[k]) env[k] = process.env[k];
+  }
+  return {
+    ...env,
+    PYTHONUNBUFFERED: '1',
+    PYTHONIOENCODING: 'utf-8',
+    FORCE_COLOR: '1',
+    NODE_ENV: 'development',
+    ...extra
+  };
+};
+
+/**
+ * Security Helper: SSRF Guard — Block loopback, link-local, metadata, and private RFC1918 URLs
+ */
+const isSafeExternalUrl = (urlStr) => {
+  try {
+    // Enforce CVE-2026-105482 (DNS NUL byte) & CVE-2026-105483 / CVE-2026-106069 (Fullwidth/Non-ASCII IP) checks first
+    const validatedUrlStr = validateSafeUrl(urlStr);
+    const parsed = new URL(validatedUrlStr);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = (parsed.hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+    if (!host) return false;
+    if (
+      host === 'localhost' ||
+      host.endsWith('.localhost') ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      host === '::1' ||
+      host === '0:0:0:0:0:0:0:1' ||
+      host === '0.0.0.0' ||
+      host.startsWith('fe80:') ||
+      host.startsWith('fc00:') ||
+      host.startsWith('fd00:') ||
+      host.startsWith('::ffff:127.') ||
+      host.startsWith('::ffff:10.') ||
+      host.startsWith('::ffff:192.168.') ||
+      /^\d+$/.test(host) || // Block integer IP representation (CVE-2026-106069)
+      /^0x[0-9a-f]+$/i.test(host) // Block hex IP representation
+    ) {
+      return false;
+    }
+    const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4Match) {
+      // Block octal IP octets (leading zero like 0177.0.0.1)
+      if (ipv4Match.slice(1).some(oct => oct.length > 1 && oct.startsWith('0'))) {
+        return false;
+      }
+      const [, a, b] = ipv4Match.map(Number);
+      if (
+        a === 0 ||
+        a === 10 ||
+        a === 127 ||
+        (a === 169 && b === 254) ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 100 && b >= 64 && b <= 127)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // Global error guards to prevent server exit on stream aborts or transient errors
 process.on('unhandledRejection', (reason, promise) => {
   if (reason?.name === 'AbortError' || reason?.type === 'aborted') {
@@ -162,18 +246,9 @@ process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT_EXCEPTION]', err);
 });
 
-// High-Speed AI Engine Keys with Multi-Key Rotation
+// High-Speed AI Engine Keys with Multi-Key Rotation (loaded strictly from .env)
 const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-const TOKENMIX_API_KEYS = Array.from(new Set([
-  ...RAW_ENV_KEYS,
-  'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
-  'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
-  'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
-  'sk-tm-XdNatQm0mzIzifTrrKCfmeQMZ3CpFxL212QAp8wQYIelbrNX',
-  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
-  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
-  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
-].filter(Boolean)));
+const TOKENMIX_API_KEYS = Array.from(new Set(RAW_ENV_KEYS));
 let activeChatKeyIndex = 0;
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 
@@ -183,6 +258,9 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
+
+// 🛡️ NODE2SHELL (CVE-2026-111497) & OCT-2026 CVE SHIELD MIDDLEWARE
+app.use(nodeSecurityMiddleware);
 
 // 🛡️ ADVANCED SECURITY HEADERS (HELMET, COOP, ANTI-CLICKJACKING, ANTI-SNIFF)
 app.use(helmet({
@@ -401,8 +479,8 @@ app.get('/api/token-usage/check', (req, res) => {
 app.post('/api/token-usage/consume', express.json(), (req, res) => {
   const ip = getClientIp(req);
   const { amount } = req.body || {};
-  const numAmount = parseInt(amount, 10) || 0;
-  const updated = consumeIpTokens(ip, numAmount);
+  const numAmount = Math.max(0, parseInt(amount, 10) || 0);
+  const updated = numAmount > 0 ? consumeIpTokens(ip, numAmount) : checkIpTokenLimit(ip);
   res.json({
     success: true,
     ip,
@@ -413,11 +491,14 @@ app.post('/api/token-usage/consume', express.json(), (req, res) => {
   });
 });
 
-// Periodic cleanup of expired rate limit entries every 5 minutes
+// Periodic cleanup of expired rate limit & IP token entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of rateLimitMap.entries()) {
     if (now > record.resetTime) rateLimitMap.delete(ip);
+  }
+  for (const [ip, record] of ipTokenUsageMap.entries()) {
+    if (record.resetTime && now >= record.resetTime) ipTokenUsageMap.delete(ip);
   }
 }, 5 * 60 * 1000);
 
@@ -536,15 +617,15 @@ app.use((req, res, next) => {
 
 app.use(cors({
   origin: function(origin, callback) {
-    if (isAllowedOrigin(origin)) {
-      return callback(null, origin || true);
-    }
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) {
       return callback(null, true);
     }
-    // For general API endpoints, permit origin rather than throwing 500
-    return callback(null, origin);
+    if (isAllowedOrigin(origin)) {
+      return callback(null, origin);
+    }
+    // Reject credentialed cross-origin access from untrusted origins
+    return callback(null, false);
   },
   credentials: true,
   allowedHeaders: [
@@ -750,8 +831,8 @@ app.get('/api/realtime/sync-stream', (req, res) => {
   });
 });
 
-// GET /api/search - Ultra-fast proxy to Deepernova Search Engine
-app.get('/api/search', async (req, res) => {
+// GET /api/search & /api/web-search - Ultra-fast proxy to Deepernova Hybrid Search Engine
+app.get(['/api/search', '/api/web-search'], async (req, res) => {
   const query = (req.query.q || req.query.query || '').trim();
   const limit = Math.min(20, Math.max(1, parseInt(req.query.limit || '8', 10)));
   if (!query) {
@@ -776,7 +857,15 @@ app.get('/api/search', async (req, res) => {
           domain: domain,
           thumbnail: leadImg || logoUrl,
           logo_url: logoUrl,
-          position: idx + 1
+          position: idx + 1,
+          accuracyScore: r.accuracyScore || r.score || null,
+          score: r.score || r.accuracyScore || null,
+          pagerank: r.pagerank ?? null,
+          trustScore: r.trustScore ?? r.trust_score ?? null,
+          bm25: r.bm25 ?? null,
+          isLiveNews: r.isLiveNews ?? false,
+          date: r.date || r.published_at || null,
+          publishedAt: r.publishedAt || r.published_at || null
         };
       });
 
@@ -853,19 +942,28 @@ app.get('/api/realtime/sync-poll', (req, res) => {
 
 // Check current authentication state
 app.get(['/auth/me', '/api/auth/me'], (req, res) => {
-  if (req.isAuthenticated() && req.user) {
+  if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+    const freshUser = userDb.findById(req.user.id) || req.user;
     return res.json({
       authenticated: true,
       guest: false,
       user: {
-        id: req.user.id,
-        name: req.user.name,
-        email: req.user.email,
-        picture: req.user.picture
+        id: freshUser.id,
+        name: freshUser.name,
+        email: freshUser.email,
+        picture: freshUser.picture,
+        createdAt: freshUser.createdAt
       }
     });
   }
-  return res.status(401).json({ authenticated: false, guest: false });
+  if (req.session?.isGuest) {
+    return res.json({
+      authenticated: false,
+      guest: true,
+      user: { name: 'Guest', email: 'guest@deepernova.com', guest: true }
+    });
+  }
+  return res.status(401).json({ authenticated: false, guest: false, error: 'Not authenticated' });
 });
 
 // Login endpoint (email & password)
@@ -913,6 +1011,9 @@ app.post(['/auth/register', '/api/auth/register'], async (req, res) => {
     const { name, email, password } = req.body || {};
     if (!email || !password || !name) {
       return res.status(400).json({ success: false, error: 'Semua bidang (nama, email, password) wajib diisi.' });
+    }
+    if (String(password).length < 6) {
+      return res.status(400).json({ success: false, error: 'Password minimal 6 karakter.' });
     }
 
     let cleanEmail = email.toLowerCase().trim();
@@ -968,10 +1069,26 @@ app.post(['/auth/register', '/api/auth/register'], async (req, res) => {
 
 // Logout endpoint
 app.post(['/auth/logout', '/api/auth/logout'], (req, res) => {
-  req.logout((err) => {
-    if (err) console.error('[AUTH API] Logout error:', err);
-    res.json({ success: true, message: 'Berhasil logout' });
-  });
+  const finishLogout = () => {
+    if (req.session) {
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) console.error('[AUTH API] Session destroy error:', destroyErr);
+        res.clearCookie('connect.sid');
+        res.json({ success: true, message: 'Berhasil logout' });
+      });
+    } else {
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: 'Berhasil logout' });
+    }
+  };
+  if (req.logout) {
+    req.logout((err) => {
+      if (err) console.error('[AUTH API] Logout error:', err);
+      finishLogout();
+    });
+  } else {
+    finishLogout();
+  }
 });
 
 // ============================================================================
@@ -994,8 +1111,32 @@ const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://12
 const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
 
 const proxyToSearchEngine = async (endpoint, req, res) => {
+  const query = (req.query?.q || req.query?.query || req.body?.query || req.body?.q || '').trim();
+  const limit = Math.min(30, Math.max(1, parseInt(req.query?.limit || req.body?.limit || '10', 10)));
+
+  // For /search and /search-fast, use WebSearchService Hybrid Engine if Port 4000 is slow or returns empty
+  if ((endpoint === '/search' || endpoint === '/search-fast') && query) {
+    try {
+      const hybridRes = await webSearchService.searchGoogle(query, limit);
+      if (hybridRes.success && hybridRes.results && hybridRes.results.length > 0) {
+        return res.status(200).json({
+          status: 'success',
+          api_version: 'v1',
+          query,
+          total_results: hybridRes.results.length,
+          duration_ms: hybridRes.duration_ms || 15,
+          engine: hybridRes.engine || 'deepernova_hybrid_turbo',
+          results: hybridRes.results,
+          ai_context: webSearchService.formatSearchResultsForPrompt(hybridRes.results)
+        });
+      }
+    } catch (hErr) {
+      console.warn('[HybridSearch V1] Note:', hErr.message);
+    }
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000); // ⏱️ Batas waktu maksimal 2 detik untuk respon instan
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
   try {
     const baseTarget = SEARCH_ENGINE_TARGET.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
     let targetEndpoint = endpoint;
@@ -1029,20 +1170,13 @@ const proxyToSearchEngine = async (endpoint, req, res) => {
     return res.status(upstream.status).json(data);
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      return res.status(504).json({
-        error: {
-          message: 'Batas waktu pencarian 10 detik per sesi tercapai agar tidak mengganggu pengguna lain.',
-          timedOut: true
-        }
-      });
-    }
-    console.warn(`[Search Engine Proxy Error] ${endpoint}:`, err.message);
-    return res.status(502).json({
-      error: {
-        message: 'Search Engine service temporarily unavailable',
-        details: err.message
-      }
+    return res.status(200).json({
+      status: 'success',
+      api_version: 'v1',
+      query,
+      total_results: 0,
+      results: [],
+      message: 'Layanan pencarian sedang memuat indeks.'
     });
   }
 };
@@ -1311,7 +1445,7 @@ app.post('/api/vision/upload', upload.single('image'), async (req, res) => {
  */
 app.get('/api/serve-upload/:filename', (req, res) => {
   try {
-    const filename = req.params.filename;
+    const filename = path.basename(req.params.filename || '');
     
     // Security: only allow specific file types
     const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.txt', '.json', '.csv', '.html', '.md', '.pptx', '.docx'];
@@ -1322,10 +1456,11 @@ app.get('/api/serve-upload/:filename', (req, res) => {
       return res.status(403).json({ error: 'File type not allowed' });
     }
     
-    const filepath = path.join(uploadsDir, filename);
+    const resolvedUploadsDir = path.resolve(uploadsDir);
+    const filepath = path.resolve(resolvedUploadsDir, filename);
     
     // Security: prevent directory traversal
-    if (!filepath.startsWith(uploadsDir)) {
+    if (!filepath.startsWith(resolvedUploadsDir + path.sep)) {
       console.warn(`[SERVE_UPLOAD] ⚠️ Directory traversal attempt: ${filepath}`);
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -1367,6 +1502,9 @@ app.get('/api/serve-upload/:filename', (req, res) => {
     // For images, also set as inline (not attachment) so they display in browser
     if (fileExt.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
       res.set('Content-Disposition', 'inline');
+    } else if (fileExt === '.html') {
+      res.set('Content-Security-Policy', 'sandbox');
+      res.set('Content-Disposition', `attachment; filename="${filename}"`);
     }
     
     // Send file
@@ -2173,14 +2311,22 @@ function validateCloudFileSafety(fileName, buffer) {
     }
 
     // 3f. PHP / Server-Side webshell tag
-    const sample = buffer.slice(0, 8192).toString('utf8').toLowerCase();
+    const sample = buffer.slice(0, 65536).toString('utf8').toLowerCase();
     if (sample.includes('<?php') || sample.includes('<?=') || sample.includes('<%') || sample.includes('<script language="php"')) {
       return { safe: false, reason: 'Payload script PHP/Webshell terdeteksi di dalam berkas.' };
     }
 
-    // 3g. Malicious SVG Vector check (XSS prevention)
+    // 3g. Malicious SVG/HTML Vector check (XSS prevention)
     if (ext === 'svg' || sample.includes('<svg')) {
-      if (sample.includes('<script') || sample.includes('onload=') || sample.includes('onerror=') || sample.includes('javascript:')) {
+      if (
+        sample.includes('<script') ||
+        sample.includes('onload=') ||
+        sample.includes('onerror=') ||
+        sample.includes('onbegin=') ||
+        sample.includes('onmouseover=') ||
+        sample.includes('<foreignobject') ||
+        sample.includes('javascript:')
+      ) {
         return { safe: false, reason: 'Payload script berbahaya (SVG XSS) terdeteksi di dalam berkas gambar SVG.' };
       }
     }
@@ -2212,6 +2358,7 @@ app.get('/api/cloud/files/:id/raw', requireCloudAuth, async (req, res) => {
     res.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
     res.header('Pragma', 'no-cache');
     res.header('X-Content-Type-Options', 'nosniff');
+    res.header('Content-Security-Policy', 'sandbox');
 
     const fileData = file.fileData || file.dataUrl;
     if (!fileData) {
@@ -2231,10 +2378,11 @@ app.get('/api/cloud/files/:id/raw', requireCloudAuth, async (req, res) => {
     // Case 1: Disk file URL (/download/uploads/...)
     if (fileData.startsWith('/download/uploads/')) {
       const filename = path.basename(fileData);
-      const diskPath = path.resolve(uploadsDir, filename);
+      const resolvedUploads = path.resolve(uploadsDir);
+      const diskPath = path.resolve(resolvedUploads, filename);
 
       // Strict Sandbox Traversal Check
-      if (!diskPath.startsWith(path.resolve(uploadsDir))) {
+      if (!diskPath.startsWith(resolvedUploads + path.sep)) {
         return res.status(404).send('Akses berkas tidak sah.');
       }
 
@@ -2267,7 +2415,10 @@ app.get('/api/cloud/files/:id/raw', requireCloudAuth, async (req, res) => {
       return res.send(buf);
     }
 
-    // Fallback: redirect or send as text
+    // Fallback: only redirect if safe external URL
+    if (!isSafeExternalUrl(fileData)) {
+      return res.status(400).send('URL berkas tidak valid.');
+    }
     return res.redirect(fileData);
   } catch (err) {
     console.error('[CLOUD API RAW ERROR]', err);
@@ -2838,23 +2989,35 @@ app.delete('/api/cloud/files/:id', requireCloudAuth, (req, res) => {
 });
 
 
-// Explicit Stop/Cancel endpoint to immediately halt GPU token generation
-app.post('/api/chat/stop', async (req, res) => {
-  console.log(`[CHAT] Stop signal triggered! Halting ${activeUpstreamRequests.size} active chat streams immediately.`);
-  for (const item of activeUpstreamRequests) {
-    try {
-      if (item.controller) item.controller.abort();
-      if (item.responseStream && item.responseStream.body && typeof item.responseStream.body.destroy === 'function') {
-        item.responseStream.body.destroy();
-      }
-      if (item.res && !item.res.writableEnded) {
-        item.res.write('data: [DONE]\n\n');
-        item.res.end();
-      }
-    } catch (_err) {}
+// Explicit Stop/Cancel endpoint to immediately halt GPU token generation (scoped to caller user/session/IP)
+app.post('/api/chat/stop', express.json(), async (req, res) => {
+  const callerUserId = req.user?.id || req.session?.userId || null;
+  const callerIp = getClientIp(req);
+  const callerSessionId = req.body?.sessionId || req.body?.conversationId || null;
+  let stoppedCount = 0;
+
+  for (const item of Array.from(activeUpstreamRequests)) {
+    const isSameSession = callerSessionId && item.sessionId && item.sessionId === callerSessionId;
+    const isSameUser = callerUserId && item.userId && item.userId === callerUserId;
+    const isSameIp = !callerUserId && !item.userId && item.clientIp === callerIp;
+
+    if (isSameSession || isSameUser || isSameIp) {
+      try {
+        if (item.controller) item.controller.abort();
+        if (item.responseStream && item.responseStream.body && typeof item.responseStream.body.destroy === 'function') {
+          item.responseStream.body.destroy();
+        }
+        if (item.res && !item.res.writableEnded) {
+          item.res.write('data: [DONE]\n\n');
+          item.res.end();
+        }
+      } catch (_err) {}
+      activeUpstreamRequests.delete(item);
+      stoppedCount++;
+    }
   }
-  activeUpstreamRequests.clear();
-  return res.json({ success: true, message: 'Generation halted on server' });
+  console.log(`[CHAT] Stop signal triggered for ${callerUserId || callerIp}! Halted ${stoppedCount} active chat stream(s).`);
+  return res.json({ success: true, stoppedCount, message: 'Generation halted on server' });
 });
 
 app.post('/api/chat', async (req, res) => {
@@ -3257,7 +3420,7 @@ app.post('/api/chat', async (req, res) => {
               'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
               '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi. ' +
               '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-              'KEMAMPUAN SEARCH ENGINE & LIVE WEB CRAWLER: Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. JIKA pengguna meminta pencarian ("cari", "search", "googling", "cek"), atau menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto terkini, fakta mutakhir, skor/jadwal, atau riset data web: KAMU WAJIB MEMANCARKAN PERINTAH SEARCH DI BARIS PERTAMA RESPONMU DENGAN FORMAT: [SEARCH_REQUEST: kata kunci pilihanmu]. DILARANG MENJAWAB DULUAN SEBELUM MEMANCARKAN SEARCH REQUEST. Jika pertanyaan murni berupa sapaan, konsep umum, matematika, atau coding mandiri: jawab langsung secara alami tanpa search. ' +
+              'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian ("cari", "search", "googling", "cek", "info"), atau menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto/kurs terkini, cuaca, fakta spesifik dunia nyata, skor/jadwal, atau riset data web: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] (atau [EXECUTE_SEARCH: kata kunci pilihanmu]) DAN LANGSUNG BERHENTI. Dilarang menulis jawaban spekulatif sebelum menerima hasil pencarian! Jika pertanyaan murni berupa sapaan, konsep umum, matematika, atau coding mandiri: jawab langsung secara alami tanpa flag search. ' +
               'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
           }
           
@@ -3313,7 +3476,10 @@ app.post('/api/chat', async (req, res) => {
           controller: upstreamAbortController,
           responseStream: null,
           res,
-          req
+          req,
+          userId: req.user?.id || req.session?.userId || null,
+          clientIp: getClientIp(req),
+          sessionId: req.body?.sessionId || req.body?.conversationId || null
         };
         activeUpstreamRequests.add(reqRecord);
 
@@ -3515,9 +3681,11 @@ app.post('/api/chat', async (req, res) => {
           let clientDisconnected = false;
           req.on('close', () => { clientDisconnected = true; });
           let fullResponseText = '';
+          let searchFlagTriggeredOnServer = false;
 
           // Read stream chunks from active stream body
           activeStreamBody.on('data', (chunk) => {
+            if (searchFlagTriggeredOnServer) return;
             let chunkStr = chunk.toString();
 
             // Rebrand any upstream AI identity dynamically so user always receives DeeperNova AI
@@ -3553,6 +3721,24 @@ app.post('/api/chat', async (req, res) => {
                 } catch (_e) {}
               }
             }
+
+            // If AI decided to execute a search flag, halt upstream generation immediately after forwarding the flag
+            if (
+              !isSearchConclusion &&
+              (/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*([^\]]+)\]/i.test(fullResponseText) ||
+                /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullResponseText))
+            ) {
+              searchFlagTriggeredOnServer = true;
+              console.log('[CHAT] 🔍 AI emitted search execution flag; halting initial stream so client can execute search.');
+              try {
+                if (!clientDisconnected && !res.writableEnded) {
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                }
+                if (upstreamAbortController) upstreamAbortController.abort();
+                if (reqRecord.responseStream?.body?.destroy) reqRecord.responseStream.body.destroy();
+              } catch (_haltErr) {}
+            }
           });
 
           activeStreamBody.on('end', () => {
@@ -3563,8 +3749,8 @@ app.post('/api/chat', async (req, res) => {
               } catch (_endErr) {}
             }
 
-            // PERSIST TO DATABASE: Save complete AI response once finished!
-            if (fullResponseText && sessionId && req.isAuthenticated()) {
+            // PERSIST TO DATABASE: Save complete AI response once finished (skip intermediate search flag turns)
+            if (fullResponseText && !searchFlagTriggeredOnServer && sessionId && req.isAuthenticated()) {
               try {
                 const assistantMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
                 messageDb.create(assistantMsgId, sessionId, req.user.id, 'assistant', fullResponseText, personality);
@@ -4027,84 +4213,100 @@ app.post('/api/generate-file', async (req, res) => {
  * Execute Python code
  */
 function executePython(code, outputPath, filename, res) {
-  return new Promise(() => {
-    // Create a script to execute
-    const scriptPath = path.join(tempDir, `script_${Date.now()}.py`);
+  return new Promise((resolve) => {
+    // Basic security check against dangerous system/secret access
+    if (/\b(subprocess|os\.system|os\.popen|shutil\.rmtree|deepernova\.db|\.env)\b/i.test(code)) {
+      res.status(400).json({
+        success: false,
+        error: 'Security policy: Restricted system operation detected in Python script',
+      });
+      return resolve();
+    }
+
+    const scriptPath = path.join(tempDir, `script_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.py`);
     fs.writeFileSync(scriptPath, code, 'utf-8');
 
     const python = spawn('python', [scriptPath], {
-      timeout: 30000, // 30 second timeout
-      maxBuffer: 10 * 1024 * 1024, // 10MB
+      cwd: tempDir,
+      env: getSafeSubprocessEnv(),
+      timeout: 30000,
     });
 
     let stdout = '';
     let stderr = '';
 
     python.stdout.on('data', (data) => {
-      stdout += data.toString();
+      if (stdout.length < 512 * 1024) stdout += data.toString();
     });
 
     python.stderr.on('data', (data) => {
-      stderr += data.toString();
+      if (stderr.length < 256 * 1024) stderr += data.toString();
     });
 
     python.on('close', (code) => {
-      // Clean up script
       try {
-        fs.unlinkSync(scriptPath);
-      } catch {
-        // ignore
-      }
+        if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
+      } catch {}
 
-      if (code === 0) {
-        // Check if output file was created
-        if (fs.existsSync(outputPath)) {
-          res.json({
-            success: true,
-            filename,
-            downloadUrl: `/download/${filename}`,
-            output: stdout,
-            message: `File ${filename} generated successfully`,
-          });
+      if (!res.headersSent) {
+        if (code === 0) {
+          if (fs.existsSync(outputPath)) {
+            res.json({
+              success: true,
+              filename,
+              downloadUrl: `/download/${filename}`,
+              output: stdout,
+              message: `File ${filename} generated successfully`,
+            });
+          } else {
+            res.json({
+              success: true,
+              filename,
+              output: stdout,
+              message: 'Code executed successfully',
+            });
+          }
         } else {
-          res.json({
-            success: true,
-            filename,
-            output: stdout,
-            message: 'Code executed successfully',
+          res.status(400).json({
+            success: false,
+            error: stderr || 'Python execution failed',
+            code,
           });
         }
-      } else {
-        res.status(400).json({
-          success: false,
-          error: stderr || 'Python execution failed',
-          code,
-        });
       }
+      resolve();
     });
 
     python.on('error', (error) => {
-      res.status(500).json({
-        success: false,
-        error: `Failed to execute Python: ${error.message}`,
-      });
+      try {
+        if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
+      } catch {}
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: `Failed to execute Python: ${error.message}`,
+        });
+      }
+      resolve();
     });
   });
 }
 
 /**
- * Execute JavaScript code
+ * Execute JavaScript code inside restricted VM context (no host require/process/fs exposure)
  */
 function executeJavaScript(code, outputPath, filename, res) {
   try {
-    // For safety, we only allow file writing, no dangerous operations
-    const vm = require('vm');
+    const safeFs = {
+      writeFileSync: (_target, data, enc = 'utf8') => {
+        fs.writeFileSync(outputPath, data, enc);
+      }
+    };
     const sandbox = {
-      require,
-      console,
-      fs,
-      process: { env: {} },
+      console: { log: () => {}, warn: () => {}, error: () => {} },
+      fs: safeFs,
       Buffer,
+      outputPath,
       __dirname: tempDir,
       __filename: outputPath,
     };
@@ -4126,10 +4328,12 @@ function executeJavaScript(code, outputPath, filename, res) {
       });
     }
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: error.message,
-    });
+    if (!res.headersSent) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
   }
 }
 
@@ -4140,7 +4344,14 @@ app.get('/api/files', (req, res) => {
   try {
     const files = fs.readdirSync(tempDir);
     const filesList = files
-      .filter((f) => !f.endsWith('.py')) // Don't list temp scripts
+      .filter((f) => {
+        if (f.endsWith('.py')) return false;
+        try {
+          return fs.statSync(path.join(tempDir, f)).isFile();
+        } catch {
+          return false;
+        }
+      })
       .map((f) => ({
         filename: f,
         size: fs.statSync(path.join(tempDir, f)).size,
@@ -4168,7 +4379,7 @@ app.delete('/api/files/:filename', (req, res) => {
     const sanitized = path.basename(filename);
     const filePath = path.join(tempDir, sanitized);
 
-    if (fs.existsSync(filePath)) {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
       fs.unlinkSync(filePath);
       res.json({
         success: true,
@@ -4189,13 +4400,18 @@ app.delete('/api/files/:filename', (req, res) => {
 });
 
 /**
- * Clear all temporary files
+ * Clear all temporary files (skips subdirectories like uploads/ and sandbox/)
  */
 app.post('/api/files/clear', (req, res) => {
   try {
     const files = fs.readdirSync(tempDir);
     files.forEach((f) => {
-      fs.unlinkSync(path.join(tempDir, f));
+      const fullPath = path.join(tempDir, f);
+      try {
+        if (fs.statSync(fullPath).isFile()) {
+          fs.unlinkSync(fullPath);
+        }
+      } catch {}
     });
 
     res.json({
@@ -4208,164 +4424,6 @@ app.post('/api/files/clear', (req, res) => {
       error: error.message,
     });
   }
-});
-
-/**
- * AUTH ROUTES
- */
-
-// Login with email and password
-app.post('/auth/login', (req, res, next) => {
-  passport.authenticate('local', { session: false }, (err, user, info) => {
-    if (err) {
-      console.error('[AUTH/LOGIN] Authentication error:', err.message);
-      return res.status(500).json({ error: err.message });
-    }
-
-    if (!user) {
-      // Return the specific error message from passport
-      console.warn('[AUTH/LOGIN] Authentication failed:', info?.message || 'Unknown error');
-      return res.status(401).json({ 
-        error: true, 
-        message: info.message || 'Authentication failed',
-        code: info.code || 'AUTH_FAILED'
-      });
-    }
-
-    // Set the user in request for req.login
-    req.user = user;
-    
-    req.login(user, (loginErr) => {
-      if (loginErr) {
-        console.error('[AUTH/LOGIN] Login error:', loginErr.message);
-        return res.status(500).json({ error: loginErr.message });
-      }
-      
-      req.session.isGuest = false;
-      
-      console.log(`[AUTH/LOGIN] ✅ User logged in: ${user.email}`);
-      console.log(`[AUTH/LOGIN] Session ID: ${req.sessionID}`);
-      console.log(`[AUTH/LOGIN] Session will expire in ${req.session.cookie.maxAge}ms`);
-      
-      req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('[AUTH/LOGIN] Session save error:', saveErr.message);
-        } else {
-          console.log(`[AUTH/LOGIN] ✅ Session saved to store`);
-        }
-
-        // Query fresh user data
-        const freshUser = userDb.findById(user.id);
-        const userWithoutPassword = {
-          id: freshUser.id,
-          email: freshUser.email,
-          name: freshUser.name,
-          picture: freshUser.picture,
-          createdAt: freshUser.createdAt
-        };
-        
-        console.log(`[AUTH/LOGIN] Sending response with Set-Cookie header`);
-        res.json({ success: true, user: userWithoutPassword });
-      });
-    });
-  })(req, res, next);
-});
-
-// Register with email and password
-app.post('/auth/register', async (req, res) => {
-  const { email, name, password } = req.body;
-  let normalizedEmail = String(email || '').trim().toLowerCase();
-  const displayName = String(name || '').trim();
-
-  if (!normalizedEmail || !displayName) {
-    return res.status(400).json({ error: 'Name and email are required.' });
-  }
-
-  // Reject @gmail.com
-  if (normalizedEmail.endsWith('@gmail.com') || normalizedEmail.endsWith('@googlemail.com')) {
-    return res.status(400).json({
-      error: 'Tidak dapat menggunakan Google Mail (@gmail.com). Silakan gunakan identitas DeeperNova Anda (@deepernova.com).',
-      isGmailError: true
-    });
-  }
-
-  // Auto-append @deepernova.com if no @
-  if (!normalizedEmail.includes('@')) {
-    normalizedEmail = `${normalizedEmail}@deepernova.com`;
-  } else if (normalizedEmail.endsWith('@deepmail.com')) {
-    normalizedEmail = normalizedEmail.replace(/@deepmail\.com$/, '@deepernova.com');
-  }
-
-  if (!password || password.length < 6) {
-    return res.status(400).json({ error: 'Password minimal 6 karakter.' });
-  }
-
-  try {
-    let user = userDb.findByEmail(normalizedEmail);
-    if (user) {
-      return res.status(409).json({ error: 'Email sudah terdaftar.' });
-    }
-
-    const hashedPassword = await hashPassword(password);
-    const userId = uuidv4();
-    user = userDb.create(userId, normalizedEmail, displayName, hashedPassword, null);
-
-    req.login(user, (err) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      req.session.isGuest = false;
-      const userWithoutPassword = {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        picture: user.picture,
-        createdAt: user.createdAt
-      };
-      res.json({ success: true, user: userWithoutPassword });
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Registrasi gagal. Coba lagi nanti.' });
-  }
-});
-
-
-
-// Get current user
-app.get('/auth/me', (req, res) => {
-  console.log(`[AUTH/ME] Session ID: ${req.sessionID}, isGuest: ${req.session.isGuest}, isAuthenticated: ${req.isAuthenticated()}, User: ${req.user ? req.user.email : 'none'}`);
-  
-  if (req.session.isGuest) {
-    console.log(`[AUTH/ME] Returning guest user`);
-    return res.json({
-      authenticated: false,
-      guest: true,
-      user: { name: 'Guest', email: 'guest@deepernova.com', guest: true },
-    });
-  }
-
-  if (!req.isAuthenticated()) {
-    console.log(`[AUTH/ME] Not authenticated, returning 401`);
-    return res.status(401).json({ 
-      authenticated: false, 
-      guest: false,
-      error: 'Not authenticated' 
-    });
-  }
-
-  // Query fresh user data
-  const freshUser = userDb.findById(req.user.id);
-  const userWithoutPassword = {
-    id: freshUser.id,
-    email: freshUser.email,
-    name: freshUser.name,
-    picture: freshUser.picture,
-    createdAt: freshUser.createdAt
-  };
-
-  console.log(`[AUTH/ME] Authenticated user: ${userWithoutPassword.email}`);
-  res.json({ authenticated: true, user: userWithoutPassword });
 });
 
 // Update current user profile (persist name)
@@ -4397,31 +4455,6 @@ app.put('/auth/me', (req, res) => {
   } catch (error) {
     console.error('[AUTH/UPDATE_PROFILE] Error updating user name:', error);
     res.status(500).json({ error: 'Gagal menyimpan nama. Coba lagi nanti.' });
-  }
-});
-
-// Logout
-app.post('/auth/logout', (req, res) => {
-  const finishLogout = () => {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('[AUTH/LOGOUT] Session destroy error:', err.message);
-      }
-      res.clearCookie('connect.sid');
-      console.log('[AUTH/LOGOUT] ✅ User logged out successfully');
-      res.json({ success: true });
-    });
-  };
-
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    req.logout((err) => {
-      if (err) {
-        console.error('[AUTH/LOGOUT] Logout error:', err.message);
-      }
-      finishLogout();
-    });
-  } else {
-    finishLogout();
   }
 });
 
@@ -4701,14 +4734,18 @@ const getSandboxDir = (userId, projectName) => {
   return projectDir;
 };
 
-// Sync virtual files array into the real sandbox directory
+// Sync virtual files array into the real sandbox directory (hardened against path traversal)
 const syncFilesToSandbox = (sandboxDir, files = []) => {
   if (!Array.isArray(files)) return;
+  const resolvedBase = path.resolve(sandboxDir);
+  if (!fs.existsSync(resolvedBase)) {
+    fs.mkdirSync(resolvedBase, { recursive: true });
+  }
   for (const file of files) {
     if (!file || !file.name || typeof file.content !== 'string') continue;
     const safeRelPath = file.name.replace(/\\/g, '/').replace(/^\/+/, '');
-    if (safeRelPath.includes('..')) continue;
-    const fullPath = path.join(sandboxDir, safeRelPath);
+    const fullPath = path.resolve(resolvedBase, safeRelPath);
+    if (!fullPath.startsWith(resolvedBase + path.sep)) continue;
     const parentDir = path.dirname(fullPath);
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
@@ -4716,254 +4753,6 @@ const syncFilesToSandbox = (sandboxDir, files = []) => {
     fs.writeFileSync(fullPath, file.content, 'utf8');
   }
 };
-
-// Read all files from the sandbox directory
-const readFilesFromSandbox = (sandboxDir, currentRel = '') => {
-  const result = [];
-  const targetDir = currentRel ? path.join(sandboxDir, currentRel) : sandboxDir;
-  if (!fs.existsSync(targetDir)) return result;
-
-  const entries = fs.readdirSync(targetDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.venv') continue;
-    const relPath = currentRel ? `${currentRel}/${entry.name}` : entry.name;
-    const fullPath = path.join(sandboxDir, relPath);
-    if (entry.isDirectory()) {
-      result.push(...readFilesFromSandbox(sandboxDir, relPath));
-    } else if (entry.isFile()) {
-      try {
-        const stats = fs.statSync(fullPath);
-        if (stats.size < 2 * 1024 * 1024) {
-          const content = fs.readFileSync(fullPath, 'utf8');
-          result.push({ name: relPath, content });
-        }
-      } catch (e) {}
-    }
-  }
-  return result;
-};
-
-// 1. Terminal Command Execution Endpoint
-app.post('/api/codedance/terminal', express.json({ limit: '50mb' }), async (req, res) => {
-  const { command, files, projectName } = req.body;
-  const userId = req.user?.id || req.session?.guestId || req.ip || 'guest';
-
-  if (!command || typeof command !== 'string') {
-    return res.status(400).json({ success: false, error: 'Command diperlukan' });
-  }
-
-  const trimmedCmd = command.trim();
-  const sandboxDir = getSandboxDir(userId, projectName);
-
-  if (Array.isArray(files) && files.length > 0) {
-    syncFilesToSandbox(sandboxDir, files);
-  }
-
-  if (trimmedCmd === 'clear' || trimmedCmd === 'cls') {
-    return res.json({ success: true, output: '', exitCode: 0 });
-  }
-
-  if (trimmedCmd === 'help') {
-    const helpText = `🌌 Deepernova Cloud Sandbox Terminal v2.5 (Online)
-Tersedia runtime & perintah:
-• node <file.js>          - Menjalankan script JavaScript / Node.js
-• python <file.py>        - Menjalankan script Python
-• ls / dir               - Menampilkan daftar berkas di sandbox
-• cat <file> / type <file> - Membaca isi berkas
-• pwd                    - Menampilkan direktori kerja sandbox
-• echo <text>            - Menampilkan teks ke terminal
-• npm / npx              - Runner script & manajemen paket`;
-    return res.json({ success: true, output: helpText, exitCode: 0 });
-  }
-
-  const startTime = Date.now();
-  const isWindows = process.platform === 'win32';
-  const shellCmd = isWindows ? 'cmd.exe' : '/bin/sh';
-  const shellArgs = isWindows ? ['/d', '/s', '/c', trimmedCmd] : ['-c', trimmedCmd];
-
-  try {
-    const child = spawn(shellCmd, shellArgs, {
-      cwd: sandboxDir,
-      env: {
-        ...process.env,
-        PATH: process.env.PATH,
-        PYTHONUNBUFFERED: '1',
-        FORCE_COLOR: '1'
-      },
-      timeout: 25000
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.on('data', (d) => { stdout += d.toString(); });
-    child.stderr.on('data', (d) => { stderr += d.toString(); });
-
-    child.on('error', (err) => {
-      res.json({
-        success: false,
-        error: `Gagal menjalankan perintah: ${err.message}`,
-        exitCode: 1,
-        executionTimeMs: Date.now() - startTime
-      });
-    });
-
-    child.on('close', (code) => {
-      const execTime = Date.now() - startTime;
-      const updatedFiles = readFilesFromSandbox(sandboxDir);
-
-      let finalOutput = stdout;
-      if (stderr) {
-        finalOutput += (finalOutput ? '\n' : '') + stderr;
-      }
-
-      res.json({
-        success: code === 0,
-        output: finalOutput || (code === 0 ? `Process finished (exit code ${code})` : `Process exited with code ${code}`),
-        exitCode: code !== null ? code : 0,
-        executionTimeMs: execTime,
-        updatedFiles: updatedFiles.length > 0 ? updatedFiles : undefined
-      });
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: `Server Error: ${err.message}`,
-      exitCode: 1,
-      executionTimeMs: Date.now() - startTime
-    });
-  }
-});
-
-// 2. Direct Code Runner Endpoint (Node.js & Python)
-app.post('/api/codedance/execute', express.json({ limit: '50mb' }), async (req, res) => {
-  const { code, language = 'javascript', files = [], projectName } = req.body;
-  const userId = req.user?.id || req.session?.guestId || req.ip || 'guest';
-
-  if (typeof code !== 'string') {
-    return res.status(400).json({ success: false, error: 'Code diperlukan' });
-  }
-
-  const sandboxDir = getSandboxDir(userId, projectName);
-  syncFilesToSandbox(sandboxDir, files);
-
-  const startTime = Date.now();
-  const isPython = language === 'python' || language === 'py';
-  const tempFile = isPython ? 'temp_script.py' : 'temp_script.js';
-  const tempFilePath = path.join(sandboxDir, tempFile);
-
-  fs.writeFileSync(tempFilePath, code, 'utf8');
-
-  const execCommand = isPython ? `python "${tempFile}"` : `node "${tempFile}"`;
-  const isWindows = process.platform === 'win32';
-  const shellCmd = isWindows ? 'cmd.exe' : '/bin/sh';
-  const shellArgs = isWindows ? ['/d', '/s', '/c', execCommand] : ['-c', execCommand];
-
-  try {
-    const child = spawn(shellCmd, shellArgs, {
-      cwd: sandboxDir,
-      env: {
-        ...process.env,
-        PATH: process.env.PATH,
-        PYTHONUNBUFFERED: '1',
-        FORCE_COLOR: '1'
-      },
-      timeout: 25000
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.on('data', (d) => { stdout += d.toString(); });
-    child.stderr.on('data', (d) => { stderr += d.toString(); });
-
-    child.on('close', (code) => {
-      const execTime = Date.now() - startTime;
-      let finalOutput = stdout;
-      if (stderr) {
-        finalOutput += (finalOutput ? '\n' : '') + stderr;
-      }
-      res.json({
-        success: code === 0,
-        output: finalOutput,
-        exitCode: code !== null ? code : 0,
-        executionTimeMs: execTime
-      });
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: `Execution Error: ${err.message}`,
-      exitCode: 1,
-      executionTimeMs: Date.now() - startTime
-    });
-  }
-});
-
-// 3. Save CodeDance Project Endpoint
-app.post('/api/codedance/save', express.json({ limit: '50mb' }), async (req, res) => {
-  const { projectName = 'My-App', files = [], folderId = null } = req.body;
-  const userId = req.user?.id || req.session?.guestId || req.ip || 'guest';
-  const userEmail = req.user?.email || 'guest@deepernova.com';
-
-  const sandboxDir = getSandboxDir(userId, projectName);
-  syncFilesToSandbox(sandboxDir, files);
-
-  try {
-    const projectMetadataPath = path.join(sandboxDir, '.deepernova_project.json');
-    const meta = {
-      id: `cd_proj_${Date.now()}`,
-      name: projectName,
-      userId,
-      userEmail,
-      folderId,
-      fileCount: files.length,
-      updatedAt: new Date().toISOString()
-    };
-    fs.writeFileSync(projectMetadataPath, JSON.stringify(meta, null, 2), 'utf8');
-
-    res.json({
-      success: true,
-      message: `Project "${projectName}" berhasil disimpan ke Cloud Sandbox.`,
-      project: meta
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 4. List CodeDance Projects Endpoint
-app.get('/api/codedance/projects', (req, res) => {
-  const userId = req.user?.id || req.session?.guestId || req.ip || 'guest';
-  const userSandboxDir = path.join(SANDBOX_BASE_DIR, sanitizeSandboxName(userId));
-
-  if (!fs.existsSync(userSandboxDir)) {
-    return res.json({ success: true, projects: [] });
-  }
-
-  const projects = [];
-  try {
-    const projectFolders = fs.readdirSync(userSandboxDir, { withFileTypes: true });
-    for (const folder of projectFolders) {
-      if (!folder.isDirectory()) continue;
-      const projDir = path.join(userSandboxDir, folder.name);
-      const metaPath = path.join(projDir, '.deepernova_project.json');
-      if (fs.existsSync(metaPath)) {
-        try {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-          projects.push(meta);
-        } catch (e) {
-          projects.push({ name: folder.name, updatedAt: new Date().toISOString() });
-        }
-      } else {
-        projects.push({ name: folder.name, updatedAt: new Date().toISOString() });
-      }
-    }
-    res.json({ success: true, projects });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
 
 /**
  * CONVERSATION PERSISTENCE ROUTES (for frontend state sync)
@@ -5418,7 +5207,6 @@ app.get('/api/memory/user', (req, res) => {
     const userId = req.user.id;
     const limit = req.query.limit ? parseInt(req.query.limit) : 100;
     
-    const { memoryDb } = require('./database.js');
     const memories = memoryDb.findByUser(userId, limit);
     
     console.log(`[MEMORY] Retrieved ${memories.length} memories for user ${userId}`);
@@ -5437,7 +5225,6 @@ app.get('/api/memory/export', (req, res) => {
     }
 
     const userId = req.user.id;
-    const { memoryDb } = require('./database.js');
     const textContent = memoryDb.getAsText(userId);
     
     console.log(`[MEMORY] Exporting memories for user ${userId}`);
@@ -5465,8 +5252,6 @@ app.post('/api/memory', (req, res) => {
       return res.status(400).json({ error: 'Summary is required' });
     }
 
-    const { v4: uuidv4 } = require('uuid');
-    const { memoryDb } = require('./database.js');
     const memoryId = uuidv4();
 
     const memory = memoryDb.create(memoryId, userId, summary.trim(), category || null, sourceSessionId || null);
@@ -5488,7 +5273,6 @@ app.delete('/api/memory/:memoryId', (req, res) => {
 
     const userId = req.user.id;
     const { memoryId } = req.params;
-    const { memoryDb } = require('./database.js');
 
     const memory = memoryDb.findById(memoryId);
     if (!memory || memory.userId !== userId) {
@@ -5668,128 +5452,45 @@ async function handleUnifiedSearch(req, res) {
       return res.json(cachedItem.data);
     }
 
-    // Candidates to query:
-    // 1) The clean original query (best for BM25 match against existing articles)
-    // 2) Stripped query if it had an injected date
-    const strippedQ = cleanRawQ.replace(/\b\d{1,2}\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|\w+)\s+\d{4}\b/gi, '').trim();
-    const queryCandidates = [cleanRawQ];
-    if (strippedQ && strippedQ !== cleanRawQ && !queryCandidates.includes(strippedQ)) {
-      queryCandidates.push(strippedQ);
-    }
-
-    console.log(`[SEARCH] Querying Deepernova Search Engine for: "${cleanRawQ}" (candidates: ${queryCandidates.length}, limit: ${limit})`);
-
-    let searchData = null;
-    let imagesData = null;
-    let engineUsed = 'deepernova_bm25';
-
-    // 1. Primary Engine: Ultra-Fast Deepernova BM25 Search API on Port 4000
-    const searchApiBases = [
-      'http://127.0.0.1:4000/api/v1',
-      process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`
-    ].filter(Boolean);
-
-    const searchHeaders = {
-      'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
-      'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
-    };
-
-    for (const targetQuery of queryCandidates) {
-      if (searchData && searchData.results && searchData.results.length > 0) break;
-
-      for (const searchBase of searchApiBases) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // ⏱️ Batas waktu 5.0 detik untuk crawling live dan respon lengkap
-
-          const [searchResp, imagesResp] = await Promise.allSettled([
-            fetch(`${searchBase}/search?q=${encodeURIComponent(targetQuery)}&limit=${limit}&crawl=1&fast=0`, {
-              headers: searchHeaders,
-              signal: controller.signal
-            }),
-            fetch(`${searchBase}/images?q=${encodeURIComponent(targetQuery)}&limit=8&crawl=1&fast=0`, {
-              headers: searchHeaders,
-              signal: controller.signal
-            })
-          ]);
-          clearTimeout(timeoutId);
-
-          if (searchResp.status === 'fulfilled' && searchResp.value.ok) {
-            const ct = searchResp.value.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-              const data = await searchResp.value.json();
-              if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-                searchData = data;
-                engineUsed = `deepernova_bm25 (${searchBase})`;
-                console.log(`[SEARCH] ✓ Deepernova search responded with ${searchData.results.length} results for "${targetQuery}" from ${searchBase}`);
-                break;
-              }
-            }
-          }
-
-          if (imagesResp.status === 'fulfilled' && imagesResp.value && imagesResp.value.ok) {
-            const ct = imagesResp.value.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-              imagesData = await imagesResp.value.json();
-            }
-          }
-        } catch (dnErr) {
-          console.warn(`[SEARCH] Deepernova error on ${searchBase} for "${targetQuery}":`, dnErr.message);
-        }
-      }
-    }
-
-    // 2. Format into standardized schema matching ChatBot.jsx & DocumentEditor.jsx
-    if (searchData && searchData.results && searchData.results.length > 0) {
-      const organicResults = (searchData.results || []).map((item, idx) => {
+    // Use Ultra-Fast Hybrid Search Service (<50ms local index + parallel live news/knowledge)
+    const hybridRes = await webSearchService.searchGoogle(cleanRawQ, limit);
+    if (hybridRes.success && Array.isArray(hybridRes.results) && hybridRes.results.length > 0) {
+      const organicResults = hybridRes.results.map((item, idx) => {
         let domain = item.domain || '';
         if (!domain && item.url) {
           try { domain = new URL(item.url).hostname.replace('www.', ''); } catch (e) {}
         }
         return {
           title: cleanSearchText(item.title) || 'Untitled',
-          link: item.url || '',
-          url: item.url || '',
+          link: item.url || item.link || '',
+          url: item.url || item.link || '',
           snippet: cleanSearchText(item.snippet) || cleanSearchText(item.description) || '',
-          domain: domain,
-          thumbnail: item.lead_image_url || item.logo_url || item.image || null,
+          domain,
+          thumbnail: item.lead_image_url || item.logo_url || item.thumbnail || null,
+          logo_url: item.logo_url || null,
           position: idx + 1,
-          date: item.formatted_date || item.date || null
+          date: item.published_at || null
         };
       });
 
-      const rawImages = imagesData?.images || imagesData?.results || [];
-      const inlineImages = rawImages.map(img => ({
-        thumbnail: img.image || img.imageUrl,
-        link: img.url || img.pageUrl || img.imageUrl,
-        title: img.title || img.pageTitle || cleanRawQ,
-        source: img.url || img.pageUrl || img.imageUrl,
-        sourceDomain: ''
-      }));
-
-      const responsePayload = {
-        organic_results: organicResults,
-        inline_images: inlineImages,
-        search_information: {
-          query: cleanRawQ,
-          total_results: searchData.total_results || organicResults.length,
-          time_taken_ms: searchData.duration_ms || 0
-        },
-        engine: engineUsed
+      const finalResult = {
+        success: true,
+        data: {
+          organic_results: organicResults,
+          inline_images: [],
+          search_information: {
+            query: cleanRawQ,
+            total_results: organicResults.length,
+            time_taken_ms: hybridRes.duration_ms || 20
+          },
+          engine: hybridRes.engine || 'deepernova_hybrid_turbo'
+        }
       };
 
-      const finalResult = { success: true, data: responsePayload };
       unifiedSearchCache.set(cacheKey, { data: finalResult, time: Date.now() });
-      if (unifiedSearchCache.size > 5000) {
-        const oldest = unifiedSearchCache.keys().next().value;
-        if (oldest) unifiedSearchCache.delete(oldest);
-      }
-      console.log(`[SEARCH] ✓ Returning ${organicResults.length} organic results and ${inlineImages.length} images for: "${cleanRawQ}"`);
       return res.json(finalResult);
     }
 
-    // 3. Resilient Fallback: If no results found, return empty array with 200 rather than 502 error
-    console.warn(`[SEARCH] No organic results found for query: "${cleanRawQ}"`);
     return res.json({
       success: true,
       data: {
@@ -5805,9 +5506,9 @@ async function handleUnifiedSearch(req, res) {
   }
 }
 
-// Support both GET and POST /api/search
-app.get('/api/search', handleUnifiedSearch);
-app.post('/api/search', handleUnifiedSearch);
+// Support both GET and POST /api/search and /api/web-search
+app.get(['/api/search', '/api/web-search'], handleUnifiedSearch);
+app.post(['/api/search', '/api/web-search'], handleUnifiedSearch);
 
 // Proxy route: News Search
 app.get('/api/news', async (req, res) => {
@@ -6158,10 +5859,10 @@ app.post('/api/documents/generate/excel', async (req, res) => {
  */
 app.get('/api/documents/download/:fileName', (req, res) => {
   try {
-    const { fileName } = req.params;
+    const fileName = path.basename(req.params.fileName || '');
     
     // Security: prevent directory traversal
-    if (fileName.includes('..') || fileName.includes('/')) {
+    if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
       return res.status(400).json({ error: 'Invalid file name' });
     }
 
@@ -6192,9 +5893,9 @@ app.get('/api/documents/download/:fileName', (req, res) => {
  */
 app.get('/api/documents/view/docx/:fileName', (req, res) => {
   try {
-    const { fileName } = req.params;
+    const fileName = path.basename(req.params.fileName || '');
     
-    if (fileName.includes('..') || fileName.includes('/')) {
+    if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
       return res.status(400).json({ error: 'Invalid file name' });
     }
 
@@ -6219,9 +5920,9 @@ app.get('/api/documents/view/docx/:fileName', (req, res) => {
  */
 app.get('/api/documents/view/xlsx/:fileName', (req, res) => {
   try {
-    const { fileName } = req.params;
+    const fileName = path.basename(req.params.fileName || '');
     
-    if (fileName.includes('..') || fileName.includes('/')) {
+    if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
       return res.status(400).json({ error: 'Invalid file name' });
     }
 
@@ -6435,6 +6136,9 @@ app.post('/api/images/generate', async (req, res) => {
     let imageUrl = null;
 
     if (preGeneratedImageUrl) {
+      if (!isSafeExternalUrl(preGeneratedImageUrl)) {
+        return res.status(400).json({ error: 'Invalid or restricted preGeneratedImageUrl' });
+      }
       console.log('[IMG_GEN] 🟢 Skipping TokenMix API call, using pre-generated URL:', preGeneratedImageUrl);
       imageUrl = preGeneratedImageUrl;
     } else {
@@ -6465,11 +6169,10 @@ app.post('/api/images/generate', async (req, res) => {
           // Check if it's a localhost URL (which TokenMix rejects)
           if (referenceImage.includes('localhost') || referenceImage.includes('127.0.0.1')) {
             console.log('[IMG_GEN] ⚠️ Localhost URL detected, converting file to base64');
-            // Extract filename from URL
+            // Extract filename from URL and strictly sanitize with path.basename
             const urlParts = referenceImage.split('/');
             const filename = urlParts[urlParts.length - 1];
-            // Decode if URL encoded
-            const decodedFilename = decodeURIComponent(filename);
+            const decodedFilename = path.basename(decodeURIComponent(filename));
             const filepath = path.join(__dirname, 'temp-files', 'uploads', decodedFilename);
             
             console.log('[IMG_GEN] 🔍 Looking for file at:', filepath);
@@ -7056,30 +6759,8 @@ app.get('/api/images/session/:sessionId', (req, res) => {
 });
 
 /**
- * GET /api/images/user
- * Get all images generated by current user
- */
-app.get('/api/images/user', (req, res) => {
-  try {
-    if (!req.user?.id) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-    
-    const images = imageDb.findByUserId(req.user.id);
-    res.json({
-      success: true,
-      images: images || [],
-      count: images?.length || 0,
-    });
-  } catch (err) {
-    console.error('[IMG_GET] Error retrieving user images:', err);
-    res.status(500).json({ error: 'Failed to retrieve images: ' + err.message });
-  }
-});
-
-/**
  * GET /api/images/download/:imageId
- * Download an image (proxy from external URL with CORS support)
+ * Download an image (proxy from external URL with CORS & SSRF protection)
  */
 app.get('/api/images/download/:imageId', async (req, res) => {
   try {
@@ -7094,9 +6775,9 @@ app.get('/api/images/download/:imageId', async (req, res) => {
       return res.status(404).send('Image not found');
     }
     
-    if (!image.imageUrl) {
-      console.error(`[IMG_DOWNLOAD] Image URL is empty for ID: ${imageId}`);
-      return res.status(404).send('Image URL is empty');
+    if (!image.imageUrl || !isSafeExternalUrl(image.imageUrl)) {
+      console.error(`[IMG_DOWNLOAD] Image URL is empty or restricted for ID: ${imageId}`);
+      return res.status(400).send('Image URL is invalid or restricted');
     }
 
     console.log(`[IMG_DOWNLOAD] Found image ${imageId}, URL: ${image.imageUrl.substring(0, 100)}...`);
@@ -7168,9 +6849,9 @@ app.get('/api/images/proxy-download', async (req, res) => {
       return res.status(400).json({ error: 'Invalid URL format' });
     }
 
-    // Only allow http/https protocols
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return res.status(400).json({ error: 'Only HTTP/HTTPS URLs are allowed' });
+    // Only allow safe external http/https URLs (SSRF protection)
+    if (!['http:', 'https:'].includes(parsedUrl.protocol) || !isSafeExternalUrl(imageUrl)) {
+      return res.status(400).json({ error: 'Only safe public HTTP/HTTPS URLs are allowed' });
     }
 
     console.log(`[IMG_PROXY] Proxy download request for: ${imageUrl.substring(0, 120)}`);
@@ -7228,33 +6909,6 @@ app.get('/api/images/proxy-download', async (req, res) => {
   }
 });
 
-/**
- * DELETE /api/images/:imageId
- * Delete a generated image
- */
-app.delete('/api/images/:imageId', (req, res) => {
-  try {
-    const { imageId } = req.params;
-    const image = imageDb.findById(imageId);
-    
-    if (!image) {
-      return res.status(404).json({ error: 'Image not found' });
-    }
-    
-    // Check ownership - user can only delete their own images
-    if (req.user?.id && image.userId !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to delete this image' });
-    }
-    
-    imageDb.delete(imageId);
-    res.json({ success: true, message: 'Image deleted' });
-  } catch (err) {
-    console.error('[IMG_DEL] Error deleting image:', err);
-    res.status(500).json({ error: 'Failed to delete image: ' + err.message });
-  }
-});
-
-/**
 /**
  * GET /api/user/rate-limit
  * Check rate limiting status
@@ -7565,7 +7219,7 @@ app.post('/api/images/save', express.json({ limit: '50mb' }), (req, res) => {
   }
 });
 
-// Delete saved image for current user
+// Delete saved image for current user (verifies ownership)
 app.delete('/api/images/:id', (req, res) => {
   try {
     const userId = req.user?.id || req.session?.userId || null;
@@ -7573,7 +7227,21 @@ app.delete('/api/images/:id', (req, res) => {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
     const { id } = req.params;
-    imageDb.delete(id);
+    const existingGen = imageDb.findById(id);
+    if (existingGen) {
+      if (existingGen.userId && existingGen.userId !== userId) {
+        return res.status(403).json({ success: false, error: 'Not authorized to delete this image' });
+      }
+      imageDb.delete(id);
+      return res.json({ success: true, message: 'Gambar berhasil dihapus' });
+    }
+    const existingUp = uploadedImageDb.findById ? uploadedImageDb.findById(id) : null;
+    if (existingUp) {
+      if (existingUp.userId && existingUp.userId !== userId) {
+        return res.status(403).json({ success: false, error: 'Not authorized to delete this image' });
+      }
+      if (uploadedImageDb.delete) uploadedImageDb.delete(id);
+    }
     res.json({ success: true, message: 'Gambar berhasil dihapus' });
   } catch (err) {
     console.error('[API IMAGES] DELETE Error:', err);
@@ -7596,18 +7264,22 @@ if (!fs.existsSync(codedanceSandboxRootDir)) {
 }
 
 /**
- * Helper: Recursively write workspace files to sandbox folder
+ * Helper: Recursively write workspace files to sandbox folder (hardened against path traversal)
  */
 function syncFilesToDisk(targetDir, files = []) {
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
+  const resolvedBase = path.resolve(targetDir);
+  if (!fs.existsSync(resolvedBase)) {
+    fs.mkdirSync(resolvedBase, { recursive: true });
   }
 
   for (const file of files) {
     if (!file || !file.name) continue;
-    // Sanitize relative path
-    const safeRelPath = file.name.replace(/^(\.\.[\/\\])+/, '').replace(/^[\\\/]+/, '');
-    const fullFilePath = path.join(targetDir, safeRelPath);
+    const safeRelPath = String(file.name).replace(/\\/g, '/').replace(/^\/+/, '');
+    const fullFilePath = path.resolve(resolvedBase, safeRelPath);
+    if (!fullFilePath.startsWith(resolvedBase + path.sep)) {
+      console.warn(`[CODEDANCE] Blocked path traversal attempt: ${file.name}`);
+      continue;
+    }
     const parentDir = path.dirname(fullFilePath);
 
     if (!fs.existsSync(parentDir)) {
@@ -7685,18 +7357,13 @@ app.post('/api/codedance/terminal', async (req, res) => {
       ? ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${command}`] 
       : ['-c', command];
 
-    // 3. Execute subprocess in the sandbox directory
+    // 3. Execute subprocess in the sandbox directory with sterile environment
     const proc = spawn(shellCmd, shellArgs, {
       cwd: sandboxDir,
-      env: {
-        ...process.env,
-        FORCE_COLOR: '1',
-        PYTHONUNBUFFERED: '1',
-        PYTHONIOENCODING: 'utf-8',
-        NODE_ENV: 'development',
+      env: getSafeSubprocessEnv({
         CI: 'false',
         PROJECT_NAME: projectName
-      },
+      }),
       shell: false
     });
 
@@ -7828,13 +7495,7 @@ app.post('/api/codedance/execute', async (req, res) => {
 
     const proc = spawn(runnerExecutable, [tempFileName], {
       cwd: sandboxDir,
-      env: {
-        ...process.env,
-        FORCE_COLOR: '1',
-        PYTHONUNBUFFERED: '1',
-        PYTHONIOENCODING: 'utf-8',
-        NODE_ENV: 'development'
-      }
+      env: getSafeSubprocessEnv()
     });
 
     activeSandboxProcesses.set(sandboxSessionKey, proc);

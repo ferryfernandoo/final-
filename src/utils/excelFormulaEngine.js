@@ -873,19 +873,22 @@ export const evaluateFormula = (formulaStr, sheetData = [], visited = new Set())
     if (containsStringConcat) {
       const parts = sanitizedExpr.split('&').map(p => {
         const clean = p.trim();
-        try {
-          return new Function(`return (${clean})`)();
-        } catch {
+          if ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+            try {
+              return clean.startsWith('"') ? JSON.parse(clean) : clean.slice(1, -1);
+            } catch {
+              return clean.slice(1, -1);
+            }
+          }
           return clean.replace(/^["']|["']$/g, '');
-        }
-      });
+        });
       return parts.join('');
     }
 
     const cleanMathExpr = sanitizedExpr.replace(/[^0-9.+\-*/() ><=!]/g, '');
-    if (!cleanMathExpr.trim()) return '#VALUE!';
+    if (!cleanMathExpr.trim() || !/^[0-9.+\-*/() ><=!]+$/.test(cleanMathExpr)) return '#VALUE!';
 
-    const result = new Function(`return (${cleanMathExpr})`)();
+    const result = new Function(`"use strict"; return (${cleanMathExpr})`)();
     return typeof result === 'number' ? (Number.isInteger(result) ? result : parseFloat(result.toFixed(2))) : result;
 
   } catch (err) {

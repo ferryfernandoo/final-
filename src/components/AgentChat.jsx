@@ -1,309 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
 import AgentExecutionTree, { extractExecutionStepsAndCleanContent } from './AgentExecutionTree';
 import './AgentChat.css';
-
-function unescapeXml(safe) {
-  if (!safe) return '';
-  return String(safe)
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
-}
-
-function getPillConfig(type) {
-  switch (type) {
-    case 'read':
-      return { icon: 'fa-solid fa-book-open', color: '#0284c7', bg: '#e0f2fe', label: 'Berkas Dibaca' };
-    case 'search':
-      return { icon: 'fa-solid fa-magnifying-glass', color: '#d97706', bg: '#fef3c7', label: 'Kueri Pencarian' };
-    case 'command':
-      return { icon: 'fa-solid fa-terminal', color: '#475569', bg: '#f1f5f9', label: 'Perintah Terminal' };
-    case 'write':
-      return { icon: 'fa-solid fa-file-pen', color: '#059669', bg: '#d1fae5', label: 'Berkas Ditulis' };
-    case 'patch':
-      return { icon: 'fa-solid fa-wand-magic-sparkles', color: '#8b5cf6', bg: '#ede9fe', label: 'Diff / Patch Berkas' };
-    case 'grep':
-      return { icon: 'fa-solid fa-filter', color: '#0891b2', bg: '#cffafe', label: 'Grep Search' };
-    case 'revert':
-      return { icon: 'fa-solid fa-clock-rotate-left', color: '#f59e0b', bg: '#fef3c7', label: 'Rollback Berkas' };
-    case 'delete':
-      return { icon: 'fa-solid fa-trash-can', color: '#e11d48', bg: '#ffe4e6', label: 'Berkas Dihapus' };
-    case 'execute':
-      return { icon: 'fa-solid fa-bolt', color: '#ea580c', bg: '#ffedd5', label: 'Bahasa Eksekusi' };
-    case 'check':
-      return { icon: 'fa-solid fa-circle-check', color: '#16a34a', bg: '#dcfce7', label: 'Pemeriksaan Berkas' };
-    case 'thought':
-      return { icon: 'fa-solid fa-lightbulb', color: '#eab308', bg: '#fef9c3', label: 'Catatan Rencana' };
-    case 'screenshot':
-      return { icon: 'fa-solid fa-camera-retro', color: '#e11d48', bg: '#ffe4e6', label: 'Tangkapan Layar' };
-    case 'preview':
-      return { icon: 'fa-solid fa-eye', color: '#7c3aed', bg: '#f3e8ff', label: 'Visual Preview' };
-    case 'skill':
-      return { icon: 'fa-solid fa-graduation-cap', color: '#ea580c', bg: '#ffedd5', label: 'Skill Standar' };
-    case 'healing':
-      return { icon: 'fa-solid fa-shield-halved', color: '#dc2626', bg: '#fee2e2', label: 'Perbaikan Mandiri' };
-    default:
-      return { icon: 'fa-solid fa-gear', color: '#64748b', bg: '#f1f5f9', label: 'Tindakan Sistem' };
-  }
-}
-
-function InlineActionPill({ id, type, title, meta, status = 'completed', detail, sessionId, onSelectFile, onOpenDrawer }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const config = getPillConfig(type);
-  const rawDetail = unescapeXml(detail);
-
-  const handleCopy = (e) => {
-    e.stopPropagation();
-    navigator.clipboard?.writeText(rawDetail || meta || '');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className={`agent-inline-pill-wrap is-${status}`}>
-      <button
-        type="button"
-        className={`agent-inline-pill-btn ${isExpanded ? 'is-open' : ''}`}
-        onClick={() => setIsExpanded(!isExpanded)}
-        title="Klik untuk melihat detail aksi"
-      >
-        <div className="agent-pill-btn-left">
-          <span className="agent-pill-icon-tag" style={{ color: config.color, background: config.bg }}>
-            <i className={config.icon} />
-          </span>
-          <span className="agent-pill-title">{title}</span>
-        </div>
-        <div className="agent-pill-btn-right">
-          {status === 'completed' ? (
-            <span className="agent-pill-status is-success">
-              <i className="fa-solid fa-check" /> Selesai
-            </span>
-          ) : (
-            <span className="agent-pill-status is-fail">
-              <i className="fa-solid fa-xmark" /> Gagal
-            </span>
-          )}
-          <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'} agent-pill-chevron`} />
-        </div>
-      </button>
-
-      {isExpanded && (
-        <div className="agent-inline-pill-drawer">
-          {meta && (
-            <div className="agent-pill-drawer-meta">
-              <span className="agent-pill-meta-label">{config.label}:</span>
-              <span className="agent-pill-meta-value">{meta}</span>
-            </div>
-          )}
-          <div className="agent-pill-drawer-content">
-            <pre>{rawDetail || '(Tidak ada detail output tambahan)'}</pre>
-          </div>
-          <div className="agent-pill-drawer-footer">
-            <button type="button" className="agent-pill-action-btn" onClick={handleCopy}>
-              <i className={copied ? "fa-solid fa-check" : "fa-solid fa-copy"} />
-              <span>{copied ? 'Tersalin' : 'Salin Detail'}</span>
-            </button>
-            {(type === 'write' || type === 'patch') && meta && (
-              <button
-                type="button"
-                className="agent-pill-action-btn"
-                onClick={() => {
-                  onSelectFile?.(meta);
-                  onOpenDrawer?.('files');
-                }}
-              >
-                <i className="fa-solid fa-code" />
-                <span>Buka di Editor</span>
-              </button>
-            )}
-            {type === 'screenshot' && sessionId && (
-              <a
-                href={`/api/agent/screenshot/${sessionId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="agent-pill-action-btn"
-                style={{ textDecoration: 'none' }}
-              >
-                <i className="fa-solid fa-image" />
-                <span>Buka Tangkapan Layar</span>
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function extractMessageReasoningAndContent(rawContent, existingReasoning = '') {
-  if (!rawContent && !existingReasoning) return { cleanContent: '', reasoning: '' };
-  let reasoning = existingReasoning || '';
-  let cleanContent = String(rawContent || '');
-
-  // Extract <thought>...</thought>, <think>...</think>, <thinking>...</thinking>, <reasoning>...</reasoning>
-  const tagRegex = /<(?:think|thought|thinking|reasoning)>([\s\S]*?)<\/(?:think|thought|thinking|reasoning)>/gi;
-  let match;
-  while ((match = tagRegex.exec(cleanContent)) !== null) {
-    const extracted = match[1].trim();
-    if (extracted) {
-      reasoning += (reasoning ? '\n\n' : '') + extracted;
-    }
-  }
-  cleanContent = cleanContent.replace(tagRegex, '');
-
-  // Handle unclosed <thought> or <think> if currently streaming or trailing
-  const unclosedRegex = /<(?:think|thought|thinking|reasoning)>([\s\S]*)$/i;
-  const unclosedMatch = cleanContent.match(unclosedRegex);
-  if (unclosedMatch) {
-    const extracted = unclosedMatch[1].trim();
-    if (extracted) {
-      reasoning += (reasoning ? '\n\n' : '') + extracted;
-    }
-    cleanContent = cleanContent.replace(unclosedRegex, '');
-  }
-
-  return {
-    cleanContent: cleanContent.trim(),
-    reasoning: reasoning.trim()
-  };
-}
-
-function AgentReasoningBox({ reasoning = '', isStreaming = false, isExpanded = false, onToggle }) {
-  const [copied, setCopied] = useState(false);
-  const boxRef = useRef(null);
-
-  useEffect(() => {
-    if (isExpanded && boxRef.current) {
-      const el = boxRef.current;
-      requestAnimationFrame(() => {
-        if (el) el.scrollTop = el.scrollHeight;
-      });
-    }
-  }, [reasoning, isExpanded]);
-
-  const reasoningSnippet = useMemo(() => {
-    if (!reasoning) return '';
-    const clean = reasoning.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-    return clean.length > 150 ? clean.slice(0, 150) + '...' : clean;
-  }, [reasoning]);
-
-  if (!reasoning && !isStreaming) return null;
-
-  const handleCopy = (e) => {
-    e.stopPropagation();
-    if (!reasoning) return;
-    navigator.clipboard?.writeText(reasoning);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="agent-reasoning-wrap">
-      <div className="agent-reasoning-header">
-        <button
-          type="button"
-          className={`agent-reasoning-btn ${isExpanded ? 'is-expanded' : ''} ${isStreaming ? 'is-streaming' : ''}`}
-          onClick={onToggle}
-          title={isExpanded ? "Sembunyikan detail penalaran" : "Buka proses penalaran AI"}
-        >
-          <div className="agent-reasoning-btn-left">
-            <span className={`agent-reasoning-brain-icon ${isStreaming ? 'is-pulsing' : ''}`}>
-              <i className="fa-solid fa-brain" />
-            </span>
-            <span className="agent-reasoning-btn-label">
-              {isStreaming ? (
-                'Sedang menalar & merancang strategi...'
-              ) : (
-                `Proses Penalaran AI (${isExpanded ? 'Sembunyikan Detail' : 'Buka Detail'})`
-              )}
-            </span>
-          </div>
-          <div className="agent-reasoning-btn-right">
-            <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'} agent-reasoning-chevron`} />
-          </div>
-        </button>
-
-        {isExpanded && reasoning && (
-          <button
-            type="button"
-            className="agent-reasoning-copy-btn"
-            onClick={handleCopy}
-            title="Salin proses pemikiran"
-          >
-            <i className={copied ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-            <span>{copied ? 'Tersalin' : 'Salin Nalar'}</span>
-          </button>
-        )}
-      </div>
-
-      {!isExpanded && reasoningSnippet && !isStreaming && (
-        <div 
-          className="agent-reasoning-preview-quote" 
-          onClick={onToggle} 
-          title="Klik untuk membaca nalar lengkap"
-        >
-          <i className="fa-solid fa-quote-left agent-reasoning-quote-icon" />
-          <span className="agent-reasoning-quote-text">{reasoningSnippet}</span>
-        </div>
-      )}
-
-      {isExpanded && (
-        <div className="agent-reasoning-drawer" ref={boxRef}>
-          <div className="agent-reasoning-drawer-banner">
-            <i className="fa-solid fa-microchip" style={{ color: '#ea580c' }} />
-            <span>Analisis Internal & Perencanaan Logika (Extended Reasoning)</span>
-          </div>
-          <div className="agent-reasoning-drawer-body">
-            <pre>{reasoning || (isStreaming ? 'Memulai penalaran internal...' : '')}</pre>
-            {isStreaming && <span className="agent-reasoning-caret">▌</span>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function parseContentWithPills(content) {
-  if (!content) return [];
-  const pillRegex = /<action_pill\s+id="([^"]*)"\s+type="([^"]*)"\s+title="([^"]*)"(?:\s+meta="([^"]*)")?(?:\s+status="([^"]*)")?>([\s\S]*?)<\/action_pill>/gi;
-  const segments = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = pillRegex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({
-        type: 'text',
-        content: content.slice(lastIndex, match.index)
-      });
-    }
-    segments.push({
-      type: 'pill',
-      id: match[1],
-      pillType: match[2],
-      title: match[3],
-      meta: match[4] || '',
-      status: match[5] || 'completed',
-      detail: match[6]
-    });
-    lastIndex = pillRegex.lastIndex;
-  }
-
-  if (lastIndex < content.length) {
-    segments.push({
-      type: 'text',
-      content: content.slice(lastIndex)
-    });
-  }
-
-  return segments;
-}
 
 export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, onLogout }) {
   // Sessions & Active Conversation
@@ -359,16 +59,6 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   // Live Chain of Work Accordion state for active turn
   const [activeChainOfWork, setActiveChainOfWork] = useState([]);
-  const [expandedChains, setExpandedChains] = useState({});
-  const toggleChain = (id) => setExpandedChains(prev => ({ ...prev, [id]: !prev[id] }));
-
-  // Extended Thinking / Reasoning Box (Collapsed by default for clean UI)
-  const [expandedReasonings, setExpandedReasonings] = useState({});
-  const toggleReasoning = (id) => setExpandedReasonings(prev => ({ ...prev, [id]: !prev[id] }));
-
-  // Expandable files map for internal/extra files toggle
-  const [showAllFilesMap, setShowAllFilesMap] = useState({});
-  const toggleShowAllFiles = (id) => setShowAllFilesMap(prev => ({ ...prev, [id]: !prev[id] }));
 
   // File Attachment & Upload State
   const [uploadedAttachments, setUploadedAttachments] = useState([]);
@@ -1226,61 +916,26 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         {/* Top Header */}
         <header className="agent-header">
           <div className="agent-header-left">
-            <button className="agent-sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <button className="agent-sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Menu Sesi">
               <i className="fa-solid fa-bars" />
             </button>
             <div className="agent-header-brand-clean">
-              <span className="agent-header-brand-title">Deepernova AI</span>
+              <span className="agent-header-brand-title">Deepernova</span>
               <span className="agent-header-brand-badge">Agent</span>
             </div>
+          </div>
 
-            {/* Quick Switch to Regular Chatbot */}
+          <div className="agent-header-right" ref={menuDropdownRef}>
             <button
               type="button"
               className="agent-header-switch-chat-btn"
               onClick={() => onNavigate?.('chat')}
-              title="Kembali ke AI Chatbot Biasa"
+              title="Beralih ke Chat Biasa"
             >
-              <i className="fa-regular fa-comments"></i>
-              <span>AI Biasa</span>
+              <i className="fa-regular fa-comments" />
+              <span>Chat Biasa</span>
             </button>
 
-            {/* Quick Effort Badge Chip */}
-            <button
-              type="button"
-              className={`agent-header-effort-chip is-${agentEffort}`}
-              onClick={() => {
-                const nextEffort = agentEffort === 'high' ? 'low' : (agentEffort === 'low' ? 'medium' : 'high');
-                handleSetEffort(nextEffort);
-              }}
-              title="Klik untuk mengubah tingkat usaha AI Agent (Rendah / Sedang / Tinggi - Pantang Menyerah)"
-            >
-              <i className={agentEffort === 'high' ? "fa-solid fa-fire" : (agentEffort === 'low' ? "fa-solid fa-bolt" : "fa-solid fa-scale-balanced")} />
-              <span>
-                {agentEffort === 'high' ? 'Pantang Menyerah' : (agentEffort === 'low' ? 'Usaha Cepat' : 'Usaha Sedang')}
-              </span>
-            </button>
-
-            {/* Active Skill Indicator in Header */}
-            {activeSkill && (
-              <button
-                type="button"
-                className={`agent-header-skill-chip ${isExecuting ? 'is-reading' : ''}`}
-                onClick={() => {
-                  setActiveDrawerTab('skill');
-                  setIsDrawerOpen(true);
-                }}
-                title={`Buku Skill Aktif: ${activeSkill.title} (${activeSkill.file}). Klik untuk membuka buku panduan.`}
-              >
-                <i className="fa-solid fa-book-bookmark" />
-                <span className="skill-chip-label">{isExecuting ? 'Membaca Skill:' : 'Skill:'}</span>
-                <span className="skill-chip-name">{activeSkill.title || activeSkill.file}</span>
-              </button>
-            )}
-          </div>
-
-          <div className="agent-header-right" ref={menuDropdownRef}>
-            {/* Quick Direct Workspace & Artifacts Button (Claude / Manus standard) */}
             <button
               type="button"
               className={`agent-header-workspace-btn ${sandboxFiles.length > 0 ? 'has-files' : ''} ${isDrawerOpen ? 'is-open' : ''}`}
@@ -1290,7 +945,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               }}
               title="Buka panel berkas & workspace sandbox"
             >
-              <i className="fa-solid fa-folder-tree" />
+              <i className="fa-regular fa-folder-open" />
               <span className="agent-header-workspace-label">Workspace</span>
               {sandboxFiles.length > 0 && (
                 <span className="agent-header-file-count">{sandboxFiles.length}</span>
@@ -1571,48 +1226,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   )}
                 </div>
                 <div className="agent-msg-content">
-                  {/* Dedicated Active Skill Indicator Banner */}
-                  {isBot && (msg.activeSkill || (isExecuting && msg.isStreaming && activeSkill)) && (() => {
-                    const currentMsgSkill = msg.activeSkill || activeSkill;
-                    const cleanSkillTag = (currentMsgSkill.file || currentMsgSkill.id || '')
-                      .split('/')
-                      .pop()
-                      .replace(/\.md$/i, '');
-                    return (
-                      <div 
-                        className={`agent-msg-skill-pill ${msg.isStreaming ? 'is-streaming' : ''}`}
-                        onClick={() => {
-                          setActiveDrawerTab('skill');
-                          setIsDrawerOpen(true);
-                        }}
-                        title="Klik untuk membuka dan memeriksa buku panduan skill lengkap di panel SKILL.md"
-                      >
-                        <div className="agent-msg-skill-pill-left">
-                          <span className="agent-skill-icon-wrap">
-                            <i className="fa-solid fa-graduation-cap" />
-                          </span>
-                          <div className="agent-skill-text-group">
-                            <span className="agent-skill-kicker">
-                              {msg.isStreaming ? '⚡ MEMATUHI PANDUAN SKILL' : '📖 BERPEGANG TEGUH PADA SKILL'}
-                            </span>
-                            <span className="agent-skill-name" title={currentMsgSkill.title}>
-                              {currentMsgSkill.title}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="agent-msg-skill-pill-right">
-                          <span className="agent-skill-file-tag" title={currentMsgSkill.file || currentMsgSkill.id}>
-                            {cleanSkillTag}
-                          </span>
-                          <span className="agent-skill-open-action">
-                            Buka <i className="fa-solid fa-arrow-right" />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Unified Claude/Gemini Execution Tree (Collapsible "Worked for 2m ▾", sub-steps, no messy pills) */}
+                  {/* Minimal Collapsible Execution Status Pill (Collapsed by default) */}
                   {isBot && (steps.length > 0 || msg.isStreaming) && (
                     <AgentExecutionTree
                       steps={steps}
@@ -1638,7 +1252,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                         {msg.isStreaming && !cleanContent?.trim() && steps.length === 0 && (
                           <div className="agent-streaming-placeholder">
                             <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#ea580c' }} />
-                            <span>Deepernova AI sedang merancang & menyusun jawaban...</span>
+                            <span>Sedang memproses...</span>
                           </div>
                         )}
                         {cleanContent?.trim() && (
@@ -1656,15 +1270,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   </div>
 
                   {/* Screenshot / Visual Result Preview Card */}
-                  {isBot && (msg.screenshotUrl || (msg.sandboxFiles || []).some(f => f.name === 'screenshot.png' || f.name === 'preview.png')) && (() => {
-                    const ssUrl = msg.screenshotUrl || `/api/agent/screenshot/${currentSessionId}?t=${Date.now()}`;
+                  {isBot && msg.screenshotUrl && (() => {
+                    const ssUrl = msg.screenshotUrl;
                     return (
                       <div className="agent-msg-screenshot-preview">
                         <div className="agent-screenshot-preview-header">
                           <div className="agent-screenshot-header-left">
-                            <i className="fa-solid fa-camera-retro" style={{ color: '#ea580c' }} />
-                            <span className="agent-screenshot-title">Tangkapan Layar Hasil Kodingan</span>
-                            <span className="agent-screenshot-badge">Live Capture</span>
+                            <i className="fa-solid fa-image" style={{ color: '#64748b' }} />
+                            <span className="agent-screenshot-title">Pratinjau Visual</span>
                           </div>
                           <div className="agent-screenshot-header-right">
                             <a
@@ -1672,10 +1285,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               target="_blank"
                               rel="noopener noreferrer"
                               className="agent-screenshot-btn is-zoom"
-                              title="Buka gambar resolusi penuh di tab baru"
+                              title="Buka gambar resolusi penuh"
                             >
                               <i className="fa-solid fa-up-right-and-down-left-from-center" />
-                              <span>Ukuran Penuh</span>
+                              <span>Perbesar</span>
                             </a>
                             {(msg.previewUrl || previewUrl) && (
                               <button
@@ -1689,7 +1302,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                 title="Buka live web interaktif"
                               >
                                 <i className="fa-solid fa-globe" />
-                                <span>Buka Live Web</span>
+                                <span>Live Preview</span>
                               </button>
                             )}
                           </div>
@@ -1701,7 +1314,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                         >
                           <img
                             src={ssUrl}
-                            alt="Tangkapan layar hasil kodingan"
+                            alt="Pratinjau visual"
                             className="agent-screenshot-img"
                             loading="lazy"
                             onError={(e) => {
@@ -1710,71 +1323,62 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               }
                             }}
                           />
-                          <div className="agent-screenshot-zoom-overlay">
-                            <i className="fa-solid fa-magnifying-glass-plus" />
-                            <span>Klik untuk memperbesar gambar</span>
-                          </div>
                         </div>
                       </div>
                     );
                   })()}
 
-                  {/* Interactive Downloadable File Deliverables (AI Cerdas) */}
+                  {/* Clean Deliverable Cards (Only turn-specific deliverables, no internal helper scripts) */}
                   {isBot && (() => {
-                    const allSessionFiles = msg.allFiles || sandboxFiles || [];
-                    const primaryDeliverables = (msg.sandboxFiles || []).filter(f => 
-                      f.path !== 'SKILL.md' && !f.path.startsWith('_runner_temp')
-                    );
-                    
-                    if (primaryDeliverables.length === 0 && allSessionFiles.length === 0) return null;
-
-                    const extraFiles = allSessionFiles.filter(f => 
-                      f.path !== 'SKILL.md' && 
+                    const rawTurnFiles = (msg.sandboxFiles || []).filter(f =>
+                      f.path !== 'SKILL.md' &&
                       !f.path.startsWith('_runner_temp') &&
                       !f.path.endsWith('.pyc') &&
-                      !f.path.includes('__pycache__') &&
-                      !primaryDeliverables.some(p => p.path === f.path)
+                      !f.path.includes('__pycache__')
                     );
 
-                    const isExtraExpanded = !!showAllFilesMap[msg.id];
-                    const filesToShow = isExtraExpanded 
-                      ? [...primaryDeliverables, ...extraFiles] 
-                      : primaryDeliverables;
+                    if (rawTurnFiles.length === 0) return null;
+
+                    const docExtensions = ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'pdf', 'html', 'csv', 'zip', 'png', 'jpg', 'jpeg', 'svg', 'webp'];
+                    const hasPrimaryArtifact = rawTurnFiles.some(f => docExtensions.includes((f.ext || '').toLowerCase()));
+                    const helperScriptRegex = /^(?:generate|build|create|make|render|run|test)_.*\.(?:py|js|sh)$/i;
+
+                    const filesToShow = hasPrimaryArtifact
+                      ? rawTurnFiles.filter(f => !helperScriptRegex.test(f.name || f.path || ''))
+                      : rawTurnFiles;
 
                     if (filesToShow.length === 0) return null;
 
                     return (
                       <div className="agent-msg-files-section">
-                        <div className="agent-msg-files-header">
-                          <div className="agent-msg-files-title">
-                            <i className="fa-solid fa-cube" style={{ color: '#ea580c' }} />
-                            <span>Berkas di Sandbox ({filesToShow.length})</span>
-                            <span className="agent-smart-filter-badge" title="Klik langsung untuk membuka & menyunting di Typernova Studio">
-                              <i className="fa-solid fa-wand-magic-sparkles" /> Typernova Studio
-                            </span>
-                          </div>
-                          <button 
-                            type="button"
-                            className="agent-zip-download-btn"
-                            onClick={handleDownloadAllZip}
-                            title="Unduh seluruh berkas sandbox sebagai file .ZIP"
-                          >
-                            <i className="fa-solid fa-file-zipper" />
-                            <span>Unduh Semua (.ZIP)</span>
-                          </button>
-                        </div>
-
                         <div className="agent-msg-files-grid">
                           {filesToShow.map((file) => {
-                            const iconMeta = getFileIcon(file.ext);
-                            const isExtra = !primaryDeliverables.some(p => p.path === file.path);
+                            const ext = (file.ext || (file.name || '').split('.').pop() || '').toLowerCase();
+                            const iconMeta = getFileIcon(ext);
+                            const isStudioDoc = ['docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'pdf'].includes(ext);
+                            const isHtml = ext === 'html';
                             const isOpeningThis = openingFileInStudio === file.path;
+
+                            const handlePrimaryFileClick = () => {
+                              if (isStudioDoc) {
+                                handleOpenFileInTypernova(file);
+                              } else if (isHtml) {
+                                setPreviewUrl(`/api/agent/preview/${currentSessionId}/${file.path}`);
+                                setActiveDrawerTab('preview');
+                                setIsDrawerOpen(true);
+                              } else {
+                                handleSelectFile(file.path);
+                                setActiveDrawerTab('files');
+                                setIsDrawerOpen(true);
+                              }
+                            };
+
                             return (
-                              <div 
-                                key={file.path} 
-                                className={`agent-msg-file-card is-wide ${isExtra ? 'is-extra-file' : ''} ${isOpeningThis ? 'is-opening' : ''}`}
-                                onClick={() => handleOpenFileInTypernova(file)}
-                                title={`Klik untuk membuka & menyunting ${file.name} di Typernova Studio`}
+                              <div
+                                key={file.path}
+                                className={`agent-msg-file-card ${isOpeningThis ? 'is-opening' : ''}`}
+                                onClick={handlePrimaryFileClick}
+                                title={`Klik untuk membuka ${file.name}`}
                               >
                                 <div className="agent-msg-file-info">
                                   <div className="agent-file-icon-box">
@@ -1783,14 +1387,44 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                   <div className="agent-msg-file-meta">
                                     <span className="agent-msg-file-name" title={file.path}>
                                       {file.name}
-                                      {isExtra && <span className="agent-extra-badge">internal</span>}
                                     </span>
                                     <span className="agent-msg-file-size">
-                                      {file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'} · Klik untuk buka di Typernova Studio
+                                      {file.size ? `${(file.size / 1024).toFixed(1)} KB` : ext.toUpperCase() || 'Berkas'}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="agent-msg-file-actions">
+                                  <button
+                                    type="button"
+                                    className="agent-file-card-btn is-primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePrimaryFileClick();
+                                    }}
+                                    title={isStudioDoc ? `Buka ${file.name} di Typernova Studio` : (isHtml ? 'Buka Live Preview' : 'Lihat isi berkas')}
+                                  >
+                                    {isOpeningThis ? (
+                                      <>
+                                        <i className="fa-solid fa-circle-notch fa-spin" />
+                                        <span>Membuka...</span>
+                                      </>
+                                    ) : isStudioDoc ? (
+                                      <>
+                                        <i className="fa-solid fa-pen-to-square" />
+                                        <span>Buka di Studio</span>
+                                      </>
+                                    ) : isHtml ? (
+                                      <>
+                                        <i className="fa-solid fa-eye" />
+                                        <span>Preview</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <i className="fa-solid fa-code" />
+                                        <span>Lihat Kode</span>
+                                      </>
+                                    )}
+                                  </button>
                                   <button
                                     type="button"
                                     className="agent-file-card-btn is-download"
@@ -1798,81 +1432,16 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                       e.stopPropagation();
                                       handleDownloadSingleFile(file);
                                     }}
-                                    title={`Unduh berkas ${file.name} ke perangkat`}
+                                    title={`Unduh ${file.name}`}
                                   >
-                                    <i className="fa-solid fa-download" /> <span>Unduh</span>
+                                    <i className="fa-solid fa-download" />
+                                    <span>Unduh</span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="agent-file-card-btn is-studio"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenFileInTypernova(file);
-                                    }}
-                                    title={`Buka ${file.name} langsung di Typernova Studio`}
-                                  >
-                                    {isOpeningThis ? (
-                                      <>
-                                        <i className="fa-solid fa-circle-notch fa-spin" />
-                                        <span>Membuka...</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <i className="fa-solid fa-pen-to-square" />
-                                        <span>Buka di Studio</span>
-                                      </>
-                                    )}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="agent-file-card-btn is-view"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSelectFile(file.path);
-                                      setActiveDrawerTab('files');
-                                      setIsDrawerOpen(true);
-                                    }}
-                                    title={`Buka & periksa kode di Drawer`}
-                                  >
-                                    <i className="fa-solid fa-code" /> <span>Inspeksi</span>
-                                  </button>
-                                  {file.ext === 'html' && (
-                                    <button
-                                      type="button"
-                                      className="agent-file-card-btn is-preview"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setPreviewUrl(`/api/agent/preview/${currentSessionId}/${file.path}`);
-                                        setActiveDrawerTab('preview');
-                                        setIsDrawerOpen(true);
-                                      }}
-                                      title="Live Preview web di sandbox"
-                                    >
-                                      <i className="fa-solid fa-eye" /> <span>Preview</span>
-                                    </button>
-                                  )}
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-
-                        {extraFiles.length > 0 && (
-                          <div className="agent-extra-files-toggle-wrap">
-                            <button
-                              type="button"
-                              className="agent-extra-files-toggle-btn"
-                              onClick={() => toggleShowAllFiles(msg.id)}
-                            >
-                              <i className={`fa-solid fa-chevron-${isExtraExpanded ? 'up' : 'down'}`} />
-                              <span>
-                                {isExtraExpanded 
-                                  ? `Sembunyikan ${extraFiles.length} berkas teknis/internal` 
-                                  : `Tampilkan Semua Berkas Sandbox (+${extraFiles.length} berkas teknis/internal)`}
-                              </span>
-                            </button>
-                          </div>
-                        )}
                       </div>
                     );
                   })()}
@@ -1906,7 +1475,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                           title="Buka live web interaktif di panel kerja"
                         >
                           <i className="fa-solid fa-globe" />
-                          <span>Buka Live Web</span>
+                          <span>Live Preview</span>
                         </button>
                       )}
                     </div>
@@ -1955,7 +1524,6 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             )}
 
             {/* Composer Box */}
-
             <div className={`agent-composer-box ${isExecuting ? 'generating' : ''}`}>
               <input
                 type="file"
@@ -1996,10 +1564,20 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                   </button>
-                  <span className="agent-composer-mode-badge" title="Sandbox siap mengeksekusi koding, dokumen, dan perintah terminal dengan internet aktif">
-                    <span className="agent-composer-dot" />
-                    <span>Agentic Sandbox</span>
-                  </span>
+                  <button
+                    type="button"
+                    className={`agent-composer-effort-pill is-${agentEffort}`}
+                    onClick={() => {
+                      const nextEffort = agentEffort === 'high' ? 'low' : (agentEffort === 'low' ? 'medium' : 'high');
+                      handleSetEffort(nextEffort);
+                    }}
+                    title="Klik untuk mengganti mode kerja Agent (Cepat / Sedang / Mendalam)"
+                  >
+                    <i className={agentEffort === 'high' ? "fa-solid fa-bolt-lightning" : (agentEffort === 'low' ? "fa-solid fa-feather" : "fa-solid fa-sliders")} />
+                    <span>
+                      {agentEffort === 'high' ? 'Mode Mendalam' : (agentEffort === 'low' ? 'Mode Cepat' : 'Mode Seimbang')}
+                    </span>
+                  </button>
                 </div>
 
                 <div className="agent-composer-tools-right">

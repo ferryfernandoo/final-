@@ -40,7 +40,7 @@ export const sessionService = {
   // Get single session with messages
   async getSession(sessionId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
@@ -54,7 +54,7 @@ export const sessionService = {
   // Update session (title, etc)
   async updateSession(sessionId, data) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -71,7 +71,7 @@ export const sessionService = {
   // Delete session
   async deleteSession(sessionId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'DELETE',
         credentials: 'include'
       });

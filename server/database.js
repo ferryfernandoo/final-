@@ -361,6 +361,11 @@ export function initializeDatabase() {
   } catch (_) {}
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(sessionId)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_sessions_user ON agent_sessions(userId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(userId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(sessionId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(userId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_api_logs_user ON api_usage_logs(userId, createdAt)`);
 
   console.log('✅ Database initialized');
 }
@@ -387,10 +392,11 @@ export const userDb = {
   },
 
   update: (id, data) => {
-    const set = Object.keys(data)
-      .map(key => `${key} = ?`)
-      .join(', ');
-    const values = Object.values(data);
+    const ALLOWED_COLUMNS = new Set(['email', 'name', 'password', 'picture', 'tokenQuota', 'tokensUsed']);
+    const keys = Object.keys(data || {}).filter(key => ALLOWED_COLUMNS.has(key));
+    if (keys.length === 0) return userDb.findById(id);
+    const set = keys.map(key => `${key} = ?`).join(', ');
+    const values = keys.map(key => data[key]);
     const stmt = db.prepare(`
       UPDATE users 
       SET ${set}, updatedAt = CURRENT_TIMESTAMP 
@@ -451,10 +457,11 @@ export const sessionDb = {
   },
 
   update: (id, data) => {
-    const set = Object.keys(data)
-      .map(key => `${key} = ?`)
-      .join(', ');
-    const values = Object.values(data);
+    const ALLOWED_COLUMNS = new Set(['title']);
+    const keys = Object.keys(data || {}).filter(key => ALLOWED_COLUMNS.has(key));
+    if (keys.length === 0) return sessionDb.findById(id);
+    const set = keys.map(key => `${key} = ?`).join(', ');
+    const values = keys.map(key => data[key]);
     const stmt = db.prepare(`
       UPDATE chat_sessions 
       SET ${set}, updatedAt = CURRENT_TIMESTAMP 
@@ -551,10 +558,11 @@ export const apiKeyDb = {
   },
 
   update: (id, data) => {
-    const set = Object.keys(data)
-      .map(key => `${key} = ?`)
-      .join(', ');
-    const values = Object.values(data);
+    const ALLOWED_COLUMNS = new Set(['name', 'isActive', 'lastUsed', 'tokensUsed']);
+    const keys = Object.keys(data || {}).filter(key => ALLOWED_COLUMNS.has(key));
+    if (keys.length === 0) return apiKeyDb.findById(id);
+    const set = keys.map(key => `${key} = ?`).join(', ');
+    const values = keys.map(key => data[key]);
     const stmt = db.prepare(`
       UPDATE api_keys 
       SET ${set}, updatedAt = CURRENT_TIMESTAMP 
@@ -847,10 +855,11 @@ export const memoryDb = {
   },
 
   update: (id, data) => {
-    const set = Object.keys(data)
-      .map(key => `${key} = ?`)
-      .join(', ');
-    const values = Object.values(data);
+    const ALLOWED_COLUMNS = new Set(['summary', 'category', 'sourceSessionId']);
+    const keys = Object.keys(data || {}).filter(key => ALLOWED_COLUMNS.has(key));
+    if (keys.length === 0) return memoryDb.findById(id);
+    const set = keys.map(key => `${key} = ?`).join(', ');
+    const values = keys.map(key => data[key]);
     const stmt = db.prepare(`
       UPDATE memory_long_term 
       SET ${set}, updatedAt = CURRENT_TIMESTAMP 
@@ -981,10 +990,11 @@ export const researchMemoryDb = {
   },
 
   update: (id, data) => {
-    const set = Object.keys(data)
-      .map(key => `${key} = ?`)
-      .join(', ');
-    const values = Object.values(data);
+    const ALLOWED_COLUMNS = new Set(['query', 'searchResults', 'sources', 'summary', 'category', 'confidence', 'searchEngine', 'totalTime', 'expiresAt']);
+    const keys = Object.keys(data || {}).filter(key => ALLOWED_COLUMNS.has(key));
+    if (keys.length === 0) return researchMemoryDb.findById(id);
+    const set = keys.map(key => `${key} = ?`).join(', ');
+    const values = keys.map(key => data[key]);
     const stmt = db.prepare(`
       UPDATE research_memory 
       SET ${set}, lastUpdated = CURRENT_TIMESTAMP 
@@ -1184,6 +1194,20 @@ export const globalMemoryDb = {
 // Cloud Explorer database operations
 export const cloudDb = {
   createFolder: (id, parentId, name, userId, ownerEmail = null, folderType = 'private', founder = null, founderEmail = null, ceo = null, ceoEmail = null, employeeEmails = null) => {
+    let finalFolderId = id || `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    // 🔒 Zero-Trust Anti-IDOR Check: Prevent overwriting another user's existing folder ID
+    try {
+      const existing = db.prepare('SELECT id, userId, ownerEmail FROM cloud_files WHERE id = ?').get(finalFolderId);
+      if (existing) {
+        const cleanEmail = (ownerEmail || '').toLowerCase().trim();
+        const isOwner = (userId && existing.userId === userId) || (cleanEmail && existing.ownerEmail && existing.ownerEmail.toLowerCase().trim() === cleanEmail);
+        if (!isOwner) {
+          console.warn(`[SECURITY ALERT] Blocked cross-user folder ID overwrite on ${finalFolderId} by ${userId || ownerEmail}`);
+          finalFolderId = `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        }
+      }
+    } catch (_e) {}
+
     let safeParentId = parentId || null;
     if (safeParentId) {
       try {
@@ -1218,8 +1242,8 @@ export const cloudDb = {
       INSERT OR REPLACE INTO cloud_files (id, parentId, name, type, path, content, userId, ownerEmail, folderType, founder, founderEmail, ceo, ceoEmail, employeeEmails, updatedAt)
       VALUES (?, ?, ?, 'folder', '/', NULL, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
-    stmt.run(id, safeParentId, name, userId || null, ownerEmail || null, folderType || 'private', founder || null, founderEmail || null, ceo || null, ceoEmail || null, empStr);
-    return cloudDb.findById(id, userId, ownerEmail);
+    stmt.run(finalFolderId, safeParentId, name, userId || null, ownerEmail || null, folderType || 'private', founder || null, founderEmail || null, ceo || null, ceoEmail || null, empStr);
+    return cloudDb.findById(finalFolderId, userId, ownerEmail);
   },
 
   saveFolder: (id, parentId, name, userId, ownerEmail = null, folderType = 'private', founder = null, founderEmail = null, ceo = null, ceoEmail = null, employeeEmails = null) => {
@@ -1299,6 +1323,29 @@ export const cloudDb = {
     }
 
     if (!finalId) finalId = `cloud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    // 🔒 Zero-Trust Anti-IDOR Check: Prevent overwriting another user's existing file ID
+    try {
+      const existingFile = db.prepare('SELECT id, userId, ownerEmail, folderType, founderEmail, ceoEmail, employeeEmails FROM cloud_files WHERE id = ?').get(finalId);
+      if (existingFile) {
+        const cleanEmail = (finalOwnerEmail || '').toLowerCase().trim();
+        const isOwner = (finalUserId && existingFile.userId === finalUserId) || (cleanEmail && existingFile.ownerEmail && existingFile.ownerEmail.toLowerCase().trim() === cleanEmail);
+        let isCollab = false;
+        if (!isOwner && cleanEmail && existingFile.folderType === 'company') {
+          if (existingFile.founderEmail && existingFile.founderEmail.toLowerCase().trim() === cleanEmail) isCollab = true;
+          if (existingFile.ceoEmail && existingFile.ceoEmail.toLowerCase().trim() === cleanEmail) isCollab = true;
+          if (existingFile.employeeEmails) {
+            try {
+              const emps = typeof existingFile.employeeEmails === 'string' ? JSON.parse(existingFile.employeeEmails) : existingFile.employeeEmails;
+              if (Array.isArray(emps) && emps.some(e => typeof e === 'string' && e.toLowerCase().trim() === cleanEmail)) isCollab = true;
+            } catch {}
+          }
+        }
+        if (!isOwner && !isCollab) {
+          console.warn(`[SECURITY ALERT] Blocked cross-user file ID overwrite on ${finalId} by ${finalUserId || finalOwnerEmail}`);
+          finalId = `cloud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        }
+      }
+    } catch (_e) {}
     if (!finalName) finalName = 'Untitled';
     if (!finalType) finalType = finalCategory || 'other';
     if (!finalCategory) finalCategory = finalType || 'other';
@@ -1598,8 +1645,9 @@ export const cloudDb = {
           if (r && r.fileData && typeof r.fileData === 'string' && r.fileData.startsWith('/download/uploads/')) {
             const fname = path.basename(r.fileData);
             for (const udir of uploadDirs) {
-              const fullPath = path.resolve(udir, fname);
-              if (fullPath.startsWith(path.resolve(udir)) && fs.existsSync(fullPath)) {
+              const resolvedBase = path.resolve(udir);
+              const fullPath = path.resolve(resolvedBase, fname);
+              if (fullPath.startsWith(resolvedBase + path.sep) && fs.existsSync(fullPath)) {
                 try {
                   fs.unlinkSync(fullPath);
                   console.log(`[STORAGE CLEANUP] Successfully unlinked disk file: ${fname}`);
@@ -1632,11 +1680,15 @@ export const cloudDb = {
 // ============================================================================
 export const agentSessionDb = {
   create: (id, userId, title = 'Tugas Otonom AI') => {
+    const existing = db.prepare('SELECT id, userId FROM agent_sessions WHERE id = ?').get(id);
+    if (existing && existing.userId && existing.userId !== userId) {
+      throw new Error('Unauthorized: Agent session belongs to another user');
+    }
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO agent_sessions (id, userId, title, createdAt, updatedAt)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, COALESCE((SELECT createdAt FROM agent_sessions WHERE id = ?), CURRENT_TIMESTAMP), CURRENT_TIMESTAMP)
     `);
-    stmt.run(id, userId, title);
+    stmt.run(id, userId, title, id);
     return agentSessionDb.findById(id);
   },
   findById: (id) => {
@@ -1649,8 +1701,11 @@ export const agentSessionDb = {
     return db.prepare('UPDATE agent_sessions SET title = COALESCE(?, title), updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run(title, id);
   },
   delete: (id, userId) => {
-    db.prepare('DELETE FROM agent_messages WHERE sessionId = ?').run(id);
-    return db.prepare('DELETE FROM agent_sessions WHERE id = ? AND userId = ?').run(id, userId);
+    const res = db.prepare('DELETE FROM agent_sessions WHERE id = ? AND userId = ?').run(id, userId);
+    if (res.changes > 0) {
+      db.prepare('DELETE FROM agent_messages WHERE sessionId = ?').run(id);
+    }
+    return res;
   }
 };
 

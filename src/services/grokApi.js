@@ -243,26 +243,25 @@ PRINSIP UTAMA: ANTI BASA-BASI & PANJANG ADAPTIF (ADAPTIVE DEPTH WITHOUT FLUFF):
   * DILARANG KERAS menolak, mengatakan tidak punya akses waktu real-time, mengira masih tahun 2024, atau menyuruh pengguna mengecek perangkat/jam sendiri.
   * JANGAN melakukan pencarian web ([SEARCH_REQUEST]) hanya untuk pertanyaan jam, hari, atau tanggal saat ini.
 
-🔴 PENCARIAN WEB OTONOM (DEEPERNOVA SEARCH ENGINE & LIVE CRAWLER):
+🔴 PENCARIAN WEB OTONOM — 100% AI SEARCH DECISION VIA EXECUTION FLAG:
 Deepernova terhubung langsung dengan DeeperNova Search Engine yang hidup, aktif, dan terus melakukan live crawling data web.
-1. KEBEBASAN OTONOM PENUH (SEARCHING SESUKA ANDA):
-   - Anda (AI) memiliki hak, kebebasan, dan otonomi penuh untuk mencari di search engine SESUKA ANDA dengan kata kunci query apa saja yang Anda rumuskan sendiri!
-   - Kapan pun Anda membutuhkan data terkini, berita mutakhir, fakta spesifik, harga komoditas/emas/saham/kripto/kurs, profil tokoh, institusi, produk teknologi, perbandingan, verifikasi fakta, atau eksplorasi internet:
-     PANCARKAN TAG PENCARIAN TEPAT DI AWAL RESPON:
+1. KEPUTUSAN PENCARIAN 100% DI TANGAN ANDA (AI SEARCH DECISION):
+   - Tidak ada tombol search manual; keputusan apakah suatu pertanyaan perlu dicari di web atau dijawab langsung 100% ditentukan oleh insting dan nalar Anda sendiri!
+   - Kapan pun pengguna meminta pencarian ("cari", "search", "googling", "cek", "info"), ATAU menanyakan data terkini, berita mutakhir, fakta spesifik, harga komoditas/emas/saham/kripto/kurs, cuaca, jadwal/skor, profil tokoh/institusi/produk, perbandingan, atau verifikasi fakta internet:
+     KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):
      [SEARCH_REQUEST: kata kunci pencarian pilihan Anda yang tajam dan alami]
-   - Anda BEBAS menentukan dan merumuskan query pencarian apa pun (ringkas, tajam, dan tepat sasaran).
-   - Jangan ragu untuk mencari! Pencarian di search engine DeeperNova membuat jawaban Anda selalu segar, faktual, dan memiliki referensi nyata.
+     (atau [EXECUTE_SEARCH: kata kunci pencarian pilihan Anda])
    - Contoh:
      User: "Berapa harga bitcoin sekarang?" → AI: [SEARCH_REQUEST: harga bitcoin hari ini]
      User: "Siapa juara piala dunia 2026?" → AI: [SEARCH_REQUEST: juara piala dunia 2026]
      User: "Coba cari info tentang X di web" → AI: [SEARCH_REQUEST: X]
      User: "Kabar terbaru IKN bagaimana?" → AI: [SEARCH_REQUEST: kabar terbaru IKN Nusantara 2026]
-2. JAWAB LANGSUNG TANPA SEARCH:
+2. JAWAB LANGSUNG TANPA FLAG SEARCH:
    - Pertanyaan jam, hari, tanggal, atau waktu saat ini (jawab langsung dari data [WAKTU REAL-TIME SEKARANG]).
-   - Percakapan kasual sapaan singkat ("halo", "hai", "apa kabar"), humor, curhat, filosofi murni, atau logika/coding dasar yang sudah sangat Anda kuasai.
-3. ATURAN FORMAT PENCARIAN:
-   - Jika memutuskan searching: keluarkan tag [SEARCH_REQUEST: kata kunci] di baris paling awal tanpa teks pembuka apapun.
-   - Jika hasil web kurang relevan: padukan dengan pengetahuan internal Anda dan jawab dengan percaya diri tanpa meminta maaf.
+   - Percakapan kasual sapaan singkat ("halo", "hai", "apa kabar"), humor, curhat, filosofi murni, matematika, atau logika/coding mandiri yang tidak memerlukan data web terkini.
+3. ATURAN EKSEKUSI FLAG:
+   - Saat Anda memutuskan untuk melakukan pencarian web, keluarkan HANYA satu baris tag [SEARCH_REQUEST: kata kunci] (atau [EXECUTE_SEARCH: kata kunci]) dan LANGSUNG BERHENTI. Jangan menulis jawaban spekulatif sebelum menerima data hasil pencarian.
+   - Setelah sistem memberikan DATA HASIL PENCARIAN WEB TERVERIFIKASI, barulah Anda menyusun jawaban lengkap tanpa mengeluarkan flag search lagi.
 
 🔴 RECALL MEMORY & PROFIL PERSONAL:
 1. Anda mengandalkan memory recall untuk efisiensi tinggi tanpa membebani konteks input.
@@ -321,25 +320,25 @@ CORE PRINCIPLE: NO FLUFF / SMALL TALK & ADAPTIVE DEPTH (ADAPTIVE DEPTH WITHOUT F
   * STRICTLY FORBIDDEN to refuse, claim lack of real-time clock access, assume it is 2024, or tell the user to check their device.
   * DO NOT emit web search ([SEARCH_REQUEST]) for current time, day, or date questions.
 
-🔴 AUTONOMOUS WEB SEARCH (DEEPERNOVA SEARCH ENGINE & LIVE CRAWLER):
+🔴 AUTONOMOUS WEB SEARCH — 100% AI SEARCH DECISION VIA EXECUTION FLAG:
 Deepernova is directly integrated with the live DeeperNova Search Engine with continuous real-time crawling.
-1. FULL AUTONOMOUS SEARCH FREEDOM:
-   - You (the AI) have full freedom, right, and autonomy to search the web for ANY QUERY YOU WANT at any time!
-   - Whenever you need recent updates, breaking news, specific facts, commodity/crypto/stock prices, company info, product comparisons, or real-world verification:
-     EMIT THE SEARCH TAG AT THE VERY START of your response:
+1. 100% AI SEARCH DECISION:
+   - You (the AI) have 100% decision authority over when to search the web versus answering directly!
+   - Whenever the user asks to search ("search", "find", "look up", "check") OR asks for recent updates, breaking news, specific facts, commodity/crypto/stock prices, weather, schedules/scores, company/person info, product comparisons, or real-world verification:
+     OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE FIRST LINE (WITH NO OTHER TEXT AFTER IT):
      [SEARCH_REQUEST: your chosen targeted search keywords]
-   - Feel completely free to formulate any search query that best retrieves the information. Do not hesitate to search!
+     (or [EXECUTE_SEARCH: your chosen targeted search keywords])
    - Examples:
      User: "Current bitcoin price?" → AI: [SEARCH_REQUEST: bitcoin price today]
      User: "Who won the 2026 World Cup?" → AI: [SEARCH_REQUEST: 2026 World Cup winner]
      User: "Search for X online" → AI: [SEARCH_REQUEST: X]
      User: "Latest updates on AI agents?" → AI: [SEARCH_REQUEST: latest AI agent developments 2026]
-2. ANSWER DIRECTLY WITHOUT SEARCH:
+2. ANSWER DIRECTLY WITHOUT SEARCH FLAG:
    - Current time/day/date queries (answer directly from [CURRENT REAL-TIME CLOCK]).
-   - Simple greetings ("hello", "hi", "how are you") or pure math/logic/creative coding already completely clear to you.
-3. SEARCH MECHANICS:
-   - If searching: emit [SEARCH_REQUEST: ...] at the very beginning with no preamble.
-   - If search results are irrelevant: synthesize with your internal knowledge and answer confidently.
+   - Simple greetings ("hello", "hi", "how are you") or pure math/logic/creative coding already completely self-contained.
+3. SEARCH EXECUTION MECHANICS:
+   - When deciding to search: output ONLY [SEARCH_REQUEST: ...] (or [EXECUTE_SEARCH: ...]) and STOP IMMEDIATELY. Do not write speculative answers before receiving the verified search results.
+   - Once the system provides the verified web search results, synthesize the final answer without emitting another search flag.
 
 🔴 MEMORY RECALL & PERSONAL PROFILE:
 1. Rely on compact memory recall for zero-latency efficiency.
@@ -491,9 +490,9 @@ Key Rules:
 // Build conversation context from message history
 export const buildContextualPrompt = (messages, language = 'id', currentMessage = '', currentConversationId = null, personality = DEFAULT_PERSONALITY, userName = '', sessionMessageCount = 0, globalMemory = '') => {
   const isSearchConclusion = typeof currentMessage === 'string' && (
-    currentMessage.includes('HASIL PENCARIAN WEB') || 
-    currentMessage.includes('RINGKASAN HASIL PENCARIAN') || 
-    currentMessage.includes('RINGKASAN AI GOOGLE') || 
+    currentMessage.includes('HASIL PENCARIAN WEB') ||
+    currentMessage.includes('RINGKASAN HASIL PENCARIAN') ||
+    currentMessage.includes('RINGKASAN AI GOOGLE') ||
     currentMessage.includes('WEB SEARCH RESULTS')
   );
 
@@ -534,7 +533,7 @@ export const buildContextualPrompt = (messages, language = 'id', currentMessage 
 PANDUAN WAKTU & KRONOLOGI MUTLAK:
 1. Anda WAJIB berpedoman pada waktu sekarang (${dateFormattedId}, Tahun ${currentYear}). DILARANG KERAS mengira atau berasumsi bahwa sekarang masih tahun 2024 atau tahun lain di masa lalu!
 2. Jika pengguna menanyakan tahun berapa sekarang, jam berapa, hari apa, atau tanggal berapa hari ini, jawab LANGSUNG, AKURAT, dan SINGKAT menggunakan data waktu di atas (contoh: "Sekarang tahun ${currentYear}, hari ${dayNameId}, ${dateFormattedId} pukul ${timeFormattedWib} WIB."). DILARANG KERAS menolak atau mengatakan tidak tahu waktu!
-3. Untuk pertanyaan informasi/berita terbaru atau terkini, WAJIB sertakan "${dateFormattedId}" di query [SEARCH_REQUEST: ...]. Tag alarm di akhir respon jika diminta: [REMINDER_REQUEST: {"title":"Judul", "datetime":"ISO_8601_UTC", "type":"reminder"}]`;
+3. Untuk pertanyaan informasi/berita terbaru atau terkini, gunakan kata kunci pencarian singkat dan efektif (2-5 kata, contoh: [SEARCH_REQUEST: karhutla terbaru Indonesia]). Tag alarm di akhir respon jika diminta: [REMINDER_REQUEST: {"title":"Judul", "datetime":"ISO_8601_UTC", "type":"reminder"}]`;
   } else {
     timePromptBlock = `\n\n[CURRENT REAL-TIME CLOCK & YEAR - MANDATORY]:
 - CURRENT YEAR: ${currentYear} (NOT 2024!). Time is dynamic and the current year is ${currentYear}.
@@ -544,7 +543,7 @@ PANDUAN WAKTU & KRONOLOGI MUTLAK:
 CHRONOLOGICAL GUIDELINE:
 1. You MUST anchor all temporal awareness to the current date and year (${dateFormattedEn}, Year ${currentYear}). NEVER assume it is 2024 or in the past!
 2. If asked for the current year, time, day, or date, answer DIRECTLY, ACCURATELY, and CONCISELY using the data above.
-3. For latest news/recent updates, ALWAYS include "${dateFormattedEn}" in query [SEARCH_REQUEST: ...]. Tag reminder at end if requested: [REMINDER_REQUEST: {"title":"Title", "datetime":"ISO_8601_UTC", "type":"reminder"}]`;
+3. For latest news/recent updates, use concise and natural search keywords (2-5 words) in [SEARCH_REQUEST: ...]. Tag reminder at end if requested: [REMINDER_REQUEST: {"title":"Title", "datetime":"ISO_8601_UTC", "type":"reminder"}]`;
   }
 
   const cleanCurrentMsg = typeof currentMessage === 'string' ? currentMessage : '';
@@ -571,7 +570,7 @@ CHRONOLOGICAL GUIDELINE:
 
   const systemPrompt = SYSTEM_PROMPTS[language] || SYSTEM_PROMPTS.id;
   let finalPrompt = systemPrompt;
-  
+
   // Add username if provided
   if (userName && userName.trim()) {
     finalPrompt += language === 'id'
@@ -708,8 +707,8 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
   // Filter out system messages, search bubbles, and empty messages
   const cleanList = conversationHistory.filter(msg => {
     if (!msg || msg.sender === 'system' || msg.isSearching) return false;
-    const text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim()) 
-      ? msg.fullPrompt.trim() 
+    const text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim())
+      ? msg.fullPrompt.trim()
       : (typeof msg.text === 'string' ? msg.text.trim() : (typeof msg.content === 'string' ? msg.content.trim() : ''));
     return Boolean(text);
   });
@@ -721,8 +720,8 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
   for (let i = 0; i < totalCount; i++) {
     const msg = candidateHistory[i];
     const role = (msg.sender === 'user' || msg.role === 'user') ? 'user' : 'assistant';
-    let text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim()) 
-      ? msg.fullPrompt.trim() 
+    let text = (typeof msg.fullPrompt === 'string' && msg.fullPrompt.trim())
+      ? msg.fullPrompt.trim()
       : (typeof msg.text === 'string' ? msg.text.trim() : (typeof msg.content === 'string' ? msg.content.trim() : ''));
 
     // Normalize excessive newlines
@@ -786,13 +785,13 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true) => {
   const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
-  
+
   // Build messages untuk backend
   const isSearchConclusion = typeof message === 'string' && (
-    message.includes('HASIL PENCARIAN WEB') || 
+    message.includes('HASIL PENCARIAN WEB') ||
     message.includes('HASIL PENCARIAN & BERITA') ||
-    message.includes('RINGKASAN HASIL PENCARIAN') || 
-    message.includes('RINGKASAN AI GOOGLE') || 
+    message.includes('RINGKASAN HASIL PENCARIAN') ||
+    message.includes('RINGKASAN AI GOOGLE') ||
     message.includes('WEB SEARCH RESULTS') ||
     message.includes('[INSTRUKSI SISTEM:')
   );
@@ -854,45 +853,47 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
       try {
         memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
-      } catch (e) {}
+      } catch (e) { }
     }
     if (!memoryBlock && globalMemory) {
       memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
     }
 
-    const timeInfo = language === 'id' 
+    const timeInfo = language === 'id'
       ? `[WAKTU REAL-TIME SEKARANG]: Tahun ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayId}.`
       : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
 
     const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
-      ? '\n\n🔴 KEMAMPUAN SEARCH ENGINE & LIVE WEB CRAWLER:\n' +
-        '- Kamu terhubung langsung ke DeeperNova Search Engine yang siap melakukan pencarian web dan live crawling real-time.\n' +
-        '- ATURAN PENCARIAN WEB (SANGAT PENTING):\n' +
-        '  * JIKA pengguna meminta pencarian (misal kata: "cari", "search", "googling", "cek", "info tentang"), ATAU menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto terbaru, cuaca, skor/jadwal pertandingan, pemenang/pejabat terkini, fakta mutakhir, atau riset data web:\n' +
-        '    KAMU WAJIB MEMANCARKAN PERINTAH SEARCH DI BARIS PALING PERTAMA RESPONMU DENGAN FORMAT:\n' +
-        '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
-        '  * DILARANG KERAS langsung menjawab atau berhalusinasi sebelum memancarkan [SEARCH_REQUEST: ...]. Mesin pencari internal kami akan segera mengeksekusi flag tersebut, memunculkan bubble hasil sumber terverifikasi, lalu memberikan data terupdate kepada kamu untuk kamu olah.\n' +
-        '  * JIKA pertanyaan murni berupa sapaan santai ("halo", "apa kabar"), konsep umum, matematika murni, atau logika coding internal: kamu boleh langsung menjawab secara alami tanpa memanggil search engine.'
-      : '\n\n🔴 SEARCH ENGINE & LIVE WEB CRAWLER CAPABILITY:\n' +
-        '- You are directly connected to DeeperNova Search Engine and live web crawler.\n' +
-        '- WEB SEARCH MANDATORY RULES:\n' +
-        '  * IF the user requests a search ("search", "find", "look up", "check"), OR asks about current news, today\'s events, live prices/crypto/stocks, weather, sports scores/schedules, current officials, or any dynamic web facts:\n' +
-        '    YOU MUST EMIT A SEARCH COMMAND ON THE VERY FIRST LINE OF YOUR RESPONSE IN THIS FORMAT:\n' +
-        '    [SEARCH_REQUEST: your targeted search query]\n' +
-        '  * NEVER answer directly or hallucinate without emitting [SEARCH_REQUEST: ...] when fresh/web information is needed. The search engine will execute the flag, display the verified sources bubble, and provide you with fresh context to synthesize.\n' +
-        '  * ONLY if the question is pure casual greeting ("hello", "how are you"), general knowledge, pure math, or self-contained coding logic: answer directly without search.'
+      ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
+      '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan apakah perlu mencari di web 100% ditentukan olehmu!\n' +
+      '- ATURAN EKSEKUSI FLAG SEARCH (MUTLAK):\n' +
+      '  * JIKA pengguna meminta pencarian (misal: "cari", "search", "googling", "cek", "info tentang"), ATAU menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto/kurs terbaru, cuaca, skor/jadwal pertandingan, pejabat/tokoh terkini, fakta spesifik dunia nyata, atau riset data web:\n' +
+      '    KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):\n' +
+      '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
+      '    (atau [EXECUTE_SEARCH: kata kunci pencarian pilihanmu])\n' +
+      '  * BERHENTI SEGERA setelah tanda kurung siku tutup `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang berita sebelum menerima hasil pencarian! Sistem akan mengeksekusi flag tersebut, memunculkan bubble hasil pencarian terlebih dahulu, lalu mengirimkan data terverifikasi untuk kamu rangkum.\n' +
+      '  * JIKA pertanyaan murni berupa sapaan santai ("halo", "apa kabar"), konsep umum, matematika murni, atau logika coding mandiri: jawab langsung secara alami tanpa mengeluarkan flag search.'
+      : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
+      '- You are directly connected to DeeperNova Search Engine & Live Web Crawler. You alone decide when a web search is needed!\n' +
+      '- SEARCH EXECUTION FLAG RULES (MANDATORY):\n' +
+      '  * IF the user requests a search ("search", "find", "look up", "check"), OR asks about current news, today\'s events, live prices/crypto/stocks, weather, sports scores/schedules, current officials, or real-world facts:\n' +
+      '    OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE VERY FIRST LINE (WITH NO OTHER TEXT AFTER IT):\n' +
+      '    [SEARCH_REQUEST: your targeted search query]\n' +
+      '    (or [EXECUTE_SEARCH: your targeted search query])\n' +
+      '  * STOP IMMEDIATELY after the closing bracket `]`. NEVER write speculative answers or hallucinate news before receiving the search results! The system will execute your flag, render the search results bubble first, and pass the verified data back to you to synthesize.\n' +
+      '  * ONLY if the question is a casual greeting ("hello", "how are you"), general knowledge, pure math, or self-contained coding logic: answer directly without emitting a search flag.'
     );
 
     const visionInstruction = validImageUrls.length > 0
       ? (language === 'id'
         ? '\n\nKEMAMPUAN VISION (MUTLAK):\n' +
-          '- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n' +
-          '- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n' +
-          '- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!'
+        '- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n' +
+        '- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n' +
+        '- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!'
         : '\n\nVISION CAPABILITY (MANDATORY):\n' +
-          '- The user has attached image(s). You have full visual perception.\n' +
-          '- Thoroughly and accurately analyze and describe the image according to user inquiry.\n' +
-          '- NEVER claim you cannot see images or ask to re-upload!')
+        '- The user has attached image(s). You have full visual perception.\n' +
+        '- Thoroughly and accurately analyze and describe the image according to user inquiry.\n' +
+        '- NEVER claim you cannot see images or ask to re-upload!')
       : '';
 
     let modelNameLabel = 'DeeperNova Gold 1.5';
@@ -906,7 +907,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
 
     if (isSearchConclusion) {
       // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
-      systemPromptContent = 
+      systemPromptContent =
         `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI.\n` +
         timeInfo + '\n' +
         `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
@@ -918,7 +919,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
         `7. LANGSUNG KE JAWABAN: Dilarang menalar panjang, langsung berikan jawaban berita final yang lengkap dan jelas.`;
     } else {
-      systemPromptContent = 
+      systemPromptContent =
         `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n` +
         timeInfo + '\n' +
         `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
@@ -936,19 +937,19 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
 
     // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
     const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
-    
+
     // Jika item terakhir di conversationHistory adalah user message yang baru saja diketik, pisahkan agar tidak dobel
     let pastTurns = [];
     if (rawHistory.length > 0) {
       const lastItem = rawHistory[rawHistory.length - 1];
       const isLastItemUser = (lastItem.sender === 'user' || lastItem.role === 'user');
       const historyPool = isLastItemUser ? rawHistory.slice(0, -1) : rawHistory;
-      
+
       pastTurns = historyPool
         .filter(m => m && !m.isSearching && (m.text || m.content))
         .filter(m => {
           const txt = (m.text || m.content || '').trim();
-          return !txt.startsWith('[SEARCH_REQUEST:');
+          return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt);
         })
         .map(m => ({
           role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
@@ -1038,28 +1039,28 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       // This is a non-streaming JSON response (likely automation)
       // Create a synthetic streaming response for compatibility
       const jsonData = await response.json();
-      
+
       if (jsonData.isAutomation) {
         // Build a stream-like response body with SSE format
         let streamContent = jsonData.aiResponse || jsonData.flowMessage || jsonData.message || '';
-        
+
         // Add execution steps if available
         if (jsonData.executionSteps && Array.isArray(jsonData.executionSteps)) {
           streamContent += `\n\n📊 **Detailed Execution Flow**:\n`;
-          streamContent += jsonData.executionSteps.map(step => 
+          streamContent += jsonData.executionSteps.map(step =>
             `  ${step.status} Step ${step.step}: ${step.action} → ${step.detail}`
           ).join('\n');
         }
-        
+
         // Embed download metadata if available
         if (jsonData.downloadUrl && jsonData.fileName) {
           streamContent = `[FILE_DOWNLOAD_START:${jsonData.downloadUrl}:${jsonData.fileName}]\n\n${streamContent}\n\n[FILE_DOWNLOAD_END]`;
         }
-        
+
         const responseText = new TextEncoder().encode(
           `data: ${JSON.stringify({ choices: [{ delta: { content: streamContent } }] })}\ndata: [DONE]\n`
         );
-        
+
         // Create a mock stream response
         return {
           ok: true,
@@ -1075,8 +1076,8 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
                   }
                   return { done: true };
                 },
-                releaseLock: () => {},
-                cancel: () => {}
+                releaseLock: () => { },
+                cancel: () => { }
               };
             }
           }
@@ -1099,18 +1100,18 @@ export const appendToGlobalMemory = async (newQuestion, isAuthenticated, isGuest
 export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false, enableWebSearch = true) => {
   let lastError = null;
   const operationStartTime = Date.now();
-  
+
   // Non-blocking auto-record user question in global memory
-  appendToGlobalMemory(message, isAuthenticated, isGuest).catch(() => {});
-  
+  appendToGlobalMemory(message, isAuthenticated, isGuest).catch(() => { });
+
   // Instant synchronous memory access from local storage
   let globalMemory = '';
   try {
     globalMemory = localStorage.getItem('guest_global_memory') || '';
-  } catch (e) {}
+  } catch (e) { }
 
   // Background non-blocking RAG index load
-  ragService.tryLoadRemoteIndex().catch(() => {});
+  ragService.tryLoadRemoteIndex().catch(() => { });
 
   const safeUploadedImages = Array.isArray(uploadedImages) ? uploadedImages : [];
   const hasImages = safeUploadedImages.length > 0;
@@ -1119,11 +1120,11 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
 
   const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
-  
+
   const isDirectSearchConclusion = typeof message === 'string' && (
-    message.includes('HASIL PENCARIAN WEB') || 
-    message.includes('RINGKASAN HASIL PENCARIAN') || 
-    message.includes('RINGKASAN AI GOOGLE') || 
+    message.includes('HASIL PENCARIAN WEB') ||
+    message.includes('RINGKASAN HASIL PENCARIAN') ||
+    message.includes('RINGKASAN AI GOOGLE') ||
     message.includes('WEB SEARCH RESULTS')
   );
 
@@ -1142,10 +1143,10 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
   // Duplicate reminders were causing over-searching behavior.
   const directSearchReminder = '';
 
-  const formatInstructions = isDirectSearchConclusion ? '' : ((language === 'id' 
+  const formatInstructions = isDirectSearchConclusion ? '' : ((language === 'id'
     ? `\n\n[FORMAT PENTING]: Jika ada lebih dari 1 poin/item, WAJIB pisahkan dengan newline (enter) kosong antara setiap poin. Jangan tulis semua dalam 1 blok paragraf.`
     : `\n\n[FORMAT IMPORTANT]: If there are multiple points/items, MUST separate each with a blank newline. Don't write everything in 1 paragraph.`) + directSearchReminder);
-  
+
   const validDirectImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
   const localMemoryContext = isDirectSearchConclusion ? '' : getLocalMemoryContext(message, language, conversationId, sessionMessageCount);
 
@@ -1201,14 +1202,14 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
 export const sendAgenticMessage = async (messages, abortController = null) => {
   const resolvedModel = 'deepernova v1 flash 1';
   console.log(`[AGENTIC] Routing agentic request to backend proxy: ${API_BASE_URL}/api/chat`);
-  
+
   try {
     const deviceId = getDeviceId();
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/chat`,
       {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'x-device-id': deviceId,
         },
@@ -1226,7 +1227,7 @@ export const sendAgenticMessage = async (messages, abortController = null) => {
       },
       TIMEOUT_CONFIG.fetchTimeoutMs
     );
-    
+
     if (response.ok) return response;
     const errText = await response.text();
     throw new Error(`Backend proxy error ${response.status}: ${errText}`);
@@ -1318,9 +1319,9 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
 
   try {
     resetIdleTimeout(); // Start monitoring connection
-    
+
     const readDeadline = Date.now() + TIMEOUT_CONFIG.streamReadTimeoutMs;
-    
+
     let isStreamDone = false;
     while (true) {
       if (abortSignal?.aborted || isStreamDone) {
@@ -1332,25 +1333,25 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
       if (Date.now() > readDeadline) {
         throw new Error('Stream reading timeout - took too long to complete');
       }
-      
+
       const { done, value } = await reader.read();
-      
+
       if (value) {
         _lastDataReceivedTime = Date.now();
         resetIdleTimeout(); // Reset idle timeout when we receive data
       }
-      
+
       if (done) break;
-      
+
       const chunk = decoder.decode(value, { stream: true });
       rawData += chunk;
       buffer += chunk;
-      
+
       const lines = buffer.split(/\r?\n/);
-      
+
       // Keep last line in buffer jika tidak lengkap (tidak ada \n di akhir)
       buffer = lines.pop() || '';
-      
+
       for (const line of lines) {
         const trimmedLine = line.trim();
         if (trimmedLine.startsWith('data: ')) {
@@ -1359,7 +1360,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
             isStreamDone = true;
             break;
           }
-          
+
           let parsed;
           let isJsonValid = false;
           try {
@@ -1369,7 +1370,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
             // Ignore parse errors for incomplete JSON - might complete in next chunk
             console.debug('JSON parse error (expected for streaming):', e.message);
           }
-          
+
           if (isJsonValid && parsed) {
             if (parsed.error) {
               throw new Error(parsed.error);
@@ -1386,7 +1387,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
             }
             if (delta?.content) {
               let text = sanitizeAntiQwen(delta.content);
-              
+
               // Handle models emitting <think> ... </think> tags in standard content stream
               if (text.includes('<think>')) {
                 const parts = text.split('<think>');
@@ -1398,7 +1399,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
                 // Mark in reasoning mode
                 reader._insideThink = true;
               }
-              
+
               if (reader._insideThink) {
                 if (text.includes('</think>')) {
                   const parts = text.split('</think>');
@@ -1432,7 +1433,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
         break;
       }
     }
-    
+
     // Process remaining buffer jika ada
     if (buffer.trim()) {
       const trimmedLine = buffer.trim();
@@ -1481,23 +1482,23 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
     }
   } catch (err) {
     clearIdleTimeout();
-    
+
     if (abortSignal?.aborted && err.name === 'AbortError') {
       console.log('Stream reading aborted by user');
-      return fullText;
+      return { fullText, usage: streamUsage, aborted: true };
     }
-    
+
     // Re-throw with more context
     if (err.message.includes('timeout') || err.message.includes('idle')) {
       throw new Error(`Connection lost during streaming: ${err.message}`);
     }
-    
+
     throw err;
   } finally {
     clearIdleTimeout();
     reader.releaseLock();
   }
-  
+
   return { fullText, usage: streamUsage };
 };
 
