@@ -348,6 +348,9 @@ export const SourceBubbleCarousel = React.memo(({ sources = [], language, onShow
               const cleanDomain = rawDomain.replace(/^www\./, '');
               const shortLabel = formatBubbleDomainLabel(cleanDomain);
               const faviconUrl = cleanDomain ? `https://www.google.com/s2/favicons?sz=64&domain=${cleanDomain}` : 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png';
+              const rankNum = source.position || (i + 1);
+              const scoreText = source.accuracyScore ? ` • ${Math.round(source.accuracyScore)}% Akurasi` : '';
+              const prText = source.pagerank ? ` • PR: ${source.pagerank}` : '';
 
               return (
                 <a
@@ -355,23 +358,26 @@ export const SourceBubbleCarousel = React.memo(({ sources = [], language, onShow
                   href={source.link || source.url || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title={`${source.title || cleanDomain}\n${source.snippet || ''}`}
+                  title={`[Peringkat #${rankNum}${scoreText}${prText}]\n${source.title || cleanDomain}\n${source.snippet || ''}`}
                   className="source-bubble"
                 >
-                  <img
-                    src={faviconUrl}
-                    onError={(e) => {
-                      if (!e.target.dataset.triedDuck && cleanDomain) {
-                        e.target.dataset.triedDuck = 'true';
-                        e.target.src = `https://icons.duckduckgo.com/ip3/${cleanDomain}.ico`;
-                      } else {
-                        e.target.src = 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png';
-                      }
-                    }}
-                    className="source-bubble-favicon"
-                    alt={cleanDomain || 'source'}
-                    loading="lazy"
-                  />
+                  <div className="source-bubble-icon-wrapper" style={{ position: 'relative', width: 44, height: 44 }}>
+                    <img
+                      src={faviconUrl}
+                      onError={(e) => {
+                        if (!e.target.dataset.triedDuck && cleanDomain) {
+                          e.target.dataset.triedDuck = 'true';
+                          e.target.src = `https://icons.duckduckgo.com/ip3/${cleanDomain}.ico`;
+                        } else {
+                          e.target.src = 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png';
+                        }
+                      }}
+                      className="source-bubble-favicon"
+                      alt={cleanDomain || 'source'}
+                      loading="lazy"
+                    />
+                    <span className="source-bubble-rank-badge">#{rankNum}</span>
+                  </div>
                   <span className="source-bubble-label">
                     {shortLabel}
                   </span>

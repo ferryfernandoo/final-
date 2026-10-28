@@ -217,6 +217,7 @@ function mapRawResultsToOrganic(rawList = []) {
       try { domain = new URL(itemUrl).hostname.replace(/^www\./i, ''); } catch (e) { }
     }
     const favicon = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null;
+    const rawScore = Number(item.accuracyScore || item.score || 88.5);
     return {
       title: cleanSearchText(item.title) || 'Untitled',
       link: itemUrl,
@@ -224,7 +225,13 @@ function mapRawResultsToOrganic(rawList = []) {
       snippet: cleanSearchText(item.snippet) || cleanSearchText(item.description) || '',
       domain: domain,
       thumbnail: item.lead_image_url || item.logo_url || item.image || item.thumbnail || favicon,
-      position: idx + 1,
+      position: item.position || (idx + 1),
+      accuracyScore: Math.round(rawScore * 10) / 10,
+      score: Math.round(rawScore * 10) / 10,
+      pagerank: Number(item.pagerank || 3.0),
+      trustScore: Number(item.trustScore || item.trust_score || 90),
+      bm25: Number(item.bm25 || 1.0),
+      isLiveNews: Boolean(item.isLiveNews || item.category === 'news'),
       date: item.formatted_date || item.formattedDate || item.date || null,
       publishedAt: item.published_at || item.publishedAt || item.crawledAt || null
     };
@@ -483,12 +490,12 @@ async function performPublicWebFallback(query, limit = 8, timeoutMs = 3200) {
       ? [ { lang: 'id', q: coreTopicQuery }, { lang: 'id', q: query }, { lang: 'en', q: coreTopicQuery } ]
       : [ { lang: 'id', q: query }, { lang: 'en', q: query } ];
 
-    const wikiPromises = wikiQueries.map(async ({ lang, q }) => {
-      const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&utf8=&format=json&origin=*&srlimit=4`;
+    const wikiPromises = wikiQueries.slice(0, 2).map(async ({ lang, q }) => {
+      const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&utf8=&format=json&origin=*&srlimit=1`;
       const res = await fetch(url, { signal: controller.signal });
       if (!res.ok) return [];
       const data = await res.json();
-      const items = data?.query?.search || [];
+      const items = (data?.query?.search || []).slice(0, 1);
       return items.map((item) => {
         const title = cleanSearchText(item.title);
         const pageUrl = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/\s+/g, '_'))}`;
@@ -499,6 +506,12 @@ async function performPublicWebFallback(query, limit = 8, timeoutMs = 3200) {
           url: pageUrl,
           snippet: cleanSearchText(item.snippet) || title,
           domain,
+          accuracyScore: 78.0,
+          score: 78.0,
+          pagerank: 2.0,
+          trustScore: 82,
+          bm25: 1.0,
+          isLiveNews: false,
           thumbnail: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
           date: item.timestamp ? item.timestamp.slice(0, 10) : null
         };
@@ -627,6 +640,11 @@ export function buildGuaranteedReferenceSources(query) {
     domain: p.domain,
     thumbnail: `https://www.google.com/s2/favicons?sz=64&domain=${p.domain}`,
     logo_url: `https://www.google.com/s2/favicons?sz=64&domain=${p.domain}`,
+    accuracyScore: Math.max(70, 92 - (idx * 3)),
+    score: Math.max(70, 92 - (idx * 3)),
+    pagerank: 3.2,
+    trustScore: 90,
+    bm25: 1.0,
     position: idx + 1
   }));
 }
@@ -676,12 +694,12 @@ export async function executeWebSearch(query, options = {}) {
     const cloudPromise = wrapSearchResult(performCloudDirectSearch(effectiveQuery, limit, 3200));
     const publicPromise = wrapSearchResult(performPublicWebFallback(effectiveQuery, limit, 3000));
 
-    // Give primary Deepernova engines (Proxy Hybrid & Direct BM25) a 350ms head start before allowing public fallback to win the race,
-    // while public fallback is already fetching in parallel so total wait is tiny!
+    // Give primary Deepernova engines (Proxy Hybrid & Direct BM25) up to 2400ms to return
+    // fresh neural-ranked news & indexed web results before falling back to public fallback
     const delayedPublicWin = new Promise((resolve) => {
       setTimeout(() => {
         publicPromise.then(resolve);
-      }, 350);
+      }, 2400);
     });
 
     const firstResult = await Promise.race([

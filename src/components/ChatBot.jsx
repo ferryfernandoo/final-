@@ -6707,15 +6707,32 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         return {
           title: item.title || 'Untitled',
           link: url || '#',
+          url: url || '#',
           snippet: item.snippet || item.description || item.content || '',
           domain: domain,
-          thumbnail: thumbnail
+          thumbnail: thumbnail,
+          position: item.position || (idx + 1),
+          accuracyScore: item.accuracyScore || item.score || null,
+          score: item.score || item.accuracyScore || null,
+          pagerank: item.pagerank ?? null,
+          trustScore: item.trustScore ?? null,
+          bm25: item.bm25 ?? null,
+          isLiveNews: item.isLiveNews ?? false,
+          date: item.date || item.formattedDate || null,
+          publishedAt: item.publishedAt || item.published_at || null
         };
       });
 
       if (sources.length === 0) {
         sources = buildGuaranteedReferenceSources(searchQuery);
       }
+
+      // Neural Ranking: Sort sources by accuracy score
+      sources.sort((a, b) => (Number(b.accuracyScore || b.score || 0) - Number(a.accuracyScore || a.score || 0)));
+      sources.forEach((s, i) => { s.position = i + 1; });
+
+      // Always populate foundSources state so top source bar & active sources are visible!
+      setFoundSources(sources);
 
       // Update message state with sources and images (keep text strictly empty while preparing)
       setMessages((prev) =>
@@ -6768,10 +6785,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Render search result bubbles first before AI starts typing response
       await new Promise(resolve => setTimeout(resolve, 550));
 
-      // Build rich context from search results for the AI
-      const searchContext = sources.map((s, idx) =>
-        `[Sumber ${idx + 1}] ${s.title}\nURL: ${s.link}\nKutipan: ${s.snippet}`
-      ).join('\n\n');
+      // Build rich context from search results for the AI (with neural ranking signals)
+      const searchContext = sources.map((s, idx) => {
+        const rankBadge = s.accuracyScore ? ` [Peringkat #${idx + 1} | Akurasi: ${Math.round(s.accuracyScore)}% | PageRank: ${s.pagerank || '3.5'}]` : ` [Peringkat #${idx + 1}]`;
+        return `[Sumber #${idx + 1}${rankBadge}] ${s.title}\nURL: ${s.link}\nKutipan: ${s.snippet}`;
+      }).join('\n\n');
 
       // Initialize context history if empty
       searchContextHistoryRef.current[messageId] = searchContextHistoryRef.current[messageId] || [];

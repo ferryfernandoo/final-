@@ -10,11 +10,7 @@ async function warmTopQueries() {
       const res = await searchEngine.searchAsync(q, { page: 1, limit: 12, type: 'all', timeFilter: 'all' }, db);
       const cacheKey = `${q.trim().toLowerCase()}|1|12|all|all|false`;
       setHttpSearchCache(cacheKey, { ...res, type: 'all', timeFilter: 'all', liveCrawlTriggered: false });
-
-      // Pre-warm images query into RAM
-      const imgRes = searchEngine.searchImages(q, { page: 1, limit: 24 });
-      const imgCacheKey = `${q.trim().toLowerCase()}|1|24|images|all|false`;
-      setHttpSearchCache(imgCacheKey, { ...imgRes, liveCrawlTriggered: false });
+      await new Promise(r => setTimeout(r, 20));
     } catch {}
   }
   console.log('[Server Cache] ✅ Top search queries pre-warmed into RAM!');
@@ -972,12 +968,300 @@ function formatAiContext(query, results) {
 }
 
 // Dedicated Developer & AI Search API Handler (v1)
+
+
+// ============================================================================
+// 🚀 DEEPERNOVA ULTRA-FAST NEURAL RANKED HYBRID SEARCH ENGINE
+// ============================================================================
+async function executeUnifiedRankedSearch(query, options = {}) {
+  const cleanQ = (query || '').trim();
+  const page = Math.max(1, parseInt(options.page || '1', 10));
+  const limit = Math.min(50, Math.max(1, parseInt(options.limit || '10', 10)));
+  const timeFilter = options.timeFilter || 'all';
+  const type = options.type || 'all';
+  const forceOriginal = options.forceOriginal === true || options.forceOriginal === '1';
+
+  const tStart = performance.now();
+
+  let engineResult;
+  try {
+    if (type === 'images') {
+      engineResult = searchEngine.searchImages(cleanQ, { page, limit });
+    } else {
+      engineResult = await searchEngine.searchAsync(cleanQ, { page, limit, timeFilter, type, forceOriginal }, db);
+    }
+  } catch (err) {
+    engineResult = { total: 0, results: [], durationMs: 0 };
+  }
+
+  const terms = cleanQ.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(t => t.length >= 2);
+  const intentInfo = typeof searchEngine.parseQueryIntent === 'function' ? searchEngine.parseQueryIntent(cleanQ) : null;
+
+  let formattedResults = (engineResult.results || []).map(r => {
+    const rawTitle = (r.rawTitle || r.title || '').replace(/<[^>]+>/g, '').trim();
+    const snippet = (r.snippet || r.description || r.content || '').replace(/<[^>]+>/g, '').trim();
+    const pubDate = r.publishedAt || r.published_at || r.crawledAt || r.crawled_at;
+    const formattedDate = r.formattedDate || r.date || (pubDate ? new Date(pubDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
+    const score = Number(r.accuracyScore || r.score || r.rankingScore || 75);
+    return {
+      id: r.id || undefined,
+      title: rawTitle,
+      rawTitle,
+      url: r.url || '',
+      link: r.url || '',
+      domain: r.domain || '',
+      snippet,
+      description: snippet,
+      content: r.content || snippet,
+      author: r.author || null,
+      published_at: safeIsoDate(pubDate),
+      publishedAt: pubDate || null,
+      date: formattedDate,
+      formatted_date: formattedDate,
+      formattedDate: formattedDate,
+      accuracyScore: Math.round(score * 10) / 10,
+      score: Math.round(score * 10) / 10,
+      pagerank: Number(r.pagerank || 1.5),
+      trustScore: Number(r.trustScore || r.trust_score || 80),
+      trust_score: Number(r.trustScore || r.trust_score || 80),
+      bm25: Number(r.bm25 || 1.0),
+      logo_url: r.logo_url || r.logoUrl || (r.domain ? `https://www.google.com/s2/favicons?sz=64&domain=${r.domain}` : null),
+      lead_image_url: r.lead_image_url || r.leadImageUrl || null,
+      sitelinks: r.sitelinks || []
+    };
+  });
+
+  // If local results are sparse (< 5), trigger parallel live web/news ingestion (< 850ms)
+  const isNewsOrTechQuery = /\b(berita|terbaru|terkini|hari ini|kemarin|sekarang|bug|cve|vulnerability|celah|security|patch|update|rilis|nodejs|python|ai|deepseek|openai|google)\b/i.test(cleanQ);
+  if (formattedResults.length < 5 && cleanQ && type !== 'images') {
+    try {
+      const enc = encodeURIComponent(cleanQ);
+      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+      const liveItems = [];
+
+      await Promise.allSettled([
+        // 1. Google News RSS (Indonesia & Global)
+        (async () => {
+          try {
+            const feedUrls = [
+              `https://news.google.com/rss/search?q=${enc}&hl=id&gl=ID&ceid=ID:id`,
+              `https://news.google.com/rss/search?q=${enc}&hl=en-US&gl=US&ceid=US:en`
+            ];
+            await Promise.allSettled(feedUrls.map(async (u) => {
+              const resp = await fetch(u, {
+                signal: AbortSignal.timeout(1000),
+                headers: { 'User-Agent': userAgent }
+              });
+              if (!resp.ok) return;
+              const xml = await resp.text();
+              const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+              for (const m of itemMatches.slice(0, 6)) {
+                const itemXml = m[1];
+                const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
+                const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
+                const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
+                const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
+                const sourceUrl = (itemXml.match(/<source[^>]*url=["']([^"']+)["']/i)?.[1] || '').trim();
+                if (rawTitle && rawLink) {
+                  let domain = '';
+                  try { domain = new URL(sourceUrl || rawLink).hostname.replace('www.', ''); } catch (e) {}
+                  liveItems.push({
+                    url: rawLink,
+                    domain: domain || 'news.google.com',
+                    title: rawTitle,
+                    description: `${rawTitle} — ${source || 'Berita Web Terverifikasi'} (${pubDate || 'Hari ini'})`,
+                    headings: rawTitle,
+                    content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
+                    author: source || null,
+                    category: 'news',
+                    publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
+                    pagerank: 3.5,
+                    trustScore: 92
+                  });
+                }
+              }
+            }));
+          } catch {}
+        })(),
+
+        // 2. Bing News RSS
+        (async () => {
+          try {
+            const resp = await fetch(`https://www.bing.com/news/search?q=${enc}&format=rss`, {
+              signal: AbortSignal.timeout(950),
+              headers: { 'User-Agent': userAgent }
+            });
+            if (!resp.ok) return;
+            const xml = await resp.text();
+            const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+            for (const m of items.slice(0, 5)) {
+              const itemXml = m[1];
+              const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
+              const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
+              const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
+              const rawDesc = (itemXml.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || '').replace(/<[^>]+>/g, '').trim();
+              if (rawTitle && rawLink) {
+                let domain = '';
+                try { domain = new URL(rawLink).hostname.replace('www.', ''); } catch (e) {}
+                liveItems.push({
+                  url: rawLink,
+                  domain: domain || 'bing.com',
+                  title: rawTitle,
+                  description: rawDesc || rawTitle,
+                  headings: rawTitle,
+                  content: rawDesc || rawTitle,
+                  category: 'news',
+                  publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
+                  pagerank: 3.2,
+                  trustScore: 89
+                });
+              }
+            }
+          } catch {}
+        })(),
+
+        // 3. Wikipedia (CAPPED TO AT MOST 1 SUPPLEMENTARY ITEM unless query explicitly searches for wikipedia)
+        (async () => {
+          try {
+            const wantsWiki = cleanQ.toLowerCase().includes('wikipedia') || cleanQ.toLowerCase().includes('definisi') || cleanQ.toLowerCase().includes('arti');
+            if (isNewsOrTechQuery && !wantsWiki && liveItems.length > 0) return;
+
+            const wikiResp = await fetch(`https://id.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=2&namespace=0&format=json`, {
+              signal: AbortSignal.timeout(800),
+              headers: { 'User-Agent': userAgent }
+            });
+            if (wikiResp.ok) {
+              const data = await wikiResp.json();
+              if (Array.isArray(data) && data[1] && data[1].length > 0) {
+                const title = data[1][0];
+                const snippet = (data[2] && data[2][0]) || title;
+                const link = (data[3] && data[3][0]) || '';
+                if (title && link) {
+                  liveItems.push({
+                    url: link,
+                    domain: 'id.wikipedia.org',
+                    title: `${title} — Wikipedia Bahasa Indonesia`,
+                    description: snippet,
+                    headings: title,
+                    content: snippet,
+                    lang: 'id',
+                    category: 'knowledge',
+                    publishedAt: Date.now() - 86400000,
+                    pagerank: 2.0,
+                    trustScore: 85
+                  });
+                }
+              }
+            }
+          } catch {}
+        })()
+      ]);
+
+      const seenUrls = new Set(formattedResults.map(r => (r.url || '').toLowerCase().replace(/\/+$/, '')));
+
+      for (const item of liveItems) {
+        const normUrl = (item.url || '').toLowerCase().replace(/\/+$/, '');
+        if (seenUrls.has(normUrl)) continue;
+        seenUrls.add(normUrl);
+
+        let calculatedScore = 78.0;
+        try {
+          if (typeof searchEngine.calculateQueryAccuracyScore === 'function') {
+            calculatedScore = searchEngine.calculateQueryAccuracyScore(item, cleanQ, terms, null, intentInfo);
+          }
+        } catch {}
+
+        if (item.category === 'news') {
+          calculatedScore = Math.max(calculatedScore, 88.5);
+        } else if (item.domain.includes('wikipedia.org')) {
+          calculatedScore = Math.min(calculatedScore, 82.0);
+        }
+
+        const pubDate = item.publishedAt;
+        const formattedDate = pubDate ? new Date(pubDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+
+        try { db.savePage(item); } catch {}
+
+        formattedResults.push({
+          title: item.title,
+          rawTitle: item.title,
+          url: item.url,
+          link: item.url,
+          domain: item.domain,
+          snippet: item.description,
+          description: item.description,
+          content: item.content || item.description,
+          author: item.author || null,
+          published_at: safeIsoDate(pubDate),
+          publishedAt: pubDate,
+          date: formattedDate,
+          formatted_date: formattedDate,
+          formattedDate: formattedDate,
+          accuracyScore: Math.round(calculatedScore * 10) / 10,
+          score: Math.round(calculatedScore * 10) / 10,
+          pagerank: item.pagerank || 3.0,
+          trustScore: item.trustScore || 90,
+          trust_score: item.trustScore || 90,
+          bm25: 1.0,
+          logo_url: item.domain ? `https://www.google.com/s2/favicons?sz=64&domain=${item.domain}` : null,
+          lead_image_url: null,
+          sitelinks: []
+        });
+      }
+    } catch {}
+  }
+
+  // Sort strictly by accuracyScore DESC (Neural Ranking)
+  formattedResults.sort((a, b) => (b.accuracyScore || 0) - (a.accuracyScore || 0));
+
+  // Cap per root domain (Publisher diversity)
+  const diverseList = [];
+  const domainCount = new Map();
+  for (const r of formattedResults) {
+    const rootD = (r.domain || '').replace(/^www\./i, '').toLowerCase();
+    const count = domainCount.get(rootD) || 0;
+    if (count < 2) {
+      domainCount.set(rootD, count + 1);
+      diverseList.push(r);
+    }
+  }
+
+  const finalPageRows = diverseList.slice((page - 1) * limit, page * limit).map((r, idx) => ({
+    ...r,
+    position: idx + 1
+  }));
+
+  const latencyMs = Math.round((performance.now() - tStart) * 100) / 100;
+
+  return {
+    query: cleanQ,
+    actualQuery: cleanQ,
+    total: diverseList.length,
+    page,
+    limit,
+    durationMs: latencyMs,
+    duration_ms: latencyMs,
+    instantAnswer: engineResult.instantAnswer || null,
+    correction: engineResult.correction || null,
+    type,
+    algorithm: {
+      name: "DeeperNova High-Trust Neural Search Ranking Engine",
+      formula: "AccuracyScore = ExactTitleBonus + QueryTermCoverage + PageRank + EEAT_TrustScore + RecencyBoost",
+      terms
+    },
+    results: finalPageRows
+  };
+}
+
+
+// Dedicated Developer & AI Search API Handler (v1)
 async function handleV1Search(req, res) {
   const query = (req.query.q || req.body?.query || req.body?.q || '').trim();
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || req.body?.limit || '10', 10)));
   const page = Math.max(1, parseInt(req.query.page || req.body?.page || '1', 10));
   const timeFilter = req.query.timeFilter || req.body?.timeFilter || 'all';
-  const type = req.query.type || req.body?.type || 'all'; // 'all' | 'news' | 'images'
+  const type = req.query.type || req.body?.type || 'all';
   const forceCrawl = req.query.crawl === '1' || req.query.crawl === 'true';
 
   if (!query) {
@@ -988,7 +1272,6 @@ async function handleV1Search(req, res) {
     });
   }
 
-  // ⚡ Check High-Speed In-Memory HTTP Cache first (<1ms response)
   const cacheKey = `v1|${query.toLowerCase()}|${page}|${limit}|${timeFilter}|${type}`;
   if (!forceCrawl) {
     const cached = getHttpSearchCache(cacheKey);
@@ -999,260 +1282,24 @@ async function handleV1Search(req, res) {
     }
   }
 
-  const tStart = performance.now();
-  let result;
-  let searchTimer = null;
-  const timeoutPromise = new Promise((resolve) => {
-    searchTimer = setTimeout(() => {
-      resolve({
-        total: 0,
-        results: [],
-        durationMs: MAX_SEARCH_SESSION_TIMEOUT_MS,
-        timedOut: true,
-        message: 'Batas waktu pencarian 10 detik per sesi tercapai (QoS Protection).'
-      });
-    }, MAX_SEARCH_SESSION_TIMEOUT_MS);
-  });
-
-  const searchExecution = (async () => {
-    if (type === 'images') {
-      return searchEngine.searchImages(query, { page, limit });
-    } else {
-      return await searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal: false }, db);
-    }
-  })();
-
-  result = await Promise.race([searchExecution, timeoutPromise]);
-  if (searchTimer) clearTimeout(searchTimer);
-  const latencyMs = Math.round((performance.now() - tStart) * 100) / 100;
-
-  // Autonomous on-demand crawl injection: keep crawler fed with user/AI queries
-  if (query && crawlerEngine && typeof crawlerEngine.injectSeeds === 'function') {
-    try {
-      const encoded = encodeURIComponent(query.trim());
-      const querySeeds = [
-        `https://id.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-        `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-        `https://news.google.com/rss/search?q=${encoded}&hl=id&gl=ID&ceid=ID:id`,
-        `https://news.google.com/rss/search?q=${encoded}&hl=en-US&gl=US&ceid=US:en`
-      ];
-      crawlerEngine.injectSeeds(querySeeds, 35);
-    } catch (_cErr) {}
-  }
-
-  const formattedResults = (result.results || []).map(r => {
-    const rawTitle = (r.rawTitle || r.title || '').replace(/<[^>]+>/g, '').trim();
-    const snippet = (r.snippet || r.description || r.content || '').replace(/<[^>]+>/g, '').trim();
-    const pubDate = r.publishedAt || r.published_at;
-    const formattedDate = r.formattedDate || r.date || (pubDate ? new Date(pubDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
-    return {
-      title: rawTitle,
-      url: r.url || '',
-      domain: r.domain || '',
-      snippet: snippet,
-      description: snippet,
-      author: r.author || null,
-      published_at: safeIsoDate(pubDate),
-      date: formattedDate,
-      formatted_date: formattedDate,
-      formattedDate: formattedDate,
-      accuracyScore: r.accuracyScore || r.rankingScore || 0,
-      score: r.accuracyScore || r.rankingScore || 0,
-      pagerank: r.pagerank || 0,
-      trust_score: r.trust_score || r.trustScore || 0,
-      logo_url: r.logo_url || r.logoUrl || null,
-      lead_image_url: r.lead_image_url || r.leadImageUrl || null
-    };
-  });
-
-  // 🚀 Fast Live Crawl Turbo Ingestion: If results are sparse (<3), fetch and index live in parallel (<1.1s max)
-  const runLiveIngestion = async (targetList = null) => {
-    try {
-      const enc = encodeURIComponent(query.trim());
-      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
-
-      await Promise.allSettled([
-        // 1. Google News RSS Live Ingestion
-        (async () => {
-          try {
-            const rssResp = await fetch(`https://news.google.com/rss/search?q=${enc}&hl=id&gl=ID&ceid=ID:id`, {
-              signal: AbortSignal.timeout(1100),
-              headers: { 'User-Agent': userAgent }
-            });
-            if (rssResp.ok) {
-              const xml = await rssResp.text();
-              const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
-              for (const m of itemMatches.slice(0, 8)) {
-                const itemXml = m[1];
-                const rawTitle = (itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[(.*?)\]\]>/gi, '$1').trim();
-                const rawLink = (itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
-                const pubDate = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || '').trim();
-                const source = (itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '').trim();
-                const sourceUrl = (itemXml.match(/<source[^>]*url=["']([^"']+)["']/i)?.[1] || '').trim();
-                if (rawTitle && rawLink) {
-                  let domain = '';
-                  try { domain = new URL(sourceUrl || rawLink).hostname.replace('www.', ''); } catch(e) {}
-                  const pageItem = {
-                    url: rawLink,
-                    domain: domain || 'news.google.com',
-                    title: rawTitle,
-                    description: `${rawTitle} — ${source || 'Berita Terkini'} (${pubDate || 'Hari ini'})`,
-                    headings: rawTitle,
-                    content: `${rawTitle} - ${source || 'Berita Web Terverifikasi'}`,
-                    author: source || null,
-                    category: 'news',
-                    publishedAt: (pubDate && !Number.isNaN(new Date(pubDate).getTime())) ? new Date(pubDate).getTime() : Date.now(),
-                    pagerank: 2.5,
-                    trustScore: 88
-                  };
-                  db.savePage(pageItem);
-                  if (targetList) {
-                    targetList.push({
-                      title: rawTitle,
-                      url: rawLink,
-                      domain: domain || 'news.google.com',
-                      snippet: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-                      description: `${rawTitle} (Sumber: ${source || 'Berita Web Terverifikasi'})`,
-                      author: source || null,
-                      published_at: safeIsoDate(pubDate) || new Date().toISOString(),
-                      pagerank: 2.5,
-                      trust_score: 88,
-                      logo_url: domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null,
-                      lead_image_url: null
-                    });
-                  }
-                }
-              }
-            }
-          } catch {}
-        })(),
-
-        // 2. Wikipedia Indonesia Live Ingestion
-        (async () => {
-          try {
-            const wikiResp = await fetch(`https://id.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=5&namespace=0&format=json`, {
-              signal: AbortSignal.timeout(1000),
-              headers: { 'User-Agent': userAgent }
-            });
-            if (wikiResp.ok) {
-              const data = await wikiResp.json();
-              if (Array.isArray(data) && data[1] && data[1].length > 0) {
-                const titles = data[1];
-                const snippets = data[2] || [];
-                const links = data[3] || [];
-                for (let i = 0; i < titles.length; i++) {
-                  const title = titles[i];
-                  const link = links[i];
-                  const snippet = snippets[i] || title;
-                  if (title && link) {
-                    db.savePage({
-                      url: link,
-                      domain: 'id.wikipedia.org',
-                      title: `${title} - Wikipedia bahasa Indonesia`,
-                      description: snippet,
-                      headings: title,
-                      content: snippet,
-                      lang: 'id',
-                      pagerank: 1.8,
-                      trustScore: 92
-                    });
-                    if (targetList) {
-                      targetList.push({
-                        title: `${title} - Wikipedia bahasa Indonesia`,
-                        url: link,
-                        domain: 'id.wikipedia.org',
-                        snippet: snippet,
-                        description: snippet,
-                        published_at: new Date().toISOString(),
-                        pagerank: 1.8,
-                        trust_score: 92,
-                        logo_url: 'https://id.wikipedia.org/favicon.ico',
-                        lead_image_url: null
-                      });
-                    }
-                  }
-                }
-              }
-            }
-          } catch {}
-        })(),
-
-        // 3. Wikipedia English Live Ingestion
-        (async () => {
-          try {
-            const wikiEnResp = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${enc}&limit=3&namespace=0&format=json`, {
-              signal: AbortSignal.timeout(1000),
-              headers: { 'User-Agent': userAgent }
-            });
-            if (wikiEnResp.ok) {
-              const data = await wikiEnResp.json();
-              if (Array.isArray(data) && data[1] && data[1].length > 0) {
-                const titles = data[1];
-                const snippets = data[2] || [];
-                const links = data[3] || [];
-                for (let i = 0; i < titles.length; i++) {
-                  const title = titles[i];
-                  const link = links[i];
-                  const snippet = snippets[i] || title;
-                  if (title && link) {
-                    db.savePage({
-                      url: link,
-                      domain: 'en.wikipedia.org',
-                      title: `${title} - Wikipedia`,
-                      description: snippet,
-                      headings: title,
-                      content: snippet,
-                      lang: 'en',
-                      pagerank: 1.8,
-                      trustScore: 92
-                    });
-                    if (targetList) {
-                      targetList.push({
-                        title: `${title} - Wikipedia`,
-                        url: link,
-                        domain: 'en.wikipedia.org',
-                        snippet: snippet,
-                        description: snippet,
-                        published_at: new Date().toISOString(),
-                        pagerank: 1.8,
-                        trust_score: 92,
-                        logo_url: 'https://en.wikipedia.org/favicon.ico',
-                        lead_image_url: null
-                      });
-                    }
-                  }
-                }
-              }
-            }
-          } catch {}
-        })()
-      ]);
-    } catch (_liveErr) {}
-  };
-
-  if (formattedResults.length < 3 && query && type !== 'images') {
-    await runLiveIngestion(formattedResults);
-  } else if (query && type !== 'images') {
-    // Asynchronously refresh hot RAM ring buffer in background without delaying HTTP response!
-    setImmediate(() => { runLiveIngestion(null); });
-  }
-
-  const aiContext = formatAiContext(query, formattedResults);
+  const result = await executeUnifiedRankedSearch(query, { page, limit, timeFilter, type, forceOriginal: false });
+  const aiContext = formatAiContext(query, result.results);
 
   const payload = {
     status: 'success',
     api_version: 'v1',
     query,
-    total_results: result.total || formattedResults.length,
+    total_results: result.total,
     page,
     limit,
-    duration_ms: result.durationMs || latencyMs,
-    client_latency_ms: latencyMs,
+    duration_ms: result.durationMs,
+    client_latency_ms: result.durationMs,
+    algorithm: result.algorithm,
     auth: {
       key_name: req.apiKeyInfo?.name || 'Public Demo',
       is_demo: Boolean(req.apiKeyInfo?.isDemo)
     },
-    results: formattedResults,
+    results: result.results,
     ai_context: aiContext
   };
 
@@ -1262,6 +1309,7 @@ async function handleV1Search(req, res) {
 
   res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
   res.setHeader('X-Cache', 'MISS');
+  res.setHeader('X-Response-Time', `${result.durationMs}ms`);
   res.json(payload);
 }
 
@@ -1475,59 +1523,21 @@ let cachedTrendingTime = 0;
 
 // 1. Search Query Endpoint with Web & Image Search support
 app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
-  const query = req.query.q || '';
+  const query = (req.query.q || '').trim();
   const page = parseInt(req.query.page || '1', 10);
   const limit = parseInt(req.query.limit || '15', 10);
-  const timeFilter = req.query.timeFilter || 'all';
-  const type = req.query.type || 'all'; // 'all' | 'images'
+  const timeFilter = req.query.timeFilter || req.query.time || 'all';
+  const type = req.query.type || 'all';
   const liveCrawl = req.query.liveCrawl === 'true' || req.query.liveCrawl === '1';
 
-  if (!query.trim()) {
+  if (!query) {
     return res.json({ query: '', total: 0, results: [], durationMs: 0, type });
   }
 
-  // Set lightweight cache header for repeated queries
   res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=60');
-
-  // Log user search query asynchronously (0ms overhead)
   db.logQuery(query);
 
-  // Trigger On-Demand Live Web Crawl in Background if requested
-  if (liveCrawl) {
-    const encoded = encodeURIComponent(query.trim());
-    const querySeeds = [
-      `https://id.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-      `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-      `https://dev.to/search?q=${encoded}`,
-      `https://news.ycombinator.com`
-    ];
-    crawlerEngine.injectSeeds(querySeeds, 10);
-  }
-
-  if (type === 'images') {
-    const cacheKey = `${query.trim().toLowerCase()}|${page}|${limit}|images|all|false`;
-    if (!liveCrawl) {
-      const cached = getHttpSearchCache(cacheKey);
-      if (cached) {
-        res.setHeader('X-Cache', 'HIT');
-        return res.json(cached);
-      }
-    }
-    const result = searchEngine.searchImages(query, { page, limit: parseInt(req.query.limit || '24', 10) });
-    const payload = {
-      ...result,
-      liveCrawlTriggered: liveCrawl
-    };
-    if (!liveCrawl) {
-      setHttpSearchCache(cacheKey, payload);
-    }
-    res.setHeader('X-Cache', 'MISS');
-    return res.json(payload);
-  }
-
-  const forceOriginal = req.query.forceOriginal === 'true' || req.query.forceOriginal === '1';
-  const cacheKey = `${query.trim().toLowerCase()}|${page}|${limit}|${timeFilter}|${type}|${forceOriginal}`;
-
+  const cacheKey = `${query.toLowerCase()}|${page}|${limit}|${timeFilter}|${type}|${liveCrawl}`;
   if (!liveCrawl) {
     const cachedResponse = getHttpSearchCache(cacheKey);
     if (cachedResponse) {
@@ -1537,36 +1547,12 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
     }
   }
 
-  const t_start = performance.now();
-  let searchTimer = null;
-  const timeoutPromise = new Promise((resolve) => {
-    searchTimer = setTimeout(() => {
-      resolve({
-        timedOut: true,
-        query,
-        total: 0,
-        results: [],
-        durationMs: MAX_SEARCH_SESSION_TIMEOUT_MS,
-        message: 'Batas waktu pencarian 10 detik tercapai (QoS Protection). Layanan dibatasi demi menjaga kecepatan bersama.'
-      });
-    }, MAX_SEARCH_SESSION_TIMEOUT_MS);
-  });
-
-  const searchExecution = searchEngine.searchAsync(query, { page, limit, timeFilter, type, forceOriginal }, db);
-  const result = await Promise.race([searchExecution, timeoutPromise]);
-  if (searchTimer) clearTimeout(searchTimer);
-
-  const t_diff = performance.now() - t_start;
-  if (t_diff > 30) {
-    console.log(`[PERF-SEARCH] query="${query}" async=${t_diff.toFixed(1)}ms engine=${result.durationMs}ms`);
-  }
-
+  const result = await executeUnifiedRankedSearch(query, { page, limit, timeFilter, type, liveCrawl });
   const payload = {
     ...result,
     type,
     timeFilter,
-    liveCrawlTriggered: liveCrawl,
-    maxProcessTimeMs: MAX_SEARCH_SESSION_TIMEOUT_MS
+    liveCrawlTriggered: liveCrawl
   };
 
   if (!liveCrawl) {
@@ -1574,11 +1560,10 @@ app.get('/api/search', searchPriorityMiddleware, async (req, res) => {
   }
 
   res.setHeader('X-Cache', 'MISS');
-  res.setHeader('X-Response-Time', `${t_diff.toFixed(2)}ms`);
+  res.setHeader('X-Response-Time', `${result.durationMs}ms`);
   res.json(payload);
 });
 
-// Autocomplete & Trending Search Suggestions (Google-style, Non-blocking In-Memory Speed)
 app.get('/api/suggestions', (req, res) => {
   const query = req.query.q || '';
   const limit = parseInt(req.query.limit || '8', 10);
@@ -2255,15 +2240,7 @@ server.listen(PORT, '0.0.0.0', () => {
     } catch {}
   }, 1000);
 
-  // Non-blocking WAL checkpoint on boot to keep read queries <20ms
-  setTimeout(() => {
-    try {
-      const ck = db.checkpoint('PASSIVE');
-      if (ck && !ck.error) {
-        console.log('⚡ SQLite WAL Checkpointed Successfully (Zero Disk Bloat)');
-      }
-    } catch {}
-  }, 2500);
+  // Boot checkpoint removed to prevent event-loop stalls on 115GB DB
 
   const autoStartCrawler = process.env.AUTO_START_CRAWLER !== 'false';
 

@@ -410,13 +410,13 @@ export class SearchDatabase {
       if (!this._hotUrlMap.has(rawItem.url)) {
         this._hotUrlMap.set(rawItem.url, rowObj);
         this.hotPagesRing.unshift(rowObj);
-        if (this.hotPagesRing.length > 3000) {
+        if (this.hotPagesRing.length > 5000) {
           const evicted = this.hotPagesRing.pop();
           if (evicted && evicted.url) this._hotUrlMap.delete(evicted.url);
         }
         if (isNews) {
           this.hotNewsRing.unshift(rowObj);
-          if (this.hotNewsRing.length > 1800) {
+          if (this.hotNewsRing.length > 3000) {
             this.hotNewsRing.pop();
           }
         }
@@ -597,15 +597,7 @@ export class SearchDatabase {
 
     // Precompiled prepared statements for instant entity queries (Zero compile overhead during search)
     try {
-      this.stmtGetGeo = this.db.prepare(`
-        SELECT * FROM geo_entities 
-        WHERE keyword_key = ? 
-           OR LOWER(name) = ? 
-           OR LOWER(short_name) = ?
-           OR keyword_key = ?
-           OR LOWER(short_name) = ?
-        LIMIT 1
-      `);
+      this.stmtGetGeo = this.db.prepare(`SELECT * FROM geo_entities WHERE keyword_key = ? OR keyword_key = ? LIMIT 1`);
 
       this.stmtGetCelebDirect = this.db.prepare(`
         SELECT * FROM celebrity_entities 
@@ -679,20 +671,12 @@ export class SearchDatabase {
     });
 
     // Periodic log table pruning (every 5 minutes, outside search path)
-    this._logPruneInterval = setInterval(() => {
-      try {
-        this.db.exec('DELETE FROM crawl_logs WHERE id < (SELECT MAX(id) - 10000 FROM crawl_logs);');
-      } catch { }
-    }, 300000);
-    if (this._logPruneInterval.unref) this._logPruneInterval.unref();
+    // Log prune interval disabled to prevent event-loop stalls on 115GB DB
+    this._logPruneInterval = null;
 
     // Periodic WAL cleanup to keep SQLite queries ultra fast
-    this._walCheckpointInterval = setInterval(() => {
-      try {
-        this.db.exec('PRAGMA wal_checkpoint(PASSIVE);');
-      } catch { }
-    }, 30000);
-    if (this._walCheckpointInterval.unref) this._walCheckpointInterval.unref();
+    // WAL checkpoint disabled to prevent event-loop stalls on 115GB DB
+    this._walCheckpointInterval = null;
 
     // Periodic metadata sync (every 10 seconds)
     this._metaSyncInterval = setInterval(() => {
@@ -840,7 +824,7 @@ export class SearchDatabase {
 
     try {
       // 1. Process pageBatch in ultra-light micro-slices of 5 pages (zero main-thread stall)
-      const CHUNK_SIZE = 5;
+      const CHUNK_SIZE = 2;
       for (let i = 0; i < pageBatch.length; i += CHUNK_SIZE) {
         if (priorityGovernor.isPriorityActive()) {
           // Search query arrived mid-flush! Yield write lock immediately
@@ -1458,11 +1442,12 @@ export class SearchDatabase {
 
   getGeoCount() {
     try {
-      const row = this.db.prepare('SELECT COUNT(*) as count FROM geo_entities').get();
-      return row ? row.count : 0;
-    } catch {
-      return 0;
-    }
+      if (this._cachedGeoCount && Date.now() - (this._cachedGeoCountTime || 0) < 60000) return this._cachedGeoCount;
+      const row = this.db.prepare('SELECT MAX(id) as count FROM geo_entities').get();
+      this._cachedGeoCount = row ? (row.count || 0) : 0;
+      this._cachedGeoCountTime = Date.now();
+      return this._cachedGeoCount;
+    } catch { return 0; }
   }
 
   /**
@@ -1471,10 +1456,7 @@ export class SearchDatabase {
   getRecentImages(limit = 30) {
     try {
       const stmt = this.db.prepare(`
-        SELECT id, image_url, page_url, domain, alt_text, title, context_text, is_logo, width, height, created_at
-        FROM images
-        ORDER BY created_at DESC, id DESC
-        LIMIT ?
+        SELECT id, image_url, page_url, domain, alt_text, title, context_text, is_logo, width, height, created_at FROM images WHERE id > (SELECT IFNULL(MAX(id), 0) - 500 FROM images) ORDER BY id DESC LIMIT ?
       `);
       const rows = stmt.all(limit) || [];
       return rows.map(r => ({
@@ -1496,12 +1478,7 @@ export class SearchDatabase {
   }
 
   getImageCount() {
-    try {
-      const row = this.db.prepare('SELECT COUNT(*) as count FROM images').get();
-      return row ? row.count : 0;
-    } catch {
-      return 0;
-    }
+    return this.totalImagesCount || 0;
   }
 
   /**
@@ -1638,11 +1615,12 @@ export class SearchDatabase {
 
   getCelebrityCount() {
     try {
-      const row = this.db.prepare('SELECT COUNT(*) as count FROM celebrity_entities').get();
-      return row ? row.count : 0;
-    } catch {
-      return 0;
-    }
+      if (this._cachedCelebCount && Date.now() - (this._cachedCelebCountTime || 0) < 60000) return this._cachedCelebCount;
+      const row = this.db.prepare('SELECT MAX(id) as count FROM celebrity_entities').get();
+      this._cachedCelebCount = row ? (row.count || 0) : 0;
+      this._cachedCelebCountTime = Date.now();
+      return this._cachedCelebCount;
+    } catch { return 0; }
   }
 
   /**

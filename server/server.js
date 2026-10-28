@@ -857,7 +857,15 @@ app.get(['/api/search', '/api/web-search'], async (req, res) => {
           domain: domain,
           thumbnail: leadImg || logoUrl,
           logo_url: logoUrl,
-          position: idx + 1
+          position: idx + 1,
+          accuracyScore: r.accuracyScore || r.score || null,
+          score: r.score || r.accuracyScore || null,
+          pagerank: r.pagerank ?? null,
+          trustScore: r.trustScore ?? r.trust_score ?? null,
+          bm25: r.bm25 ?? null,
+          isLiveNews: r.isLiveNews ?? false,
+          date: r.date || r.published_at || null,
+          publishedAt: r.publishedAt || r.published_at || null
         };
       });
 

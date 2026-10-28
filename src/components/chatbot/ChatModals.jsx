@@ -1468,14 +1468,27 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
               <div className="search-results-list">
                 {activeSearchSources.sources.map((item, idx) => (
                   <div key={idx} className="search-result-item">
-                    <div className="search-result-title-row">
+                    <div className="search-result-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: '#fff', fontSize: '11px', fontWeight: '800', padding: '2px 7px', borderRadius: '6px', flexShrink: 0 }}>
+                        #{item.position || (idx + 1)}
+                      </span>
+                      {item.accuracyScore && (
+                        <span style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#4338ca', fontSize: '10.5px', fontWeight: '700', padding: '2px 6px', borderRadius: '6px', flexShrink: 0 }}>
+                          {Math.round(item.accuracyScore)}% Akurasi
+                        </span>
+                      )}
+                      {item.pagerank && (
+                        <span style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#047857', fontSize: '10.5px', fontWeight: '700', padding: '2px 6px', borderRadius: '6px', flexShrink: 0 }}>
+                          PR {item.pagerank}
+                        </span>
+                      )}
                       <img
                         src={`https://www.google.com/s2/favicons?sz=64&domain=${item.domain}`}
                         onError={(e) => { e.target.src = 'https://img.icons8.com/ios-glyphs/30/1e3a8a/globe.png'; }}
                         className="search-result-favicon"
                         alt=""
                       />
-                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="search-result-link-title">
+                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="search-result-link-title" style={{ fontWeight: '600', color: '#1d4ed8' }}>
                         {item.title}
                       </a>
                     </div>

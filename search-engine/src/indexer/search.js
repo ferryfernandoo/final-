@@ -282,7 +282,7 @@ export class SearchEngine {
       this.stmtFastTitleHeadingsDesc = this.db.prepare(`
         SELECT
           p.id, p.url, p.domain, p.title, p.description, p.headings,
-          SUBSTR(p.content, 1, 600) as content,
+          '' as content,
           p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
           p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
           p.in_links_count, p.published_at, p.crawled_at
@@ -295,7 +295,7 @@ export class SearchEngine {
       this.stmtFastTitleHeadingsAsc = this.db.prepare(`
         SELECT
           p.id, p.url, p.domain, p.title, p.description, p.headings,
-          SUBSTR(p.content, 1, 600) as content,
+          '' as content,
           p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
           p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
           p.in_links_count, p.published_at, p.crawled_at
@@ -312,7 +312,7 @@ export class SearchEngine {
       this.stmtBaseDomain = this.db.prepare(`
         SELECT
           p.id, p.url, p.domain, p.title, p.description, p.headings,
-          SUBSTR(p.content, 1, 600) as content,
+          '' as content,
           p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
           p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
           p.in_links_count, p.published_at, p.crawled_at,
@@ -386,7 +386,7 @@ export class SearchEngine {
       stmt = this.db.prepare(`
         SELECT
           p.id, p.url, p.domain, p.title, p.description, p.headings,
-          SUBSTR(p.content, 1, 600) as content,
+          '' as content,
           p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
           p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
           p.in_links_count, p.published_at, p.crawled_at,
@@ -1276,7 +1276,7 @@ export class SearchEngine {
     }
 
     const candidatesMap = new Map();
-    const fetchQueryLimit = Math.max(limit * 4, 80);
+    const fetchQueryLimit = Math.min(Math.max(limit * 2, 24), 36);
 
     // Stage 0: DOMAIN-FIRST Candidate Retrieval (Guarantee official domains like youtube, detik, kompas enter pool)
     const isGenericNavQuery = GENERIC_CATEGORY_WORDS.has(coreSubject) || COMMON_NON_BRAND_WORDS.has(coreSubject) || GENERIC_CATEGORY_WORDS.has(cleanRaw);
@@ -1364,7 +1364,7 @@ export class SearchEngine {
           const stmtAndDesc = this.db.prepare(`
             SELECT
               p.id, p.url, p.domain, p.title, p.description, p.headings,
-              SUBSTR(p.content, 1, 600) as content,
+              '' as content,
               p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
@@ -1383,7 +1383,7 @@ export class SearchEngine {
     }
 
     // Stage 1b: Deep Content Tier (Fallback only if Tier 1 yielded fewer than limit candidates)
-    if (!isBroadNewsQuery && candidatesMap.size < limit && ftsQueryTokens.length > 0) {
+    if (!isBroadNewsQuery && candidatesMap.size < Math.min(limit, 6) && ftsQueryTokens.length > 0) {
       try {
         const allColumnsQuery = ftsQueryTokens.map(t => `"${t}"`).join(' ');
         let moreRows;
@@ -1393,7 +1393,7 @@ export class SearchEngine {
           const stmtAll = this.db.prepare(`
             SELECT
               p.id, p.url, p.domain, p.title, p.description, p.headings,
-              SUBSTR(p.content, 1, 600) as content,
+              '' as content,
               p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
@@ -1414,7 +1414,7 @@ export class SearchEngine {
     }
 
     // Stage 2: Fast Disjunction (OR) on Specific Tokens Only (Never OR high-frequency stopwords!)
-    if (!isBroadNewsQuery && candidatesMap.size < limit && specificTokens.length > 1) {
+    if (!isBroadNewsQuery && candidatesMap.size < Math.min(limit, 4) && specificTokens.length > 1) {
       try {
         const orQuery = `{title headings description}: (` + specificTokens.slice(0, 4).map(t => `"${t}"`).join(' OR ') + `)`;
         let orRows;
@@ -1424,7 +1424,7 @@ export class SearchEngine {
           const stmtOr = this.db.prepare(`
             SELECT
               p.id, p.url, p.domain, p.title, p.description, p.headings,
-              SUBSTR(p.content, 1, 600) as content,
+              '' as content,
               p.logo_url, p.lead_image_url, p.pagerank, p.trust_score, p.category,
               p.author, p.reading_time_min, p.schema_type, p.is_verified_trust,
               p.in_links_count, p.published_at, p.crawled_at
@@ -1950,7 +1950,7 @@ export class SearchEngine {
         const stmt = this.db.prepare(`
           SELECT
             p.id, p.url, p.domain, p.title, p.description, p.headings,
-            SUBSTR(p.content, 1, 600) as content,
+            '' as content,
             p.logo_url, p.lead_image_url, p.pagerank, p.in_links_count, p.crawled_at
           FROM (
             SELECT rowid FROM fts_pages WHERE fts_pages MATCH ? LIMIT ?
@@ -2285,7 +2285,7 @@ export class SearchEngine {
       const stmt = this.db.prepare(`
         SELECT
           p.id, p.url, p.domain, p.title, p.description, p.headings,
-          SUBSTR(p.content, 1, 600) as content,
+          '' as content,
           p.logo_url, p.lead_image_url, p.pagerank, p.in_links_count,
           p.published_at, p.crawled_at,
           f.bm25_score
