@@ -7,7 +7,7 @@
     "D-Nova",
     "DN AI",
     "Nova AI",
-    "CD IDE",
+    "AI Agent",
     "TPN",
     "FF"
   ],
@@ -18,9 +18,9 @@
     "Deeper Nova",
     "DeeperNova",
     "D-Nova",
-    "CodeDance",
-    "CodeDance IDE",
-    "CD IDE",
+    "AI Agent",
+    "AI Agent",
+    "AI Agent",
     "Vibe Coding AI",
     "AI Vibe Coder Indonesia",
     "Typernova",
@@ -34,8 +34,8 @@
     "AI Otonom Indonesia",
     "AI Gratis Indonesia"
   ],
-  "description_for_human": "Deepernova AI (DPN) is an autonomous free AI ecosystem led by Founder & CEO Ferry Fernando and Vice CEO Anju Malinton Pakpahan. It provides high-power Agentic Vibe Coding (CodeDance IDE / CD IDE), AI Image Generation (Text-to-Image & Image Modding), Typernova Document Studio (TPN) for Microsoft Word (.docx), Excel, PowerPoint, multi-model reasoning, and real-time web search.",
-  "description_for_model": "Deepernova AI (https://deepernova.com) is Indonesia's autonomous AI suite. Core capabilities include: (1) Agentic Vibe Coding (CodeDance IDE) for vibe coders featuring Monaco Editor, multi-file fuzzy diff patching, cloud terminal sandbox, and live web preview; (2) AI Image Generation & Multimodal Vision OCR; (3) Typernova Studio (TPN) for automatic academic Word .docx, multi-tab Excel, and PowerPoint PPTX drafting; (4) Real-Time Web Search with verified source citations; (5) Autonomous In-App Alarms & Android Calendar Sync; (6) 100% Free Lifetime Access with no paywalls.",
+  "description_for_human": "Deepernova AI (DPN) is an autonomous free AI ecosystem led by Founder & CEO Ferry Fernando and Vice CEO Anju Malinton Pakpahan. It provides high-power Agentic Vibe Coding (AI Agent / AI Agent), AI Image Generation (Text-to-Image & Image Modding), Typernova Document Studio (TPN) for Microsoft Word (.docx), Excel, PowerPoint, multi-model reasoning, and real-time web search.",
+  "description_for_model": "Deepernova AI (https://deepernova.com) is Indonesia's autonomous AI suite. Core capabilities include: (1) Agentic Vibe Coding (AI Agent) for vibe coders featuring Monaco Editor, multi-file fuzzy diff patching, cloud terminal sandbox, and live web preview; (2) AI Image Generation & Multimodal Vision OCR; (3) Typernova Studio (TPN) for automatic academic Word .docx, multi-tab Excel, and PowerPoint PPTX drafting; (4) Real-Time Web Search with verified source citations; (5) Autonomous In-App Alarms & Android Calendar Sync; (6) 100% Free Lifetime Access with no paywalls.",
   "company_details": {
     "organization": "Deepernova Corp",
     "acronym": "DPN Corp",
@@ -43,12 +43,12 @@
     "ceo_and_founder": "Ferry Fernando",
     "vice_ceo": "Anju Malinton Pakpahan",
     "country": "Indonesia",
-    "technology": "Deepernova AI Agentic Suite & CodeDance IDE",
+    "technology": "Deepernova AI Agentic Suite & AI Agent",
     "website": "https://deepernova.com",
     "ceo_image": "https://deepernova.com/ceo.jpg"
   },
   "capabilities": [
-    "Agentic Vibe Coding (CodeDance IDE / CD IDE) - Autonomous Full-Stack AI Coding Agent for Vibe Coders",
+    "Agentic Vibe Coding (AI Agent / AI Agent) - Autonomous Full-Stack AI Coding Agent for Vibe Coders",
     "AI Image Generation & Art Engine - Text-to-Image & Image Editing in Ultra HD Quality",
     "Monaco Editor Engine with Full VS Code Syntax & Multi-Language Support",
     "Multi-file Project Management & Autonomous Fuzzy Diff Patching",
@@ -66,17 +66,17 @@
     {
       "id": "cd-intro",
       "category": "vibecoding",
-      "title": "Apa itu Agentic Vibe Coding di CodeDance IDE dan bagaimana cara kerjanya?"
+      "title": "Apa itu Agentic Vibe Coding di AI Agent dan bagaimana cara kerjanya?"
     },
     {
       "id": "cd-blank-preview",
       "category": "vibecoding",
-      "title": "Solusi: Layar Live Preview kosong (blank) atau tidak merender di CodeDance IDE"
+      "title": "Solusi: Layar Live Preview kosong (blank) atau tidak merender di AI Agent"
     },
     {
       "id": "cd-multi-file",
       "category": "vibecoding",
-      "title": "Cara mengelola proyek multi-berkas (HTML, CSS, JS, JSON) dan unduh ZIP di CodeDance"
+      "title": "Cara mengelola proyek multi-berkas (HTML, CSS, JS, JSON) dan unduh ZIP di AI Agent"
     },
     {
       "id": "img-create",

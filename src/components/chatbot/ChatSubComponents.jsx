@@ -17,14 +17,14 @@ export const AutoRedirectCountdownCard = React.memo(({
   const [isDismissed, setIsDismissed] = useState(false);
 
   const targetConfig = useMemo(() => {
-    if (target === 'codedance') {
+    if (target === 'agent') {
       return {
-        title: 'CodeDance Autonomous IDE',
-        badge: '⚡ VIBE CODING AGENT',
+        title: 'AI Agent Autonomous Workspace',
+        badge: '🤖 AI AGENT',
         desc: userLanguage === 'id'
-          ? 'Buka proyek ini di CodeDance Autonomous IDE untuk preview langsung:'
-          : 'Open this project in CodeDance Autonomous IDE for live preview:',
-        icon: '⚡',
+          ? 'Buka tugas ini di AI Agent Autonomous Workspace:'
+          : 'Open this task in AI Agent Autonomous Workspace:',
+        icon: '🤖',
         gradient: 'linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(59,130,246,0.06) 100%)',
         border: '1.2px solid #06b6d4',
         accentColor: '#0891b2',
@@ -72,12 +72,12 @@ export const AutoRedirectCountdownCard = React.memo(({
         localStorage.setItem('typernova_auto_draft_prompt', topic);
       }
       onNavigate?.('documents', fileType || 'docx');
-    } else if (target === 'codedance') {
+    } else if (target === 'agent') {
       if (topic) {
-        sessionStorage.setItem('codedance_auto_task_prompt', topic);
-        localStorage.setItem('codedance_auto_task_prompt', topic);
+        sessionStorage.setItem('agent_auto_task_prompt', topic);
+        localStorage.setItem('agent_auto_task_prompt', topic);
       }
-      onNavigate?.('codedance');
+      onNavigate?.('agent');
     } else {
       onNavigate?.('universe');
     }

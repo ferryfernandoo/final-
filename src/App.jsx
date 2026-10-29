@@ -9,7 +9,6 @@ import DocumentEditor from './components/DocumentEditor'
 import DeepernovaUniverse from './components/DeepernovaUniverse'
 import AICalendarHub from './components/AICalendarHub'
 import AIManagerOffice from './components/AIManagerOffice'
-import CodeDanceIDE from './components/CodeDanceIDE'
 import HelpCenter from './components/HelpCenter'
 import DtePortal from './components/DtePortal'
 import ApiMarketplace from './components/ApiMarketplace'
@@ -159,7 +158,7 @@ function App() {
       const hash = (window.location.hash || '').toLowerCase();
       if (path === '/agent' || hash === '#agent') return 'agent';
       if (path === '/help' || hash === '#help') return 'help';
-      if (path === '/codedance' || hash === '#codedance') return 'codedance';
+      if (path === '/codedance' || hash === '#codedance') return 'agent';
       if (path === '/documents' || hash === '#documents') return 'documents';
       if (path === '/chat' || hash === '#chat') return 'chat';
       if (path === '/universe' || hash === '#universe') return 'universe';
@@ -217,7 +216,6 @@ function App() {
       const routeMap = {
         agent: '/agent',
         help: '/help',
-        codedance: '/codedance',
         documents: '/documents',
         chat: '/chat',
         universe: '/universe',
@@ -253,7 +251,7 @@ function App() {
         setCurrentView('agent');
       }
       else if (path === '/help' || hash === '#help') setCurrentView('help');
-      else if (path === '/codedance' || hash === '#codedance') setCurrentView('codedance');
+      else if (path === '/codedance' || hash === '#codedance') setCurrentView('agent');
       else if (path === '/documents' || hash === '#documents') setCurrentView('documents');
       else if (path === '/chat' || hash === '#chat') setCurrentView('chat');
       else if (path === '/universe' || hash === '#universe') setCurrentView('universe');
@@ -274,7 +272,7 @@ function App() {
   // Synchronize active view class on document.body and document.documentElement for clean scroll behavior
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const allViews = ['view-landing', 'view-chat', 'view-agent', 'view-documents', 'view-codedance', 'view-help', 'view-dte', 'view-office', 'view-universe'];
+    const allViews = ['view-landing', 'view-chat', 'view-agent', 'view-documents', 'view-help', 'view-dte', 'view-office', 'view-universe'];
     document.body.classList.remove(...allViews);
     document.documentElement.classList.remove(...allViews);
     
@@ -907,17 +905,6 @@ function App() {
   if (currentView === 'calendar') {
     return (
       <AICalendarHub onNavigate={handleNavigate} />
-    );
-  }
-  if (currentView === 'codedance') {
-    return (
-      <ErrorBoundary onNavigate={handleNavigate}>
-        <CodeDanceIDE 
-          user={user}
-          isAuthenticated={isAuthenticated}
-          onNavigate={handleNavigate}
-        />
-      </ErrorBoundary>
     );
   }
   

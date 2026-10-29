@@ -10,7 +10,7 @@ const helpDataPath = path.join(rootDir, 'scratch_help_data.json');
 const helpData = JSON.parse(fs.readFileSync(helpDataPath, 'utf8'));
 
 const CATEGORIES = [
-  { id: 'vibecoding', label: 'CodeDance (Vibe Coding)', icon: 'fa-code', desc: 'Panduan membuat website otomatis dari bahasa alami dengan AI Coding Agent di cloud sandbox Monaco Editor.' },
+  { id: 'vibecoding', label: 'AI Agent (Vibe Coding)', icon: 'fa-code', desc: 'Panduan membuat website otomatis dari bahasa alami dengan AI Coding Agent di cloud sandbox Monaco Editor.' },
   { id: 'image', label: 'AI Gambar & Art Studio', icon: 'fa-wand-magic-sparkles', desc: 'Cara membuat gambar ultra-HD (Text-to-Image) dan edit modifikasi foto referensi bebas sensor.' },
   { id: 'typernova', label: 'Typernova Document Studio', icon: 'fa-file-lines', desc: 'Otomasi pembuatan dokumen resmi Microsoft Word (.docx) ber-Daftar Isi otomatis, Excel, dan PPT.' },
   { id: 'memory', label: 'Memori Otonom AI', icon: 'fa-brain', desc: 'Sistem memori canggih yang mengingat, memperbarui, dan menghapus preferensi percakapan secara otonom (CRUD).' },
@@ -41,7 +41,7 @@ const schemaGraph = {
       '@id': 'https://deepernova.com/help#webpage',
       'url': 'https://deepernova.com/help',
       'name': 'Pusat Bantuan Resmi & Panduan Solusi Deepernova AI (Help Center)',
-      'description': 'Kumpulan panduan pemakaian lengkap dan solusi pemecahan masalah teknis resmi Deepernova AI: CodeDance IDE, AI Gambar Ultra-HD, Typernova Word .docx, Memori Otonom, dan Profil CEO Ferry Fernando.',
+      'description': 'Kumpulan panduan pemakaian lengkap dan solusi pemecahan masalah teknis resmi Deepernova AI: AI Agent, AI Gambar Ultra-HD, Typernova Word .docx, Memori Otonom, dan Profil CEO Ferry Fernando.',
       'inLanguage': ['id', 'en'],
       'isPartOf': {
         '@type': 'WebSite',
@@ -79,7 +79,7 @@ const schemaGraph = {
         'https://instagram.com/ferryfernandoo_',
         'https://deepernova.com'
       ],
-      'description': 'Ferry Fernando adalah Founder dan CEO Deepernova Corp yang memimpin perancangan platform Deepernova AI, CodeDance IDE untuk Vibe Coding, dan Typernova Document Studio di Indonesia.'
+      'description': 'Ferry Fernando adalah Founder dan CEO Deepernova Corp yang memimpin perancangan platform Deepernova AI, AI Agent untuk Vibe Coding, dan Typernova Document Studio di Indonesia.'
     },
     {
       '@type': 'Organization',
@@ -180,10 +180,10 @@ const fullHtml = `<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   
-  <title>Pusat Bantuan Resmi &amp; Panduan Solusi Deepernova AI (Help Center) | CodeDance IDE, Gambar AI, Typernova</title>
-  <meta name="title" content="Pusat Bantuan Resmi &amp; Panduan Solusi Deepernova AI (Help Center) | CodeDance IDE, Gambar AI, Typernova" />
-  <meta name="description" content="Pusat Bantuan resmi Deepernova AI 100% Gratis: Panduan lengkap CodeDance IDE (Agentic Vibe Coding), AI Bikin Gambar Ultra-HD, Typernova Studio (Word .docx resmi, Excel, PPTX), Memori Otonom, Vision OCR, serta Profil &amp; Ikrar Misi CEO Ferry Fernando." />
-  <meta name="keywords" content="Pusat Bantuan Deepernova, Solusi Error Deepernova, Panduan CodeDance IDE, Vibe Coding AI, Cara Bikin Gambar AI, Typernova Word docx otomatis, Memori Otonom AI, CEO Ferry Fernando, Deepernova Corp, AI Gratis Indonesia" />
+  <title>Pusat Bantuan Resmi &amp; Panduan Solusi Deepernova AI (Help Center) | AI Agent, Gambar AI, Typernova</title>
+  <meta name="title" content="Pusat Bantuan Resmi &amp; Panduan Solusi Deepernova AI (Help Center) | AI Agent, Gambar AI, Typernova" />
+  <meta name="description" content="Pusat Bantuan resmi Deepernova AI 100% Gratis: Panduan lengkap AI Agent (Agentic Vibe Coding), AI Bikin Gambar Ultra-HD, Typernova Studio (Word .docx resmi, Excel, PPTX), Memori Otonom, Vision OCR, serta Profil &amp; Ikrar Misi CEO Ferry Fernando." />
+  <meta name="keywords" content="Pusat Bantuan Deepernova, Solusi Error Deepernova, Panduan AI Agent, Vibe Coding AI, Cara Bikin Gambar AI, Typernova Word docx otomatis, Memori Otonom AI, CEO Ferry Fernando, Deepernova Corp, AI Gratis Indonesia" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large" />
@@ -198,7 +198,7 @@ const fullHtml = `<!DOCTYPE html>
   <meta property="og:site_name" content="Deepernova AI" />
   <meta property="og:url" content="https://deepernova.com/help" />
   <meta property="og:title" content="Pusat Bantuan Resmi &amp; Solusi Pintar Deepernova AI (Help Center)" />
-  <meta property="og:description" content="Panduan teknis resmi pemakaian fitur dan solusi kendala Deepernova AI: CodeDance IDE, AI Bikin Gambar, Typernova Word .docx, Memori Otonom, dan Profil CEO Ferry Fernando." />
+  <meta property="og:description" content="Panduan teknis resmi pemakaian fitur dan solusi kendala Deepernova AI: AI Agent, AI Bikin Gambar, Typernova Word .docx, Memori Otonom, dan Profil CEO Ferry Fernando." />
   <meta property="og:image" content="https://deepernova.com/ceo.jpg" />
   <meta property="og:locale" content="id_ID" />
 
@@ -881,13 +881,13 @@ ${JSON.stringify(schemaGraph, null, 2)}
     <header class="help-hero-header">
       <h1 class="hero-h1">Pusat Bantuan &amp; <span class="gradient-orange">Solusi Pintar</span></h1>
       <p class="hero-lead">
-        Koleksi lengkap panduan pemakaian fitur, rekomendasi prompt juara, dan pemecahan kendala teknis resmi untuk CodeDance IDE, AI Image Studio, Typernova Document Studio, dan Chatbot Cerdas Deepernova.
+        Koleksi lengkap panduan pemakaian fitur, rekomendasi prompt juara, dan pemecahan kendala teknis resmi untuk AI Agent, AI Image Studio, Typernova Document Studio, dan Chatbot Cerdas Deepernova.
       </p>
       
       <!-- Quick Navigation Buttons -->
       <div class="quick-actions-bar">
         <a href="/chat" class="action-btn action-btn-primary"><i class="fa-solid fa-comments"></i> Buka Chatbot AI</a>
-        <a href="/codedance" class="action-btn action-btn-secondary"><i class="fa-solid fa-code"></i> CodeDance IDE</a>
+        <a href="/agent" class="action-btn action-btn-secondary"><i class="fa-solid fa-code"></i> AI Agent</a>
         <a href="/documents" class="action-btn action-btn-secondary"><i class="fa-solid fa-file-word"></i> Typernova Word .docx</a>
         <a href="#profil-ceo" class="action-btn action-btn-highlight"><i class="fa-solid fa-user-tie"></i> Profil CEO &amp; Misi Kami</a>
       </div>
@@ -900,7 +900,7 @@ ${JSON.stringify(schemaGraph, null, 2)}
 
       <!-- Category Jump Pills -->
       <nav class="category-jump-nav" aria-label="Kategori Panduan">
-        <a href="#vibecoding" class="jump-pill"><i class="fa-solid fa-code"></i> CodeDance IDE</a>
+        <a href="#vibecoding" class="jump-pill"><i class="fa-solid fa-code"></i> AI Agent</a>
         <a href="#image" class="jump-pill"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Gambar HD</a>
         <a href="#typernova" class="jump-pill"><i class="fa-solid fa-file-lines"></i> Typernova Word/Excel</a>
         <a href="#memory" class="jump-pill"><i class="fa-solid fa-brain"></i> Memori Otonom</a>
@@ -934,7 +934,7 @@ ${JSON.stringify(schemaGraph, null, 2)}
             <span class="ceo-role-badge" itemprop="jobTitle">FOUNDER &amp; CHIEF EXECUTIVE OFFICER</span>
             <h2 class="ceo-name-h2" itemprop="name">Ferry Fernando <span style="font-size: 1.2rem; color: var(--primary); font-weight: 700;">(FF)</span></h2>
             <p class="ceo-desc-sub" itemprop="description">
-              Pemimpin Arsitektur &amp; Perancang Ekosistem <strong>Deepernova AI</strong>, <strong>CodeDance IDE</strong> (Agentic Vibe Coding), dan <strong>Typernova Studio</strong>.
+              Pemimpin Arsitektur &amp; Perancang Ekosistem <strong>Deepernova AI</strong>, <strong>AI Agent</strong> (Agentic Vibe Coding), dan <strong>Typernova Studio</strong>.
             </p>
             <div class="ceo-meta-pills">
               <span class="meta-pill"><i class="fa-solid fa-location-dot"></i> <span itemprop="birthPlace">Kebumen, Jawa Tengah, Indonesia</span></span>
@@ -972,7 +972,7 @@ ${JSON.stringify(schemaGraph, null, 2)}
               <i class="fa-solid fa-code"></i>
             </div>
             <h4>Kedaulatan Vibe Coding</h4>
-            <p>Menghadirkan CodeDance IDE agar siapa saja di Indonesia bisa mewujudkan ide aplikasi software secara instan melalui bahasa percakapan sehari-hari.</p>
+            <p>Menghadirkan AI Agent agar siapa saja di Indonesia bisa mewujudkan ide aplikasi software secara instan melalui bahasa percakapan sehari-hari.</p>
           </div>
 
           <div class="pillar-card">
@@ -1007,7 +1007,7 @@ ${JSON.stringify(schemaGraph, null, 2)}
     <footer class="help-footer">
       <div class="footer-links">
         <a href="/">Beranda</a>
-        <a href="/codedance">CodeDance IDE</a>
+        <a href="/agent">AI Agent</a>
         <a href="/documents">Typernova Document Studio</a>
         <a href="/chat">Chatbot &amp; Gambar AI</a>
         <a href="/universe">Deepernova Universe</a>

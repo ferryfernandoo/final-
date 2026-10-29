@@ -15,7 +15,7 @@ const HELP_DATA = [
       'DeeperNova Boron 1.1 (On-Device / Local AI): Model efisiensi tinggi yang siap berjalan di lingkungan lokal dengan latensi minimal dan privasi data mutlak.',
       'Cara Mengganti Model: Di layar obrolan ChatBot, klik menu pilihan model di bilah atas untuk beralih model secara instan tanpa kehilangan riwayat obrolan.'
     ],
-    tips: 'Untuk tugas membuat aplikasi di CodeDance atau skripsi di Typernova, gunakan DeeperNova Gold 1.5 karena memiliki kemampuan sintesis struktur berkas paling konsisten.',
+    tips: 'Untuk tugas membuat aplikasi di AI Agent atau skripsi di Typernova, gunakan DeeperNova Gold 1.5 karena memiliki kemampuan sintesis struktur berkas paling konsisten.',
     keywords: 'pilihan model ai, deepernova gold 1.5, gold pro, silicon 1.4, boron 1.1, ganti model chat'
   },
   {
@@ -136,26 +136,26 @@ const HELP_DATA = [
     keywords: 'search api, serp api indonesia, json search result, crawler api, api v1 search'
   },
 
-  // ==================== 4. CODEDANCE IDE (AGENTIC VIBE CODING) ====================
+  // ==================== 4. AI Agent (AGENTIC VIBE CODING) ====================
   {
     id: 'cd-intro',
     category: 'vibecoding',
-    title: 'Apa itu Agentic Vibe Coding di CodeDance IDE dan bagaimana cara kerjanya?',
-    summary: 'CodeDance IDE adalah cloud sandbox Monaco Editor yang ditenagai Autonomous AI Coding Agent untuk membuat aplikasi web secara instan dari bahasa alami.',
+    title: 'Apa itu Agentic Vibe Coding di AI Agent dan bagaimana cara kerjanya?',
+    summary: 'AI Agent adalah cloud sandbox Monaco Editor yang ditenagai Autonomous AI Coding Agent untuk membuat aplikasi web secara instan dari bahasa alami.',
     solution: [
-      'Buka CodeDance IDE dari menu navigasi Deepernova atau kunjungi rute /codedance.',
+      'Buka AI Agent dari menu navigasi Deepernova atau kunjungi rute /agent.',
       'Di panel percakapan AI di sisi kanan, ketik deskripsi aplikasi atau website yang ingin Anda buat (contoh: "Buatkan web dashboard analitik keuangan modern dengan grafik interaktif dan mode gelap").',
       'AI Agent akan secara otonom merancang arsitektur berkas, menulis kode HTML/CSS/JavaScript atau React, dan menerapkan perubahan berkas dengan sistem fuzzy diff patching.',
       'Lihat hasil aplikasi secara langsung di tab Live Preview yang responsif di sisi tengah.',
       'Gunakan terminal sandbox terintegrasi untuk menjalankan perintah atau uji coba fungsionalitas.'
     ],
     tips: 'Gunakan instruksi yang spesifik dan sertakan referensi warna atau tata letak jika ingin tampilan tertentu. AI Deepernova memahami bahasa Indonesia dan Inggris secara fasih.',
-    keywords: 'vibe coding, codedance, cd ide, ai coding agent, monaco editor, live preview, bikin website otomatis'
+    keywords: 'vibe coding, AI Agent, AI Agent, ai coding agent, monaco editor, live preview, bikin website otomatis'
   },
   {
     id: 'cd-blank-preview',
     category: 'vibecoding',
-    title: 'Solusi: Layar Live Preview kosong (blank) atau tidak merender di CodeDance IDE',
+    title: 'Solusi: Layar Live Preview kosong (blank) atau tidak merender di AI Agent',
     summary: 'Langkah cepat mengatasi kendala tampilan preview yang tidak muncul atau terjadi error sintaks pada proyek web.',
     solution: [
       'Periksa apakah berkas "index.html" ada di daftar berkas proyek (File Explorer). Aplikasi web memerlukan index.html sebagai titik awal (entry point).',
@@ -165,21 +165,21 @@ const HELP_DATA = [
       'Jika masih terjadi cache beku di iframe, klik tombol "Refresh Preview" (ikon putar) di pojok atas panel preview.'
     ],
     tips: 'Jika Anda menggunakan pustaka eksternal seperti Tailwind, FontAwesome, atau Chart.js, pastikan pustaka dimuat via CDN script/link di dalam tag <head> berkas index.html.',
-    keywords: 'preview blank, layar putih preview, error codedance, syntax error, refresh preview, console error'
+    keywords: 'preview blank, layar putih preview, error AI Agent, syntax error, refresh preview, console error'
   },
   {
     id: 'cd-multi-file',
     category: 'vibecoding',
-    title: 'Cara mengelola proyek multi-berkas (HTML, CSS, JS, JSON) dan unduh ZIP di CodeDance',
+    title: 'Cara mengelola proyek multi-berkas (HTML, CSS, JS, JSON) dan unduh ZIP di AI Agent',
     summary: 'Panduan membuat berkas baru, mengedit struktur folder, dan mengekspor proyek ke komputer lokal.',
     solution: [
       'Klik tombol "+" pada panel File Explorer di sebelah kiri untuk menambah berkas baru seperti style.css, app.js, atau data.json.',
       'Anda juga bisa meminta AI langsung: "Buatkan berkas data.json berisi 10 data tiruan produk dan hubungkan ke app.js".',
       'Semua berkas tersimpan secara otomatis di memori lokal browser Anda sehingga tidak akan hilang saat reload.',
-      'Untuk mengunduh seluruh proyek ke laptop/PC Anda, klik tombol "Unduh ZIP" (ikon download) di bilah atas CodeDance IDE.',
+      'Untuk mengunduh seluruh proyek ke laptop/PC Anda, klik tombol "Unduh ZIP" (ikon download) di bilah atas AI Agent.',
       'Ekstrak berkas ZIP yang diunduh dan buka "index.html" di browser mana saja untuk menjalankannya secara offline.'
     ],
-    tips: 'Anda bisa mengunggah berkas kode lokal ke CodeDance dengan tombol "Import File" untuk diedit bersama AI.',
+    tips: 'Anda bisa mengunggah berkas kode lokal ke AI Agent dengan tombol "Import File" untuk diedit bersama AI.',
     keywords: 'multi file, tambah file baru, download zip, export project, import code, offline project'
   },
 
@@ -466,7 +466,7 @@ const HELP_DATA = [
     summary: 'Nikmati akses langsung tanpa login atau buat akun gratis untuk sinkronisasi multi-perangkat.',
     solution: [
       'Mode Tamu (Guest Mode): Anda bisa langsung memakai seluruh fitur Deepernova (Chat, Vibe Coding, Bikin Gambar, Typernova) tanpa perlu mendaftar atau login. Riwayat disimpan di browser lokal perangkat.',
-      'Akun Terdaftar: 100% gratis selamanya. Keunggulannya: riwayat percakapan, proyek CodeDance, dokumen Typernova, dan memori otonom tersinkronisasi otomatis di semua laptop, PC, dan smartphone Anda.',
+      'Akun Terdaftar: 100% gratis selamanya. Keunggulannya: riwayat percakapan, proyek AI Agent, dokumen Typernova, dan memori otonom tersinkronisasi otomatis di semua laptop, PC, dan smartphone Anda.',
       'Cara Mendaftar: Klik tombol "Masuk / Daftar" di pojok kanan atas, masukkan nama pengguna, email, dan kata sandi baru.',
       'Jika Anda beralih dari Mode Tamu ke Akun Terdaftar, sistem CloudSync Deepernova akan secara otomatis menawarkan opsi penggabungan riwayat lokal ke akun Anda.'
     ],
@@ -480,9 +480,9 @@ const HELP_DATA = [
     summary: 'Komitmen perlindungan data tingkat perbankan, enkripsi komunikasi, dan sistem proteksi anti-reverse engineering.',
     solution: [
       'Enkripsi Data: Semua transmisi antara browser/aplikasi Anda dan server Deepernova dilindungi protokol HTTPS/TLS 1.3 dengan header keamanan modern (Helmet, CORP, COOP, Anti-Clickjacking).',
-      'Isolasi Sandboxing: Eksekusi kode di CodeDance IDE berjalan di sandbox iframe yang terisolasi ketat sehingga aman dari skrip berbahaya.',
+      'Isolasi Sandboxing: Eksekusi kode di AI Agent berjalan di sandbox iframe yang terisolasi ketat sehingga aman dari skrip berbahaya.',
       'Perlindungan Anti-Reverse Engineering: Seluruh bundle aplikasi produksi diminifikasi secara agresif dengan penghapusan otomatis sourcemap dan console debug agar kode tidak dapat dibongkar oleh pihak luar.',
-      'Hak Cipta Sepenuhnya Milik Anda: Seluruh kode yang dibuat di CodeDance, karya visual AI, serta dokumen Word/Excel/PPT yang dihasilkan adalah 100% hak milik Anda untuk keperluan komersial maupun akademis.',
+      'Hak Cipta Sepenuhnya Milik Anda: Seluruh kode yang dibuat di AI Agent, karya visual AI, serta dokumen Word/Excel/PPT yang dihasilkan adalah 100% hak milik Anda untuk keperluan komersial maupun akademis.',
       'Tidak Menjual Data: Deepernova Corp tidak pernah menjual data pribadi, riwayat percakapan, atau aset pengguna kepada pihak ketiga mana pun.'
     ],
     tips: 'Anda dapat menghapus seluruh riwayat percakapan Anda kapan saja melalui tombol "Hapus Riwayat" di bilah samping.',
@@ -494,7 +494,7 @@ const HELP_DATA = [
     title: 'Siapa Pendiri dan Apa Misi Pengabdian Deepernova Corp?',
     summary: 'Mengenal Ferry Fernando (Founder & CEO) dan ikrar pengabdian untuk mencerdaskan anak bangsa dengan AI gratis selamanya.',
     solution: [
-      'Founder & Chief Executive Officer (CEO): Ferry Fernando (FF), tokoh muda visioner asal Kebumen, Jawa Tengah, Indonesia, yang memimpin perancangan arsitektur Deepernova AI, CodeDance IDE, dan Typernova Studio.',
+      'Founder & Chief Executive Officer (CEO): Ferry Fernando (FF), tokoh muda visioner asal Kebumen, Jawa Tengah, Indonesia, yang memimpin perancangan arsitektur Deepernova AI, AI Agent, dan Typernova Studio.',
       'Co-Founder & Vice CEO: Anju Malinton Pakpahan, yang berkolaborasi dalam strategi ekspansi dan ekosistem AI terapan.',
       'Ikrar Misi Pengabdian: "Deepernova adalah bentuk pengabdian kami kepada negara untuk misi membantu mencerdaskan anak bangsa, dan berupaya tetap memberikan AI gratis selamanya."',
       'Perusahaan Induk: Deepernova Corp (https://deepernova.com), berdedikasi menciptakan teknologi kecerdasan buatan otonom kelas dunia buatan Indonesia.',
@@ -510,7 +510,7 @@ const CATEGORIES = [
   { id: 'models', label: 'Model AI & Nalar', icon: 'fa-brain' },
   { id: 'search', label: 'Pencarian Web Real-Time', icon: 'fa-globe' },
   { id: 'api', label: 'Developer API Console', icon: 'fa-bolt' },
-  { id: 'vibecoding', label: 'CodeDance (Vibe Coding)', icon: 'fa-code' },
+  { id: 'aiagent', label: 'AI Agent (Autonomous)', icon: 'fa-robot' },
   { id: 'typernova', label: 'Typernova (Word/Excel/PPT)', icon: 'fa-file-lines' },
   { id: 'image', label: 'AI Gambar, Vision & OCR', icon: 'fa-wand-magic-sparkles' },
   { id: 'memory', label: 'Memori Otonom & Alarm', icon: 'fa-clock' },
@@ -574,7 +574,7 @@ export default function HelpCenter({ onNavigate }) {
           </h1>
 
           <p className="help-subtitle">
-            Ensiklopedia panduan resmi Deepernova AI: panduan model AI, pencarian web real-time, developer API, CodeDance IDE, Typernova Studio, AI gambar, dan solusi kendala teknis.
+            Ensiklopedia panduan resmi Deepernova AI: panduan model AI, pencarian web real-time, developer API, AI Agent, Typernova Studio, AI gambar, dan solusi kendala teknis.
           </p>
 
           {/* Search Box */}
@@ -602,8 +602,8 @@ export default function HelpCenter({ onNavigate }) {
             <button className="quick-nav-pill" onClick={() => onNavigate?.('api')}>
               <i className="fa-solid fa-bolt" /> Developer API
             </button>
-            <button className="quick-nav-pill" onClick={() => onNavigate?.('codedance')}>
-              <i className="fa-solid fa-code" /> CodeDance IDE
+            <button className="quick-nav-pill" onClick={() => onNavigate?.('agent')}>
+              <i className="fa-solid fa-code" /> AI Agent
             </button>
             <button className="quick-nav-pill" onClick={() => onNavigate?.('editor', 'word')}>
               <i className="fa-solid fa-file-word" /> Dokumen Word
@@ -771,7 +771,7 @@ export default function HelpCenter({ onNavigate }) {
               </p>
               <h4>Tentang Pendiri &amp; Kepemimpinan</h4>
               <p>
-                Ferry Fernando memimpin riset dan perancangan arsitektur teknologi Deepernova AI, sistem otonom Vibe Coding (CodeDance IDE), dan otomasi dokumen Typernova Studio. Berkolaborasi erat dengan Co-Founder &amp; Vice CEO Anju Malinton Pakpahan, Deepernova Corp bertekad menghadirkan kedaulatan teknologi kecerdasan buatan kelas dunia yang dapat diakses oleh seluruh lapisan masyarakat Indonesia.
+                Ferry Fernando memimpin riset dan perancangan arsitektur teknologi Deepernova AI, sistem otonom Vibe Coding (AI Agent), dan otomasi dokumen Typernova Studio. Berkolaborasi erat dengan Co-Founder &amp; Vice CEO Anju Malinton Pakpahan, Deepernova Corp bertekad menghadirkan kedaulatan teknologi kecerdasan buatan kelas dunia yang dapat diakses oleh seluruh lapisan masyarakat Indonesia.
               </p>
               <div className="modal-social-links">
                 <a

@@ -25,7 +25,7 @@ User-agent: Applebot-Extended
 Allow: /
 Allow: /help
 Allow: /help.html
-Allow: /codedance
+Allow: /agent
 Allow: /documents
 Allow: /chat
 Allow: /universe
@@ -78,7 +78,7 @@ User-agent: DeepSeekBot
 Allow: /
 Allow: /help
 Allow: /help.html
-Allow: /codedance
+Allow: /agent
 Allow: /documents
 Allow: /chat
 Allow: /universe
@@ -94,7 +94,7 @@ User-agent: *
 Allow: /
 Allow: /help
 Allow: /help.html
-Allow: /codedance
+Allow: /agent
 Allow: /documents
 Allow: /chat
 Allow: /universe

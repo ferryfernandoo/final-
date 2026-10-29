@@ -38,7 +38,7 @@ if (faqJsonMatch) {
 
 // 2. Build complete pre-rendered static semantic HTML for index.html <noscript> section
 const CATEGORIES = [
-  { id: 'vibecoding', label: '1. Agentic Vibe Coding (CodeDance IDE)' },
+  { id: 'vibecoding', label: '1. Agentic Vibe Coding (AI Agent)' },
   { id: 'image', label: '2. AI Gambar & Art Studio (Text-to-Image)' },
   { id: 'typernova', label: '3. Typernova Document Studio (Word, Excel, PPT)' },
   { id: 'memory', label: '4. Autonomous Memory System (CRUD)' },

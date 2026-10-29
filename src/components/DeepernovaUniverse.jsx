@@ -69,14 +69,14 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
       action: () => onNavigate?.('calendar')
     },
     {
-      id: 'codedance',
-      title: 'CodeDance IDE',
-      tag: 'VS Code Cloud Sandbox & AI Agent',
-      desc: 'Editor kode masa depan ala VS Code dengan Cloud Sandbox Terminal, live web preview, dan Agentic AI yang mengeksekusi kode secara otonom.',
-      icon: 'https://img.icons8.com/color/96/visual-studio-code-2019.png',
+      id: 'agent',
+      title: 'AI Agent Autonomous',
+      tag: 'Autonomous Multi-Step AI Agent',
+      desc: 'Agen AI otonom canggih dengan penalaran mendalam, otomasi kode, dan eksekusi tugas multi-langkah mandiri.',
+      icon: 'https://img.icons8.com/fluency/96/bot.png',
       badgeColor: '#007acc',
       glow: 'rgba(0, 122, 204, 0.5)',
-      action: () => onNavigate?.('codedance')
+      action: () => onNavigate?.('agent')
     }
   ];
 
