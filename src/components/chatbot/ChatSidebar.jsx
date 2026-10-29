@@ -133,7 +133,24 @@ export const ChatSidebar = React.memo(({
             </div>
           )}
 
-          {/* 3. Media */}
+          {/* 3. Universe */}
+          <button
+            type="button"
+            className="meta-sidebar-nav-btn"
+            onClick={() => onNavigate?.('universe')}
+            title="Deepernova Universe (Ekosistem Aplikasi & Produktivitas)"
+          >
+            <div className="meta-nav-left-content">
+              <img
+                src="https://img.icons8.com/fluency/96/universe.png"
+                alt="Universe"
+                style={{ width: 18, height: 18, objectFit: 'contain' }}
+              />
+              <span>{userLanguage === 'id' ? 'Universe' : 'Universe'}</span>
+            </div>
+          </button>
+
+          {/* 4. Media */}
           <button
             type="button"
             className="meta-sidebar-nav-btn"
