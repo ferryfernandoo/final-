@@ -6719,7 +6719,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           bm25: item.bm25 ?? null,
           isLiveNews: item.isLiveNews ?? false,
           date: item.date || item.formattedDate || null,
-          publishedAt: item.publishedAt || item.published_at || null
+          publishedAt: item.publishedAt || item.published_at || null,
+          sourceEngine: item.sourceEngine || (domain && (domain.includes('google') || domain.includes('serp')) ? 'Google Search (SerpAPI)' : 'DeeperNova Search')
         };
       });
 
