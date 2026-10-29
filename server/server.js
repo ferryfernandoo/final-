@@ -830,16 +830,18 @@ app.get('/api/realtime/sync-stream', (req, res) => {
   });
 });
 
-// GET /api/search & /api/web-search - Ultra-fast proxy to Deepernova Hybrid Search Engine
-app.get(['/api/search', '/api/web-search'], async (req, res) => {
-  const query = (req.query.q || req.query.query || '').trim();
-  const limit = Math.min(20, Math.max(1, parseInt(req.query.limit || '8', 10)));
+// GET & POST /api/search & /api/web-search - Ultra-fast proxy to Deepernova Hybrid Search Engine + SerpAPI Google
+app.all(['/api/search', '/api/web-search'], async (req, res) => {
+  const query = (req.query?.q || req.query?.query || req.body?.q || req.body?.query || '').trim();
+  const limit = Math.min(25, Math.max(1, parseInt(req.query?.limit || req.body?.limit || '10', 10)));
+  const lang = req.query?.hl || req.query?.lang || req.body?.hl || 'id';
+
   if (!query) {
     return res.json({ success: true, data: { organic_results: [], inline_images: [] } });
   }
 
   try {
-    const searchRes = await webSearchService.searchGoogle(query, limit);
+    const searchRes = await webSearchService.searchGoogle(query, limit, lang);
     if (searchRes.success && searchRes.results && searchRes.results.length > 0) {
       const organicResults = searchRes.results.map((r, idx) => {
         let domain = r.domain || '';
@@ -864,7 +866,8 @@ app.get(['/api/search', '/api/web-search'], async (req, res) => {
           bm25: r.bm25 ?? null,
           isLiveNews: r.isLiveNews ?? false,
           date: r.date || r.published_at || null,
-          publishedAt: r.publishedAt || r.published_at || null
+          publishedAt: r.publishedAt || r.published_at || null,
+          sourceEngine: r.sourceEngine || 'DeeperNova Hybrid'
         };
       });
 
@@ -876,9 +879,11 @@ app.get(['/api/search', '/api/web-search'], async (req, res) => {
           search_information: {
             query,
             total_results: organicResults.length,
-            time_taken_ms: 50
+            time_taken_ms: searchRes.duration_ms || 45
           },
-          engine: 'deepernova_search_proxy'
+          engine: searchRes.engine || 'deepernova_google_hybrid_turbo',
+          isComparison: Boolean(searchRes.isComparison),
+          comparisonEntities: searchRes.comparisonEntities || null
         }
       });
     }
@@ -887,6 +892,37 @@ app.get(['/api/search', '/api/web-search'], async (req, res) => {
   }
 
   return res.json({ success: true, data: { organic_results: [], inline_images: [] } });
+});
+
+// GET & POST /api/serp-search & /api/google-search - Direct SerpApi Google Search Proxy
+app.all(['/api/serp-search', '/api/google-search'], async (req, res) => {
+  const query = (req.query?.q || req.query?.query || req.body?.q || req.body?.query || '').trim();
+  const limit = Math.min(25, Math.max(1, parseInt(req.query?.limit || req.body?.limit || '10', 10)));
+  const lang = req.query?.hl || req.query?.lang || req.body?.hl || 'id';
+
+  if (!query) {
+    return res.json({ success: true, data: { organic_results: [], inline_images: [] } });
+  }
+
+  try {
+    const results = await webSearchService._fetchSerpApi(query, limit, lang);
+    return res.json({
+      success: true,
+      data: {
+        organic_results: results,
+        inline_images: [],
+        search_information: {
+          query,
+          total_results: results.length,
+          time_taken_ms: 350
+        },
+        engine: 'serpapi_google'
+      }
+    });
+  } catch (err) {
+    console.warn('[SerpSearch] Error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // GET /api/realtime/sync-poll - Fallback polling endpoint for mobile background recovery

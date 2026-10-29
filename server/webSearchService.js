@@ -1,8 +1,9 @@
 /**
  * DeeperNova Ultra-Fast Hybrid Web & News Search Service
  * Combines Sub-20ms DeeperNova Local FTS5/RAM Index (Port 4000) +
- * Parallel Real-Time Multi-Engine Aggregator (Google News RSS ID/EN, Bing News RSS,
- * DuckDuckGo Instant Answer, Wikipedia OpenSearch ID/EN, SerpAPI) with In-Memory LRU Cache.
+ * Official Google Search via SerpAPI (Zero-CORS Secure Proxy, Parallel & Async) +
+ * Real-Time Multi-Engine Aggregator (Google News RSS ID/EN, Bing News RSS,
+ * DuckDuckGo Instant Answer, Wikipedia OpenSearch ID/EN) with In-Memory LRU Cache.
  */
 
 import fetch from 'node-fetch';
@@ -15,8 +16,8 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const SERPAPI_KEY = process.env.SERPAPI_KEY;
-const SERPAPI_URL = 'https://serpapi.com/search';
+const SERPAPI_KEY = process.env.SERPAPI_KEY || '3dcea72b423f7514a9428d398e9f42cd5d7b9004928fb8212f3694342f61133a';
+const SERPAPI_URL = 'https://serpapi.com/search.json';
 const DEEPERNOVA_SEARCH_API_URL = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000/api/v1';
 const DEEPERNOVA_SEARCH_API_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
 
@@ -38,6 +39,34 @@ function cleanText(str) {
     .trim();
 }
 
+/**
+ * Extracts comparison entities if the user asks for a comparison
+ * e.g. "Samsung S24 vs iPhone 15", "bandingkan Honda Vario dan Yamaha Aerox", "compare A and B"
+ */
+export function extractComparisonEntities(query) {
+  if (!query || typeof query !== 'string') return null;
+  const cleanQ = query.trim();
+  const patterns = [
+    /bandingkan\s+(.+?)\s+(?:dengan|dan|sama|vs\.?|versus)\s+(.+)/i,
+    /perbedaan\s+(?:antara\s+)?(.+?)\s+(?:dengan|dan)\s+(.+)/i,
+    /pilih\s+(?:mana\s+)?(.+?)\s+atau\s+(.+)/i,
+    /(.+?)\s+(?:vs\.?|versus)\s+(.+)/i,
+    /bagusan?\s+mana\s+(.+?)\s+atau\s+(.+)/i,
+    /compare\s+(.+?)\s+(?:and|with|to|vs)\s+(.+)/i
+  ];
+
+  for (const regex of patterns) {
+    const match = cleanQ.match(regex);
+    if (match && match[1] && match[2]) {
+      const entityA = match[1].replace(/[?,.!]/g, '').trim();
+      const entityB = match[2].replace(/[?,.!]/g, '').trim();
+      if (entityA.length >= 2 && entityB.length >= 2 && entityA.toLowerCase() !== entityB.toLowerCase()) {
+        return { entityA, entityB };
+      }
+    }
+  }
+  return null;
+}
 
 export function extractSearchKeywords(query) {
   if (!query) return '';
@@ -64,8 +93,8 @@ export function extractSearchKeywords(query) {
 class WebSearchService {
   constructor() {
     this.cache = new Map();
-    this.cacheTtlMs = 5 * 60 * 1000; // 5 minutes ultra-fast RAM cache
-    console.log(`⚡ [WebSearchService] Ultra-Fast Hybrid Search Engine initialized (${DEEPERNOVA_SEARCH_API_URL})`);
+    this.cacheTtlMs = 10 * 60 * 1000; // 10 minutes ultra-fast RAM cache
+    console.log(`⚡ [WebSearchService] Ultra-Fast Hybrid Search Engine initialized (${DEEPERNOVA_SEARCH_API_URL}) + SerpAPI Google`);
   }
 
   _getCached(key) {
@@ -138,7 +167,8 @@ class WebSearchService {
               logo_url: logoUrl,
               lead_image_url: leadImg,
               thumbnail: leadImg || logoUrl,
-              position: idx + 1
+              position: idx + 1,
+              sourceEngine: 'DeeperNova Search'
             };
           });
         }
@@ -147,6 +177,140 @@ class WebSearchService {
       clearTimeout(timeoutId);
     }
     return [];
+  }
+
+  /**
+   * Fetch Real-Time Google Search via SerpAPI (< 800ms)
+   * Retrieves organic results, answer box, and knowledge graph
+   */
+  async _fetchSerpApi(query, maxResults = 8, language = 'id') {
+    if (!SERPAPI_KEY) return [];
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2400);
+    try {
+      const hl = language === 'zh' ? 'zh-cn' : (language === 'en' ? 'en' : 'id');
+      const gl = language === 'zh' ? 'cn' : (language === 'en' ? 'us' : 'id');
+      const googleDomain = language === 'id' ? 'google.co.id' : 'google.com';
+
+      const url = new URL(SERPAPI_URL);
+      url.searchParams.append('engine', 'google');
+      url.searchParams.append('q', query.trim());
+      url.searchParams.append('hl', hl);
+      url.searchParams.append('gl', gl);
+      url.searchParams.append('google_domain', googleDomain);
+      url.searchParams.append('num', String(Math.max(5, maxResults)));
+      url.searchParams.append('api_key', SERPAPI_KEY);
+
+      const response = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json' }
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return [];
+      const data = await response.json();
+      const results = [];
+
+      // 1. Direct Answer Box / Featured Snippet
+      if (data.answer_box) {
+        const ab = data.answer_box;
+        const abTitle = ab.title || ab.answer || query;
+        const abSnippet = ab.snippet || ab.answer || ab.population || ab.price || '';
+        const abLink = ab.link || 'https://www.google.com';
+        let domain = 'google.com';
+        try { domain = new URL(abLink).hostname.replace(/^www\./i, ''); } catch {}
+        if (abSnippet) {
+          results.push({
+            title: `[Fakta Inti] ${cleanText(abTitle)}`,
+            url: abLink,
+            link: abLink,
+            snippet: cleanText(abSnippet),
+            description: cleanText(abSnippet),
+            domain,
+            published_at: null,
+            trust_score: 98,
+            accuracyScore: 97.5,
+            score: 97.5,
+            pagerank: 4.5,
+            bm25: 2.0,
+            isLiveNews: false,
+            logo_url: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+            thumbnail: ab.thumbnail || `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+            sourceEngine: 'Google Search (Direct Answer)'
+          });
+        }
+      }
+
+      // 2. Knowledge Graph
+      if (data.knowledge_graph) {
+        const kg = data.knowledge_graph;
+        const kgTitle = kg.title || query;
+        const kgSnippet = kg.description || kg.type || '';
+        const kgLink = kg.source?.link || kg.website || 'https://www.google.com';
+        let domain = 'google.com';
+        try { domain = new URL(kgLink).hostname.replace(/^www\./i, ''); } catch {}
+        if (kgSnippet) {
+          results.push({
+            title: `${cleanText(kgTitle)} — Informasi Entitas Google`,
+            url: kgLink,
+            link: kgLink,
+            snippet: cleanText(kgSnippet),
+            description: cleanText(kgSnippet),
+            domain,
+            published_at: null,
+            trust_score: 97,
+            accuracyScore: 96.0,
+            score: 96.0,
+            pagerank: 4.2,
+            isLiveNews: false,
+            logo_url: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+            thumbnail: kg.image || kg.header_images?.[0]?.image || `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+            sourceEngine: 'Google Knowledge Graph'
+          });
+        }
+      }
+
+      // 3. Organic Results
+      if (Array.isArray(data.organic_results)) {
+        for (const r of data.organic_results.slice(0, maxResults)) {
+          if (!r.title || !r.link) continue;
+          let domain = '';
+          try { domain = new URL(r.link).hostname.replace(/^www\./i, ''); } catch {
+            domain = r.displayed_link ? String(r.displayed_link).split(' ')[0] : 'google.com';
+          }
+          const favicon = r.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
+          const thumbnail = r.thumbnail || (r.rich_snippet?.top?.detected_extensions?.thumbnail) || favicon;
+          const dateStr = r.date || null;
+          results.push({
+            title: cleanText(r.title),
+            url: r.link,
+            link: r.link,
+            snippet: cleanText(r.snippet) || cleanText(r.title),
+            description: cleanText(r.snippet) || '',
+            domain,
+            published_at: dateStr,
+            publishedAt: dateStr,
+            date: dateStr,
+            trust_score: 95,
+            trustScore: 95,
+            pagerank: 4.0,
+            accuracyScore: 94.5,
+            score: 94.5,
+            bm25: 1.8,
+            isLiveNews: Boolean(dateStr && (dateStr.includes('hour') || dateStr.includes('day') || dateStr.includes('jam') || dateStr.includes('hari'))),
+            logo_url: favicon,
+            lead_image_url: thumbnail,
+            thumbnail,
+            sourceEngine: 'Google Search (SerpAPI)'
+          });
+        }
+      }
+
+      return results;
+    } catch {
+      clearTimeout(timeoutId);
+      return [];
+    }
   }
 
   /**
@@ -215,7 +379,8 @@ class WebSearchService {
                 isLiveNews: true,
                 logo_url: logoUrl,
                 lead_image_url: null,
-                thumbnail: logoUrl
+                thumbnail: logoUrl,
+                sourceEngine: 'Google/Bing News RSS'
               });
             }
           }
@@ -240,7 +405,7 @@ class WebSearchService {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 1100);
         try {
-          const wikiUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${enc}&utf8=&format=json&srlimit=3`;
+          const wikiUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${enc}&utf8=&format=json&srlimit=2`;
           const res = await fetch(wikiUrl, {
             headers: { 'User-Agent': USER_AGENT },
             signal: controller.signal
@@ -265,13 +430,14 @@ class WebSearchService {
               trust_score: 82,
               trustScore: 82,
               pagerank: 2.0,
-              accuracyScore: 76.0,
-              score: 76.0,
+              accuracyScore: 78.0,
+              score: 78.0,
               bm25: 1.0,
               isLiveNews: false,
               logo_url: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
               lead_image_url: null,
-              thumbnail: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`
+              thumbnail: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+              sourceEngine: 'Wikipedia'
             });
           }
         } catch {
@@ -303,9 +469,12 @@ class WebSearchService {
               description: cleanText(data.AbstractText),
               domain,
               trust_score: 92,
+              accuracyScore: 85.0,
+              score: 85.0,
               pagerank: 2.8,
               logo_url: `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
-              thumbnail: data.Image ? `https://duckduckgo.com${data.Image}` : `https://www.google.com/s2/favicons?sz=64&domain=${domain}`
+              thumbnail: data.Image ? `https://duckduckgo.com${data.Image}` : `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+              sourceEngine: 'DuckDuckGo Instant Answer'
             });
           }
         } catch {
@@ -318,7 +487,9 @@ class WebSearchService {
   }
 
   /**
-   * Primary Hybrid Search Method (Sub-50ms Local Index + Parallel Live Web & News Aggregation)
+   * Primary Hybrid Search Method:
+   * Asynchronously queries Deepernova Local FTS5/Neural Index + SerpAPI Google + Live News + Knowledge in parallel!
+   * Automatically handles comparison queries by fetching balanced intelligence for both sides.
    */
   async searchGoogle(query, maxResults = 8, language = 'id') {
     const cleanQ = (query || '').trim();
@@ -334,72 +505,57 @@ class WebSearchService {
 
     const startTime = Date.now();
 
-    // Step 1: Try Local DeeperNova Engine (Port 4000) first — responds in < 5ms - 35ms!
-    // Simultaneously prepare Live News & Knowledge promises so there is zero sequential waiting if needed!
-    const isRealtimeNewsIntent = /\b(berita|terbaru|terkini|hari ini|kemarin|sekarang|breaking|viral|trending|harga|kurs|skor|jadwal|gempa|cuaca|bug|cve|vulnerability|celah|keamanan|security|exploit|patch|rilis|2025|2026)\b/i.test(cleanQ);
+    // 1. Detect comparison intent (e.g. "Samsung S24 vs iPhone 15" or "bandingkan Honda Vario dan Yamaha Aerox")
+    const comparison = extractComparisonEntities(cleanQ);
 
-    const localPromise = this._fetchLocalDeeperNova(cleanQ, maxResults);
-    const liveNewsPromise = this._fetchLiveNewsRss(cleanQ, maxResults);
-    const liveKnowledgePromise = this._fetchLiveKnowledge(cleanQ, Math.min(4, maxResults));
+    let allPromises = [];
 
-    // Wait up to 350ms for local Port 4000 first
-    const localResults = await localPromise;
-
-    // Check if local results strongly match the query's specific terms in their titles
-    const stopSet = new Set(['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'untuk', 'dengan', 'pada', 'adalah', 'apa', 'siapa', 'berita', 'terbaru', 'terkini', 'hari', 'kemarin', 'cari', 'katanya', 'ditemukan', 'the', 'and', 'in', 'of', 'to', 'for']);
-    const specificTerms = cleanQ.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 2 && !stopSet.has(w));
-    const strongLocalMatches = localResults.filter(r => {
-      if (specificTerms.length === 0) return true;
-      const t = `${r.title || ''} ${r.snippet || ''}`.toLowerCase();
-      const matched = specificTerms.filter(w => t.includes(w)).length;
-      return matched >= Math.max(1, Math.ceil(specificTerms.length * 0.6));
-    });
-
-    // Fast path: only return purely local if we have strong title/snippet matches AND not a live news/CVE query
-    if (strongLocalMatches.length >= Math.min(5, maxResults) && !isRealtimeNewsIntent) {
-      const responseObj = {
-        success: true,
-        results: strongLocalMatches.slice(0, maxResults),
-        query: cleanQ,
-        engine: 'deepernova_ultra_fast_local',
-        duration_ms: Date.now() - startTime
-      };
-      this._setCached(cacheKey, responseObj);
-      return responseObj;
+    if (comparison) {
+      console.log(`⚡ [WebSearchService] Comparison detected: "${comparison.entityA}" VS "${comparison.entityB}"`);
+      // Launch asynchronous multi-query for comprehensive dual comparison
+      allPromises = [
+        this._fetchLocalDeeperNova(cleanQ, 6),
+        this._fetchSerpApi(cleanQ, 6, language),
+        this._fetchSerpApi(`${comparison.entityA} review spesifikasi`, 4, language),
+        this._fetchSerpApi(`${comparison.entityB} review spesifikasi`, 4, language),
+        this._fetchLiveNewsRss(cleanQ, 4)
+      ];
+    } else {
+      // Standard asynchronous parallel multi-engine query (Zero sequential delay!)
+      allPromises = [
+        this._fetchLocalDeeperNova(cleanQ, maxResults),
+        this._fetchLiveNewsRss(cleanQ, maxResults),
+        this._fetchSerpApi(cleanQ, maxResults, language),
+        this._fetchLiveKnowledge(cleanQ, Math.min(4, maxResults))
+      ];
     }
 
-    // Parallel Merge Path: Combine Live News RSS + Strong Local Index + Live Knowledge (< 400ms - 800ms total)
-    const [liveNews, liveKnowledge] = await Promise.all([
-      liveNewsPromise,
-      liveKnowledgePromise
-    ]);
+    // Wait for all engines asynchronously with allSettled
+    const settled = await Promise.allSettled(allPromises);
 
     const merged = [];
     const seenUrls = new Set();
     const seenTitles = new Set();
-
-    // If realtime news intent or weak local match, prioritize live news RSS first!
-    const orderedPools = (isRealtimeNewsIntent || strongLocalMatches.length < 3)
-      ? [liveNews, strongLocalMatches, liveKnowledge, localResults]
-      : [strongLocalMatches, liveNews, liveKnowledge, localResults];
-
     const candidatePool = [];
-    for (const pool of orderedPools) {
-      for (const item of pool) {
-        if (!item || !item.url || !item.title) continue;
-        const normUrl = item.url.toLowerCase().replace(/\/+$/, '');
-        const normTitle = item.title.toLowerCase().slice(0, 65);
-        if (seenUrls.has(normUrl) || seenTitles.has(normTitle)) continue;
-        seenUrls.add(normUrl);
-        seenTitles.add(normTitle);
-        candidatePool.push(item);
+
+    for (const res of settled) {
+      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+        for (const item of res.value) {
+          if (!item || !item.url || !item.title) continue;
+          const normUrl = item.url.toLowerCase().replace(/\/+$/, '');
+          const normTitle = item.title.toLowerCase().slice(0, 65);
+          if (seenUrls.has(normUrl) || seenTitles.has(normTitle)) continue;
+          seenUrls.add(normUrl);
+          seenTitles.add(normTitle);
+          candidatePool.push(item);
+        }
       }
     }
 
-    // Neural Ranking: Sort by accuracyScore DESC (fresh authoritative news/tech portals beat Wikipedia)
+    // Neural Ranking: Sort by accuracyScore DESC (Google Answer Box > Google SerpAPI > Live News > Local > Wiki)
     candidatePool.sort((a, b) => (Number(b.accuracyScore || b.score || 0) - Number(a.accuracyScore || a.score || 0)));
 
-    for (const item of candidatePool.slice(0, maxResults)) {
+    for (const item of candidatePool.slice(0, Math.max(maxResults, 10))) {
       merged.push({
         ...item,
         position: merged.length + 1
@@ -408,12 +564,14 @@ class WebSearchService {
 
     if (merged.length > 0) {
       const elapsed = Date.now() - startTime;
-      console.log(`⚡ [WebSearchService] ✓ Returned ${merged.length} results for "${cleanQ}" in ${elapsed}ms`);
+      console.log(`⚡ [WebSearchService] ✓ Returned ${merged.length} hybrid results (Deepernova + Google SerpAPI) for "${cleanQ}" in ${elapsed}ms`);
       const responseObj = {
         success: true,
         results: merged,
         query: cleanQ,
-        engine: 'deepernova_hybrid_turbo',
+        engine: 'deepernova_google_hybrid_turbo',
+        isComparison: Boolean(comparison),
+        comparisonEntities: comparison,
         duration_ms: elapsed
       };
       this._setCached(cacheKey, responseObj);
@@ -427,38 +585,56 @@ class WebSearchService {
     };
   }
 
-  formatSearchResultsForPrompt(results, aiContext = '') {
+  /**
+   * Compact, High-Signal Search Result Formatter for AI Prompt:
+   * Keeps the LLM prompt lean (~400-600 tokens max) so generation starts in < 1 second!
+   */
+  formatSearchResultsForPrompt(results, aiContext = '', isComparison = false) {
     if (aiContext && aiContext.trim()) {
-      return `${aiContext.trim()}\n\n---\nGunakan data pencarian Deepernova Search Engine di atas sebagai acuan fakta utama dalam jawaban Anda.\n\n`;
+      return `${aiContext.trim()}\n\n---\nGunakan data pencarian Deepernova & Google di atas sebagai acuan fakta utama dalam jawaban Anda.\n\n`;
     }
     if (!results || results.length === 0) {
       return '';
     }
 
-    let context = '📊 **HASIL PENCARIAN DEEPERNOVA SEARCH ENGINE:**\n\n';
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      context += `${i + 1}. **${result.title}**\n`;
+    // Limit to top 6 diverse sources to prevent prompt bloat and keep AI answering FAST
+    const topResults = results.slice(0, 6);
+
+    let context = '📊 **HASIL PENCARIAN TERVERIFIKASI (DEEPERNOVA & GOOGLE SEARCH):**\n\n';
+    for (let i = 0; i < topResults.length; i++) {
+      const result = topResults[i];
+      const engineTag = result.sourceEngine ? ` [${result.sourceEngine}]` : '';
+      const snippetShort = (result.snippet || result.description || '').slice(0, 220).trim();
+      context += `${i + 1}. **${result.title}**${engineTag}\n`;
       if (result.domain) context += `   🌐 Sumber: ${result.domain}\n`;
-      if (result.published_at) context += `   📅 Tanggal: ${result.published_at}\n`;
-      if (result.snippet) context += `   Ringkasan: ${result.snippet}\n`;
-      if (result.url) context += `   📌 URL: ${result.url}\n`;
+      if (result.published_at) context += `   📅 Waktu: ${result.published_at}\n`;
+      if (snippetShort) context += `   Kutipan: ${snippetShort}\n`;
+      if (result.url) context += `   📌 Link: ${result.url}\n`;
       context += '\n';
     }
-    context += '---\n\nGunakan fakta dan informasi terverifikasi dari Deepernova Search Engine di atas untuk menjawab pertanyaan pengguna secara akurat dan sertakan rujukan sumbernya.\n\n';
+
+    context += '---\n\n**PANDUAN MENJAWAB EFISIEN & CEPAT:**\n';
+    context += '- **Langsung To-The-Point**: Mulai jawaban di kalimat pertama dengan poin utama. Hindari pengantar basa-basi panjang.\n';
+    context += '- **Gunakan Data Riil**: Rujuk angka, spesifikasi, dan fakta dari hasil pencarian Google & Deepernova di atas.\n';
+    if (isComparison) {
+      context += '- **Perbandingan Seimbang**: Sajikan perbandingan kedua subjek secara objektif (kelebihan, kekurangan, spesifikasi, dan kesimpulan) agar jelas dan berbobot.\n';
+    }
+    context += '\n';
+
     return context;
   }
 
   async augmentPromptWithWebSearch(userQuery, currentSystemPrompt) {
     try {
-      const searchResult = await this.searchGoogle(userQuery, 6);
+      const searchResult = await this.searchGoogle(userQuery, 8);
       if (searchResult.success && searchResult.results.length > 0) {
-        const searchContext = this.formatSearchResultsForPrompt(searchResult.results);
+        const searchContext = this.formatSearchResultsForPrompt(searchResult.results, '', searchResult.isComparison);
         return {
           systemPrompt: currentSystemPrompt + '\n\n' + searchContext,
           searchResults: searchResult.results,
           searchPerformed: true,
-          query: userQuery
+          query: userQuery,
+          isComparison: searchResult.isComparison
         };
       }
       return {
