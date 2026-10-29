@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import './HelpCenter.css';
 
 const HELP_DATA = [
@@ -526,6 +527,15 @@ export default function HelpCenter({ onNavigate }) {
   const [expandedId, setExpandedId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [showCeoModal, setShowCeoModal] = useState(false);
+
+  // Mobile Back Button / Gesture Integration for Help Center
+  useEffect(() => {
+    if (!showCeoModal) return;
+    return registerBackHandler(() => {
+      setShowCeoModal(false);
+      return true;
+    }, 25);
+  }, [showCeoModal]);
 
   const filteredData = useMemo(() => {
     return HELP_DATA.filter(item => {

@@ -17,6 +17,7 @@ import { CookieConsent } from './components/CookieConsent'
 import { ConversationPersistenceService } from './services/conversationPersistenceService'
 import { API_BASE_URL, SEARCH_ENGINE_URL } from './apiConfig';
 import { safeSetItem, safeGetItem, safeRemoveItem } from './utils/safeStorage.js';
+import { initMobileNavigation, setNavigationDispatcher, registerBackHandler } from './services/mobileNavigationService';
 import './App.css'
 
 export const isNativePlatform = () => {
@@ -226,7 +227,7 @@ function App() {
       };
       if (routeMap[view]) {
         try {
-          window.history.pushState(null, '', routeMap[view]);
+          window.history.pushState({ view, deepernova_active: true, timestamp: Date.now() }, '', routeMap[view]);
         } catch (_) {}
       }
     }
@@ -240,6 +241,95 @@ function App() {
       setDocumentType(typeMap[fileType] || fileType);
     }
   };
+
+  // 1. Initialize Global Mobile Phone Back Button & Gesture Manager
+  useEffect(() => {
+    const cleanup = initMobileNavigation();
+    return cleanup;
+  }, []);
+
+  // 2. Back handler for App-level modal overlays (Login & Cloud Sync)
+  useEffect(() => {
+    if (!showLoginView) return;
+    return registerBackHandler(() => {
+      setShowLoginView(false);
+      return true;
+    }, 40);
+  }, [showLoginView]);
+
+  useEffect(() => {
+    if (!showSyncModal) return;
+    return registerBackHandler(() => {
+      setShowSyncModal(false);
+      return true;
+    }, 40);
+  }, [showSyncModal]);
+
+  // 3. Register central view navigation hierarchy for mobile back button
+  useEffect(() => {
+    setNavigationDispatcher({
+      onNavigateBack: () => {
+        if (showLoginView) {
+          setShowLoginView(false);
+          return true;
+        }
+        if (showSyncModal) {
+          setShowSyncModal(false);
+          return true;
+        }
+
+        // Secondary Views navigate back to parent view
+        if (currentView === 'documents') {
+          const originView = sessionStorage.getItem('editor_return_view') || 'office';
+          handleNavigate(originView);
+          return true;
+        }
+        if (currentView === 'office') {
+          const originView = sessionStorage.getItem('cloud_entry_view') || 'chat';
+          handleNavigate(originView);
+          return true;
+        }
+        if (currentView === 'universe') {
+          handleNavigate('chat');
+          return true;
+        }
+        if (currentView === 'calendar') {
+          handleNavigate('universe');
+          return true;
+        }
+        if (currentView === 'agent') {
+          handleNavigate('chat');
+          return true;
+        }
+        if (currentView === 'help') {
+          handleNavigate('chat');
+          return true;
+        }
+        if (currentView === 'dte') {
+          handleNavigate('chat');
+          return true;
+        }
+        if (currentView === 'api') {
+          handleNavigate('landing');
+          return true;
+        }
+        if (currentView === 'chat') {
+          // On mobile web, back from chat returns to landing page
+          if (!isNative) {
+            handleNavigate('landing');
+            return true;
+          }
+          // On Native APK, chat is root -> return false to trigger double-tap exit guard
+          return false;
+        }
+        if (currentView === 'landing') {
+          // Landing is root on web -> return false to trigger double-tap exit guard
+          return false;
+        }
+        return false;
+      }
+    });
+  }, [currentView, showLoginView, showSyncModal, isNative]);
 
   // Listen to browser forward/back buttons & hash navigation
   useEffect(() => {

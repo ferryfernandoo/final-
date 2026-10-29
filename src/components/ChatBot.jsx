@@ -13,6 +13,7 @@ import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch, buildGuaranteedReferenceSources } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
 import {
   formatBubbleDomainLabel,
@@ -1773,6 +1774,173 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     };
     initializeRag();
   }, []);
+
+  // Central Mobile Back Button & Gesture Integration for ChatBot Modals, Drawers & Lightboxes
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      // 1. Highest priority: Lightbox & Full-screen Previews
+      if (enlargedImage) {
+        setEnlargedImage(null);
+        return true;
+      }
+      if (showImageModal) {
+        setShowImageModal(false);
+        return true;
+      }
+      if (showSavedImagesGallery) {
+        setShowSavedImagesGallery(false);
+        return true;
+      }
+      if (showHtmlPreview) {
+        setShowHtmlPreview(false);
+        return true;
+      }
+      if (showHtmlEditor) {
+        setShowHtmlEditor(false);
+        return true;
+      }
+
+      // 2. Sources & Research Panels
+      if (showFoundSourcesPanel) {
+        setShowFoundSourcesPanel(false);
+        return true;
+      }
+      if (showSourcesModal) {
+        setShowSourcesModal(false);
+        return true;
+      }
+
+      // 3. Modals & Dialogs
+      if (showVoiceChat) {
+        setShowVoiceChat(false);
+        return true;
+      }
+      if (showVoiceDevModal) {
+        setShowVoiceDevModal(false);
+        return true;
+      }
+      if (showDonationModal) {
+        setShowDonationModal(false);
+        return true;
+      }
+      if (showSettingsModal) {
+        setShowSettingsModal(false);
+        return true;
+      }
+      if (showPersonalityModal) {
+        setShowPersonalityModal(false);
+        return true;
+      }
+      if (showPrivateModal) {
+        setShowPrivateModal(false);
+        return true;
+      }
+      if (showFormatDbModal) {
+        setShowFormatDbModal(false);
+        return true;
+      }
+      if (showNameSetupModal) {
+        setShowNameSetupModal(false);
+        return true;
+      }
+      if (showApiDashboard) {
+        setShowApiDashboard(false);
+        return true;
+      }
+      if (showLogoutConfirm) {
+        setShowLogoutConfirm(false);
+        return true;
+      }
+      if (showGlobalMemorySettings) {
+        setShowGlobalMemorySettings(false);
+        return true;
+      }
+      if (showConnectionErrorModal) {
+        setShowConnectionErrorModal(false);
+        return true;
+      }
+      if (showTextPopup) {
+        setShowTextPopup(false);
+        return true;
+      }
+
+      // 4. Dropdowns, Menus & Action Sheets
+      if (showConvMenu) {
+        setShowConvMenu(false);
+        return true;
+      }
+      if (showSidebarMoreMenu) {
+        setShowSidebarMoreMenu(false);
+        return true;
+      }
+      if (showSidebarProfileMenu) {
+        setShowSidebarProfileMenu(false);
+        return true;
+      }
+      if (showModelMenu) {
+        setShowModelMenu(false);
+        return true;
+      }
+      if (showInputMenu) {
+        setShowInputMenu(false);
+        return true;
+      }
+      if (showSlashMenu) {
+        setShowSlashMenu(false);
+        return true;
+      }
+      if (showFloatingMenu) {
+        setShowFloatingMenu(false);
+        return true;
+      }
+
+      // 5. Agentic Panel on mobile/tablet (< 1024px)
+      if (typeof window !== 'undefined' && window.innerWidth < 1024 && showAgenticPanel) {
+        setShowAgenticPanel(false);
+        return true;
+      }
+
+      // 6. Sidebar Drawer on mobile (< 769px)
+      if (typeof window !== 'undefined' && window.innerWidth < 769 && sidebarOpen) {
+        setSidebarOpen(false);
+        return true;
+      }
+
+      return false; // Nothing in ChatBot was open, delegate to view navigation
+    }, 20);
+
+    return unregister;
+  }, [
+    enlargedImage,
+    showImageModal,
+    showSavedImagesGallery,
+    showHtmlPreview,
+    showHtmlEditor,
+    showFoundSourcesPanel,
+    showSourcesModal,
+    showVoiceChat,
+    showVoiceDevModal,
+    showDonationModal,
+    showSettingsModal,
+    showPersonalityModal,
+    showPrivateModal,
+    showFormatDbModal,
+    showNameSetupModal,
+    showApiDashboard,
+    showLogoutConfirm,
+    showGlobalMemorySettings,
+    showConnectionErrorModal,
+    showTextPopup,
+    showConvMenu,
+    showSidebarMoreMenu,
+    showSidebarProfileMenu,
+    showModelMenu,
+    showInputMenu,
+    showSlashMenu,
+    showFloatingMenu,
+    showAgenticPanel,
+    sidebarOpen
+  ]);
 
   const confirmLogout = async () => {
     setLogoutLoading(true);

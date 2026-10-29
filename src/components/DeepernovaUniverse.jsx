@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import './DeepernovaUniverse.css';
 
 const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = true, user = null, onLoginRequest }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    if (!showAuthModal) return;
+    return registerBackHandler(() => {
+      setShowAuthModal(false);
+      return true;
+    }, 25);
+  }, [showAuthModal]);
 
   const openEditor = (type) => {
     if (typeof onNavigate === 'function') onNavigate('documents', type);
