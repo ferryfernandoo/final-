@@ -8620,16 +8620,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             <div className="header-right-actions">
               <button
                 type="button"
-                className={`header-voice-toggle-btn ${isAutoVoiceEnabled ? 'active' : ''}`}
-                onClick={handleToggleAutoVoice}
-                title={
-                  isAutoVoiceEnabled
-                    ? (userLanguage === 'id' ? 'Suara Otomatis: AKTIF (Klik untuk nonaktifkan)' : 'Auto-Voice: ON (Click to mute)')
-                    : (userLanguage === 'id' ? 'Suara Otomatis: NONAKTIF (Klik untuk aktifkan)' : 'Auto-Voice: OFF (Click to enable)')
-                }
+                className="header-universe-btn"
+                onClick={() => onNavigate?.('universe')}
+                title={userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
               >
-                <i className={`fa-solid ${isAutoVoiceEnabled ? 'fa-volume-high' : 'fa-volume-xmark'}`}></i>
-                <span className="header-voice-label">{isAutoVoiceEnabled ? (userLanguage === 'id' ? 'Suara' : 'Voice') : (userLanguage === 'id' ? 'Senyap' : 'Muted')}</span>
+                <img
+                  src="https://img.icons8.com/fluency/96/universe.png"
+                  alt="Universe"
+                  className="header-universe-icon"
+                />
               </button>
               <button 
                 type="button" 
@@ -8651,6 +8650,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           {messages.length === 0 && (
             <div className="header-right-actions">
+              <button
+                type="button"
+                className="header-universe-btn"
+                onClick={() => onNavigate?.('universe')}
+                title={userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
+              >
+                <img
+                  src="https://img.icons8.com/fluency/96/universe.png"
+                  alt="Universe"
+                  className="header-universe-icon"
+                />
+              </button>
               <button
                 type="button"
                 className="header-switch-agent-btn"
