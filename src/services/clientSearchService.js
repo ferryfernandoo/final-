@@ -748,84 +748,233 @@ export async function executeWebSearch(query, options = {}) {
   }
 
   const tStart = performance.now();
-  console.log(`[ClientSearchService] Executing ultra-fast search for: "${effectiveQuery}" (limit: ${limit})`);
+  console.log(`[ClientSearchService] 🚀 Launching SIMULTANEOUS ASYNC SEARCH (Google SerpAPI + Deepernova Search) for: "${effectiveQuery}"`);
 
-  // 2. Asynchronous Multi-Engine Execution: Proxy Hybrid (Deepernova + Google SerpAPI) + Direct Search + Fallbacks
-  const executeWithTimeout = async () => {
-    const wrapSearchResult = (promise) =>
-      new Promise((resolve) => {
-        promise.then((res) => {
-          if (res && res.success && res.data?.organic_results?.length > 0) {
-            resolve(res);
-          } else {
-            resolve(null);
+  // ── Engine A: Google Search via SerpAPI (Backend /api/serp-search) ──
+  const fetchGoogleSerpApi = async () => {
+    const endpoints = [];
+    if (typeof window !== 'undefined' && window.location) {
+      endpoints.push(`/api/serp-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+      endpoints.push(`/api/google-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+    }
+    if (BACKEND_BASE_URL) {
+      endpoints.push(`${BACKEND_BASE_URL}/api/serp-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+      endpoints.push(`${BACKEND_BASE_URL}/api/google-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+    }
+    if (isLocal) {
+      endpoints.push(`http://localhost:3001/api/serp-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+    }
+
+    for (const url of [...new Set(endpoints)]) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      try {
+        const resp = await fetch(url, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (resp.ok) {
+          const data = await resp.json().catch(() => null);
+          if (data && data.success && Array.isArray(data.data?.organic_results) && data.data.organic_results.length > 0) {
+            return data.data.organic_results.map(r => ({
+              ...r,
+              sourceEngine: r.sourceEngine || 'Google Search (SerpAPI)'
+            }));
           }
-        }).catch(() => resolve(null));
-      });
-
-    const proxyPromise = wrapSearchResult(performProxySearch(effectiveQuery, limit, 3500));
-    const directPromise = wrapSearchResult(performDirectSearch(effectiveQuery, limit, includeImages, 2500));
-    const cloudPromise = wrapSearchResult(performCloudDirectSearch(effectiveQuery, limit, 3000));
-    const publicPromise = wrapSearchResult(performPublicWebFallback(effectiveQuery, limit, 3000));
-
-    // Wait for the primary engines (Proxy Hybrid with Google SerpAPI + Direct local search)
-    const [proxyResult, directResult] = await Promise.all([proxyPromise, directPromise]);
-
-    if (proxyResult && directResult) {
-      return mergeSearchResults(proxyResult, directResult);
-    }
-    if (proxyResult) return proxyResult;
-    if (directResult) {
-      // If direct local search returned few results, asynchronously fetch SerpApi Google as supplement
-      if ((directResult.data?.organic_results?.length || 0) < 4) {
-        try {
-          const serpResp = await wrapSearchResult(performSerpSearchDirect(effectiveQuery, limit, 2000));
-          if (serpResp) return mergeSearchResults(directResult, serpResp);
-        } catch {}
+        }
+      } catch {
+        clearTimeout(timeoutId);
       }
-      return directResult;
     }
-
-    // Secondary engines: Cloud + Public knowledge fallback
-    const [cloudResult, pubResult] = await Promise.all([cloudPromise, publicPromise]);
-    if (cloudResult && pubResult) return mergeSearchResults(cloudResult, pubResult);
-    if (cloudResult) return cloudResult;
-    if (pubResult) return pubResult;
-
-    // Guaranteed fallback so organic_results is NEVER empty
-    const guaranteed = buildGuaranteedReferenceSources(effectiveQuery);
-    return {
-      success: true,
-      data: {
-        organic_results: guaranteed,
-        inline_images: [],
-        search_information: { query: effectiveQuery, total_results: guaranteed.length, time_taken_ms: 50 },
-        engine: 'deepernova_guaranteed_references'
-      }
-    };
+    return [];
   };
 
-  // Hard global timeout at 3800ms with guaranteed reference sources
-  const hardTimeoutPromise = new Promise((resolve) => {
-    setTimeout(() => {
-      const guaranteed = buildGuaranteedReferenceSources(effectiveQuery);
-      resolve({
-        success: true,
-        data: {
-          organic_results: guaranteed,
-          inline_images: [],
-          search_information: { query: effectiveQuery, total_results: guaranteed.length, time_taken_ms: 3800, timed_out: true },
-          engine: 'deepernova_timeout_guaranteed_references'
+  // ── Engine B: Deepernova Local / Cloud Search Engine (Port 4000 / /api/v1/search) ──
+  const fetchDeepernovaSearch = async () => {
+    const endpoints = [];
+    if (typeof window !== 'undefined' && window.location) {
+      endpoints.push(`/api/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+      endpoints.push(`/api/v1/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}&key=${DEEPERNOVA_PUBLIC_GUEST_KEY}`);
+    }
+    if (DEEPERNOVA_SEARCH_API_URL) {
+      endpoints.push(`${DEEPERNOVA_SEARCH_API_URL}/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}&key=${DEEPERNOVA_PUBLIC_GUEST_KEY}&fast=1&crawl=0`);
+    }
+    if (isLocal) {
+      endpoints.push(`http://127.0.0.1:4000/api/v1/search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}&key=${DEEPERNOVA_PUBLIC_GUEST_KEY}&fast=1&crawl=0`);
+    }
+
+    for (const url of [...new Set(endpoints)]) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      try {
+        const resp = await fetch(url, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (resp.ok) {
+          const data = await resp.json().catch(() => null);
+          const normalized = normalizeAnySearchResponse(data, effectiveQuery, 'deepernova_search');
+          if (normalized?.data?.organic_results?.length > 0) {
+            return normalized.data.organic_results.map(r => ({
+              ...r,
+              sourceEngine: r.sourceEngine || 'DeeperNova Search'
+            }));
+          }
         }
-      });
-    }, 3800);
-  });
+      } catch {
+        clearTimeout(timeoutId);
+      }
+    }
+    return [];
+  };
 
-  const finalResult = await Promise.race([executeWithTimeout(), hardTimeoutPromise]);
+  // ── Engine C: Backend Hybrid Search (combines local index + live RSS news) ──
+  const fetchBackendHybrid = async () => {
+    const endpoints = [];
+    if (typeof window !== 'undefined' && window.location) {
+      endpoints.push(`/api/web-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+    }
+    if (BACKEND_BASE_URL) {
+      endpoints.push(`${BACKEND_BASE_URL}/api/web-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+    }
+    if (isLocal) {
+      endpoints.push(`http://localhost:3001/api/web-search?q=${encodeURIComponent(effectiveQuery)}&limit=${limit}`);
+    }
+
+    for (const url of [...new Set(endpoints)]) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      try {
+        const resp = await fetch(url, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (resp.ok) {
+          const data = await resp.json().catch(() => null);
+          const normalized = normalizeAnySearchResponse(data, effectiveQuery, 'deepernova_hybrid');
+          if (normalized?.data?.organic_results?.length > 0) {
+            return normalized.data.organic_results;
+          }
+        }
+      } catch {
+        clearTimeout(timeoutId);
+      }
+    }
+    return [];
+  };
+
+  // Execute all three engines in true parallel asynchronous execution!
+  const [googleSettled, deepernovaSettled, hybridSettled] = await Promise.allSettled([
+    fetchGoogleSerpApi(),
+    fetchDeepernovaSearch(),
+    fetchBackendHybrid()
+  ]);
+
+  const googleResults = googleSettled.status === 'fulfilled' ? googleSettled.value : [];
+  const deepernovaResults = deepernovaSettled.status === 'fulfilled' ? deepernovaSettled.value : [];
+  const hybridResults = hybridSettled.status === 'fulfilled' ? hybridSettled.value : [];
+
+  console.log(`[ClientSearchService] ⚡ Async Results: Google SerpAPI=${googleResults.length}, Deepernova=${deepernovaResults.length}, Hybrid=${hybridResults.length}`);
+
+  // Combine and interleave results so user gets verified sources from BOTH Google and Deepernova Search!
+  const combined = [];
+  const seenUrls = new Set();
+  const seenTitles = new Set();
+
+  const addResult = (item, defaultEngine) => {
+    if (!item) return;
+    const rawUrl = item.url || item.link || '';
+    const rawTitle = item.title || '';
+    if (!rawUrl && !rawTitle) return;
+
+    const urlKey = rawUrl.toLowerCase().replace(/\/+$/, '');
+    const titleKey = rawTitle.toLowerCase().slice(0, 50);
+
+    if (urlKey && seenUrls.has(urlKey)) return;
+    if (titleKey && seenTitles.has(titleKey)) return;
+
+    if (urlKey) seenUrls.add(urlKey);
+    if (titleKey) seenTitles.add(titleKey);
+
+    let domain = item.domain || '';
+    if (!domain && rawUrl) {
+      try { domain = new URL(rawUrl).hostname.replace(/^www\./i, ''); } catch (e) {}
+    }
+
+    const engineName = item.sourceEngine || defaultEngine;
+    const isGoogle = engineName.toLowerCase().includes('google') || engineName.toLowerCase().includes('serp');
+    const favicon = isGoogle 
+      ? `https://www.google.com/s2/favicons?sz=64&domain=${domain || 'google.com'}`
+      : (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png');
+
+    combined.push({
+      title: cleanSearchText(rawTitle) || 'Untitled',
+      link: rawUrl || '#',
+      url: rawUrl || '#',
+      snippet: cleanSearchText(item.snippet || item.description || ''),
+      description: cleanSearchText(item.description || item.snippet || ''),
+      domain,
+      thumbnail: item.thumbnail || item.lead_image_url || favicon,
+      logo_url: item.logo_url || favicon,
+      accuracyScore: Number(item.accuracyScore || item.score || (isGoogle ? 96 : 90)),
+      score: Number(item.score || item.accuracyScore || (isGoogle ? 96 : 90)),
+      pagerank: item.pagerank ?? (isGoogle ? 4.2 : 3.2),
+      trustScore: item.trustScore ?? 92,
+      bm25: item.bm25 ?? 1.5,
+      isLiveNews: Boolean(item.isLiveNews),
+      date: item.date || item.published_at || null,
+      publishedAt: item.publishedAt || item.published_at || null,
+      sourceEngine: engineName
+    });
+  };
+
+  // Interleave: Alternate 1 Google, 1 Deepernova, 1 Google, 1 Deepernova...
+  const maxLen = Math.max(googleResults.length, deepernovaResults.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (i < googleResults.length) {
+      addResult(googleResults[i], 'Google Search (SerpAPI)');
+    }
+    if (i < deepernovaResults.length) {
+      addResult(deepernovaResults[i], 'DeeperNova Search');
+    }
+  }
+
+  // Also add any unique hybrid results
+  for (const item of hybridResults) {
+    addResult(item, 'DeeperNova Hybrid');
+  }
+
+  // If still empty, fall back to Wikipedia / Public knowledge
+  if (combined.length === 0) {
+    const pub = await performPublicWebFallback(effectiveQuery, limit, 2000);
+    if (pub?.data?.organic_results) {
+      for (const item of pub.data.organic_results) addResult(item, 'Wikipedia / Web');
+    }
+  }
+
+  // Guaranteed fallback so organic_results is NEVER empty
+  if (combined.length === 0) {
+    for (const item of buildGuaranteedReferenceSources(effectiveQuery)) {
+      addResult(item, 'Deepernova Reference');
+    }
+  }
+
+  // Assign clean positions 1..N
+  combined.forEach((item, idx) => { item.position = idx + 1; });
+
+  const finalResult = {
+    success: true,
+    data: {
+      organic_results: combined,
+      inline_images: [],
+      search_information: {
+        query: effectiveQuery,
+        total_results: combined.length,
+        time_taken_ms: Math.round(performance.now() - tStart),
+        engines: ['Google Search (SerpAPI)', 'DeeperNova Search']
+      },
+      engine: 'deepernova_google_simultaneous_turbo'
+    }
+  };
+
   const durationMs = Math.round(performance.now() - tStart);
-  console.log(`[ClientSearchService] ⚡ Search finished in ${durationMs}ms for "${effectiveQuery}" (${finalResult?.data?.organic_results?.length || 0} sources)`);
+  console.log(`[ClientSearchService] ⚡ Simultaneous Search finished in ${durationMs}ms for "${effectiveQuery}" (${combined.length} sources combined)`);
 
-  if (finalResult && finalResult.success && finalResult.data?.organic_results?.length > 0 && !String(finalResult.data.engine || '').includes('guaranteed')) {
+  if (combined.length > 0 && !String(finalResult.data.engine || '').includes('guaranteed')) {
     setClientSearchCache(cacheKey, finalResult);
   }
 

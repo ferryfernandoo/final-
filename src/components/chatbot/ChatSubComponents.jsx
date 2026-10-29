@@ -377,6 +377,28 @@ export const SourceBubbleCarousel = React.memo(({ sources = [], language, onShow
                       loading="lazy"
                     />
                     <span className="source-bubble-rank-badge">#{rankNum}</span>
+                    {source.sourceEngine && (
+                      <span
+                        className="source-engine-pill"
+                        style={{
+                          position: 'absolute',
+                          bottom: '-2px',
+                          right: '-2px',
+                          fontSize: '8px',
+                          fontWeight: 800,
+                          padding: '1px 3.5px',
+                          borderRadius: '4px',
+                          background: source.sourceEngine.includes('Google') ? '#4285F4' : '#6366f1',
+                          color: '#ffffff',
+                          lineHeight: '10px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                          letterSpacing: '0.2px'
+                        }}
+                        title={source.sourceEngine}
+                      >
+                        {source.sourceEngine.includes('Google') ? 'G' : 'DN'}
+                      </span>
+                    )}
                   </div>
                   <span className="source-bubble-label">
                     {shortLabel}
