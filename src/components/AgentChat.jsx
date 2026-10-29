@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
@@ -103,6 +104,27 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isDrawerOpen]);
+
+  // Mobile Back Button / Gesture Integration for Agent Chat
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (selectedFile) {
+        setSelectedFile(null);
+        return true;
+      }
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        return true;
+      }
+      if (showMenuDropdown) {
+        setShowMenuDropdown(false);
+        return true;
+      }
+      return false; // Delegate to view navigation (back to Chat)
+    }, 22);
+
+    return unregister;
+  }, [selectedFile, isDrawerOpen, showMenuDropdown]);
 
   useEffect(() => {
     return () => {

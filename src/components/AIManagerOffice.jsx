@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { API_BASE_URL } from '../apiConfig';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import './AIManagerOffice.css';
 
 // Helper: Real-time XMLHttpRequest upload with exact percentage tracking
@@ -597,6 +598,39 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
       setActiveCategory('all');
     }
   };
+
+  // Mobile Back Button / Gesture Integration for Cloud Storage & Office
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (selectedMediaFile) {
+        setSelectedMediaFile(null);
+        return true;
+      }
+      if (showNewFolderModal) {
+        setShowNewFolderModal(false);
+        return true;
+      }
+      if (showMobileActionMenu) {
+        setShowMobileActionMenu(false);
+        return true;
+      }
+      if (selectedMobileFile) {
+        setSelectedMobileFile(null);
+        return true;
+      }
+      if (contextMenu.visible) {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+        return true;
+      }
+      if (navIndex > 0 || currentFolderId !== null) {
+        handleNavBack();
+        return true;
+      }
+      return false; // Root of Office reached -> delegate to App.jsx view navigation
+    }, 22);
+
+    return unregister;
+  }, [selectedMediaFile, showNewFolderModal, showMobileActionMenu, selectedMobileFile, contextMenu?.visible, navIndex, currentFolderId, folderPath]);
 
   // ===== CONTEXT MENU & LONG PRESS STATES =====
   const [contextMenu, setContextMenu] = useState({

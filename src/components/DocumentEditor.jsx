@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './DocumentEditor.css';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch } from '../services/clientSearchService';
 import { sendMessageToGrok, processStreamingResponse } from '../services/grokApi';
@@ -946,6 +947,81 @@ const DocumentEditor = ({ _user, onNavigate, documentType = 'docx' }) => {
   const [drawingPaths, setDrawingPaths] = useState([]);
   const [activePenId, setActivePenId] = useState(null);
   const drawingCanvasRef = useRef(null);
+
+  // Mobile Back Button / Gesture Integration for Document Editor Modals & Panels
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (showBrainstormChat) {
+        setShowBrainstormChat(false);
+        return true;
+      }
+      if (showPresetModal) {
+        setShowPresetModal(false);
+        return true;
+      }
+      if (showTemplateModal) {
+        setShowTemplateModal(false);
+        return true;
+      }
+      if (showMacroModal) {
+        setShowMacroModal(false);
+        return true;
+      }
+      if (showPivotModal) {
+        setShowPivotModal(false);
+        return true;
+      }
+      if (showFormatCellsModal) {
+        setShowFormatCellsModal(false);
+        return true;
+      }
+      if (showHelpModal) {
+        setShowHelpModal(false);
+        return true;
+      }
+      if (showPageSetup) {
+        setShowPageSetup(false);
+        return true;
+      }
+      if (showFind) {
+        setShowFind(false);
+        return true;
+      }
+      if (showSlashMenu) {
+        setShowSlashMenu(false);
+        return true;
+      }
+      if (showBordersMenu) {
+        setShowBordersMenu(false);
+        return true;
+      }
+      if (showTableStylesMenu) {
+        setShowTableStylesMenu(false);
+        return true;
+      }
+      if (showClearMenu) {
+        setShowClearMenu(false);
+        return true;
+      }
+      return false; // No modal open, delegate to view navigation
+    }, 24);
+
+    return unregister;
+  }, [
+    showBrainstormChat,
+    showPresetModal,
+    showTemplateModal,
+    showMacroModal,
+    showPivotModal,
+    showFormatCellsModal,
+    showHelpModal,
+    showPageSetup,
+    showFind,
+    showSlashMenu,
+    showBordersMenu,
+    showTableStylesMenu,
+    showClearMenu
+  ]);
 
   // ===== NEW MS WORD STATES =====
   const [activeRibbonTab, setActiveRibbonTab] = useState('home'); // home, insert, layout, draw, ai

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL, PUBLIC_API_BASE_URL } from '../apiConfig';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import './ApiMarketplace.css';
 
 const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRequest }) => {
@@ -27,6 +28,35 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
   const [createdKey, setCreatedKey] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Mobile Back Button / Gesture Integration for API Marketplace
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (showFullKeyModal) {
+        setShowFullKeyModal(false);
+        return true;
+      }
+      if (showCreateKeyModal) {
+        setShowCreateKeyModal(false);
+        return true;
+      }
+      if (showApiKeyModal) {
+        setShowApiKeyModal(false);
+        return true;
+      }
+      if (navOpen) {
+        setNavOpen(false);
+        return true;
+      }
+      if (currentPage !== 'landing') {
+        setCurrentPage('landing');
+        return true;
+      }
+      return false; // Delegate to view navigation (back to Landing page)
+    }, 22);
+
+    return unregister;
+  }, [showFullKeyModal, showCreateKeyModal, showApiKeyModal, navOpen, currentPage]);
 
   // Interactive Live Hit Tester State
   const [testKeyId, setTestKeyId] = useState('');

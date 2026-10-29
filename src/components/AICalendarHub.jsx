@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { registerBackHandler } from '../services/mobileNavigationService';
 import { reminderService } from '../services/reminderService';
 import { nativeBridge } from '../services/nativeBridge';
 import ReminderCard from './ReminderCard';
@@ -12,6 +13,15 @@ const AICalendarHub = ({ onNavigate }) => {
   const [newDatetime, setNewDatetime] = useState('');
   const [newType, setNewType] = useState('alarm');
   const [currentTimeStr, setCurrentTimeStr] = useState('');
+
+  // Mobile Back Button / Gesture Integration
+  useEffect(() => {
+    if (!showAddForm) return;
+    return registerBackHandler(() => {
+      setShowAddForm(false);
+      return true;
+    }, 25);
+  }, [showAddForm]);
 
   // Live WIB Clock Counter
   useEffect(() => {
