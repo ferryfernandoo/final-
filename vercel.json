@@ -148,95 +148,95 @@
     },
     {
       "source": "/api/search",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/search"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/search"
     },
     {
       "source": "/api/status",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/status"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/status"
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/suggest"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/suggest"
     },
     {
       "source": "/api/v1/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/v1/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/v1/:path*"
     },
     {
       "source": "/api/suggestions",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/suggestions"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/suggestions"
     },
     {
       "source": "/api/suggestions/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/suggestions/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/ai/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/news"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/news/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/tokoh"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/geo"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/geo/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/crawl"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/crawl/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/economics"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/economics/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/proxy-image"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://trans-audit-wichita-randy.trycloudflare.com/api/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://trans-audit-wichita-randy.trycloudflare.com/auth/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://trans-audit-wichita-randy.trycloudflare.com/v1/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://trans-audit-wichita-randy.trycloudflare.com/download/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://trans-audit-wichita-randy.trycloudflare.com/watermarked/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|api/|auth/|v1/|download/|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",

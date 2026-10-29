@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://specs-sean-seriously-hats.trycloudflare.com/api/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
