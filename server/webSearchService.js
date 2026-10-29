@@ -270,7 +270,75 @@ class WebSearchService {
         }
       }
 
-      // 3. Organic Results
+      // 3. Top Stories / Breaking News Carousel (Vital for "Hari Ini" & Breaking News Queries)
+      if (Array.isArray(data.top_stories)) {
+        for (const story of data.top_stories) {
+          if (!story.title || !story.link) continue;
+          let domain = '';
+          try { domain = new URL(story.link).hostname.replace(/^www\./i, ''); } catch {
+            domain = story.source || 'news';
+          }
+          const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
+          results.push({
+            title: cleanText(story.title),
+            url: story.link,
+            link: story.link,
+            snippet: `[Berita Terkini Google] ${cleanText(story.title)}${story.source ? ` — Sumber: ${story.source}` : ''}${story.date ? ` (${story.date})` : ''}`,
+            description: cleanText(story.title),
+            domain,
+            published_at: story.date || null,
+            publishedAt: story.date || null,
+            date: story.date || null,
+            trust_score: 99,
+            trustScore: 99,
+            pagerank: 4.8,
+            accuracyScore: 98.8,
+            score: 98.8,
+            bm25: 2.5,
+            isLiveNews: true,
+            logo_url: favicon,
+            lead_image_url: story.thumbnail || favicon,
+            thumbnail: story.thumbnail || favicon,
+            sourceEngine: 'Google Search (Top Stories)'
+          });
+        }
+      }
+
+      // 4. News Results
+      if (Array.isArray(data.news_results)) {
+        for (const news of data.news_results) {
+          if (!news.title || !news.link) continue;
+          let domain = '';
+          try { domain = new URL(news.link).hostname.replace(/^www\./i, ''); } catch {
+            domain = news.source || 'news';
+          }
+          const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
+          results.push({
+            title: cleanText(news.title),
+            url: news.link,
+            link: news.link,
+            snippet: cleanText(news.snippet || news.title),
+            description: cleanText(news.snippet || news.title),
+            domain,
+            published_at: news.date || null,
+            publishedAt: news.date || null,
+            date: news.date || null,
+            trust_score: 98,
+            trustScore: 98,
+            pagerank: 4.5,
+            accuracyScore: 98.0,
+            score: 98.0,
+            bm25: 2.2,
+            isLiveNews: true,
+            logo_url: favicon,
+            lead_image_url: news.thumbnail || favicon,
+            thumbnail: news.thumbnail || favicon,
+            sourceEngine: 'Google News (SerpAPI)'
+          });
+        }
+      }
+
+      // 5. Organic Results
       if (Array.isArray(data.organic_results)) {
         for (const r of data.organic_results.slice(0, maxResults)) {
           if (!r.title || !r.link) continue;
@@ -281,11 +349,18 @@ class WebSearchService {
           const favicon = r.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
           const thumbnail = r.thumbnail || (r.rich_snippet?.top?.detected_extensions?.thumbnail) || favicon;
           const dateStr = r.date || null;
+          
+          let richSnippet = cleanText(r.snippet) || cleanText(r.title);
+          if (Array.isArray(r.rich_snippet?.top?.detected_extensions)) {
+            const extText = Object.values(r.rich_snippet.top.detected_extensions).filter(v => typeof v === 'string').join(' • ');
+            if (extText) richSnippet += ` (${extText})`;
+          }
+
           results.push({
             title: cleanText(r.title),
             url: r.link,
             link: r.link,
-            snippet: cleanText(r.snippet) || cleanText(r.title),
+            snippet: richSnippet,
             description: cleanText(r.snippet) || '',
             domain,
             published_at: dateStr,
@@ -294,8 +369,8 @@ class WebSearchService {
             trust_score: 95,
             trustScore: 95,
             pagerank: 4.0,
-            accuracyScore: 94.5,
-            score: 94.5,
+            accuracyScore: 95.0,
+            score: 95.0,
             bm25: 1.8,
             isLiveNews: Boolean(dateStr && (dateStr.includes('hour') || dateStr.includes('day') || dateStr.includes('jam') || dateStr.includes('hari'))),
             logo_url: favicon,

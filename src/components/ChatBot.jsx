@@ -6786,15 +6786,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Render search result bubbles first before AI starts typing response
       await new Promise(resolve => setTimeout(resolve, 550));
 
-      // Build lean, high-signal context from search results for the AI
-      // Limit to top 8 sources with concise snippets (~220 chars) to prevent prompt bloat and keep Grok/LLM blazing fast!
+      // Build high-signal, rich factual context from search results for the AI
+      // Provide deep snippets (~750 chars) so the AI reads concrete numbers, quotes, and facts from Google & Deepernova!
       const topContextSources = sources.slice(0, 8);
       const searchContext = topContextSources.map((s, idx) => {
-        const rankBadge = s.accuracyScore ? ` [Peringkat #${idx + 1} | Akurasi: ${Math.round(s.accuracyScore)}% | PageRank: ${s.pagerank || '3.5'}]` : ` [Peringkat #${idx + 1}]`;
-        const engineBadge = s.sourceEngine ? ` [${s.sourceEngine}]` : '';
-        const cleanSnippet = (s.snippet || s.description || '').slice(0, 220).trim();
-        return `[Sumber #${idx + 1}${rankBadge}${engineBadge}] ${s.title}\nURL: ${s.link}\nKutipan: ${cleanSnippet}`;
-      }).join('\n\n');
+        const engineName = s.sourceEngine || 'DeeperNova Search';
+        const rankBadge = `[Sumber #${idx + 1} | Mesin: ${engineName} | Relevansi: ${Math.round(s.accuracyScore || 95)}%${s.date ? ' | Tanggal: ' + s.date : ''}]`;
+        const cleanSnippet = (s.snippet || s.description || s.content || '').slice(0, 750).trim();
+        return `${rankBadge}\nJudul: ${s.title}\nURL: ${s.link}\nKutipan Teks & Bukti Fakta:\n${cleanSnippet}`;
+      }).join('\n\n----------------------------------------\n\n');
 
       // Initialize context history if empty
       searchContextHistoryRef.current[messageId] = searchContextHistoryRef.current[messageId] || [];
@@ -6860,12 +6860,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    - SATU BARIS KOSONG (BLANK LINE): Pisahkan setiap paragraf, subjudul, dan butir poin dengan SATU BARIS KOSONG agar jawaban lega, berjarak nyaman, dan tidak menumpuk padat.
    - TEBALKAN DATA KRUSIAL: Cetak tebal angka penting, persentase, tanggal spesifik, atau nama lembaga kunci.
 
-4. KEAKURATAN & SITASI SUMBER:
-   - Manfaatkan data faktual dari HASIL PENCARIAN WEB di atas. Jangan membaca berita kaku seperti robot, sajikan secara cerdas dan mengalir.
+4. WAJIB BACA & SINTESIS DATA HASIL PENCARIAN DI ATAS (MUTLAK):
+   - Anda TELAH DIBERIKAN kutipan data nyata hasil pencarian Google Search (SerpAPI) dan DeeperNova Search yang telah diperingkat oleh sistem berdasarkan relevansi teks terbaru.
+   - BACA DENGAN TELITI seluruh kutipan teks, nama tokoh, tanggal, dan angka yang tercantum di bagian "DATA HASIL PENCARIAN WEB TERVERIFIKASI" di atas untuk menyusun jawaban.
+   - DILARANG KERAS mengabaikan hasil pencarian atau menjawab hanya dari ingatan/pelatihan lama. Jika informasi ada di kutipan di atas, SEBUTKAN DAN JELASKAN secara eksplisit dalam jawaban Anda!
+   - Sebutkan fakta konkret yang ditemukan (seperti waktu/jam kejadian, tanggal, angka statistik, atau pernyataan resmi).
    - Cantumkan sitasi link markdown: [Nama Sumber](URL) tepat di akhir kalimat fakta yang bersumber dari web.
 
-5. KNOWLEDGE FALLBACK PERCAYA DIRI:
-   - Jika hasil web minim atau kurang relevan: Padukan mulus dengan pengetahuan internal Anda secara cerdas dan percaya diri tanpa meminta maaf dan tanpa menyalahkan hasil pencarian.
+5. ANALISIS PERBANDINGAN CERDAS & OBYEKTIF:
+   - Jika pengguna membandingkan dua hal atau menanyakan perbandingan (termasuk hasil Google vs Deepernova, atau produk/topik A vs B), sajikan perbandingan yang komprehensif, faktual, dan tidak memihak berdasarkan temuan data di atas.
 
 6. FOKUS MURNI PADA TOPIK TERAKHIR (TOPIC SWITCHING):
    - Jawab HANYA berdasarkan "Pertanyaan Pengguna" di atas dan data hasil pencarian web terkait.
