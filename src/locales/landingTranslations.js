@@ -18,44 +18,39 @@ export const landingTranslations = {
       download: 'Unduh APK'
     },
     download: {
-      eyebrow: 'Aplikasi Android Resmi',
-      heading: 'Unduh Aplikasi Deepernova (.APK)',
-      sub: 'Nikmati performa maksimal dan pengalaman layar penuh tanpa gangguan browser. Tersedia untuk semua perangkat Android.',
+      eyebrow: 'Aplikasi Android Resmi · Cloudflare Edge CDN',
+      heading: 'Unduh Deepernova untuk Android',
+      sub: 'Performa native layar penuh tanpa hambatan browser, diakselerasi langsung oleh jaringan Cloudflare Edge.',
       searchCard: {
         badge: 'Search Engine APK',
         title: 'DeeperNova Search',
-        subtitle: 'Mesin Pencari Cepat & Ringan',
+        subtitle: 'Mesin Pencari Mandiri Cepat & Ringan',
         size: '6.6 MB',
         version: 'v1.0.0',
-        points: [
-          '⚡ Ukuran ultra ringan (6.6 MB) & konsumsi memori minim',
-          '🔍 Pencarian web mandiri real-time tanpa iklan & tracker',
-          '📱 Mode layar penuh native tanpa address bar browser',
-          '🛡️ Privasi terjamin, kompatibel Android 5.0+'
-        ],
-        btn: 'Unduh Search APK (6.6 MB)'
+        feature1: 'Pencarian mandiri tanpa iklan & tracker',
+        feature2: 'Layar penuh native PWA hemat baterai',
+        btn: 'Unduh Search APK',
+        btnSub: '6.6 MB · Cloudflare Edge'
       },
       aiCard: {
-        badge: 'Web-Base AI Cloud APK',
+        badge: 'AI Cloud Assistant APK',
         title: 'DeeperNova AI Assistant',
-        subtitle: 'Asisten AI & Typernova Document Studio',
+        subtitle: 'Asisten AI Cerdas & Typernova Studio',
         size: '13 MB',
         version: 'v2.5.0',
-        points: [
-          '🧠 Multi-model AI cerdas untuk penalaran & percakapan mendalam',
-          '✍️ Typernova Studio (Otomatisasi Word, Excel, PowerPoint)',
-          '💻 Coding Agent Sandbox dengan eksekusi kode mandiri',
-          '☁️ Cloud Vault terenkripsi 3GB & sinkronisasi otomatis'
-        ],
-        btn: 'Unduh DeeperNova AI APK (13 MB)'
+        feature1: 'Penalaran mendalam & Coding Agent',
+        feature2: 'Typernova Office Studio Terintegrasi',
+        btn: 'Unduh DeeperNova AI APK',
+        btnSub: '13 MB · Cloudflare Edge'
       },
-      guideTitle: 'Panduan Instalasi APK Android:',
-      guideSteps: [
-        'Klik tombol unduh untuk file APK yang Anda inginkan di atas.',
-        'Setelah selesai diunduh, buka file .apk dari notifikasi atau Pengelola File.',
-        'Jika muncul peringatan keamanan, pilih Setelan (Settings) lalu aktifkan "Izinkan penginstalan dari sumber ini".',
-        'Pilih Instal (Install) dan aplikasi Deepernova siap digunakan!'
-      ]
+      trust: {
+        cdnTitle: 'Cloudflare Global Edge CDN',
+        cdnDesc: 'Akselerasi unduhan global instan langsung dari server edge terdekat dengan latensi minimal.',
+        securityTitle: '100% Bersih & Terverifikasi',
+        securityDesc: 'Bebas dari iklan, malware, dan pelacak pihak ketiga dengan enkripsi SSL 256-bit.',
+        compatTitle: 'Instalasi Cepat Langsung',
+        compatDesc: 'Cukup buka file .apk yang telah diunduh, lalu pilih Instal pada perangkat Android Anda.'
+      }
     },
     hero: {
       titleLead: 'Asisten AI yang',
@@ -149,44 +144,39 @@ export const landingTranslations = {
       download: 'Download APK'
     },
     download: {
-      eyebrow: 'Official Android Apps',
-      heading: 'Download Deepernova Apps (.APK)',
-      sub: 'Enjoy maximum performance and a distraction-free, full-screen native experience directly on your Android phone.',
+      eyebrow: 'Official Android Apps · Cloudflare Edge CDN',
+      heading: 'Download Deepernova for Android',
+      sub: 'Fast standalone native experience accelerated directly by the Cloudflare Edge network.',
       searchCard: {
         badge: 'Search Engine APK',
         title: 'DeeperNova Search',
-        subtitle: 'Ultra Lightweight & Fast Search',
+        subtitle: 'Autonomous Real-Time Search Engine',
         size: '6.6 MB',
         version: 'v1.0.0',
-        points: [
-          '⚡ Ultra lightweight (6.6 MB) & negligible memory usage',
-          '🔍 Independent real-time web search without ads or trackers',
-          '📱 Full-screen native experience without browser URL bars',
-          '🛡️ Privacy-first, compatible with Android 5.0+'
-        ],
-        btn: 'Download Search APK (6.6 MB)'
+        feature1: 'Ad-free independent web search & zero trackers',
+        feature2: 'Full-screen distraction-free native PWA',
+        btn: 'Download Search APK',
+        btnSub: '6.6 MB · Cloudflare Edge'
       },
       aiCard: {
-        badge: 'Web-Base AI Cloud APK',
+        badge: 'AI Cloud Assistant APK',
         title: 'DeeperNova AI Assistant',
-        subtitle: 'Intelligent AI Assistant & Studio',
+        subtitle: 'Intelligent AI Reasoning & Workspace Studio',
         size: '13 MB',
         version: 'v2.5.0',
-        points: [
-          '🧠 Deep reasoning multi-model AI for complex inquiries',
-          '✍️ Typernova Studio (Automated Word, Excel, PowerPoint)',
-          '💻 Coding Agent Sandbox with autonomous code execution',
-          '☁️ 3GB Encrypted Cloud Vault with auto-sync'
-        ],
-        btn: 'Download DeeperNova AI APK (13 MB)'
+        feature1: 'Deep reasoning & Coding Agent Sandbox',
+        feature2: 'Built-in Typernova Office Suite',
+        btn: 'Download DeeperNova AI APK',
+        btnSub: '13 MB · Cloudflare Edge'
       },
-      guideTitle: 'How to Install APK on Android:',
-      guideSteps: [
-        'Click the download button for your desired APK above.',
-        'Once downloaded, open the .apk file from your notification bar or Downloads folder.',
-        'If an Android security prompt appears, tap "Settings" and enable "Allow from this source".',
-        'Tap "Install" and your Deepernova app will be ready in seconds!'
-      ]
+      trust: {
+        cdnTitle: 'Cloudflare Global Edge CDN',
+        cdnDesc: 'Instant global edge acceleration with low latency & high bandwidth.',
+        securityTitle: '100% Clean & Verified',
+        securityDesc: 'Malware-free, SHA-256 verified signature, and zero personal tracking.',
+        compatTitle: 'Quick & Direct Installation',
+        compatDesc: 'Simply tap the downloaded .apk file and choose Install on your Android device.'
+      }
     },
     hero: {
       titleLead: 'An AI assistant that is',
@@ -280,44 +270,39 @@ export const landingTranslations = {
       download: '下载 APK'
     },
     download: {
-      eyebrow: '官方安卓客户端',
-      heading: '下载 Deepernova 安卓应用 (.APK)',
-      sub: '直接在安卓设备上享受极致性能、全屏无边框浏览与强劲的 AI 生产力。',
+      eyebrow: '官方安卓客户端 · Cloudflare Edge CDN 加速',
+      heading: '下载 Deepernova 安卓客户端 (.APK)',
+      sub: '独立原生全屏体验，由 Cloudflare 全球边缘 CDN 强力加速与安全守护。',
       searchCard: {
-        badge: '搜索引擎客户端',
+        badge: '独立搜索引擎 APK',
         title: 'DeeperNova Search',
-        subtitle: '极简极速独立搜索引擎',
+        subtitle: '极速轻量独立搜索引擎',
         size: '6.6 MB',
         version: 'v1.0.0',
-        points: [
-          '⚡ 6.6 MB 超轻量体积，秒级极速响应与低内存占用',
-          '🔍 独立实时网页检索，无广告、无隐私追踪',
-          '📱 原生无地址栏全屏浏览体验',
-          '🛡️ 隐私至上，完美适配 Android 5.0+'
-        ],
-        btn: '下载 Search APK (6.6 MB)'
+        feature1: '独立实时网页检索，无广告追踪',
+        feature2: '原生全屏极简浏览体验',
+        btn: '下载 Search APK',
+        btnSub: '6.6 MB · Cloudflare Edge'
       },
       aiCard: {
-        badge: 'Web-Base AI Cloud APK',
+        badge: 'AI 智能助手 APK',
         title: 'DeeperNova AI Assistant',
-        subtitle: '全能 AI 智能助手 & 办公工作台',
+        subtitle: '深度推理智能助手与办公套件',
         size: '13 MB',
         version: 'v2.5.0',
-        points: [
-          '🧠 深度推理多模型 AI，解答复杂问题与长文创作',
-          '✍️ Typernova 工作室（自动生成 Word、Excel、PPT）',
-          '💻 编程 Agent 沙箱与自动化代码执行工具',
-          '☁️ 3GB 高密态加密云盘与全自动云端同步'
-        ],
-        btn: '下载 DeeperNova AI APK (13 MB)'
+        feature1: '深度推理大模型与编程沙箱',
+        feature2: '集成 Typernova 智能文档工作室',
+        btn: '下载 DeeperNova AI APK',
+        btnSub: '13 MB · Cloudflare Edge'
       },
-      guideTitle: '安卓 APK 安装指引：',
-      guideSteps: [
-        '点击上方按钮下载您需要的 APK 安装包。',
-        '下载完成后，在手机通知栏或“下载”文件夹中点击该 .apk 文件。',
-        '如弹出系统安全提示，请点击“设置”并开启“允许来自此来源的应用”。',
-        '点击“安装”按钮，稍候数秒即可尽情体验 Deepernova！'
-      ]
+      trust: {
+        cdnTitle: 'Cloudflare 全球边缘 CDN',
+        cdnDesc: '全球超低延迟分布式边缘网络，秒级极速下载。',
+        securityTitle: '100% 安全纯净认证',
+        securityDesc: '无恶意软件、SHA-256 签名校验、零广告追踪。',
+        compatTitle: '极速直接安装',
+        compatDesc: '下载完成后直接点击 .apk 文件并选择安装即可开始使用。'
+      }
     },
     hero: {
       titleLead: '一款',

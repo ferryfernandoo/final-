@@ -938,312 +938,413 @@ body[data-view="landing"] #root {
   color: #15803d !important;
 }
 
-.lp-btn-apk {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  color: #ffffff !important;
-  box-shadow: 0 6px 20px -6px rgba(16, 185, 129, 0.55);
-}
-.lp-btn-apk:hover {
-  box-shadow: 0 10px 28px -8px rgba(16, 185, 129, 0.65);
-  transform: translateY(-1px);
-}
-
+/* ---------- Modern Download APK Section (Cloudflare Powered) ---------- */
 .lp-download-section {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border-top: 1px solid var(--lp-line);
-  border-bottom: 1px solid var(--lp-line);
-  padding: 80px 0;
   position: relative;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 50%, #ffffff 100%);
+  padding: 80px 0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.lp-download-grid {
+.lp-cf-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(243, 128, 32, 0.35);
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+  box-shadow: 0 4px 12px -2px rgba(243, 128, 32, 0.15);
+  margin-bottom: 14px;
+}
+
+.lp-cf-brand-icon {
+  color: #f38020;
+  font-size: 16px;
+}
+
+.lp-cf-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  animation: lp-pulse 2s infinite;
+}
+
+.lp-download-main-heading {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--lp-ink);
+  letter-spacing: -0.03em;
+  margin-bottom: 10px;
+}
+
+.lp-download-main-sub {
+  font-size: 15px;
+  color: var(--lp-muted);
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.lp-download-cards-container {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 28px;
+  gap: 24px;
   margin-top: 40px;
 }
 
-.lp-download-card {
+.lp-modern-apk-card {
   position: relative;
   background: #ffffff;
-  border: 1.5px solid var(--lp-line);
-  border-radius: var(--lp-radius-lg);
-  padding: 32px 28px 28px;
-  box-shadow: var(--lp-shadow);
+  border: 1.5px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 26px 28px;
+  box-shadow: 0 12px 32px -10px rgba(15, 23, 42, 0.06);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-  overflow: hidden;
 }
 
-.lp-download-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 36px -12px rgba(15, 23, 42, 0.12);
+.lp-modern-apk-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.12);
 }
 
-.lp-download-card.is-search:hover {
+.lp-modern-apk-card.is-search:hover {
   border-color: #38bdf8;
-  box-shadow: 0 16px 40px -12px rgba(14, 165, 233, 0.2);
 }
 
-.lp-download-card.is-ai:hover {
+.lp-modern-apk-card.is-ai:hover {
   border-color: #fb923c;
-  box-shadow: 0 16px 40px -12px rgba(234, 88, 12, 0.2);
 }
 
-.lp-download-badge {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.lp-download-badge.ai-badge {
-  background: #fff7ed;
-  color: #ea580c;
-  border-color: #fed7aa;
-}
-
-.lp-download-header {
+.lp-apk-card-top {
   display: flex;
-  align-items: flex-start;
   gap: 18px;
-  margin-bottom: 22px;
+  align-items: flex-start;
 }
 
-.lp-download-icon-wrap {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.lp-apk-icon-wrapper {
+  position: relative;
+  width: 68px;
+  height: 68px;
   flex-shrink: 0;
+  border-radius: 18px;
+  padding: 6px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.lp-download-icon-wrap.search-glow {
-  background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+.lp-apk-icon-wrapper.search-theme {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
   border-color: #bae6fd;
 }
 
-.lp-download-icon-wrap.ai-glow {
+.lp-apk-icon-wrapper.ai-theme {
   background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
   border-color: #fed7aa;
 }
 
-.lp-download-icon {
+.lp-apk-app-icon {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
-.lp-download-title {
-  font-size: 20px;
+.lp-cf-card-tag {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 9.5px;
   font-weight: 800;
-  color: var(--lp-ink);
-  letter-spacing: -0.02em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lp-cf-card-tag i {
+  color: #f38020;
+  font-size: 11px;
+}
+
+.lp-apk-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-apk-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 4px;
 }
 
-.lp-download-subtitle {
+.lp-apk-title {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--lp-ink);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.lp-apk-version-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #0284c7;
+}
+
+.lp-apk-version-badge.ai-badge {
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.lp-apk-desc {
   font-size: 13.5px;
   color: var(--lp-muted);
   margin-bottom: 10px;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
-.lp-download-meta {
+.lp-apk-spec-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
-.lp-download-pill {
+.lp-spec-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 3px 8px;
   border-radius: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   background: #f1f5f9;
   color: #475569;
 }
 
-.lp-download-pill.pill-green {
-  background: #dcfce7;
-  color: #15803d;
+.lp-spec-pill i {
+  font-size: 11px;
 }
 
-.lp-download-pill.pill-purple {
-  background: #ede9fe;
-  color: #6d28d9;
-}
-
-.lp-download-points {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 24px 0;
+.lp-apk-features-strip {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  margin: 18px 0;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
 }
 
-.lp-download-points li {
+.lp-apk-feature-item {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 13.5px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
   color: #334155;
-  line-height: 1.45;
+  font-weight: 500;
 }
 
-.lp-download-points li i {
+.lp-apk-feature-item i {
   color: #10b981;
-  font-size: 14px;
-  margin-top: 2px;
+  font-size: 13px;
   flex-shrink: 0;
 }
 
-.lp-download-action {
+.lp-apk-bottom-action {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.lp-btn-dl {
+.lp-btn-modern-dl {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  height: 48px;
-  padding: 0 20px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
+  gap: 12px;
+  padding: 8px 16px;
+  height: 52px;
+  border-radius: 14px;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
-.lp-btn-dl-search {
-  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+.lp-btn-modern-dl.is-search {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
-  box-shadow: 0 6px 18px -4px rgba(2, 132, 199, 0.45);
 }
 
-.lp-btn-dl-search:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
-  box-shadow: 0 10px 24px -4px rgba(2, 132, 199, 0.55);
+.lp-btn-modern-dl.is-search:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  box-shadow: 0 8px 20px -2px rgba(2, 132, 199, 0.4);
   transform: translateY(-1px);
 }
 
-.lp-btn-dl-ai {
-  background: linear-gradient(135deg, var(--lp-orange) 0%, var(--lp-orange-2) 100%);
+.lp-btn-modern-dl.is-ai {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
   color: #ffffff;
-  box-shadow: 0 6px 18px -4px rgba(234, 88, 12, 0.45);
 }
 
-.lp-btn-dl-ai:hover {
-  background: linear-gradient(135deg, #c2410c 0%, var(--lp-orange) 100%);
-  box-shadow: 0 10px 24px -4px rgba(234, 88, 12, 0.55);
+.lp-btn-modern-dl.is-ai:hover {
+  background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
+  box-shadow: 0 8px 20px -2px rgba(234, 88, 12, 0.4);
   transform: translateY(-1px);
 }
 
-.lp-download-note {
-  font-size: 11.5px;
-  color: #94a3b8;
-  text-align: center;
-}
-
-/* Guide box */
-.lp-download-guide {
-  margin-top: 44px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: var(--lp-radius);
-  padding: 24px 28px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.lp-guide-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  color: #0369a1;
-}
-
-.lp-guide-head i {
-  font-size: 18px;
-}
-
-.lp-guide-head h4 {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--lp-ink);
-  margin: 0;
-}
-
-.lp-guide-steps {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.lp-guide-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.lp-step-num {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #e0f2fe;
-  color: #0369a1;
-  font-size: 12px;
-  font-weight: 800;
+.lp-dl-btn-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 15px;
   flex-shrink: 0;
-  margin-top: 1px;
 }
 
-.lp-guide-step p {
-  font-size: 12.5px;
-  color: #475569;
-  line-height: 1.45;
+.lp-dl-btn-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-align: left;
+}
+
+.lp-dl-btn-label {
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.lp-dl-btn-sublabel {
+  font-size: 11px;
+  opacity: 0.88;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.lp-dl-btn-sublabel i {
+  color: #f38020;
+}
+
+.lp-dl-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.lp-dl-security i {
+  color: #10b981;
+  font-size: 12px;
+}
+
+/* Cloudflare Edge Trust Strip */
+.lp-cf-trust-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 36px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 22px 26px;
+  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.04);
+}
+
+.lp-cf-trust-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.lp-cf-trust-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.lp-cf-trust-icon-box.cf-color {
+  background: #fff7ed;
+  color: #f38020;
+  border: 1px solid #ffedd5;
+}
+
+.lp-cf-trust-icon-box.green-color {
+  background: #f0fdf4;
+  color: #10b981;
+  border: 1px solid #dcfce7;
+}
+
+.lp-cf-trust-icon-box.android-color {
+  background: #f0fdf4;
+  color: #3ddc84;
+  border: 1px solid #bbf7d0;
+}
+
+.lp-cf-trust-text h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--lp-ink);
+  margin: 0 0 3px 0;
+}
+
+.lp-cf-trust-text p {
+  font-size: 12px;
+  color: #64748b;
   margin: 0;
+  line-height: 1.45;
+}
+
+.lp-footer-cf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #64748b;
+  margin-left: 12px;
 }
 
 @media (max-width: 960px) {
-  .lp-download-grid {
+  .lp-download-cards-container {
     grid-template-columns: 1fr;
-    max-width: 540px;
+    max-width: 520px;
     margin-left: auto;
     margin-right: auto;
   }
-  .lp-guide-steps {
-    grid-template-columns: repeat(2, 1fr);
+  .lp-cf-trust-strip {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
 
@@ -1251,12 +1352,11 @@ body[data-view="landing"] #root {
   .lp-download-section {
     padding: 56px 0;
   }
-  .lp-download-card {
-    padding: 24px 18px 20px;
+  .lp-modern-apk-card {
+    padding: 20px 18px;
   }
-  .lp-guide-steps {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .lp-download-main-heading {
+    font-size: 26px;
   }
 }
 
