@@ -6785,10 +6785,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Render search result bubbles first before AI starts typing response
       await new Promise(resolve => setTimeout(resolve, 550));
 
-      // Build rich context from search results for the AI (with neural ranking signals)
-      const searchContext = sources.map((s, idx) => {
+      // Build lean, high-signal context from search results for the AI
+      // Limit to top 8 sources with concise snippets (~220 chars) to prevent prompt bloat and keep Grok/LLM blazing fast!
+      const topContextSources = sources.slice(0, 8);
+      const searchContext = topContextSources.map((s, idx) => {
         const rankBadge = s.accuracyScore ? ` [Peringkat #${idx + 1} | Akurasi: ${Math.round(s.accuracyScore)}% | PageRank: ${s.pagerank || '3.5'}]` : ` [Peringkat #${idx + 1}]`;
-        return `[Sumber #${idx + 1}${rankBadge}] ${s.title}\nURL: ${s.link}\nKutipan: ${s.snippet}`;
+        const engineBadge = s.sourceEngine ? ` [${s.sourceEngine}]` : '';
+        const cleanSnippet = (s.snippet || s.description || '').slice(0, 220).trim();
+        return `[Sumber #${idx + 1}${rankBadge}${engineBadge}] ${s.title}\nURL: ${s.link}\nKutipan: ${cleanSnippet}`;
       }).join('\n\n');
 
       // Initialize context history if empty
@@ -6834,6 +6838,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       conclusionPrompt += `--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${accumulatedHistoryContext}\n\n`;
       if (aiOverviewText) {
         conclusionPrompt += `--- RINGKASAN INTISARI PENCARIAN ---\n${aiOverviewText}\n\n`;
+      }
+
+      // Check if user is asking for comparison (e.g. A vs B, bandingkan X dan Y)
+      const isComparisonQuery = /\b(?:bandingkan|perbedaan|bagusan\s+mana|pilih\s+mana|vs\.?|versus|compare)\b/i.test(userQuery);
+      if (isComparisonQuery) {
+        conclusionPrompt += `--- PANDUAN KHUSUS PERBANDINGAN KOMPREHENSIF (WAJIB) ---
+- Lakukan perbandingan seimbang & mendalam antara kedua entitas berdasarkan data riil dari Google & Deepernova di atas.
+- Sajikan perbandingan spesifikasi/fitur kunci, kelebihan dan kekurangan masing-masing dalam format yang jelas (poin-poin atau tabel ringkas).
+- Berikan kesimpulan atau rekomendasi akhir yang tegas dan aplikatif bagi pengguna.\n\n`;
       }
       conclusionPrompt += `--- PANDUAN STRUKTUR & KUALITAS JAWABAN PENCARIAN (SANGAT PENTING) ---
 1. DILARANG BERTERIMA KASIH: Jangan pernah menulis "Terima kasih atas hasil pencariannya..." atau sejenisnya. Pengguna tidak memberikan informasi ini. Langsung mulai jawaban di paragraf pertama!

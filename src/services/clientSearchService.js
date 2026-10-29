@@ -470,6 +470,80 @@ async function performCloudDirectSearch(query, limit, timeoutMs = 3500) {
 }
 
 /**
+ * Direct SerpApi Google Search proxy request (via backend /api/serp-search)
+ */
+async function performSerpSearchDirect(query, limit = 8, timeoutMs = 2500) {
+  const url = `${BACKEND_BASE_URL}/api/serp-search?q=${encodeURIComponent(query)}&limit=${limit}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { method: 'GET', signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json().catch(() => null);
+      return normalizeAnySearchResponse(data, query, 'serpapi_google');
+    }
+  } catch {
+    clearTimeout(timeoutId);
+  }
+  return null;
+}
+
+/**
+ * Merge results from multiple search engines, deduplicating by URL & Title
+ */
+export function mergeSearchResults(primary, secondary) {
+  if (!primary && !secondary) return null;
+  if (!primary) return secondary;
+  if (!secondary) return primary;
+
+  const resultsA = primary.data?.organic_results || [];
+  const resultsB = secondary.data?.organic_results || [];
+  const merged = [...resultsA];
+  const seenUrls = new Set(resultsA.map(r => (r.link || r.url || '').toLowerCase().replace(/\/+$/, '')));
+  const seenTitles = new Set(resultsA.map(r => (r.title || '').toLowerCase().slice(0, 50)));
+
+  for (const item of resultsB) {
+    const urlKey = (item.link || item.url || '').toLowerCase().replace(/\/+$/, '');
+    const titleKey = (item.title || '').toLowerCase().slice(0, 50);
+    if ((!urlKey || !seenUrls.has(urlKey)) && (!titleKey || !seenTitles.has(titleKey))) {
+      if (urlKey) seenUrls.add(urlKey);
+      if (titleKey) seenTitles.add(titleKey);
+      merged.push({ ...item, position: merged.length + 1 });
+    }
+  }
+
+  // Merge images
+  const imagesA = primary.data?.inline_images || [];
+  const imagesB = secondary.data?.inline_images || [];
+  const mergedImages = [...imagesA];
+  const seenImgs = new Set(imagesA.map(img => img.thumbnail || img.link || ''));
+  for (const img of imagesB) {
+    const imgKey = img.thumbnail || img.link || '';
+    if (imgKey && !seenImgs.has(imgKey)) {
+      seenImgs.add(imgKey);
+      mergedImages.push(img);
+    }
+  }
+
+  return {
+    ...primary,
+    data: {
+      ...primary.data,
+      organic_results: merged,
+      inline_images: mergedImages,
+      search_information: {
+        ...(primary.data?.search_information || {}),
+        total_results: merged.length
+      },
+      engine: primary.data?.engine || 'deepernova_google_hybrid_turbo',
+      isComparison: primary.data?.isComparison || secondary.data?.isComparison || false,
+      comparisonEntities: primary.data?.comparisonEntities || secondary.data?.comparisonEntities || null
+    }
+  };
+}
+
+/**
  * Guaranteed CORS-Friendly Public Knowledge & Web Search Fallback (Wikipedia ID + EN + DuckDuckGo Instant API)
  * Strips temporal filler words for Wikipedia topic matching so queries like "karhutla terbaru" immediately
  * return rich verified articles on Kebakaran hutan dan lahan.
@@ -676,7 +750,7 @@ export async function executeWebSearch(query, options = {}) {
   const tStart = performance.now();
   console.log(`[ClientSearchService] Executing ultra-fast search for: "${effectiveQuery}" (limit: ${limit})`);
 
-  // 2. High-speed parallel race: Proxy Hybrid Search + Direct Search + Public Knowledge Fallback all launched together!
+  // 2. Asynchronous Multi-Engine Execution: Proxy Hybrid (Deepernova + Google SerpAPI) + Direct Search + Fallbacks
   const executeWithTimeout = async () => {
     const wrapSearchResult = (promise) =>
       new Promise((resolve) => {
@@ -689,34 +763,34 @@ export async function executeWebSearch(query, options = {}) {
         }).catch(() => resolve(null));
       });
 
-    const proxyPromise = wrapSearchResult(performProxySearch(effectiveQuery, limit, 3200));
-    const directPromise = wrapSearchResult(performDirectSearch(effectiveQuery, limit, includeImages, 3200));
-    const cloudPromise = wrapSearchResult(performCloudDirectSearch(effectiveQuery, limit, 3200));
+    const proxyPromise = wrapSearchResult(performProxySearch(effectiveQuery, limit, 3500));
+    const directPromise = wrapSearchResult(performDirectSearch(effectiveQuery, limit, includeImages, 2500));
+    const cloudPromise = wrapSearchResult(performCloudDirectSearch(effectiveQuery, limit, 3000));
     const publicPromise = wrapSearchResult(performPublicWebFallback(effectiveQuery, limit, 3000));
 
-    // Give primary Deepernova engines (Proxy Hybrid & Direct BM25) up to 2400ms to return
-    // fresh neural-ranked news & indexed web results before falling back to public fallback
-    const delayedPublicWin = new Promise((resolve) => {
-      setTimeout(() => {
-        publicPromise.then(resolve);
-      }, 2400);
-    });
+    // Wait for the primary engines (Proxy Hybrid with Google SerpAPI + Direct local search)
+    const [proxyResult, directResult] = await Promise.all([proxyPromise, directPromise]);
 
-    const firstResult = await Promise.race([
-      proxyPromise.then(r => r ? r : new Promise(() => {})),
-      directPromise.then(r => r ? r : new Promise(() => {})),
-      cloudPromise.then(r => r ? r : new Promise(() => {})),
-      delayedPublicWin.then(r => r ? r : new Promise(() => {}))
-    ]).catch(() => null);
-
-    if (firstResult) {
-      return firstResult;
+    if (proxyResult && directResult) {
+      return mergeSearchResults(proxyResult, directResult);
+    }
+    if (proxyResult) return proxyResult;
+    if (directResult) {
+      // If direct local search returned few results, asynchronously fetch SerpApi Google as supplement
+      if ((directResult.data?.organic_results?.length || 0) < 4) {
+        try {
+          const serpResp = await wrapSearchResult(performSerpSearchDirect(effectiveQuery, limit, 2000));
+          if (serpResp) return mergeSearchResults(directResult, serpResp);
+        } catch {}
+      }
+      return directResult;
     }
 
-    // Wait for all to settle if none fast-resolved
-    const results = await Promise.all([proxyPromise, directPromise, cloudPromise, publicPromise]);
-    const valid = results.find(r => r && r.data?.organic_results?.length > 0);
-    if (valid) return valid;
+    // Secondary engines: Cloud + Public knowledge fallback
+    const [cloudResult, pubResult] = await Promise.all([cloudPromise, publicPromise]);
+    if (cloudResult && pubResult) return mergeSearchResults(cloudResult, pubResult);
+    if (cloudResult) return cloudResult;
+    if (pubResult) return pubResult;
 
     // Guaranteed fallback so organic_results is NEVER empty
     const guaranteed = buildGuaranteedReferenceSources(effectiveQuery);
@@ -759,6 +833,7 @@ export async function executeWebSearch(query, options = {}) {
 }
 
 export default {
+  mergeSearchResults,
   executeWebSearch,
   buildGuaranteedReferenceSources,
   searchWeb,

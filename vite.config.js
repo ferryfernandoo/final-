@@ -12,7 +12,7 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     sourcemap: false,
-    minify: 'oxc',
+    minify: 'esbuild',
     rollupOptions: {
       input: './index.html'
     }
