@@ -512,8 +512,8 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               <div className="update-feature-item">
                 <span className="feature-icon">💻</span>
                 <div className="feature-content">
-                  <div className="feature-title">CodeDance Vibe Coding IDE</div>
-                  <div className="feature-desc">{userLanguage === 'id' ? 'Autonomous Coding Agent & Cloud Terminal Sandbox terintegrasi.' : 'Autonomous coding agent & live cloud terminal sandbox.'}</div>
+                  <div className="feature-title">AI Agent Autonomous Workspace</div>
+                  <div className="feature-desc">{userLanguage === 'id' ? 'Autonomous multi-step reasoning AI Agent & code sandbox terintegrasi.' : 'Autonomous coding agent & live cloud terminal sandbox.'}</div>
                 </div>
               </div>
               <div className="update-feature-item">

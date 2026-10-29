@@ -279,8 +279,8 @@ export const formatMessageContent = ({
     return '';
   });
 
-  tempText = tempText.replace(/\[(?:REQUEST_CODEDANCE|REQUEST_CODE|EXECUTE_CODE|OPEN_CODEDANCE):\s*(.+?)\]/gi, (match, task) => {
-    redirectCards.push({ target: 'codedance', fileType: null, topic: task.trim() });
+  tempText = tempText.replace(/\[(?:REQUEST_AGENT|REQUEST_CODE|EXECUTE_CODE|OPEN_AGENT):\s*(.+?)\]/gi, (match, task) => {
+    redirectCards.push({ target: 'agent', fileType: null, topic: task.trim() });
     return '';
   });
 

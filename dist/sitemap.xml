@@ -50,16 +50,16 @@
     </image:image>
   </url>
 
-  <!-- CodeDance IDE (Autonomous AI Coding Agent) -->
+  <!-- AI Agent (Autonomous AI Coding Agent) -->
   <url>
-    <loc>https://deepernova.com/codedance</loc>
+    <loc>https://deepernova.com/agent</loc>
     <lastmod>2026-09-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
     <image:image>
       <image:loc>https://deepernova.com/ceo.jpg</image:loc>
-      <image:title>Ferry Fernando - Creator of CodeDance IDE</image:title>
-      <image:caption>Ferry Fernando, Pemimpin Desain dan Arsitektur AI CodeDance IDE Monaco Sandbox</image:caption>
+      <image:title>Ferry Fernando - Creator of AI Agent</image:title>
+      <image:caption>Ferry Fernando, Pemimpin Desain dan Arsitektur AI AI Agent Monaco Sandbox</image:caption>
     </image:image>
   </url>
 
