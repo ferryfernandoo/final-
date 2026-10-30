@@ -118,6 +118,17 @@ export class TokohCrawler extends EventEmitter {
 
     this.pendingQueue = [];
     this.seenNames = new Set();
+  }
+
+  _markNameSeen(name) {
+    if (this.seenNames.size >= 15000) {
+      let count = 0;
+      for (const n of this.seenNames) {
+        this.seenNames.delete(n);
+        if (++count >= 5000) break;
+      }
+    }
+    this._markNameSeen(name);
     this.harvestedCategories = new Set();
 
     this.stats = {
@@ -207,7 +218,7 @@ export class TokohCrawler extends EventEmitter {
               if (!title || title.includes(':') || title.toLowerCase().startsWith('daftar ')) continue;
               const lower = title.toLowerCase();
               if (!this.seenNames.has(lower)) {
-                this.seenNames.add(lower);
+                this._markNameSeen(lower);
                 this.pendingQueue.push({ name: title, lang: cat.lang });
                 added++;
               }
@@ -449,7 +460,7 @@ export class TokohCrawler extends EventEmitter {
       const candidate = m[1].trim();
       const lower = candidate.toLowerCase();
       if (candidate.length >= 5 && !this.seenNames.has(lower) && !lower.includes('indonesia') && !lower.includes('jakarta')) {
-        this.seenNames.add(lower);
+        this._markNameSeen(lower);
         this.pendingQueue.push({ name: candidate, lang: 'id' });
       }
     }

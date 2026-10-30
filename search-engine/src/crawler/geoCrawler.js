@@ -163,6 +163,17 @@ export class GeoCrawler extends EventEmitter {
 
     this.pendingQueue = [];
     this.seenPlaces = new Set();
+  }
+
+  _markPlaceSeen(name) {
+    if (this.seenPlaces.size >= 15000) {
+      let count = 0;
+      for (const p of this.seenPlaces) {
+        this.seenPlaces.delete(p);
+        if (++count >= 5000) break;
+      }
+    }
+    this._markPlaceSeen(name);
     this.harvestedCategories = new Set();
 
     this.stats = {
@@ -178,7 +189,7 @@ export class GeoCrawler extends EventEmitter {
     for (const seed of INITIAL_TOP_SEEDS) {
       const lower = seed.name.toLowerCase();
       if (!this.seenPlaces.has(lower)) {
-        this.seenPlaces.add(lower);
+        this._markPlaceSeen(lower);
         this.pendingQueue.push({ ...seed });
       }
     }
@@ -263,7 +274,7 @@ export class GeoCrawler extends EventEmitter {
               if (m.ns === 0) {
                 const lower = title.toLowerCase();
                 if (!this.seenPlaces.has(lower)) {
-                  this.seenPlaces.add(lower);
+                  this._markPlaceSeen(lower);
                   this.pendingQueue.push({
                     name: title,
                     lang: cat.lang,
@@ -305,7 +316,7 @@ export class GeoCrawler extends EventEmitter {
             if (!title || title.toLowerCase().startsWith('daftar ')) continue;
             const lower = title.toLowerCase();
             if (!this.seenPlaces.has(lower)) {
-              this.seenPlaces.add(lower);
+              this._markPlaceSeen(lower);
               this.pendingQueue.push({
                 name: title,
                 lang,

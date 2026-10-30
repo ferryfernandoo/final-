@@ -46,7 +46,14 @@ export class RobotsManager {
           });
 
           if (!res.ok) {
-            this.cache.set(domain, { rules: [], crawlDelay: 0, fetchedAt: now });
+            if (this.cache.size >= 3000) {
+      let count = 0;
+      for (const k of this.cache.keys()) {
+        this.cache.delete(k);
+        if (++count >= 1000) break;
+      }
+    }
+    this.cache.set(domain, { rules: [], crawlDelay: 0, fetchedAt: now });
             return [];
           }
 

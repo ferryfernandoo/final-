@@ -57,7 +57,7 @@ export class SearchDatabase {
     this.dbPath = dbPath;
     this.db = new DatabaseSync(this.dbPath);
     this.writeQueue = Promise.resolve();
-    this._suggestionsCache = new SuggestionsLRUCache(25000, 60000); // 25,000 keystroke prefixes, 60s TTL
+    this._suggestionsCache = new SuggestionsLRUCache(3000, 60000); // 25,000 keystroke prefixes, 60s TTL
     this._trendingCache = new SuggestionsLRUCache(100, 30000); // 30s TTL for trending list
 
     this.initDatabase();
