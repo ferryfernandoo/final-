@@ -41,7 +41,7 @@ export function setNavigationDispatcher(dispatcher) {
 export function registerBackHandler(handler, priority = 10) {
   const handlerId = 'back_' + Math.random().toString(36).substring(2, 9);
   const entry = { id: handlerId, priority, handler };
-  
+
   activeBackHandlers.push(entry);
   activeBackHandlers.sort((a, b) => b.priority - a.priority);
 
@@ -122,7 +122,7 @@ export function handleGlobalBack(isPopstate = false) {
           if (isPopstate && typeof window !== 'undefined' && window.history) {
             try {
               window.history.pushState({ modalGuarded: true }, '', window.location.href);
-            } catch (_) {}
+            } catch (_) { }
           }
           return true;
         }
@@ -140,7 +140,7 @@ export function handleGlobalBack(isPopstate = false) {
       if (isPopstate && typeof window !== 'undefined' && window.history) {
         try {
           window.history.pushState({ viewGuarded: true }, '', window.location.href);
-        } catch (_) {}
+        } catch (_) { }
       }
       return true;
     }
@@ -156,12 +156,12 @@ export function handleGlobalBack(isPopstate = false) {
     // First tap at root -> Show warning toast and guard
     lastBackPressTimestamp = now;
     showBackExitToast('Tekan sekali lagi untuk keluar');
-    
+
     // On web popstate, re-push state to prevent browser from leaving
     if (isPopstate && typeof window !== 'undefined' && window.history) {
       try {
         window.history.pushState({ rootGuarded: true }, '', window.location.href);
-      } catch (_) {}
+      } catch (_) { }
     }
     return true; // Handled / Guarded
   }
@@ -171,7 +171,7 @@ export function handleGlobalBack(isPopstate = false) {
  * Initialize all mobile listeners (Web Popstate, History Buffer, Capacitor & Cordova)
  */
 export function initMobileNavigation() {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') return () => { };
 
   // 1. Establish initial History Safety Buffer so pressing back never immediately leaves the site
   try {
@@ -179,7 +179,7 @@ export function initMobileNavigation() {
       window.history.replaceState({ deepernova_root: true }, '', window.location.href);
       window.history.pushState({ deepernova_active: true }, '', window.location.href);
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // 2. Handle Browser Popstate (Mobile Swipe Back / Browser Back)
   const onPopState = (e) => {

@@ -8793,9 +8793,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 title={userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
               >
                 <img
-                  src="https://img.icons8.com/fluency/96/universe.png"
+                  src="https://cdn-icons-png.flaticon.com/512/3212/3212608.png"
                   alt="Universe"
                   className="header-universe-icon"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "https://img.icons8.com/?size=512&id=YibKslCBYqNN&format=png";
+                  }}
                 />
               </button>
               <button 
@@ -8825,9 +8829,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 title={userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
               >
                 <img
-                  src="https://img.icons8.com/fluency/96/universe.png"
+                  src="https://cdn-icons-png.flaticon.com/512/3212/3212608.png"
                   alt="Universe"
                   className="header-universe-icon"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "https://img.icons8.com/?size=512&id=YibKslCBYqNN&format=png";
+                  }}
                 />
               </button>
               <button
