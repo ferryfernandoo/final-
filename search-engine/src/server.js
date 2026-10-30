@@ -50,8 +50,14 @@ setInterval(() => {
   const heapUsedMb = Math.round(mem.heapUsed / (1024 * 1024));
   const rssMb = Math.round(mem.rss / (1024 * 1024));
 
+  if (heapUsedMb > 1200) {
+    if (typeof httpSearchCache !== 'undefined' && httpSearchCache && httpSearchCache.size > 0) {
+      console.log(`[MEMORY GUARD] ⚠️ High heap (${heapUsedMb}MB). Purged ${httpSearchCache.size} search cache entries.`);
+      httpSearchCache.clear();
+    }
+  }
+
   if ((heapUsedMb > 600 || rssMb > 900) && typeof global.gc === 'function') {
-    console.log(`[MEMORY GUARD] 🧹 Heap: ${heapUsedMb}MB, RSS: ${rssMb}MB ➜ Triggering V8 Garbage Collection`);
     global.gc();
   }
 }, 10000);
@@ -1533,7 +1539,17 @@ app.post('/api/tunnel/update', requireAdminOrLocal, express.json(), (req, res) =
 // ============================================================================
 const httpSearchCache = new Map();
 const HTTP_CACHE_TTL_MS = 15 * 60 * 1000; // 15 mins TTL
-const HTTP_CACHE_MAX_ENTRIES = 20000;
+const HTTP_CACHE_MAX_ENTRIES = 1000;
+
+// Active periodic cache eviction (every 60s)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, item] of httpSearchCache.entries()) {
+    if (now - item.time > HTTP_CACHE_TTL_MS) {
+      httpSearchCache.delete(key);
+    }
+  }
+}, 60000);
 
 function getHttpSearchCache(key) {
   const item = httpSearchCache.get(key);
