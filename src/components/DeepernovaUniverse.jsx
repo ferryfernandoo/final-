@@ -118,7 +118,15 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
       {/* Hero Title Section */}
       <div className="universe-hero">
         <div className="hero-icon-wrapper">
-          <img src="https://img.icons8.com/fluency/96/universe.png" alt="Universe Logo" className="hero-logo-img" />
+          <img 
+            src="https://cdn-icons-png.flaticon.com/512/3212/3212608.png" 
+            alt="Universe Logo" 
+            className="hero-logo-img" 
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "https://img.icons8.com/?size=512&id=YibKslCBYqNN&format=png";
+            }}
+          />
         </div>
         <h1 className="hero-title">Deepernova <span className="gradient-text">Universe</span></h1>
         <p className="hero-subtitle">
