@@ -4465,40 +4465,69 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #1e3a8a;
-  /* Deep Dark Blue */
-  animation: typing-pattern 9s infinite ease-in-out;
-  box-shadow: 0 0 6px rgba(30, 58, 138, 0.3);
+  background-color: #2563eb;
+  /* Deep Blue */
+  animation: typing-pattern 2.25s infinite ease-in-out;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.45);
 }
 
 .typing-indicator span:nth-child(1) {
   animation-delay: 0s;
+  background-color: #2563eb;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.45);
 }
 
 .typing-indicator span:nth-child(2) {
-  animation-delay: 0.3s;
+  animation-delay: 0.14s;
   background-color: #f97316;
-  /* Orange color shift */
-  box-shadow: 0 0 6px rgba(249, 115, 22, 0.35);
+  /* Vibrant Orange */
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.45);
 }
 
 .typing-indicator span:nth-child(3) {
-  animation-delay: 0.6s;
+  animation-delay: 0.28s;
   background-color: #a855f7;
-  /* Purple color shift */
-  box-shadow: 0 0 6px rgba(168, 85, 247, 0.35);
+  /* Royal Purple */
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.45);
+}
+
+.typing-indicator span:nth-child(4) {
+  animation-delay: 0.42s;
+  background-color: #10b981;
+  /* Emerald Cyan */
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.45);
+}
+
+[data-theme="dark"] .typing-indicator span:nth-child(1) {
+  background-color: #60a5fa;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.55);
+}
+
+[data-theme="dark"] .typing-indicator span:nth-child(2) {
+  background-color: #fb923c;
+  box-shadow: 0 0 10px rgba(251, 146, 60, 0.55);
+}
+
+[data-theme="dark"] .typing-indicator span:nth-child(3) {
+  background-color: #c084fc;
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.55);
+}
+
+[data-theme="dark"] .typing-indicator span:nth-child(4) {
+  background-color: #34d399;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.55);
 }
 
 @keyframes typing-pattern {
 
-  /* --- 0s to 3s (0% - 33%): Wave Jump --- */
+  /* --- 0% to 33%: Snappy Wave Jump --- */
   0% {
     transform: translateY(0) translateX(0) scale(1);
     opacity: 0.5;
   }
 
   8% {
-    transform: translateY(-8px) translateX(0) scale(1.2);
+    transform: translateY(-8px) translateX(0) scale(1.22);
     opacity: 1;
   }
 
@@ -4508,7 +4537,7 @@
   }
 
   24% {
-    transform: translateY(-8px) translateX(0) scale(1.2);
+    transform: translateY(-8px) translateX(0) scale(1.22);
     opacity: 1;
   }
 
@@ -4517,24 +4546,24 @@
     opacity: 0.7;
   }
 
-  /* --- 3s to 6s (33% - 66%): Breathing Pulse --- */
+  /* --- 33% to 66%: Energetic Breathing Pulse --- */
   33% {
     transform: translateY(0) translateX(0) scale(1);
     opacity: 0.7;
   }
 
   41% {
-    transform: translateY(0) translateX(0) scale(1.4);
+    transform: translateY(0) translateX(0) scale(1.35);
     opacity: 1;
   }
 
   49% {
-    transform: translateY(0) translateX(0) scale(0.65);
-    opacity: 0.4;
+    transform: translateY(0) translateX(0) scale(0.7);
+    opacity: 0.45;
   }
 
   57% {
-    transform: translateY(0) translateX(0) scale(1.4);
+    transform: translateY(0) translateX(0) scale(1.35);
     opacity: 1;
   }
 
@@ -4543,29 +4572,29 @@
     opacity: 0.7;
   }
 
-  /* --- 6s to 9s (66% - 100%): Horizontal Slide Shake --- */
+  /* --- 66% to 100%: Horizontal Ripple Glide --- */
   66% {
     transform: translateY(0) translateX(0) scale(1);
     opacity: 0.7;
   }
 
   74% {
-    transform: translateY(0) translateX(-5px) scale(1);
+    transform: translateY(0) translateX(-4px) scale(1);
     opacity: 1;
   }
 
   82% {
-    transform: translateY(0) translateX(5px) scale(1);
+    transform: translateY(0) translateX(4px) scale(1);
     opacity: 1;
   }
 
   90% {
-    transform: translateY(0) translateX(-5px) scale(1);
+    transform: translateY(0) translateX(-4px) scale(1);
     opacity: 1;
   }
 
   98% {
-    transform: translateY(0) translateX(5px) scale(1);
+    transform: translateY(0) translateX(4px) scale(1);
     opacity: 1;
   }
 

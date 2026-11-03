@@ -24,10 +24,6 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
 
 export const HARDCODED_TOKENMIX_KEYS = [
-  'sk-tm-n0vj932GEoMTNWmkPTFM6kE4UnUN1BZtfL4THmJKK7K265vO',
-  'sk-tm-DsTAkFXsfxqeYFBOF3pAQNmuQzkCtdF5Gsrj8qiZpQBxwIS6',
-  'sk-tm-Pb9ios1QCp06R9C6ZFlPuvm7CWRFJKJLuhABjE8dkE74cGkN',
-  'sk-tm-XdNatQm0mzIzifTrrKCfmeQMZ3CpFxL212QAp8wQYIelbrNX',
   'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
   'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
   'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
@@ -47,6 +43,7 @@ export function getEffectiveTokenMixKeys() {
 export const TOKENMIX_API_KEYS = getEffectiveTokenMixKeys();
 export const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 let activeProxyKeyIndex = 0;
+const exhaustedTokenMixKeys = new Set();
 
 class ApiProxyService {
   constructor() {
@@ -570,6 +567,7 @@ ATURAN KOMUNIKASI MUTLAK:
       for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
         const idx = (activeProxyKeyIndex + count) % TOKENMIX_API_KEYS.length;
         const activeKey = TOKENMIX_API_KEYS[idx];
+        if (exhaustedTokenMixKeys.has(activeKey)) continue;
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 12000);
@@ -591,6 +589,9 @@ ATURAN KOMUNIKASI MUTLAK:
             break;
           } else {
             const errBody = await response.text().catch(() => '');
+            if (response.status === 402 || response.status === 401) {
+              exhaustedTokenMixKeys.add(activeKey);
+            }
             console.warn(`[ApiProxyService] Key index ${idx} status ${response.status}: ${errBody.substring(0, 100)}`);
             upstreamError = { status: response.status, body: errBody };
           }
@@ -782,6 +783,7 @@ ATURAN KOMUNIKASI MUTLAK:
       for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
         const idx = (activeProxyKeyIndex + count) % TOKENMIX_API_KEYS.length;
         const activeKey = TOKENMIX_API_KEYS[idx];
+        if (exhaustedTokenMixKeys.has(activeKey)) continue;
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 12000);
@@ -803,6 +805,9 @@ ATURAN KOMUNIKASI MUTLAK:
             break;
           } else {
             const errBody = await response.text().catch(() => '');
+            if (response.status === 402 || response.status === 401) {
+              exhaustedTokenMixKeys.add(activeKey);
+            }
             console.warn(`[ApiProxyService Stream] Key index ${idx} status ${response.status}: ${errBody.substring(0, 100)}`);
             streamError = { status: response.status, body: errBody };
           }

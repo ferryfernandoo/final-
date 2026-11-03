@@ -232,6 +232,7 @@ const ChatMessageItemComponent = ({
                   <span></span>
                   <span></span>
                   <span></span>
+                  <span></span>
                 </div>
                 {loadingPhase && (
                   <span className="slow-processing-text">
@@ -257,6 +258,7 @@ const ChatMessageItemComponent = ({
                   <span></span>
                   <span></span>
                   <span></span>
+                  <span></span>
                 </div>
                 <span className="slow-processing-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
                   {userLanguage === 'id' ? 'Menulis jawaban...' : 'Writing response...'}
@@ -267,6 +269,7 @@ const ChatMessageItemComponent = ({
             {((message.isStreaming || message.isThinking) && !message.text && !message.isSearching && (message.searchSteps && message.searchSteps.length > 0) && !message.isReasoning) && (
               <div className="typing-indicator-row" style={{ marginTop: '8px', opacity: 0.85 }}>
                 <div className="typing-indicator">
+                  <span></span>
                   <span></span>
                   <span></span>
                   <span></span>

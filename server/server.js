@@ -250,6 +250,7 @@ process.on('uncaughtException', (err) => {
 const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
 const TOKENMIX_API_KEYS = Array.from(new Set(RAW_ENV_KEYS));
 let activeChatKeyIndex = 0;
+const exhaustedTokenMixKeys = new Set();
 const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
 
 console.log(`✅ High-Speed DeeperNova AI Engine initialized with ${TOKENMIX_API_KEYS.length} keys in rotation (GPU Fallback: ${DEEPERNOVA_API_URL})`);
@@ -3570,6 +3571,7 @@ app.post('/api/chat', async (req, res) => {
           for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
             const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
             const key = TOKENMIX_API_KEYS[idx];
+            if (exhaustedTokenMixKeys.has(key)) continue;
             let attempts = 0;
             const maxAttempts = 2;
             while (attempts < maxAttempts) {
@@ -3603,6 +3605,10 @@ app.post('/api/chat', async (req, res) => {
                 } else {
                   const errText = await tokenmixResponse.text().catch(() => '');
                   const status = tokenmixResponse.status;
+                  if (status === 402 || status === 401) {
+                    exhaustedTokenMixKeys.add(key);
+                    console.warn(`[CHAT] ⚠️ Key index ${idx} marked exhausted (${status}). Removed from active rotation.`);
+                  }
                   lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
                   console.warn(`[CHAT] Key index ${idx} status ${status}: ${errText.slice(0, 100)}`);
                   break;

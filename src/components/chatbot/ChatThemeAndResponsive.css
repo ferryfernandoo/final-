@@ -2436,24 +2436,43 @@
   -moz-osx-font-smoothing: grayscale !important;
 }
 
-/* Subtle modern ambient aura around generating message - opacity-only animation */
+/* Ambient generation silhouette - brightest at active bottom text, silky smooth falloff downward */
 .message.bot.is-streaming::before {
   content: '';
   position: absolute;
-  inset: -6px -12px;
-  border-radius: 20px;
-  background: radial-gradient(ellipse at 25% 100%, rgba(56, 189, 248, 0.08) 0%, rgba(249, 115, 22, 0.04) 45%, transparent 75%);
-  filter: blur(12px);
+  inset: -8px -18px -42px -18px;
+  border-radius: 36px;
+  background: radial-gradient(
+    ellipse 90% 48% at 35% 80%,
+    rgba(56, 189, 248, 0.22) 0%,
+    rgba(99, 102, 241, 0.14) 25%,
+    rgba(249, 115, 22, 0.07) 48%,
+    rgba(249, 115, 22, 0.025) 70%,
+    rgba(249, 115, 22, 0.008) 88%,
+    transparent 100%
+  );
+  filter: blur(24px) !important;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.75;
-  animation: modernGeneratingAura 3s ease-in-out infinite alternate;
+  opacity: 0.88;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  animation: modernGeneratingAura 2.6s ease-in-out infinite alternate;
   will-change: opacity;
 }
 
 [data-theme="dark"] .message.bot.is-streaming::before {
-  background: radial-gradient(ellipse at 25% 100%, rgba(56, 189, 248, 0.12) 0%, rgba(139, 92, 246, 0.07) 45%, transparent 75%);
-  filter: blur(14px);
+  background: radial-gradient(
+    ellipse 90% 48% at 35% 80%,
+    rgba(56, 189, 248, 0.28) 0%,
+    rgba(139, 92, 246, 0.18) 25%,
+    rgba(244, 63, 94, 0.08) 48%,
+    rgba(244, 63, 94, 0.03) 70%,
+    rgba(244, 63, 94, 0.01) 88%,
+    transparent 100%
+  );
+  filter: blur(26px) !important;
 }
 
 @keyframes modernGeneratingAura {
@@ -3816,7 +3835,7 @@
    Eliminates expensive full-height GPU blur repaint on every 22ms streaming tick
    ============================================================================== */
 .message.bot.is-streaming::before {
-  filter: none !important;
+  transform: translateZ(0);
   will-change: opacity;
 }
 
@@ -3907,9 +3926,11 @@
     margin: 4px 0 10px 12px;
     border-radius: 10px;
   }
+
   .inline-markdown-image {
     height: 95px;
   }
+
   .inline-markdown-caption {
     padding: 3px 6px;
     font-size: 0.68rem;
