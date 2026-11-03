@@ -478,20 +478,28 @@ export const formatMessageContent = ({
           ),
           img: ({ src, alt }) => {
             if (!src) return null;
+            const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
             const cleanAlt = String(alt || '').trim();
             const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
             return (
               <figure className="inline-markdown-figure">
                 <img
-                  src={src}
+                  src={cleanSrc}
                   alt={cleanAlt || 'Foto'}
                   className="inline-markdown-image"
                   loading="lazy"
-                  onClick={() => handleImageClick?.(src, cleanAlt || 'Image')}
+                  referrerPolicy="no-referrer"
+                  onClick={() => handleImageClick?.(cleanSrc, cleanAlt || 'Image')}
                   onError={(e) => {
-                    const fig = e.currentTarget.closest('figure');
+                    const imgEl = e.currentTarget;
+                    if (!imgEl.dataset.proxyRetried && cleanSrc.startsWith('http')) {
+                      imgEl.dataset.proxyRetried = 'true';
+                      imgEl.src = `/api/images/proxy?url=${encodeURIComponent(cleanSrc)}`;
+                      return;
+                    }
+                    const fig = imgEl.closest('figure');
                     if (fig) fig.style.display = 'none';
-                    else e.currentTarget.style.display = 'none';
+                    else imgEl.style.display = 'none';
                   }}
                   style={{ cursor: 'pointer' }}
                   title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
@@ -872,20 +880,28 @@ export const formatMessageContent = ({
             td: ({ children }) => <td>{children}</td>,
             img: ({ src, alt }) => {
               if (!src) return null;
+              const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
               const cleanAlt = String(alt || '').trim();
               const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
               return (
                 <figure className="inline-markdown-figure">
                   <img
-                    src={src}
+                    src={cleanSrc}
                     alt={cleanAlt || 'Foto'}
                     className="inline-markdown-image"
                     loading="lazy"
-                    onClick={() => handleImageClick?.(src, cleanAlt || 'Image')}
+                    referrerPolicy="no-referrer"
+                    onClick={() => handleImageClick?.(cleanSrc, cleanAlt || 'Image')}
                     onError={(e) => {
-                      const fig = e.currentTarget.closest('figure');
+                      const imgEl = e.currentTarget;
+                      if (!imgEl.dataset.proxyRetried && cleanSrc.startsWith('http')) {
+                        imgEl.dataset.proxyRetried = 'true';
+                        imgEl.src = `/api/images/proxy?url=${encodeURIComponent(cleanSrc)}`;
+                        return;
+                      }
+                      const fig = imgEl.closest('figure');
                       if (fig) fig.style.display = 'none';
-                      else e.currentTarget.style.display = 'none';
+                      else imgEl.style.display = 'none';
                     }}
                     style={{ cursor: 'pointer' }}
                     title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}

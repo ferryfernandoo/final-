@@ -5536,31 +5536,6 @@ app.get('/api/news', async (req, res) => {
   }
 });
 
-// Proxy route: Image Search
-app.get('/api/images', async (req, res) => {
-  try {
-    const q = req.query.q;
-    const limit = parseInt(req.query.limit || '8', 10);
-    if (!q) return res.status(400).json({ success: false, error: 'Query parameter q is required' });
-
-    const response = await fetch(`${DEEPERNOVA_SEARCH_API_URL}/images?q=${encodeURIComponent(q)}&limit=${limit}`, {
-      headers: {
-        'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}`,
-        'X-API-Key': DEEPERNOVA_SEARCH_API_KEY
-      }
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).json({ success: false, error: 'Images API returned status ' + response.status });
-    }
-
-    const data = await response.json();
-    return res.json({ success: true, data });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // ==================== DEEPERNOVA AI API GATEWAY (OPENAI COMPATIBLE) ====================
 // Allows hitting standard /v1/chat/completions, /v1/models, /v1/balance with real API keys & 1M token quota
 app.use('/v1', apiProxyRoutes);
@@ -6831,16 +6806,17 @@ app.get('/api/images/download/:imageId', async (req, res) => {
 });
 
 /**
- * GET /api/images/proxy-download?url=<encoded_url>
+ * GET /api/images/proxy & /api/images/proxy-download
  * CORS relay: fetch an external image URL server-side and stream it back to the client.
- * This solves cross-origin download issues where browser CORS blocks direct fetch from frontend.
+ * This solves cross-origin & hotlink issues where browser blocks direct fetch.
  */
-app.get('/api/images/proxy-download', async (req, res) => {
+app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) => {
   try {
-    const imageUrl = req.query.url;
-    if (!imageUrl) {
+    const rawUrl = req.query.url;
+    if (!rawUrl) {
       return res.status(400).json({ error: 'Missing url parameter' });
     }
+    const imageUrl = String(rawUrl).replace(/&amp;/g, '&');
 
     // Validate URL format
     let parsedUrl;
@@ -6855,33 +6831,25 @@ app.get('/api/images/proxy-download', async (req, res) => {
       return res.status(400).json({ error: 'Only safe public HTTP/HTTPS URLs are allowed' });
     }
 
-    console.log(`[IMG_PROXY] Proxy download request for: ${imageUrl.substring(0, 120)}`);
-
-    // Fetch image from external URL with timeout
+    // Fetch image from external URL with timeout & browser User-Agent
     const fetchPromise = fetch(imageUrl, {
       headers: {
-        'User-Agent': 'DeepernovaAI/1.0 ImageProxy',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
       },
     });
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Proxy fetch timeout')), 30000)
+      setTimeout(() => reject(new Error('Proxy fetch timeout')), 15000)
     );
 
     const imageResponse = await Promise.race([fetchPromise, timeoutPromise]);
 
     if (!imageResponse.ok) {
-      console.error(`[IMG_PROXY] Failed to fetch: ${imageResponse.status} ${imageResponse.statusText}`);
       return res.status(502).json({ error: `Failed to fetch image: ${imageResponse.status}` });
     }
 
-    const contentType = imageResponse.headers.get('content-type') || 'image/png';
-
-    // Only allow image content types
-    if (!contentType.startsWith('image/')) {
-      console.error(`[IMG_PROXY] Non-image content type: ${contentType}`);
-      return res.status(400).json({ error: 'URL does not point to an image' });
-    }
-
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
     const imageBuffer = Buffer.from(arrayBuffer);
 
@@ -6895,18 +6863,20 @@ app.get('/api/images/proxy-download', async (req, res) => {
     else if (contentType.includes('webp')) fileExtension = '.webp';
     else if (contentType.includes('gif')) fileExtension = '.gif';
 
-    // Set headers for download
+    const isDownload = req.path.includes('proxy-download');
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', imageBuffer.length);
-    res.setHeader('Content-Disposition', `attachment; filename="deepernova-image-${Date.now()}${fileExtension}"`);
+    if (isDownload) {
+      res.setHeader('Content-Disposition', `attachment; filename="deepernova-image-${Date.now()}${fileExtension}"`);
+    } else {
+      res.setHeader('Content-Disposition', 'inline');
+    }
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
 
-    console.log(`[IMG_PROXY] ✅ Proxied image: ${imageBuffer.length} bytes, type: ${contentType}`);
     res.send(imageBuffer);
   } catch (err) {
-    console.error('[IMG_PROXY] Proxy download error:', err.message);
-    res.status(500).json({ error: 'Proxy download failed: ' + err.message });
+    res.status(500).json({ error: 'Proxy fetch failed: ' + err.message });
   }
 });
 

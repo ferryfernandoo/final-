@@ -6749,7 +6749,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 1. Extract from inline_images
         if (searchData.data.inline_images && Array.isArray(searchData.data.inline_images)) {
           searchData.data.inline_images.forEach(img => {
-            if (img.thumbnail || img.link) {
+            const rawImgUrl = String(img.thumbnail || img.imageUrl || img.link || '').replace(/&amp;/g, '&').trim();
+            if (rawImgUrl && !rawImgUrl.endsWith('.php') && !rawImgUrl.includes('.ico')) {
               let sourceDomain = '';
               if (img.source) {
                 try {
@@ -6759,7 +6760,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 }
               }
               searchImages.push({
-                url: img.thumbnail || img.link,
+                url: rawImgUrl,
                 title: img.title || searchQuery,
                 source: img.source || '',
                 sourceDomain

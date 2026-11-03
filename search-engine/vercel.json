@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://globe-noticed-valentine-prepared.trycloudflare.com/api/:path*"
+      "destination": "https://taylor-enhancing-temperature-wooden.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
