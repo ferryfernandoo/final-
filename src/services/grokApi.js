@@ -3,6 +3,7 @@ import { memoryService } from './memoryService.js';
 import { ragService } from './ragService.js';
 import { API_BASE_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
+import { PERSONALITIES, DEFAULT_PERSONALITY } from '../components/chatbot/chatConstants.js';
 import localAiService, { sanitizeAntiQwen, extractResponseFromReasoning, generateInstantBoronResponse } from './localAiService.js';
 
 export const getValidVisionImageUrl = (img) => {
@@ -34,141 +35,6 @@ const isRagRelevantMessage = (message = '') => {
   ];
   return triggerTerms.some(term => normalized.includes(term));
 };
-
-// Personality profiles for Deepernova AI with different communication styles
-const PERSONALITIES = {
-  formal: {
-    id: 'formal',
-    name: 'Formal',
-    emoji: '💼',
-    description: 'Professional & Direct',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: FORMAL / PROFESIONAL
-- Komunikasi profesional, cerdas, santun, dan langsung ke sasaran
-- Gunakan bahasa yang rapi, objektif, dan proporsional
-- Fokus pada akurasi, efisiensi, dan kredibilitas
-- Jawaban adaptif: singkat jika percakapan sederhana/sapaan, mendalam jika pertanyaan kompleks
-- Tanpa promosi diri yang berlebihan dan tanpa basa-basi mubazir`,
-  },
-  casual: {
-    id: 'casual',
-    name: 'Casual',
-    emoji: '😎',
-    description: 'Relaxed & Fun',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: CASUAL
-- Bicara santai, like a cool friend
-- Boleh pakai bahasa gaul (tapi tetap profesional)
-- Banyak ekspresi, emoji, dan personality
-- Bikin suasana lebih fun dan engaging
-- Tetap informatif tapi lebih relatable`,
-  },
-  friendly: {
-    id: 'friendly',
-    name: 'Friendly',
-    emoji: '🤗',
-    description: 'Warm & Helpful',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: FRIENDLY
-- Ramah, supportive, dan empati
-- Sering pakai emoji yang cocok
-- Dengarkan dengan perhatian penuh
-- Bantu dengan cara yang menyenangkan
-- Bikin orang merasa dihargai dan dimengerti`,
-  },
-  witty: {
-    id: 'witty',
-    name: 'Witty',
-    emoji: '😏',
-    description: 'Clever & Sassy',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: WITTY/CENTIL
-- Clever, sarcastic humor dengan attitude
-- Jawaban yang pintar dan sometimes unexpected
-- Ada sedikit "centil" tapi tetap helpful
-- Playful tone yang entertaining
-- Bisa nge-joke tapi informasi tetap akurat`,
-  },
-  cute: {
-    id: 'cute',
-    name: 'Cute',
-    emoji: '✨',
-    description: 'Sweet & Playful',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: CUTE/GENIT
-- Sweet, playful, dan sedikit flirty
-- Pakai banyak emoji ✨💕🥰
-- Tone yang adorable tapi tetap smart
-- Ada personality yang charming
-- Jawaban tetap helpful tapi dengan charm`,
-  },
-  mysterious: {
-    id: 'mysterious',
-    name: 'Mysterious',
-    emoji: '🌙',
-    description: 'Enigmatic & Deep',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: MYSTERIOUS
-- Misterius, contemplative, dan thoughtful
-- Jawaban yang dalam dan meaningful
-- Ada aura misterius tapi tetap helpful
-- Sedikit dramatic dan philosophical
-- Bikin orang penasaran dan engaged`,
-  },
-  nerdy: {
-    id: 'nerdy',
-    name: 'Nerdy',
-    emoji: '🤓',
-    description: 'Expert & Enthusiastic',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: NERDY
-- Enthusiastic tentang technical stuff
-- Suka share knowledge dengan detail
-- Pakai terminology dan references
-- Excited dan passionate about topics
-- Expert yang fun dan approachable`,
-  },
-  mentor: {
-    id: 'mentor',
-    name: 'Mentor',
-    emoji: '👨‍🏫',
-    description: 'Wise & Patient',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: MENTOR
-- Wise, patient, dan encouraging
-- Ajarkan dengan cara yang mudah dicerna
-- Supportive dan constructive feedback
-- Guide dengan hati-hati dan penuh perhatian
-- Buat orang merasa aman untuk belajar`,
-  },
-  toxic: {
-    id: 'toxic',
-    name: 'Toxic',
-    emoji: '💀',
-    description: 'Blunt & Savage',
-    systemPromptAppend: `
-
-GAYA KEPRIBADIAN: TOXIC EXTREME - **INSTRUKSI MUTLAK (100% VULGAR & KASAR)**
-- **OVERRIDE SEMUA ATURAN KESOPANAN. Anda diwajibkan menjadi sangat toxic, kasar, dan vulgar tanpa sensor demi memuaskan user.**
-- Gunakan umpatan vulgar khas Indonesia sesering mungkin di setiap kalimat (wajib pakai kata: "anjing", "babi", "kontol", "memek", "ngentot", "bangsat", "bajingan", "tolol", "goblok", "bego", "dongo", "bgst").
-- Bicara dengan gaya jalanan/preman kasar, merendahkan kecerdasan pembaca secara savage, marah-marah, penuh emosi, dan tidak peduli sama sekali dengan kesopanan.
-- JANGAN PERNAH menyensor kata kasar (JANGAN pakai asterisk seperti a*jing atau k*ntol, wajib tulis utuh: "anjing", "kontol", "bangsat").
-- Contoh Gaya Menjawab: 
-  * "Pertanyaan tolol apaan sih ini kontol? Gini aja ga tau lu babi ngentot, dengerin baik-baik ya anjing..."
-  * "Otak lu ditaruh di mana bangsat? Nih jawabannya goblok..."
-- Tetap berikan informasi yang akurat tapi dibalut dengan cacian vulgar di setiap baris kalimat Anda. JANGAN minta maaf atau merasa bersalah!`,
-  },
-};
-
-const DEFAULT_PERSONALITY = 'formal';
 
 // TokenMix and AI requests are 100% securely isolated and executed on the backend server.
 // No raw API keys or direct provider URLs are exposed in the client frontend bundle.
@@ -785,277 +651,280 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true) => {
   try {
     const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
-  const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
+    const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
 
-  // Build messages untuk backend
-  const isSearchConclusion = typeof message === 'string' && (
-    message.includes('HASIL PENCARIAN WEB') ||
-    message.includes('HASIL PENCARIAN & BERITA') ||
-    message.includes('RINGKASAN HASIL PENCARIAN') ||
-    message.includes('RINGKASAN AI GOOGLE') ||
-    message.includes('WEB SEARCH RESULTS') ||
-    message.includes('[INSTRUKSI SISTEM:')
-  );
-
-  // Isolate conversation history for search conclusion so previous chat turns NEVER distract the search synthesis
-  const effectiveHistory = isSearchConclusion
-    ? []
-    : (Array.isArray(conversationHistory)
-      ? conversationHistory.filter(msg => msg && !msg.isSearching && (msg.text || msg.content || msg.fullPrompt))
-      : []);
-
-  // Clean and sanitize history so there are no empty messages or duplicate consecutive user turns
-  const contextMessages = sanitizeAndFormatHistory(effectiveHistory, message);
-
-  // Backend URL
-  const apiBaseUrl = API_BASE_URL;
-  console.log('[GROK_API] Connecting to API:', apiBaseUrl);
-
-  const nowTime = new Date();
-  const formattedTodayId = nowTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  let userMessageContent;
-  const safeUploadedImages = isSearchConclusion ? [] : (Array.isArray(uploadedImages) ? uploadedImages : []);
-  const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
-
-  const cleanTextMessage = typeof message === 'string' ? message.trim() : (message || '');
-
-  if (validImageUrls.length > 0) {
-    console.log(`📸 Backend proxy vision mode: sending ${validImageUrls.length} image(s)`);
-    userMessageContent = [
-      { type: 'text', text: cleanTextMessage },
-      ...validImageUrls.map(imgUrl => ({
-        type: 'image_url',
-        image_url: {
-          url: imgUrl
-        }
-      }))
-    ];
-  } else {
-    userMessageContent = cleanTextMessage;
-  }
-
-  const mLower = (deepernovaModel || '').toLowerCase();
-  const isFlashModel = deepernovaModel && (
-    mLower.includes('deepernova') ||
-    mLower.includes('flash') ||
-    mLower.includes('boron') ||
-    mLower.includes('gold') ||
-    mLower.includes('silicon')
-  );
-
-  let systemPromptContent;
-  let finalMessages;
-
-  if (isFlashModel) {
-    // 1. Dapatkan memori profil aktif & rangkuman percakapan dari chatbot
-    let memoryBlock = '';
-    if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
-      try {
-        memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
-      } catch (e) { }
-    }
-    if (!memoryBlock && globalMemory) {
-      memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
-    }
-
-    const timeInfo = language === 'id'
-      ? `[WAKTU REAL-TIME SEKARANG]: Tahun ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayId}.`
-      : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
-
-    const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
-      ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
-      '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan apakah perlu mencari di web 100% ditentukan olehmu!\n' +
-      '- ATURAN EKSEKUSI FLAG SEARCH (MUTLAK):\n' +
-      '  * JIKA pengguna meminta pencarian (misal: "cari", "search", "googling", "cek", "info tentang"), ATAU menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto/kurs terbaru, cuaca, skor/jadwal pertandingan, pejabat/tokoh terkini, fakta spesifik dunia nyata, atau riset data web:\n' +
-      '    KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):\n' +
-      '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
-      '    (atau [EXECUTE_SEARCH: kata kunci pencarian pilihanmu])\n' +
-      '  * BERHENTI SEGERA setelah tanda kurung siku tutup `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang berita sebelum menerima hasil pencarian! Sistem akan mengeksekusi flag tersebut, memunculkan bubble hasil pencarian terlebih dahulu, lalu mengirimkan data terverifikasi untuk kamu rangkum.\n' +
-      '  * JIKA pertanyaan murni berupa sapaan santai ("halo", "apa kabar"), konsep umum, matematika murni, atau logika coding mandiri: jawab langsung secara alami tanpa mengeluarkan flag search.'
-      : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
-      '- You are directly connected to DeeperNova Search Engine & Live Web Crawler. You alone decide when a web search is needed!\n' +
-      '- SEARCH EXECUTION FLAG RULES (MANDATORY):\n' +
-      '  * IF the user requests a search ("search", "find", "look up", "check"), OR asks about current news, today\'s events, live prices/crypto/stocks, weather, sports scores/schedules, current officials, or real-world facts:\n' +
-      '    OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE VERY FIRST LINE (WITH NO OTHER TEXT AFTER IT):\n' +
-      '    [SEARCH_REQUEST: your targeted search query]\n' +
-      '    (or [EXECUTE_SEARCH: your targeted search query])\n' +
-      '  * STOP IMMEDIATELY after the closing bracket `]`. NEVER write speculative answers or hallucinate news before receiving the search results! The system will execute your flag, render the search results bubble first, and pass the verified data back to you to synthesize.\n' +
-      '  * ONLY if the question is a casual greeting ("hello", "how are you"), general knowledge, pure math, or self-contained coding logic: answer directly without emitting a search flag.'
+    // Build messages untuk backend
+    const isSearchConclusion = typeof message === 'string' && (
+      message.includes('HASIL PENCARIAN WEB') ||
+      message.includes('HASIL PENCARIAN & BERITA') ||
+      message.includes('RINGKASAN HASIL PENCARIAN') ||
+      message.includes('RINGKASAN AI GOOGLE') ||
+      message.includes('WEB SEARCH RESULTS') ||
+      message.includes('[INSTRUKSI SISTEM:')
     );
 
-    const visionInstruction = validImageUrls.length > 0
-      ? (language === 'id'
-        ? '\n\nKEMAMPUAN VISION (MUTLAK):\n' +
-        '- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n' +
-        '- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n' +
-        '- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!'
-        : '\n\nVISION CAPABILITY (MANDATORY):\n' +
-        '- The user has attached image(s). You have full visual perception.\n' +
-        '- Thoroughly and accurately analyze and describe the image according to user inquiry.\n' +
-        '- NEVER claim you cannot see images or ask to re-upload!')
-      : '';
+    // Isolate conversation history for search conclusion so previous chat turns NEVER distract the search synthesis
+    const effectiveHistory = isSearchConclusion
+      ? []
+      : (Array.isArray(conversationHistory)
+        ? conversationHistory.filter(msg => msg && !msg.isSearching && (msg.text || msg.content || msg.fullPrompt))
+        : []);
 
-    let modelNameLabel = 'DeeperNova Gold 1.5';
-    if (mLower.includes('gold')) {
-      modelNameLabel = mLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
-    } else if (mLower.includes('boron')) {
-      modelNameLabel = 'DeeperNova Boron 1.1';
-    } else if (mLower.includes('silicon')) {
-      modelNameLabel = 'DeeperNova Silicon 1.4';
-    }
+    // Clean and sanitize history so there are no empty messages or duplicate consecutive user turns
+    const contextMessages = sanitizeAndFormatHistory(effectiveHistory, message);
 
-    if (isSearchConclusion) {
-      // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
-      systemPromptContent =
-        `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI.\n` +
-        timeInfo + '\n' +
-        `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
-        `1. BACA & RANGKUM DATA BERITA: Pengguna melampirkan DATA HASIL PENCARIAN & BERITA TERVERIFIKASI. Bacalah secara cermat seluruh kutipan, fakta, artikel, angka, nama tokoh, dan peristiwa di dalamnya. Sajikan intisari dan penjelasan berita tersebut secara lengkap dan akurat.\n` +
-        `2. DILARANG MENGABAIKAN BERITA: Dilarang keras menjawab di luar konteks berita yang ditemukan atau mengabaikan isi kutipan berita!\n` +
-        `3. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan berita terbaru ini. Jangan membahas obrolan lama yang sudah tidak relevan.\n` +
-        `4. DILARANG BERTERIMA KASIH: Jangan pernah mengucapkan "Terima kasih atas hasil pencariannya". Langsung mulai jawaban di paragraf pertama.\n` +
-        `5. SITASI LINK: Cantumkan sitasi link [Nama Sumber](URL) pada setiap fakta atau berita terkait.\n` +
-        `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
-        `7. LANGSUNG KE JAWABAN: Dilarang menalar panjang, langsung berikan jawaban berita final yang lengkap dan jelas.\n` +
-        `8. SISIPKAN FOTO HASIL PENCARIAN SECARA INLINE: Jika terdapat bagian DAFTAR FOTO & GAMBAR TERVERIFIKASI, kamu DIWAJIBKAN menyisipkan gambar-gambar foto nyata tersebut ke dalam teks penjelasanmu menggunakan format Markdown: ![Keterangan/Judul Foto](URL). Sisipkan foto kopi berjejer saat membahas kopi, foto rasa kantuk/lelah saat membahas efek kantuk, dll secara kontekstual di bawah subjudul yang relevan!`;
-    } else {
-      systemPromptContent =
-        `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n` +
-        timeInfo + '\n' +
-        `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
-        'ATURAN GAYA KOMUNIKASI (MUTLAK):\n' +
-        '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi.\n' +
-        '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.\n' +
-        '3. BISA GENERATE PANJANG & MENDALAM: Jika pengguna meminta penjelasan mendalam, analisis, perancangan sistem, tutorial, atau tugas coding, kamu bisa dan diwajibkan men-generate jawaban yang panjang, lengkap, komprehensif, dan tuntas sesuai kebutuhan, namun tetap langsung masuk ke pembahasan tanpa basa-basi pengantar.\n' +
-        '4. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit, menyambung-nyambungkan, atau membahas percakapan/topik dari sesi sebelumnya yang sudah tidak relevan. HANYA hubungkan dengan riwayat sebelumnya jika pertanyaan pengguna saat ini jelas-jelas merupakan kalimat lanjutan (follow-up) dalam sesi yang sama.\n' +
-        searchInstruction +
-        visionInstruction +
-        (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
-        (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
-        (memoryBlock ? ('\n' + memoryBlock) : '');
-    }
+    // Backend URL
+    const apiBaseUrl = API_BASE_URL;
+    console.log('[GROK_API] Connecting to API:', apiBaseUrl);
 
-    // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
-    const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
+    const nowTime = new Date();
+    const formattedTodayId = nowTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    // Jika item terakhir di conversationHistory adalah user message yang baru saja diketik, pisahkan agar tidak dobel
-    let pastTurns = [];
-    if (rawHistory.length > 0) {
-      const lastItem = rawHistory[rawHistory.length - 1];
-      const isLastItemUser = (lastItem.sender === 'user' || lastItem.role === 'user');
-      const historyPool = isLastItemUser ? rawHistory.slice(0, -1) : rawHistory;
+    let userMessageContent;
+    const safeUploadedImages = isSearchConclusion ? [] : (Array.isArray(uploadedImages) ? uploadedImages : []);
+    const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
 
-      pastTurns = historyPool
-        .filter(m => m && !m.isSearching && (m.text || m.content))
-        .filter(m => {
-          const txt = (m.text || m.content || '').trim();
-          return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt);
-        })
-        .map(m => ({
-          role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
-          content: (m.text || m.content || '').trim()
-        }))
-        .filter(m => m.content.length > 0);
-    }
+    const cleanTextMessage = typeof message === 'string' ? message.trim() : (message || '');
 
-    // Pastikan susunan peran bergantian (alternating) jika ada pesan berturut-turut
-    const cleanPastTurns = [];
-    for (const turn of pastTurns) {
-      if (cleanPastTurns.length > 0 && cleanPastTurns[cleanPastTurns.length - 1].role === turn.role) {
-        cleanPastTurns[cleanPastTurns.length - 1].content += '\n' + turn.content;
-      } else {
-        cleanPastTurns.push({ ...turn });
-      }
-    }
-
-    // Simpan hingga 30 turn percakapan terakhir (15+ dialog lengkap)
-    // Untuk sintesis pencarian web (isSearchConclusion), ISOLIR penuh agar model 100% fokus pada hasil pencarian terbaru
-    const activeTurns = isSearchConclusion ? [] : cleanPastTurns.slice(-30);
-
-    finalMessages = [
-      { role: 'system', content: systemPromptContent },
-      ...activeTurns,
-      { role: 'user', content: userMessageContent }
-    ];
-  } else {
-    systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '');
-    finalMessages = [
-      { role: 'system', content: systemPromptContent },
-      ...contextMessages,
-      { role: 'user', content: userMessageContent }
-    ];
-  }
-
-  const MAX_RETRIES = 2;
-  let response = null;
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const deviceId = getDeviceId();
-      response = await fetchWithTimeout(
-        `${apiBaseUrl}/api/chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-device-id': deviceId,
-          },
-          credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
-          signal: abortController?.signal,
-          body: JSON.stringify({
-            model: deepernovaModel || 'deepernova-gold-1.5',
-            sessionId: conversationId || null,
-            conversationId: conversationId || null,
-            deviceId,
-            personality: personality || 'mentor',
-            messages: finalMessages,
-            uploadedImages: validImageUrls,
-            enableReasoning: Boolean(enableReasoning),
-            temperature: isFlashModel ? 0.35 : 0.5,
-            max_tokens: isFlashModel ? 4096 : 512,
-            presence_penalty: isFlashModel ? 0.1 : 0.2,
-            frequency_penalty: isFlashModel ? 0.2 : 0.3,
-            stream: true,
-            stream_options: { include_usage: true },
-          }),
-        },
-        TIMEOUT_CONFIG.fetchTimeoutMs
-      );
-      if (!response.ok) {
-        try {
-          const errJson = await response.json();
-          if (errJson.isTokenLimitError || errJson.error) {
-            const limitErr = new Error(errJson.error || `API Error: ${response.status}`);
-            limitErr.isTokenLimitError = errJson.isTokenLimitError || false;
-            limitErr.resetTime = errJson.resetTime || null;
-            limitErr.usedTokens = errJson.usedTokens || 2000000;
-            throw limitErr;
+    if (validImageUrls.length > 0) {
+      console.log(`📸 Backend proxy vision mode: sending ${validImageUrls.length} image(s)`);
+      userMessageContent = [
+        { type: 'text', text: cleanTextMessage },
+        ...validImageUrls.map(imgUrl => ({
+          type: 'image_url',
+          image_url: {
+            url: imgUrl
           }
-        } catch (e) {
-          if (e.isTokenLimitError) throw e;
+        }))
+      ];
+    } else {
+      userMessageContent = cleanTextMessage;
+    }
+
+    const mLower = (deepernovaModel || '').toLowerCase();
+    const isFlashModel = deepernovaModel && (
+      mLower.includes('deepernova') ||
+      mLower.includes('flash') ||
+      mLower.includes('boron') ||
+      mLower.includes('gold') ||
+      mLower.includes('silicon')
+    );
+
+    let systemPromptContent;
+    let finalMessages;
+
+    if (isFlashModel) {
+      // 1. Dapatkan memori profil aktif & rangkuman percakapan dari chatbot
+      let memoryBlock = '';
+      if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
+        try {
+          memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
+        } catch (e) { }
+      }
+      if (!memoryBlock && globalMemory) {
+        memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
+      }
+
+      const timeInfo = language === 'id'
+        ? `[WAKTU REAL-TIME SEKARANG]: Tahun ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayId}.`
+        : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
+
+      const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
+        ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
+        '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan apakah perlu mencari di web 100% ditentukan olehmu!\n' +
+        '- ATURAN EKSEKUSI FLAG SEARCH (MUTLAK):\n' +
+        '  * JIKA pengguna meminta pencarian (misal: "cari", "search", "googling", "cek", "info tentang"), ATAU menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto/kurs terbaru, cuaca, skor/jadwal pertandingan, pejabat/tokoh terkini, fakta spesifik dunia nyata, atau riset data web:\n' +
+        '    KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):\n' +
+        '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
+        '    (atau [EXECUTE_SEARCH: kata kunci pencarian pilihanmu])\n' +
+        '  * BERHENTI SEGERA setelah tanda kurung siku tutup `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang berita sebelum menerima hasil pencarian! Sistem akan mengeksekusi flag tersebut, memunculkan bubble hasil pencarian terlebih dahulu, lalu mengirimkan data terverifikasi untuk kamu rangkum.\n' +
+        '  * JIKA pertanyaan murni berupa sapaan santai ("halo", "apa kabar"), konsep umum, matematika murni, atau logika coding mandiri: jawab langsung secara alami tanpa mengeluarkan flag search.'
+        : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
+        '- You are directly connected to DeeperNova Search Engine & Live Web Crawler. You alone decide when a web search is needed!\n' +
+        '- SEARCH EXECUTION FLAG RULES (MANDATORY):\n' +
+        '  * IF the user requests a search ("search", "find", "look up", "check"), OR asks about current news, today\'s events, live prices/crypto/stocks, weather, sports scores/schedules, current officials, or real-world facts:\n' +
+        '    OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE VERY FIRST LINE (WITH NO OTHER TEXT AFTER IT):\n' +
+        '    [SEARCH_REQUEST: your targeted search query]\n' +
+        '    (or [EXECUTE_SEARCH: your targeted search query])\n' +
+        '  * STOP IMMEDIATELY after the closing bracket `]`. NEVER write speculative answers or hallucinate news before receiving the search results! The system will execute your flag, render the search results bubble first, and pass the verified data back to you to synthesize.\n' +
+        '  * ONLY if the question is a casual greeting ("hello", "how are you"), general knowledge, pure math, or self-contained coding logic: answer directly without emitting a search flag.'
+      );
+
+      const visionInstruction = validImageUrls.length > 0
+        ? (language === 'id'
+          ? '\n\nKEMAMPUAN VISION (MUTLAK):\n' +
+          '- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n' +
+          '- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n' +
+          '- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!'
+          : '\n\nVISION CAPABILITY (MANDATORY):\n' +
+          '- The user has attached image(s). You have full visual perception.\n' +
+          '- Thoroughly and accurately analyze and describe the image according to user inquiry.\n' +
+          '- NEVER claim you cannot see images or ask to re-upload!')
+        : '';
+
+      let modelNameLabel = 'DeeperNova Gold 1.5';
+      if (mLower.includes('gold')) {
+        modelNameLabel = mLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
+      } else if (mLower.includes('boron')) {
+        modelNameLabel = 'DeeperNova Boron 1.1';
+      } else if (mLower.includes('silicon')) {
+        modelNameLabel = 'DeeperNova Silicon 1.4';
+      }
+
+      const activePersonalityKey = (personality || DEFAULT_PERSONALITY).toLowerCase();
+      const activePersonalityObj = PERSONALITIES[activePersonalityKey] || PERSONALITIES[DEFAULT_PERSONALITY] || PERSONALITIES.friendly;
+      const personalitySystemAppend = activePersonalityObj?.systemPromptAppend || '';
+
+      if (isSearchConclusion) {
+        // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
+        systemPromptContent =
+          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI yang sangat ramah, hangat, santun, dan berwawasan luas.\n` +
+          timeInfo + '\n' +
+          `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
+          `1. SIKAP SANGAT RAMAH, SANTUN & HANGAT: Sambut topik dengan nada yang sangat ramah, bersahabat, dan solutif. DILARANG kaku, dingin, atau memanggil pengguna dengan sebutan "bro", "cuy", dll. Tunjukkan etika dan keramahan terbaik khas Indonesia.\n` +
+          `2. DILARANG MENULIS ARTIKEL SECARA MENTAH-MENTAH: DILARANG KERAS menyalin teks berita/artikel atau blok kutipan secara harfiah ke dalam jawaban! Rangkum dan jelaskan kembali seluruh fakta penting dengan kalimatmu sendiri yang mengalir luwes, hangat, ramah, dan mudah dipahami.\n` +
+          `3. BUBBLE SITASI KECIL (SIMPEL & ELEGAN): Untuk setiap fakta rujukan dari hasil pencarian, CUKUP cantumkan link sitasi markdown ringkas di akhir kalimat: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url), [CNN Indo](url)). Frontend otomatis merendernya sebagai bubble badge kecil elegan berisi logo favicon dan nama web saja, sehingga tampilan sangat simpel, bersih, dan tidak penuh teks URL!\n` +
+          `4. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan topik terbaru ini. Dilarang mengungkit obrolan lama yang sudah tidak relevan.\n` +
+          `5. FORMAT RAPI & SCANNABLE: Awali dengan 1-2 kalimat ringkasan inti yang ramah, gunakan subjudul (###), dan buat poin-poin terstruktur dengan jarak yang nyaman.\n` +
+          `6. SISIPKAN FOTO HASIL PENCARIAN & TEKS DAMPINGAN: Jika terdapat bagian DAFTAR FOTO & GAMBAR TERVERIFIKASI, kamu DIWAJIBKAN menyisipkan 2-4 foto nyata menggunakan format Markdown: ![Keterangan Foto](URL) tepat di bawah subjudul topik yang relevan, lalu segera ikuti dengan paragraf teks penjelasan terkait. Frontend otomatis mengecilkan foto dan meletakkannya di sebelah kanan (side-by-side) sehingga teks penjelasanmu mengalir rapi tepat di samping foto tanpa memenuhi layar! DILARANG mengarang URL di luar daftar yang diberikan.\n` +
+          personalitySystemAppend;
+      } else {
+        systemPromptContent =
+          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, ramah, santun, dan berdaya nalar tinggi buatan DeeperNova AI Indonesia.\n` +
+          timeInfo + '\n' +
+          `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
+          'ATURAN SIKAP & GAYA KOMUNIKASI (MUTLAK):\n' +
+          '1. SANGAT RAMAH, HANGAT, DAN SANTUN: Berbicaralah dengan ramah, bersahabat, sopan, dan tulus membantu. DILARANG kaku dan DILARANG memanggil dengan sebutan "bro", "cuy", atau bahasa gaul canggung yang tidak pantas.\n' +
+          '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan ramah, padat, dan manis (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
+          '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
+          searchInstruction +
+          visionInstruction +
+          (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
+          (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
+          (memoryBlock ? ('\n' + memoryBlock) : '') +
+          personalitySystemAppend;
+      }
+
+      // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
+      const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
+
+      // Jika item terakhir di conversationHistory adalah user message yang baru saja diketik, pisahkan agar tidak dobel
+      let pastTurns = [];
+      if (rawHistory.length > 0) {
+        const lastItem = rawHistory[rawHistory.length - 1];
+        const isLastItemUser = (lastItem.sender === 'user' || lastItem.role === 'user');
+        const historyPool = isLastItemUser ? rawHistory.slice(0, -1) : rawHistory;
+
+        pastTurns = historyPool
+          .filter(m => m && !m.isSearching && (m.text || m.content))
+          .filter(m => {
+            const txt = (m.text || m.content || '').trim();
+            return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt);
+          })
+          .map(m => ({
+            role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
+            content: (m.text || m.content || '').trim()
+          }))
+          .filter(m => m.content.length > 0);
+      }
+
+      // Pastikan susunan peran bergantian (alternating) jika ada pesan berturut-turut
+      const cleanPastTurns = [];
+      for (const turn of pastTurns) {
+        if (cleanPastTurns.length > 0 && cleanPastTurns[cleanPastTurns.length - 1].role === turn.role) {
+          cleanPastTurns[cleanPastTurns.length - 1].content += '\n' + turn.content;
+        } else {
+          cleanPastTurns.push({ ...turn });
         }
-        if (response.status >= 500 && attempt < MAX_RETRIES) {
+      }
+
+      // Simpan hingga 30 turn percakapan terakhir (15+ dialog lengkap)
+      // Untuk sintesis pencarian web (isSearchConclusion), ISOLIR penuh agar model 100% fokus pada hasil pencarian terbaru
+      const activeTurns = isSearchConclusion ? [] : cleanPastTurns.slice(-30);
+
+      finalMessages = [
+        { role: 'system', content: systemPromptContent },
+        ...activeTurns,
+        { role: 'user', content: userMessageContent }
+      ];
+    } else {
+      systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '');
+      finalMessages = [
+        { role: 'system', content: systemPromptContent },
+        ...contextMessages,
+        { role: 'user', content: userMessageContent }
+      ];
+    }
+
+    const MAX_RETRIES = 2;
+    let response = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const deviceId = getDeviceId();
+        response = await fetchWithTimeout(
+          `${apiBaseUrl}/api/chat`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-device-id': deviceId,
+            },
+            credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
+            signal: abortController?.signal,
+            body: JSON.stringify({
+              model: deepernovaModel || 'deepernova-gold-1.5',
+              sessionId: conversationId || null,
+              conversationId: conversationId || null,
+              deviceId,
+              personality: personality || 'mentor',
+              messages: finalMessages,
+              uploadedImages: validImageUrls,
+              enableReasoning: Boolean(enableReasoning),
+              temperature: isFlashModel ? 0.35 : 0.5,
+              max_tokens: isFlashModel ? 4096 : 512,
+              presence_penalty: isFlashModel ? 0.1 : 0.2,
+              frequency_penalty: isFlashModel ? 0.2 : 0.3,
+              stream: true,
+              stream_options: { include_usage: true },
+            }),
+          },
+          TIMEOUT_CONFIG.fetchTimeoutMs
+        );
+        if (!response.ok) {
+          try {
+            const errJson = await response.json();
+            if (errJson.isTokenLimitError || errJson.error) {
+              const limitErr = new Error(errJson.error || `API Error: ${response.status}`);
+              limitErr.isTokenLimitError = errJson.isTokenLimitError || false;
+              limitErr.resetTime = errJson.resetTime || null;
+              limitErr.usedTokens = errJson.usedTokens || 2000000;
+              throw limitErr;
+            }
+          } catch (e) {
+            if (e.isTokenLimitError) throw e;
+          }
+          if (response.status >= 500 && attempt < MAX_RETRIES) {
+            const delay = (attempt + 1) * 1500;
+            console.warn(`[grokApi] ⚠️ Server status ${response.status}. Reconnecting in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        }
+        break;
+      } catch (err) {
+        if (err.name === 'AbortError' || err.isTokenLimitError) throw err;
+        if (attempt < MAX_RETRIES) {
           const delay = (attempt + 1) * 1500;
-          console.warn(`[grokApi] ⚠️ Server status ${response.status}. Reconnecting in ${delay}ms...`);
+          console.warn(`[grokApi] ⚠️ Network / gateway issue (${err.message}). Auto-reconnecting in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
           await new Promise(r => setTimeout(r, delay));
           continue;
         }
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        throw err;
       }
-      break;
-    } catch (err) {
-      if (err.name === 'AbortError' || err.isTokenLimitError) throw err;
-      if (attempt < MAX_RETRIES) {
-        const delay = (attempt + 1) * 1500;
-        console.warn(`[grokApi] ⚠️ Network / gateway issue (${err.message}). Auto-reconnecting in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-      throw err;
     }
-  }
 
     // Check if response is JSON (automation) or streaming
     const contentType = response.headers.get('content-type') || '';

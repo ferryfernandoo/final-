@@ -462,6 +462,7 @@ export const cleanResponseText = (text) => {
   cleaned = cleaned.replace(/\[(MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|MEMORY_RECALL):[\s\S]*?\]/gi, '');
   cleaned = cleaned.replace(/<\/?reasoning>/gi, '');
   cleaned = cleaned.replace(/\[STEP:\s*[^\]]+\]/gi, '');
+  cleaned = cleaned.replace(/\[Sumber\s*#?\d+\s*\|\s*Mesin:[^\]]+\]\s*(?:Judul|URL|Kutipan)[^\n]*\n?/gi, '');
 
   const preserveCodeSections = (input) => {
     const map = new Map();

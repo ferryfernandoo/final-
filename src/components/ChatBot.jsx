@@ -6982,10 +6982,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Single search only — no multi-step
       const currentStep = searchContextHistoryRef.current[messageId].length;
       
-      // Helper: replace [Sumber N] with actual markdown links
+      // Helper: replace [Sumber N] with actual markdown links and clean domain badges
       const replaceCitationsWithLinks = (text) => {
         if (!sources || sources.length === 0 || !text) return text || '';
-        return text.replace(/\[Sumber\s*(\d+)\](?!\()/gi, (match, numStr) => {
+        let res = text;
+        res = res.replace(/\[Sumber\s*#?\s*(\d+)[^\]]*\](?!\()/gi, (match, numStr) => {
           const idx = parseInt(numStr, 10) - 1;
           if (idx >= 0 && idx < sources.length) {
             const s = sources[idx];
@@ -6994,13 +6995,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               try {
                 domain = new URL(s.link).hostname.replace(/^www\./i, '');
               } catch (e) {
-                domain = 'Web';
+                domain = 'Sumber ' + numStr;
               }
             }
-            return `[${domain || 'Sumber ' + numStr}](${s.link})`;
+            const cleanLabel = formatBubbleDomainLabel(domain);
+            return `[${cleanLabel}](${s.link})`;
           }
           return match;
         });
+        return res;
       };
       
       const currentTurnInput = (lastSentUserInputTextRef.current || '').trim();
@@ -7012,8 +7015,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const dayNameId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
       const dateFormattedId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Build a clear, focused conclusion prompt with strict latest-topic priority
-      let conclusionPrompt = `[INSTRUKSI SISTEM: Waktu saat ini adalah tahun ${currentYear}, hari ${dayNameId}, ${dateFormattedId}. DILARANG mengucapkan terima kasih atas hasil pencarian atau menyebut "terima kasih atas informasinya". Pengguna TIDAK memberikan data ini; data ini didapat otomatis oleh mesin pencari internal. FOKUS SEPENUHNYA pada Pertanyaan Pengguna terbaru di bawah. Jika pengguna berganti topik baru, JAWAB TUNTAS TOPIK BARU TERSEBUT tanpa mengaitkan ke percakapan lama. LANGSUNG jawab pertanyaan pengguna secara komprehensif, terstruktur, dan akurat.]\n\n`;
+      // Build a clear, focused conclusion prompt with strict latest-topic priority and warm, friendly tone
+      let conclusionPrompt = `[INSTRUKSI SISTEM: Waktu saat ini adalah tahun ${currentYear}, hari ${dayNameId}, ${dateFormattedId}. DILARANG mengucapkan terima kasih atas hasil pencarian atau menyebut "terima kasih atas informasinya". Pengguna TIDAK memberikan data ini; data ini didapat otomatis oleh mesin pencari internal. Bersikaplah SANGAT RAMAH, hangat, santun, dan solutif. DILARANG kaku dan DILARANG memanggil dengan sebutan "bro", "cuy", atau bahasa gaul canggung. FOKUS SEPENUHNYA pada Pertanyaan Pengguna terbaru di bawah. JAWAB TUNTAS TOPIK BARU TERSEBUT tanpa mengaitkan ke percakapan lama. LANGSUNG jawab pertanyaan pengguna secara ramah, komprehensif, terstruktur, dan akurat.]\n\n`;
       conclusionPrompt += `Pertanyaan Pengguna: "${userQuery}"\n\n`;
       conclusionPrompt += `--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${accumulatedHistoryContext}\n\n`;
       if (aiOverviewText) {
@@ -7029,14 +7032,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             const cleanTitle = (img.title || searchQuery).replace(/[\[\]]/g, '').trim();
             return `[Foto #${idx + 1}] Judul/Topik: "${cleanTitle}" | URL: ${img.url}`;
           }).join('\n') +
-          `\n\n📌 ATURAN WAJIB MENAMPILKAN GAMBAR FOTO SECARA INLINE (MUTLAK):\n` +
+          `\n\n📌 ATURAN WAJIB MENAMPILKAN GAMBAR FOTO & TEKS DAMPINGAN (SIDE-BY-SIDE):\n` +
           `1. WAJIB SISIPKAN 2 HINGGA 4 FOTO RELEVAN dari daftar di atas langsung di dalam penjelasanmu menggunakan format Markdown: ![Keterangan/Judul Foto](URL_Foto).\n` +
-          `2. LETAKKAN FOTO SECARA KONTEKSTUAL di bawah subjudul yang sesuai:\n` +
-          `   - Contoh jika membahas jenis/aroma kopi: sisipkan foto secangkir kopi atau biji kopi.\n` +
-          `   - Contoh jika membahas efek rasa kantuk/ngantuk atau kelelahan: sisipkan foto orang mengantuk/efek kafein di bawah subjudul tersebut.\n` +
-          `3. GAMBAR BERJEJER: Jika ada 2 foto yang relevan untuk satu topik (misal varian kopi atau perbandingan), kamu bisa meletakkannya berurutan berdampingan:\n` +
-          `   ![Foto 1](URL_1) ![Foto 2](URL_2)\n` +
-          `   Sistem frontend akan otomatis menampilkannya rapi berdampingan (berjejer) sebagai galeri visual!\n` +
+          `2. LETAKKAN FOTO TEPAT DI BAWAH SUBJUDUL TOPIK (###) LALU LANGSUNG TULISKAN PARAGRAF PENJELASAN BERKAITAN:\n` +
+          `   - Contoh jika membahas jenis kopi: letakkan foto kopi di bawah subjudul kopi, lalu tulis penjelasan kopi di sampingnya.\n` +
+          `   - Contoh jika membahas efek rasa kantuk/ngantuk: letakkan foto orang mengantuk di bawah subjudul rasa kantuk, lalu tulis penjelasan mekanisme kantuk di sampingnya.\n` +
+          `3. FORMAT DAMPINGAN OTOMATIS: Frontend telah diprogram untuk otomatis mengecilkan foto dan mem-float foto ke sebelah kanan, sehingga paragraf teks penjelasan yang kamu tulis akan mengalir rapi di sebelah gambar (teks dan gambar berdampingan) tanpa memenuhi layar!\n` +
           `4. DILARANG MENGARANG URL SENDIRI! HANYA gunakan URL yang tertera pada daftar "[Foto #...]" di atas.\n\n`;
       }
 
@@ -7049,9 +7050,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 - Berikan kesimpulan atau rekomendasi akhir yang tegas dan aplikatif bagi pengguna.\n\n`;
       }
       conclusionPrompt += `--- PANDUAN STRUKTUR & KUALITAS JAWABAN PENCARIAN (SANGAT PENTING) ---
-1. DILARANG BERTERIMA KASIH: Jangan pernah menulis "Terima kasih atas hasil pencariannya..." atau sejenisnya. Pengguna tidak memberikan informasi ini. Langsung mulai jawaban di paragraf pertama!
-2. WAJIB BERPEDOMAN PADA WAKTU SEKARANG: Tahun saat ini adalah ${currentYear} (BUKAN 2024). Semua analisis berita dan peristiwa terkini berpedoman pada tanggal hari ini: ${dateFormattedId}.
-3. FORMAT SUPER RAPI, BERJENJANG & SCANNABLE (WAJIB):
+1. SIKAP SANGAT RAMAH & SANTUN: Bersikaplah sangat ramah, hangat, sopan, dan bersahabat. DILARANG kaku dan DILARANG memanggil dengan sebutan "bro", "cuy", atau slang canggung.
+2. DILARANG BERTERIMA KASIH: Jangan pernah menulis "Terima kasih atas hasil pencariannya..." atau sejenisnya. Pengguna tidak memberikan informasi ini. Langsung mulai jawaban di paragraf pertama!
+3. WAJIB BERPEDOMAN PADA WAKTU SEKARANG: Tahun saat ini adalah ${currentYear} (BUKAN 2024). Semua analisis berita dan peristiwa terkini berpedoman pada tanggal hari ini: ${dateFormattedId}.
+4. FORMAT SUPER RAPI, BERJENJANG & SCANNABLE (WAJIB):
    - RINGKASAN INTI AWAL (1-2 kalimat): Awali jawaban langsung dengan inti/jawaban tegas atas pertanyaan pengguna di paragraf pertama.
    - SUBJUDUL TEMATIK (###): Gunakan heading markdown tingkat 3 (contoh: "### 1. Perkembangan Utama" atau "### Rincian Lengkap") untuk memecah informasi ke topik-topik terpisah.
    - POIN DENGAN JUDUL TEBAL (BOLD LEAD): Gunakan daftar bernomor atau bullet list di mana SETIAP BUTIR DIAWALI DENGAN JUDUL TEBAL:
@@ -7059,21 +7061,24 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    - SATU BARIS KOSONG (BLANK LINE): Pisahkan setiap paragraf, subjudul, dan butir poin dengan SATU BARIS KOSONG agar jawaban lega, berjarak nyaman, dan tidak menumpuk padat.
    - TEBALKAN DATA KRUSIAL: Cetak tebal angka penting, persentase, tanggal spesifik, atau nama lembaga kunci.
 
-4. WAJIB BACA & SINTESIS DATA HASIL PENCARIAN DI ATAS (MUTLAK):
-   - Anda TELAH DIBERIKAN kutipan data nyata hasil pencarian Google Search (SerpAPI) dan DeeperNova Search yang telah diperingkat oleh sistem berdasarkan relevansi teks terbaru.
-   - BACA DENGAN TELITI seluruh kutipan teks, nama tokoh, tanggal, dan angka yang tercantum di bagian "DATA HASIL PENCARIAN WEB TERVERIFIKASI" di atas untuk menyusun jawaban.
-   - DILARANG KERAS mengabaikan hasil pencarian atau menjawab hanya dari ingatan/pelatihan lama. Jika informasi ada di kutipan di atas, SEBUTKAN DAN JELASKAN secara eksplisit dalam jawaban Anda!
-   - Sebutkan fakta konkret yang ditemukan (seperti waktu/jam kejadian, tanggal, angka statistik, atau pernyataan resmi).
-   - Cantumkan sitasi link markdown: [Nama Sumber](URL) tepat di akhir kalimat fakta yang bersumber dari web.
+5. WAJIB SINTESIS DATA HASIL PENCARIAN DENGAN BAHASA SENDIRI (MUTLAK):
+   - DILARANG KERAS MENYALIN ATAU COPAS TEKS ARTIKEL SECARA MENTAH-MENTAH!
+   - Jangan menyalin blok kutipan atau paragraf berita secara harfiah. Rangkum seluruh intisari fakta penting (seperti waktu/jam kejadian, tanggal, angka statistik, atau pernyataan resmi) dengan kalimat sendiri yang luwes, enak dibaca, ramah, dan informatif.
+   - BUBBLE SITASI KECIL (SIMPEL & ELEGAN): Untuk setiap fakta rujukan dari hasil pencarian, CUKUP cantumkan link sitasi markdown ringkas di akhir kalimat: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url), [CNN Indo](url)). Frontend otomatis mengubahnya menjadi bubble kecil elegan berisi logo favicon dan nama media saja, sehingga tampilan sangat simpel, bersih, dan ringkas tanpa teks URL panjang!
 
-5. ANALISIS PERBANDINGAN CERDAS & OBYEKTIF:
+6. ANALISIS PERBANDINGAN CERDAS & OBYEKTIF:
    - Jika pengguna membandingkan dua hal atau menanyakan perbandingan (termasuk hasil Google vs Deepernova, atau produk/topik A vs B), sajikan perbandingan yang komprehensif, faktual, dan tidak memihak berdasarkan temuan data di atas.
 
-6. FOKUS MURNI PADA TOPIK TERAKHIR (TOPIC SWITCHING):
+7. FOKUS MURNI PADA TOPIK TERAKHIR (TOPIC SWITCHING):
    - Jawab HANYA berdasarkan "Pertanyaan Pengguna" di atas dan data hasil pencarian web terkait.
    - Jika pertanyaan pengguna di atas adalah topik baru yang berbeda dari percakapan sebelumnya, DILARANG KERAS memaksakan mengaitkan, menghubungkan, atau mengungkit topik lama yang tidak relevan!
 
-7. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] atau [EXECUTE_SEARCH] lagi.\n\n[PERINGATAN SANGAT PENTING: Jawab HANYA tentang "${userQuery}" dan data web di atas! DILARANG KERAS menjawab atau menyinggung topik obrolan sebelumnya!]`;
+8. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] atau [EXECUTE_SEARCH] lagi.\n\n[PERINGATAN SANGAT PENTING: Jawab HANYA tentang "${userQuery}" dan data web di atas! DILARANG KERAS menjawab atau menyinggung topik obrolan sebelumnya!]`;
+
+      const activePersonalityAppend = PERSONALITIES[selectedPersonality]?.systemPromptAppend || '';
+      if (activePersonalityAppend) {
+        conclusionPrompt += `\n\n${activePersonalityAppend}\n`;
+      }
       
       console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
       

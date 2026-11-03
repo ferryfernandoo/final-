@@ -17,6 +17,7 @@ import {
   removeExecutionLogLines,
   removeDownloadStatusLines
 } from './chatTextUtils';
+import { formatBubbleDomainLabel } from './chatConstants';
 
 export const parseQuizText = (
   text,
@@ -256,8 +257,20 @@ export const formatMessageContent = ({
   if (!text) return text;
 
   const resolvedMessageId = messageId || message?.id || null;
+  const sources = message?.searchSources || null;
   const redirectCards = [];
   let tempText = text;
+
+  // Auto-format unlinked citation tags like [Sumber 1] or [Sumber #1] into cite links
+  if (sources && Array.isArray(sources) && sources.length > 0) {
+    tempText = tempText.replace(/\[Sumber\s*#?\s*(\d+)[^\]]*\](?!\()/gi, (match, numStr) => {
+      const idx = parseInt(numStr, 10);
+      if (idx > 0 && idx <= sources.length) {
+        return `[cite:${idx}](cite:${idx})`;
+      }
+      return match;
+    });
+  }
 
   tempText = tempText.replace(/!\[Generated Image\]\([^)]+\)/g, '');
   tempText = tempText.replace(/\[SEARCH_REQUEST:\s*(.+?)\]/g, '');
@@ -308,8 +321,6 @@ export const formatMessageContent = ({
     return true;
   };
 
-  const sources = message?.searchSources || null;
-
   const renderInlineCitationPill = (href, children) => {
     if (!href) {
       return <span className="message-link-fallback">{children}</span>;
@@ -358,7 +369,7 @@ export const formatMessageContent = ({
     const cleanChildren = String(rawChildren || '').trim();
 
     const isGeneric = !cleanChildren ||
-      /^\[?sumber\s*\d*\]?$/i.test(cleanChildren) ||
+      /^\[?sumber\s*#?\s*\d*\]?$/i.test(cleanChildren) ||
       /^\[?\d+\]?$/.test(cleanChildren) ||
       cleanChildren.startsWith('http://') ||
       cleanChildren.startsWith('https://') ||
@@ -370,6 +381,7 @@ export const formatMessageContent = ({
     } else if (matchedSource && matchedSource.domain) {
       displayName = matchedSource.domain.replace(/^www\./i, '');
     }
+    displayName = formatBubbleDomainLabel(displayName);
 
     const tooltipTitle = (matchedSource && matchedSource.title)
       ? `${matchedSource.title} • ${targetUrl}`
