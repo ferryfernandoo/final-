@@ -783,7 +783,8 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 
 // Function untuk call backend proxy
 const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true) => {
-  const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
+  try {
+    const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
 
   // Build messages untuk backend
