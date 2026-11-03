@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://terminal-this-area-tcp.trycloudflare.com/api/:path*"
+      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",

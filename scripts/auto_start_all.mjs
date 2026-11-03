@@ -34,7 +34,13 @@ const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
 const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
 const AI_SERVER_DIR = 'F:\\llm deepernova';
 
-const CLOUDFLARED_BIN = path.join(ROOT_DIR, 'bin', 'cloudflared.exe');
+const CLOUDFLARED_BIN = fs.existsSync(path.join(ROOT_DIR, 'bin', 'cloudflared.exe'))
+  ? path.join(ROOT_DIR, 'bin', 'cloudflared.exe')
+  : (fs.existsSync('C:\\Program Files (x86)\\cloudflared\\cloudflared.exe')
+      ? 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe'
+      : (fs.existsSync('F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe')
+          ? 'F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe'
+          : 'cloudflared'));
 
 // Helper to sanitize URL (remove trailing slash)
 const cleanUrl = (url) => String(url || '').trim().replace(/\/+$/, '');
@@ -636,7 +642,12 @@ async function main() {
   if (await checkPortOpen(5174)) {
     log.success('Frontend Vite sudah aktif di port 5174.');
   } else {
-    startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
+    const viteBin = path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
+    if (fs.existsSync(viteBin)) {
+      startProcess('node', [viteBin, '--port', '5174'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
+    } else {
+      startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
+    }
     log.info('Menunggu Frontend siap di port 5174 (max 25 detik)...');
     if (await waitForPort(5174, 25000)) {
       log.success('Frontend Vite siap di port 5174.');
@@ -759,7 +770,10 @@ async function main() {
     log.title('🔨 STEP 8: Build Frontend');
     log.info('Membangun bundle frontend (npm run build)...');
     try {
-      execSync('npm run build', { cwd: ROOT_DIR, stdio: 'inherit' });
+      const buildCmd = fs.existsSync(path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js'))
+        ? `node "${path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js')}" build && node "${path.join(ROOT_DIR, 'scripts', 'copy_search_dist.mjs')}"`
+        : 'npm run build';
+      execSync(buildCmd, { cwd: ROOT_DIR, stdio: 'inherit', shell: true });
       log.success('Frontend build selesai.');
     } catch (err) {
       log.error(`Build gagal: ${err.message}`);
