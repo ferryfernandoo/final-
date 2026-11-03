@@ -368,15 +368,36 @@ export const formatMessageContent = ({
     const rawChildren = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
     const cleanChildren = String(rawChildren || '').trim();
 
-    const isGeneric = !cleanChildren ||
-      /^\[?sumber\s*#?\s*\d*\]?$/i.test(cleanChildren) ||
-      /^\[?\d+\]?$/.test(cleanChildren) ||
+    // Check if this link should render as an inline citation pill or regular sentence link
+    const isExplicitCite = href.startsWith('cite:');
+    const isShortCiteTag =
+      /^\[?(?:sumber|ref|source)?\s*#?\s*\d*\]?$/i.test(cleanChildren) ||
       cleanChildren.startsWith('http://') ||
-      cleanChildren.startsWith('https://') ||
-      cleanChildren.length > 25;
+      cleanChildren.startsWith('https://');
+
+    const cleanDomainRoot = domain ? domain.split('.')[0].toLowerCase() : '';
+    const isDomainBrandLabel = Boolean(
+      domain &&
+      cleanChildren.length <= 25 &&
+      (cleanChildren.toLowerCase().includes(cleanDomainRoot) ||
+       cleanDomainRoot.includes(cleanChildren.toLowerCase()) ||
+       formatBubbleDomainLabel(domain).toLowerCase() === cleanChildren.toLowerCase())
+    );
+
+    const shouldRenderAsCitationPill = isExplicitCite || isShortCiteTag || isDomainBrandLabel;
+
+    // IF IT'S NOT A SHORT CITATION (e.g. an informative sentence, article title, or descriptive text):
+    // RENDER AS REGULAR NICE LINK so the entire article sentence/text is 100% PRESERVED!
+    if (!shouldRenderAsCitationPill) {
+      return (
+        <a href={targetUrl} target="_blank" rel="noopener noreferrer" className="message-link">
+          {children}
+        </a>
+      );
+    }
 
     let displayName = domain || 'Web';
-    if (!isGeneric) {
+    if (!isShortCiteTag && cleanChildren && cleanChildren.length <= 20) {
       displayName = cleanChildren;
     } else if (matchedSource && matchedSource.domain) {
       displayName = matchedSource.domain.replace(/^www\./i, '');
@@ -479,6 +500,9 @@ export const formatMessageContent = ({
           img: ({ src, alt }) => {
             if (!src) return null;
             const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
+            if (cleanSrc.includes('favicons?sz=') || cleanSrc.endsWith('.ico') || cleanSrc.startsWith('data:image/svg')) {
+              return null;
+            }
             const cleanAlt = String(alt || '').trim();
             const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
             return (
@@ -821,15 +845,7 @@ export const formatMessageContent = ({
 
     let preprocessedText = cleanedNormalized;
     if (sources && sources.length > 0) {
-      preprocessedText = preprocessedText.replace(/\[Sumber\s*(\d+)\](?!\s*\()/gi, (match, num) => {
-        const idx = parseInt(num, 10);
-        if (idx > 0 && idx <= sources.length) {
-          return `[${num}](cite:${num})`;
-        }
-        return match;
-      });
-
-      preprocessedText = preprocessedText.replace(/(?<!\[)\[(\d+)\](?!\s*\()(?!\])/g, (match, num) => {
+      preprocessedText = preprocessedText.replace(/\[(?:Sumber|Source|Ref)\s*#?\s*(\d+)\](?!\s*\()/gi, (match, num) => {
         const idx = parseInt(num, 10);
         if (idx > 0 && idx <= sources.length) {
           return `[${num}](cite:${num})`;
@@ -881,6 +897,9 @@ export const formatMessageContent = ({
             img: ({ src, alt }) => {
               if (!src) return null;
               const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
+              if (cleanSrc.includes('favicons?sz=') || cleanSrc.endsWith('.ico') || cleanSrc.startsWith('data:image/svg')) {
+                return null;
+              }
               const cleanAlt = String(alt || '').trim();
               const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
               return (

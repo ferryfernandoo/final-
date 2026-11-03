@@ -10,6 +10,7 @@ const getApiBaseUrl = () => {
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
       hostname.endsWith('.vercel.app') ||
+      hostname.endsWith('.trycloudflare.com') ||
       hostname === 'deepernova.com' ||
       hostname.endsWith('.deepernova.com')
     ) {
