@@ -11,7 +11,7 @@ import { deepernovaTtsService } from '../services/deepernovaTtsService';
 import { saveImageToGallery, downloadImageDirectly } from '../services/imageStorageService';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, buildGuaranteedReferenceSources } from '../services/clientSearchService';
+import { executeWebSearch, buildGuaranteedReferenceSources, fetchImagesForQuery } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import { registerBackHandler } from '../services/mobileNavigationService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
@@ -6750,7 +6750,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         if (searchData.data.inline_images && Array.isArray(searchData.data.inline_images)) {
           searchData.data.inline_images.forEach(img => {
             const rawImgUrl = String(img.thumbnail || img.imageUrl || img.link || '').replace(/&amp;/g, '&').trim();
-            if (rawImgUrl && !rawImgUrl.endsWith('.php') && !rawImgUrl.includes('.ico')) {
+            if (rawImgUrl && !rawImgUrl.endsWith('.php') && !rawImgUrl.includes('.ico') && !rawImgUrl.includes('favicons?sz=') && !rawImgUrl.startsWith('data:image/svg')) {
               let sourceDomain = '';
               if (img.source) {
                 try {
@@ -6776,7 +6776,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               imgUrl = result.rich_snippet.top.detected_extensions.thumbnail;
             }
             
-            if (imgUrl) {
+            if (imgUrl && typeof imgUrl === 'string' && !imgUrl.endsWith('.php') && !imgUrl.includes('.ico') && !imgUrl.includes('favicons?sz=') && !imgUrl.startsWith('data:image/svg')) {
               let sourceDomain = '';
               const url = result.link || result.url || '';
               if (url) {
@@ -6798,7 +6798,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 3. Extract from knowledge_graph image
         if (searchData.data.knowledge_graph) {
           const kg = searchData.data.knowledge_graph;
-          if (kg.image) {
+          if (kg.image && typeof kg.image === 'string' && !kg.image.includes('favicons?sz=') && !kg.image.includes('.ico')) {
             let sourceDomain = '';
             if (kg.source) {
               try {
@@ -6816,7 +6816,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           }
           if (Array.isArray(kg.header_images)) {
             kg.header_images.forEach(img => {
-              if (img.image) {
+              if (img.image && typeof img.image === 'string' && !img.image.includes('favicons?sz=') && !img.image.includes('.ico')) {
                 searchImages.push({
                   url: img.image,
                   title: kg.title || searchQuery,
@@ -6830,7 +6830,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 4. Extract from news_results
         if (searchData.data.news_results && Array.isArray(searchData.data.news_results)) {
           searchData.data.news_results.forEach(news => {
-            if (news.thumbnail) {
+            if (news.thumbnail && typeof news.thumbnail === 'string' && !news.thumbnail.includes('favicons?sz=') && !news.thumbnail.includes('.ico')) {
               let sourceDomain = '';
               if (news.link) {
                 try {
@@ -6858,6 +6858,27 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           seenUrls.add(img.url);
           uniqueImages.push(img);
         }
+      }
+
+      // If uniqueImages is still empty or few, immediately fetch authentic verified photos from dedicated image search
+      if (uniqueImages.length < 3) {
+        try {
+          const directImgs = await fetchImagesForQuery(searchQuery, 8);
+          if (Array.isArray(directImgs)) {
+            for (const dImg of directImgs) {
+              const u = dImg.imageUrl || dImg.thumbnail;
+              if (u && !seenUrls.has(u) && !u.includes('favicons?sz=') && !u.includes('.ico') && !u.startsWith('data:image/svg')) {
+                seenUrls.add(u);
+                uniqueImages.push({
+                  url: u,
+                  title: dImg.title || searchQuery,
+                  source: dImg.link || '',
+                  sourceDomain: dImg.sourceDomain || ''
+                });
+              }
+            }
+          }
+        } catch (_imgErr) { }
       }
 
       // Map sources using uniqueImages for fallback thumbnails
@@ -7062,10 +7083,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    - SATU BARIS KOSONG (BLANK LINE): Pisahkan setiap paragraf, subjudul, dan butir poin dengan SATU BARIS KOSONG agar jawaban lega, berjarak nyaman, dan tidak menumpuk padat.
    - TEBALKAN DATA KRUSIAL: Cetak tebal angka penting, persentase, tanggal spesifik, atau nama lembaga kunci.
 
-5. WAJIB SINTESIS DATA HASIL PENCARIAN DENGAN BAHASA SENDIRI (MUTLAK):
-   - DILARANG KERAS MENYALIN ATAU COPAS TEKS ARTIKEL SECARA MENTAH-MENTAH!
-   - Jangan menyalin blok kutipan atau paragraf berita secara harfiah. Rangkum seluruh intisari fakta penting (seperti waktu/jam kejadian, tanggal, angka statistik, atau pernyataan resmi) dengan kalimat sendiri yang luwes, enak dibaca, ramah, dan informatif.
-   - BUBBLE SITASI KECIL (SIMPEL & ELEGAN): Untuk setiap fakta rujukan dari hasil pencarian, CUKUP cantumkan link sitasi markdown ringkas di akhir kalimat: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url), [CNN Indo](url)). Frontend otomatis mengubahnya menjadi bubble kecil elegan berisi logo favicon dan nama media saja, sehingga tampilan sangat simpel, bersih, dan ringkas tanpa teks URL panjang!
+5. BERIKAN ULASAN & ARTIKEL LENGKAP SECARA MENDALAM DENGAN BAHASA SENDIRI (KOMPREHENSIF):
+   - Tulis ulasan atau penjelasan yang LENGKAP, MENYELURUH, KAYA INFORMASI, dan MENDALAM (artikel utuh berkualitas tinggi). Kupas tuntas fakta, latar belakang sejarah, sains, ragam jenis, tips praktis, mekanisme, dan perbandingannya secara komprehensif.
+   - DILARANG menyingkat atau memotong ulasan menjadi terlalu pendek atau dangkal! Pengguna menginginkan isi artikel yang lengkap dan berbobot tinggi.
+   - Tulis dengan kalimat dan gayamu sendiri yang hangat, luwes, dan ramah (jangan menempelkan blok kutipan mentah dari mesin pencari).
+   - SITASI BUBBLE SIMPEL & ELEGAN: Untuk setiap rujukan sumber fakta dari web, CUKUP cantumkan link sitasi di akhir kalimat penting: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url)). Frontend otomatis merendernya sebagai bubble badge kecil elegan dengan logo favicon dan nama media saja, sehingga artikel penjelasanmu tetap bersih, rapi, dan nyaman dibaca tanpa deretan URL panjang!
 
 6. ANALISIS PERBANDINGAN CERDAS & OBYEKTIF:
    - Jika pengguna membandingkan dua hal atau menanyakan perbandingan (termasuk hasil Google vs Deepernova, atau produk/topik A vs B), sajikan perbandingan yang komprehensif, faktual, dan tidak memihak berdasarkan temuan data di atas.

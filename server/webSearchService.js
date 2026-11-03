@@ -77,13 +77,13 @@ export function extractSearchKeywords(query) {
     'perkuat', 'cek', 'periksa', 'lihat', 'dong', 'sih', 'ya', 'kan', 'deh', 'lah', 'pun',
     'kemarin', 'tadi', 'lalu', 'search', 'find', 'tell', 'me', 'about', 'what', 'is', 'how', 'why', 'who', 'please'
   ]);
-  
+
   const words = query.trim().split(/\s+/);
   const filtered = words.filter(w => {
     const cleanW = w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
     return cleanW.length >= 2 && !conversationalStopwords.has(cleanW);
   });
-  
+
   if (filtered.length >= 1) {
     return filtered.join(' ');
   }
@@ -142,7 +142,7 @@ class WebSearchService {
           return data.results.map((r, idx) => {
             let domain = r.domain || '';
             if (!domain && r.url) {
-              try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch {}
+              try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch { }
             }
             const logoUrl = r.logo_url || r.logoUrl || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null);
             const leadImg = r.lead_image_url || r.leadImageUrl || null;
@@ -218,7 +218,7 @@ class WebSearchService {
         const abSnippet = ab.snippet || ab.answer || ab.population || ab.price || '';
         const abLink = ab.link || 'https://www.google.com';
         let domain = 'google.com';
-        try { domain = new URL(abLink).hostname.replace(/^www\./i, ''); } catch {}
+        try { domain = new URL(abLink).hostname.replace(/^www\./i, ''); } catch { }
         if (abSnippet) {
           results.push({
             title: `[Fakta Inti] ${cleanText(abTitle)}`,
@@ -248,7 +248,7 @@ class WebSearchService {
         const kgSnippet = kg.description || kg.type || '';
         const kgLink = kg.source?.link || kg.website || 'https://www.google.com';
         let domain = 'google.com';
-        try { domain = new URL(kgLink).hostname.replace(/^www\./i, ''); } catch {}
+        try { domain = new URL(kgLink).hostname.replace(/^www\./i, ''); } catch { }
         if (kgSnippet) {
           results.push({
             title: `${cleanText(kgTitle)} — Informasi Entitas Google`,
@@ -349,7 +349,7 @@ class WebSearchService {
           const favicon = r.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
           const thumbnail = r.thumbnail || (r.rich_snippet?.top?.detected_extensions?.thumbnail) || favicon;
           const dateStr = r.date || null;
-          
+
           let richSnippet = cleanText(r.snippet) || cleanText(r.title);
           if (Array.isArray(r.rich_snippet?.top?.detected_extensions)) {
             const extText = Object.values(r.rich_snippet.top.detected_extensions).filter(v => typeof v === 'string').join(' • ');
@@ -592,7 +592,7 @@ class WebSearchService {
           const data = await res.json();
           if (data.AbstractText && data.AbstractURL) {
             let domain = 'duckduckgo.com';
-            try { domain = new URL(data.AbstractURL).hostname.replace(/^www\./i, ''); } catch {}
+            try { domain = new URL(data.AbstractURL).hostname.replace(/^www\./i, ''); } catch { }
             results.push({
               title: cleanText(data.Heading || query),
               url: data.AbstractURL,
@@ -662,7 +662,7 @@ class WebSearchService {
           }
         }
       }
-    } catch (_e) {}
+    } catch (_e) { }
 
     // 2. Fetch from SerpAPI Google Images if needed (<800ms)
     if (images.length < limit && SERPAPI_KEY) {
@@ -681,7 +681,7 @@ class WebSearchService {
             }
           }
         }
-      } catch (_e) {}
+      } catch (_e) { }
     }
 
     return images.slice(0, limit);
@@ -802,7 +802,7 @@ class WebSearchService {
       try {
         const extraImgs = await this.fetchImages(cleanQ, 8);
         for (const img of extraImgs) collectImg(img);
-      } catch (_e) {}
+      } catch (_e) { }
     }
 
     if (merged.length > 0) {

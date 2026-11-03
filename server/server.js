@@ -5467,7 +5467,7 @@ async function handleUnifiedSearch(req, res) {
           url: item.url || item.link || '',
           snippet: cleanSearchText(item.snippet) || cleanSearchText(item.description) || '',
           domain,
-          thumbnail: item.lead_image_url || item.logo_url || item.thumbnail || null,
+          thumbnail: (item.lead_image_url && !item.lead_image_url.includes('favicons?sz=')) ? item.lead_image_url : ((item.thumbnail && !item.thumbnail.includes('favicons?sz=')) ? item.thumbnail : null),
           logo_url: item.logo_url || null,
           position: idx + 1,
           date: item.published_at || null
@@ -5478,7 +5478,7 @@ async function handleUnifiedSearch(req, res) {
         success: true,
         data: {
           organic_results: organicResults,
-          inline_images: [],
+          inline_images: hybridRes.inline_images || [],
           search_information: {
             query: cleanRawQ,
             total_results: organicResults.length,
