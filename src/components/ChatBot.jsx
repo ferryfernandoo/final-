@@ -6984,8 +6984,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         })
       );
 
-      // Render search result bubbles first before AI starts typing response
-      await new Promise(resolve => setTimeout(resolve, 550));
+      // Render search result bubbles smoothly before AI starts typing response
+      await new Promise(resolve => setTimeout(resolve, 30));
 
       // Build high-signal, rich factual context from search results for the AI
       // Provide deep snippets (~750 chars) so the AI reads concrete numbers, quotes, and facts from Google & Deepernova!
@@ -7395,7 +7395,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               : msg
           )
         );
-        await new Promise(resolve => setTimeout(resolve, 450));
+        await new Promise(resolve => setTimeout(resolve, 30));
         
         const userQuery = userPrompt || lastSentPromptRef.current || searchQuery;
         const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda secara akurat dan percaya diri. Jika pertanyaan ini membahas topik baru yang berbeda, fokus penuh 100% pada topik baru ini tanpa mengaitkan ke percakapan lama sebelumnya.]\n\nPertanyaan pengguna: "${userQuery}"`;
@@ -8993,6 +8993,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             <div className="message-content">
               <div className="typing-indicator-row">
                 <div className="typing-indicator">
+                  <span></span>
                   <span></span>
                   <span></span>
                   <span></span>
