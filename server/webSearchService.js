@@ -381,6 +381,63 @@ class WebSearchService {
         }
       }
 
+      // 6. Extract Rich Contextual Images from SerpAPI (inline_images, images_results, knowledge_graph, etc.)
+      const extractedImages = [];
+      const seenImgs = new Set();
+      const addImg = (u, title, source) => {
+        if (!u || typeof u !== 'string') return;
+        if (seenImgs.has(u) || u.includes('favicons?sz=') || u.includes('.ico') || u.startsWith('data:image/svg')) return;
+        seenImgs.add(u);
+        let dom = '';
+        if (source) {
+          try { dom = new URL(source).hostname.replace(/^www\./i, ''); } catch (e) { dom = source; }
+        }
+        extractedImages.push({
+          thumbnail: u,
+          imageUrl: u,
+          link: source || u,
+          title: cleanText(title) || query,
+          source: source || '',
+          sourceDomain: dom
+        });
+      };
+
+      if (Array.isArray(data.inline_images)) {
+        for (const img of data.inline_images) {
+          addImg(img.thumbnail || img.original || img.link, img.title, img.link || img.source);
+        }
+      }
+      if (Array.isArray(data.images_results)) {
+        for (const img of data.images_results) {
+          addImg(img.original || img.thumbnail, img.title, img.link);
+        }
+      }
+      if (data.knowledge_graph?.image) {
+        addImg(data.knowledge_graph.image, data.knowledge_graph.title, data.knowledge_graph.website || data.knowledge_graph.source?.link);
+      }
+      if (Array.isArray(data.knowledge_graph?.header_images)) {
+        for (const img of data.knowledge_graph.header_images) {
+          addImg(img.image, data.knowledge_graph.title, '');
+        }
+      }
+      if (Array.isArray(data.top_stories)) {
+        for (const s of data.top_stories) {
+          if (s.thumbnail) addImg(s.thumbnail, s.title, s.link);
+        }
+      }
+      if (Array.isArray(data.news_results)) {
+        for (const n of data.news_results) {
+          if (n.thumbnail) addImg(n.thumbnail, n.title, n.link);
+        }
+      }
+      if (Array.isArray(data.organic_results)) {
+        for (const r of data.organic_results) {
+          const u = r.thumbnail || r.rich_snippet?.top?.detected_extensions?.thumbnail;
+          if (u) addImg(u, r.title, r.link);
+        }
+      }
+
+      results._inline_images = extractedImages;
       return results;
     } catch {
       clearTimeout(timeoutId);
@@ -562,6 +619,72 @@ class WebSearchService {
   }
 
   /**
+   * Fetch Real-Time Contextual Photos & Images from Port 4000 & Google Images
+   */
+  async fetchImages(query, limit = 10) {
+    const cleanQ = (query || '').trim();
+    if (!cleanQ) return [];
+
+    const images = [];
+    const seen = new Set();
+    const addImg = (u, title, source) => {
+      if (!u || typeof u !== 'string') return;
+      if (seen.has(u) || u.includes('favicons?sz=') || u.includes('.ico') || u.startsWith('data:image/svg')) return;
+      seen.add(u);
+      let dom = '';
+      if (source) {
+        try { dom = new URL(source).hostname.replace(/^www\./i, ''); } catch (e) { dom = source; }
+      }
+      images.push({
+        thumbnail: u,
+        imageUrl: u,
+        link: source || u,
+        title: cleanText(title) || cleanQ,
+        source: source || '',
+        sourceDomain: dom
+      });
+    };
+
+    // 1. Fetch from Local Port 4000 /api/v1/images (<20ms)
+    try {
+      const resp4000 = await fetch(`http://127.0.0.1:4000/api/v1/images?q=${encodeURIComponent(cleanQ)}&limit=${limit}`, {
+        headers: { 'Authorization': `Bearer ${DEEPERNOVA_SEARCH_API_KEY}` },
+        signal: AbortSignal.timeout(1200)
+      });
+      if (resp4000.ok) {
+        const json4000 = await resp4000.json();
+        if (Array.isArray(json4000.results)) {
+          for (const item of json4000.results) {
+            addImg(item.imageUrl || item.thumbnail, item.title || item.pageTitle, item.pageUrl);
+          }
+        }
+      }
+    } catch (_e) {}
+
+    // 2. Fetch from SerpAPI Google Images if needed (<800ms)
+    if (images.length < limit && SERPAPI_KEY) {
+      try {
+        const url = new URL(SERPAPI_URL);
+        url.searchParams.append('engine', 'google_images');
+        url.searchParams.append('q', cleanQ);
+        url.searchParams.append('num', String(limit));
+        url.searchParams.append('api_key', SERPAPI_KEY);
+        const serpResp = await fetch(url.toString(), { signal: AbortSignal.timeout(2000) });
+        if (serpResp.ok) {
+          const serpJson = await serpResp.json();
+          if (Array.isArray(serpJson.images_results)) {
+            for (const item of serpJson.images_results) {
+              addImg(item.original || item.thumbnail, item.title, item.link);
+            }
+          }
+        }
+      } catch (_e) {}
+    }
+
+    return images.slice(0, limit);
+  }
+
+  /**
    * Primary Hybrid Search Method:
    * Asynchronously queries Deepernova Local FTS5/Neural Index + SerpAPI Google + Live News + Knowledge in parallel!
    * Automatically handles comparison queries by fetching balanced intelligence for both sides.
@@ -637,12 +760,55 @@ class WebSearchService {
       });
     }
 
+    // Collect all rich images from SerpAPI and lead images
+    const collectedImages = [];
+    const seenImgUrls = new Set();
+    const collectImg = (img) => {
+      if (!img || !img.thumbnail) return;
+      const u = img.thumbnail;
+      if (seenImgUrls.has(u) || u.includes('favicons?sz=') || u.includes('.ico')) return;
+      seenImgUrls.add(u);
+      collectedImages.push(img);
+    };
+
+    for (const res of settled) {
+      if (res.status === 'fulfilled') {
+        const val = res.value;
+        if (Array.isArray(val?._inline_images)) {
+          for (const img of val._inline_images) collectImg(img);
+        }
+        if (Array.isArray(val)) {
+          for (const item of val) {
+            if (item.lead_image_url && !item.lead_image_url.includes('favicons?sz=') && !item.lead_image_url.includes('.ico')) {
+              collectImg({
+                thumbnail: item.lead_image_url,
+                imageUrl: item.lead_image_url,
+                link: item.url || item.link,
+                title: item.title,
+                source: item.url || item.link,
+                sourceDomain: item.domain || ''
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // If collected images are few, fetch dedicated images
+    if (collectedImages.length < 4) {
+      try {
+        const extraImgs = await this.fetchImages(cleanQ, 8);
+        for (const img of extraImgs) collectImg(img);
+      } catch (_e) {}
+    }
+
     if (merged.length > 0) {
       const elapsed = Date.now() - startTime;
-      console.log(`⚡ [WebSearchService] ✓ Returned ${merged.length} hybrid results (Deepernova + Google SerpAPI) for "${cleanQ}" in ${elapsed}ms`);
+      console.log(`⚡ [WebSearchService] ✓ Returned ${merged.length} hybrid results & ${collectedImages.length} images (Deepernova + Google SerpAPI) for "${cleanQ}" in ${elapsed}ms`);
       const responseObj = {
         success: true,
         results: merged,
+        inline_images: collectedImages,
         query: cleanQ,
         engine: 'deepernova_google_hybrid_turbo',
         isComparison: Boolean(comparison),

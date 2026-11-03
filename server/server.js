@@ -875,7 +875,7 @@ app.all(['/api/search', '/api/web-search'], async (req, res) => {
         success: true,
         data: {
           organic_results: organicResults,
-          inline_images: [],
+          inline_images: searchRes.inline_images || [],
           search_information: {
             query,
             total_results: organicResults.length,
@@ -910,7 +910,7 @@ app.all(['/api/serp-search', '/api/google-search'], async (req, res) => {
       success: true,
       data: {
         organic_results: results,
-        inline_images: [],
+        inline_images: results._inline_images || [],
         search_information: {
           query,
           total_results: results.length,
@@ -922,6 +922,19 @@ app.all(['/api/serp-search', '/api/google-search'], async (req, res) => {
   } catch (err) {
     console.warn('[SerpSearch] Error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET & POST /api/images & /api/web-images - Real-time Contextual Image Search Proxy
+app.all(['/api/images', '/api/web-images'], async (req, res) => {
+  const query = (req.query?.q || req.query?.query || req.body?.q || req.body?.query || '').trim();
+  const limit = Math.min(25, Math.max(1, parseInt(req.query?.limit || req.body?.limit || '8', 10)));
+  if (!query) return res.json({ success: true, data: { images: [] } });
+  try {
+    const images = await webSearchService.fetchImages(query, limit);
+    return res.json({ success: true, data: { images } });
+  } catch (err) {
+    return res.json({ success: false, error: err.message, data: { images: [] } });
   }
 });
 

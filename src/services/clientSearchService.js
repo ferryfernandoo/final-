@@ -782,6 +782,137 @@ export function generateSearchQueryVariants(rawQuery, userPrompt = '') {
 }
 
 /**
+ * Intelligent Multi-Hop Facet & Deep Research Decomposer:
+ * Automatically decomposes complex prompts, comparisons, or multi-faceted queries
+ * (e.g., "kopi dan kenapa bikin ngantuk", "perbandingan A vs B") into targeted sub-topic queries.
+ */
+export function extractMultiHopFacets(query, userPrompt = '') {
+  const combined = `${query} ${userPrompt}`.toLowerCase().trim();
+  const facets = [];
+
+  // 1. Comparison detection (A vs B, bandingkan X dan Y, bagusan mana)
+  const compMatch = combined.match(/(?:bandingkan|perbedaan|pilih\s+mana|bagusan\s+mana)\s+(.+?)\s+(?:dengan|dan|sama|vs\.?|versus)\s+(.+)/i) ||
+                    combined.match(/(.+?)\s+(?:vs\.?|versus)\s+(.+)/i);
+  if (compMatch && compMatch[1] && compMatch[2]) {
+    const a = compMatch[1].replace(/[?,.!]/g, '').trim();
+    const b = compMatch[2].replace(/[?,.!]/g, '').trim();
+    if (a.length >= 2 && b.length >= 2 && a !== b) {
+      facets.push({
+        topic: a,
+        label: `Profil & Keunggulan ${a}`,
+        query: `${a} spesifikasi fitur kelebihan review`,
+        imageQuery: `${a} foto review produk`
+      });
+      facets.push({
+        topic: b,
+        label: `Profil & Keunggulan ${b}`,
+        query: `${b} spesifikasi fitur kelebihan review`,
+        imageQuery: `${b} foto review produk`
+      });
+      facets.push({
+        topic: 'comparison',
+        label: `Komparasi Komprehensif ${a} vs ${b}`,
+        query: `perbandingan ${a} vs ${b} kelebihan kekurangan`,
+        imageQuery: `${a} vs ${b}`
+      });
+      return facets;
+    }
+  }
+
+  // 2. Coffee and Drowsiness / Biological Mechanism ("kopi ... ngantuk / tidur / lelah")
+  if (/\bkopi\b/i.test(combined) && /\b(ngantuk|kantuk|tidur|lelah|capek|lemas|sleepy|tired|rebound|adenosin)\b/i.test(combined)) {
+    facets.push({
+      topic: 'kopi',
+      label: 'Karakteristik Kopi & Kandungan Kafein',
+      query: 'kopi jenis varian biji seduhan arabika robusta kafein',
+      imageQuery: 'secangkir kopi biji kopi barista espresso'
+    });
+    facets.push({
+      topic: 'ngantuk',
+      label: 'Mekanisme Adenosin & Efek Kantuk Setelah Minum Kopi',
+      query: 'kenapa minum kopi malah ngantuk mekanisme reseptor adenosin dehidrasi toleransi kafein',
+      imageQuery: 'orang ngantuk menguap kelelahan lemas tidur'
+    });
+    return facets;
+  }
+
+  // 3. Health & Medical / Cause & Effect queries ("efek X terhadap Y", "gejala dan penyebab X")
+  const causeEffectMatch = combined.match(/(?:efek|dampak|pengaruh|akibat|penyebab|gejala|manfaat)\s+(.+?)\s+(?:pada|terhadap|untuk|dan)\s+(.+)/i);
+  if (causeEffectMatch && causeEffectMatch[1] && causeEffectMatch[2]) {
+    const t1 = causeEffectMatch[1].replace(/[?,.!]/g, '').trim();
+    const t2 = causeEffectMatch[2].replace(/[?,.!]/g, '').trim();
+    if (t1.length >= 2 && t2.length >= 2) {
+      facets.push({
+        topic: t1,
+        label: `Tinjauan Medis & Ilmiah ${t1}`,
+        query: `${t1} definisi kandungan karakteristik`,
+        imageQuery: `${t1} ilustrasi infografis`
+      });
+      facets.push({
+        topic: t2,
+        label: `Pengaruh & Mekanisme ${t2}`,
+        query: `${t1} efek terhadap ${t2} penjelasan ilmiah medis`,
+        imageQuery: `${t2} medis kesehatan`
+      });
+      return facets;
+    }
+  }
+
+  return facets;
+}
+
+/**
+ * Dedicated Multi-Engine Contextual Image Fetcher:
+ * Pulls authentic real-time photos and images from Deepernova Engine + Google SerpAPI
+ */
+export async function fetchImagesForQuery(query, limit = 8) {
+  const cleanQ = (query || '').trim();
+  if (!cleanQ) return [];
+
+  const endpoints = [];
+  if (typeof window !== 'undefined' && window.location) {
+    endpoints.push(`/api/images?q=${encodeURIComponent(cleanQ)}&limit=${limit}`);
+    endpoints.push(`/api/v1/images?q=${encodeURIComponent(cleanQ)}&limit=${limit}&key=${DEEPERNOVA_PUBLIC_GUEST_KEY}`);
+  }
+  if (BACKEND_BASE_URL) {
+    endpoints.push(`${BACKEND_BASE_URL}/api/images?q=${encodeURIComponent(cleanQ)}&limit=${limit}`);
+  }
+  if (DEEPERNOVA_SEARCH_API_URL) {
+    endpoints.push(`${DEEPERNOVA_SEARCH_API_URL}/images?q=${encodeURIComponent(cleanQ)}&limit=${limit}&key=${DEEPERNOVA_PUBLIC_GUEST_KEY}`);
+  }
+  if (isLocal) {
+    endpoints.push(`http://localhost:3001/api/images?q=${encodeURIComponent(cleanQ)}&limit=${limit}`);
+    endpoints.push(`http://127.0.0.1:4000/api/v1/images?q=${encodeURIComponent(cleanQ)}&limit=${limit}&key=${DEEPERNOVA_PUBLIC_GUEST_KEY}`);
+  }
+
+  for (const url of [...new Set(endpoints)]) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2200);
+    try {
+      const resp = await fetch(url, { method: 'GET', signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (resp.ok) {
+        const json = await resp.json().catch(() => null);
+        const imgList = json?.data?.images || json?.images || json?.results || [];
+        if (Array.isArray(imgList) && imgList.length > 0) {
+          return imgList.map(item => ({
+            thumbnail: item.imageUrl || item.thumbnail || item.link,
+            imageUrl: item.imageUrl || item.thumbnail || item.link,
+            link: item.pageUrl || item.link || item.imageUrl || item.thumbnail,
+            title: cleanSearchText(item.title || item.pageTitle || cleanQ),
+            source: item.pageUrl || item.source || '',
+            sourceDomain: item.domain || item.sourceDomain || ''
+          })).filter(img => img.thumbnail && !img.thumbnail.includes('.ico'));
+        }
+      }
+    } catch {
+      clearTimeout(timeoutId);
+    }
+  }
+  return [];
+}
+
+/**
  * Intelligent Neural Re-Ranker:
  * Dynamically compares DeeperNova results vs Google SerpAPI results based on:
  * 1. Title Keyword Match & Contiguous Phrase Bonus
@@ -973,6 +1104,26 @@ export async function executeWebSearch(query, options = {}) {
 
   console.log(`[ClientSearchService] 🔀 Query Variants: A="${variantA}", B="${variantB}", C="${variantC}"`);
 
+  // ── Image Collection Pool ──
+  const candidateImages = [];
+  const seenImageUrls = new Set();
+  const addCandidateImage = (img) => {
+    if (!img) return;
+    const url = img.imageUrl || img.thumbnail || img.link;
+    if (!url || typeof url !== 'string') return;
+    if (seenImageUrls.has(url) || url.includes('favicons?sz=') || url.includes('.ico') || url.startsWith('data:image/svg')) return;
+    seenImageUrls.add(url);
+    candidateImages.push({
+      thumbnail: url,
+      imageUrl: url,
+      link: img.link || img.source || url,
+      title: cleanSearchText(img.title) || effectiveQuery,
+      source: img.source || '',
+      sourceDomain: img.sourceDomain || '',
+      facetTopic: img.facetTopic || null
+    });
+  };
+
   // ── Engine Fetchers ──
   const fetchGoogleSerpApiFor = async (q) => {
     const endpoints = [];
@@ -997,6 +1148,14 @@ export async function executeWebSearch(query, options = {}) {
         if (resp.ok) {
           const data = await resp.json().catch(() => null);
           if (data && data.success && Array.isArray(data.data?.organic_results) && data.data.organic_results.length > 0) {
+            if (Array.isArray(data.data?.inline_images)) {
+              for (const img of data.data.inline_images) addCandidateImage(img);
+            }
+            for (const r of data.data.organic_results) {
+              if (r.thumbnail && typeof r.thumbnail === 'string' && !r.thumbnail.includes('favicons?sz=') && !r.thumbnail.includes('.ico')) {
+                addCandidateImage({ thumbnail: r.thumbnail, title: r.title, link: r.link, sourceDomain: r.domain });
+              }
+            }
             return data.data.organic_results.map(r => ({
               ...r,
               sourceEngine: r.sourceEngine || 'Google Search (SerpAPI)'
@@ -1033,6 +1192,14 @@ export async function executeWebSearch(query, options = {}) {
           const data = await resp.json().catch(() => null);
           const normalized = normalizeAnySearchResponse(data, q, 'deepernova_search');
           if (normalized?.data?.organic_results?.length > 0) {
+            if (Array.isArray(normalized.data?.inline_images)) {
+              for (const img of normalized.data.inline_images) addCandidateImage(img);
+            }
+            for (const r of normalized.data.organic_results) {
+              if (r.thumbnail && typeof r.thumbnail === 'string' && !r.thumbnail.includes('favicons?sz=') && !r.thumbnail.includes('.ico')) {
+                addCandidateImage({ thumbnail: r.thumbnail, title: r.title, link: r.link, sourceDomain: r.domain });
+              }
+            }
             return normalized.data.organic_results.map(r => ({
               ...r,
               sourceEngine: r.sourceEngine || 'DeeperNova Search'
@@ -1068,6 +1235,14 @@ export async function executeWebSearch(query, options = {}) {
           const data = await resp.json().catch(() => null);
           const normalized = normalizeAnySearchResponse(data, q, 'deepernova_hybrid');
           if (normalized?.data?.organic_results?.length > 0) {
+            if (Array.isArray(normalized.data?.inline_images)) {
+              for (const img of normalized.data.inline_images) addCandidateImage(img);
+            }
+            for (const r of normalized.data.organic_results) {
+              if (r.thumbnail && typeof r.thumbnail === 'string' && !r.thumbnail.includes('favicons?sz=') && !r.thumbnail.includes('.ico')) {
+                addCandidateImage({ thumbnail: r.thumbnail, title: r.title, link: r.link, sourceDomain: r.domain });
+              }
+            }
             return normalized.data.organic_results.map(r => ({
               ...r,
               sourceEngine: r.sourceEngine || 'DeeperNova Hybrid'
@@ -1129,7 +1304,41 @@ export async function executeWebSearch(query, options = {}) {
     }
   }
 
-  // If still empty after Pass 2, inject guaranteed reference sources
+  // ── PASS 3: Multi-Hop Deep Research & Contextual Image Harvesting ──
+  // Investigates sub-facets & comparisons (e.g. "kopi ... ngantuk", "A vs B")
+  const multiHopFacets = extractMultiHopFacets(effectiveQuery, userPrompt);
+  if (multiHopFacets.length > 0) {
+    console.log(`[ClientSearchService] 🔬 Multi-Hop Facets detected (${multiHopFacets.length}):`, multiHopFacets.map(f => f.label));
+    const facetPromises = multiHopFacets.map(async (facet) => {
+      const facetResults = await Promise.allSettled([
+        fetchGoogleSerpApiFor(facet.query),
+        fetchDeepernovaSearchFor(facet.query),
+        fetchImagesForQuery(facet.imageQuery || facet.query, 6)
+      ]);
+      for (const res of facetResults) {
+        if (res.status === 'fulfilled') {
+          if (Array.isArray(res.value) && res.value.length > 0) {
+            if (res.value[0]?.url || res.value[0]?.link) {
+              rawCandidates.push(...res.value);
+            } else if (res.value[0]?.thumbnail) {
+              for (const img of res.value) {
+                addCandidateImage({ ...img, facetTopic: facet.topic });
+              }
+            }
+          }
+        }
+      }
+    });
+    await Promise.allSettled(facetPromises);
+  }
+
+  // Ensure contextual images are always harvested
+  if (candidateImages.length < 5) {
+    const extraImages = await fetchImagesForQuery(effectiveQuery, 8);
+    for (const img of extraImages) addCandidateImage(img);
+  }
+
+  // If still empty after Pass 2 & 3, inject guaranteed reference sources
   if (rawCandidates.length === 0) {
     console.warn(`[ClientSearchService] All passes empty. Injecting guaranteed reference sources.`);
     rawCandidates.push(...buildGuaranteedReferenceSources(effectiveQuery));
@@ -1139,17 +1348,19 @@ export async function executeWebSearch(query, options = {}) {
   // Re-ranks every item by keyword density, exact phrase match, freshness/dates, and engine authority!
   const rankedSources = reRankSearchResults(effectiveQuery, rawCandidates, userPrompt);
 
-  console.log(`[ClientSearchService] ⚡ Neural Re-Ranker finished: ${rankedSources.length} sources scored and ranked.`);
+  console.log(`[ClientSearchService] ⚡ Neural Re-Ranker finished: ${rankedSources.length} sources scored and ranked | ${candidateImages.length} images captured.`);
 
   const durationMs = Math.round(performance.now() - tStart);
   const finalResult = {
     success: true,
     data: {
       organic_results: rankedSources,
-      inline_images: [],
+      inline_images: candidateImages,
+      search_facets: multiHopFacets,
       search_information: {
         query: effectiveQuery,
         total_results: rankedSources.length,
+        total_images: candidateImages.length,
         time_taken_ms: durationMs,
         engines: ['Google Search (SerpAPI)', 'DeeperNova Search']
       },
