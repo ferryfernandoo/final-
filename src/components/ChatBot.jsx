@@ -238,10 +238,18 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     setLoadingPhase(null);
   };
 
-  // Online / offline event listeners
+  // Online / offline auto-reconnect listeners
   useEffect(() => {
-    const handleOnline = () => setShowNoInternetBanner(false);
-    const handleOffline = () => setShowNoInternetBanner(true);
+    const handleOnline = () => {
+      setShowNoInternetBanner(false);
+      setShowConnectionErrorModal(false);
+      setConnectionErrorMessage(null);
+      console.log('[ChatBot] 🟢 Jaringan terhubung kembali! Auto-reconnecting...');
+    };
+    const handleOffline = () => {
+      setShowNoInternetBanner(true);
+      console.warn('[ChatBot] ⚠️ Jaringan terputus (offline).');
+    };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {

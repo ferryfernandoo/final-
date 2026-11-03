@@ -783,7 +783,8 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 
 // Function untuk call backend proxy
 const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true) => {
-  const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
+  try {
+    const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
 
   // Build messages untuk backend
@@ -986,52 +987,74 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     ];
   }
 
-  try {
-    const deviceId = getDeviceId();
-    const response = await fetchWithTimeout(
-      `${apiBaseUrl}/api/chat`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-device-id': deviceId,
+  const MAX_RETRIES = 2;
+  let response = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const deviceId = getDeviceId();
+      response = await fetchWithTimeout(
+        `${apiBaseUrl}/api/chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-id': deviceId,
+          },
+          credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
+          signal: abortController?.signal,
+          body: JSON.stringify({
+            model: deepernovaModel || 'deepernova-gold-1.5',
+            sessionId: conversationId || null,
+            conversationId: conversationId || null,
+            deviceId,
+            personality: personality || 'mentor',
+            messages: finalMessages,
+            uploadedImages: validImageUrls,
+            enableReasoning: Boolean(enableReasoning),
+            temperature: isFlashModel ? 0.35 : 0.5,
+            max_tokens: isFlashModel ? 4096 : 512,
+            presence_penalty: isFlashModel ? 0.1 : 0.2,
+            frequency_penalty: isFlashModel ? 0.2 : 0.3,
+            stream: true,
+            stream_options: { include_usage: true },
+          }),
         },
-        credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
-        signal: abortController?.signal,
-        body: JSON.stringify({
-          model: deepernovaModel || 'deepernova-gold-1.5',
-          sessionId: conversationId || null,
-          conversationId: conversationId || null,
-          deviceId,
-          personality: personality || 'mentor',
-          messages: finalMessages,
-          uploadedImages: validImageUrls,
-          enableReasoning: Boolean(enableReasoning),
-          temperature: isFlashModel ? 0.35 : 0.5,
-          max_tokens: isFlashModel ? 4096 : 512,
-          presence_penalty: isFlashModel ? 0.1 : 0.2,
-          frequency_penalty: isFlashModel ? 0.2 : 0.3,
-          stream: true,
-          stream_options: { include_usage: true },
-        }),
-      },
-      TIMEOUT_CONFIG.fetchTimeoutMs
-    );
-    if (!response.ok) {
-      try {
-        const errJson = await response.json();
-        if (errJson.isTokenLimitError || errJson.error) {
-          const limitErr = new Error(errJson.error || `API Error: ${response.status}`);
-          limitErr.isTokenLimitError = errJson.isTokenLimitError || false;
-          limitErr.resetTime = errJson.resetTime || null;
-          limitErr.usedTokens = errJson.usedTokens || 2000000;
-          throw limitErr;
+        TIMEOUT_CONFIG.fetchTimeoutMs
+      );
+      if (!response.ok) {
+        try {
+          const errJson = await response.json();
+          if (errJson.isTokenLimitError || errJson.error) {
+            const limitErr = new Error(errJson.error || `API Error: ${response.status}`);
+            limitErr.isTokenLimitError = errJson.isTokenLimitError || false;
+            limitErr.resetTime = errJson.resetTime || null;
+            limitErr.usedTokens = errJson.usedTokens || 2000000;
+            throw limitErr;
+          }
+        } catch (e) {
+          if (e.isTokenLimitError) throw e;
         }
-      } catch (e) {
-        if (e.isTokenLimitError) throw e;
+        if (response.status >= 500 && attempt < MAX_RETRIES) {
+          const delay = (attempt + 1) * 1500;
+          console.warn(`[grokApi] ⚠️ Server status ${response.status}. Reconnecting in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
       }
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      break;
+    } catch (err) {
+      if (err.name === 'AbortError' || err.isTokenLimitError) throw err;
+      if (attempt < MAX_RETRIES) {
+        const delay = (attempt + 1) * 1500;
+        console.warn(`[grokApi] ⚠️ Network / gateway issue (${err.message}). Auto-reconnecting in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
     }
+  }
 
     // Check if response is JSON (automation) or streaming
     const contentType = response.headers.get('content-type') || '';

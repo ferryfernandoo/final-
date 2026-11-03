@@ -139,8 +139,9 @@ function launchTunnel(port, logFilePath) {
     const child = spawn(CLOUDFLARED_BIN, [
       'tunnel',
       '--url', `http://127.0.0.1:${port}`,
+      '--protocol', 'http2',
       '--logfile', logFilePath,
-      '--retries', '5'
+      '--retries', '10'
     ], {
       detached: true,
       windowsHide: true,
@@ -866,8 +867,170 @@ async function main() {
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
-  // Keep alive
-  setInterval(() => {}, 1000 * 60 * 60);
+    // ─────────────────────────────────────────────
+  // 🛡️ STEP 10: AUTONOMOUS RECONNECT & HEALTH SUPERVISOR
+  // ─────────────────────────────────────────────
+  log.title('🛡️  STEP 10: Auto-Reconnect Supervisor Aktif');
+  log.info('Memantau stabilitas internet, kesehatan Cloudflare Tunnel, dan proses lokal setiap 15 detik...');
+
+  let isInternetUp = true;
+  let consecutiveTunnelFailures = 0;
+  let isSupervising = false;
+
+  async function checkInternet(timeoutMs = 3500) {
+    const checkHost = (host) => new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(timeoutMs);
+      socket.on('connect', () => { socket.destroy(); resolve(true); });
+      socket.on('timeout', () => { socket.destroy(); resolve(false); });
+      socket.on('error', () => { resolve(false); });
+      socket.connect(53, host);
+    });
+
+    const primary = await checkHost('1.1.1.1');
+    if (primary) return true;
+    return await checkHost('8.8.8.8');
+  }
+
+  async function isEndpointAlive(url, timeoutMs = 6000) {
+    if (!url || !url.startsWith('http')) return false;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(url, { signal: controller.signal, method: 'GET' });
+      clearTimeout(timer);
+      return res.status < 500;
+    } catch {
+      return false;
+    }
+  }
+
+  async function performAutoReconnect(reason) {
+    log.title(`🔄 AUTO-RECONNECT: ${reason}`);
+    try {
+      log.info('Menghentikan tunnel lama yang macet...');
+      try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
+      await sleep(2000);
+
+      log.info('Menyalakan ulang semua tunnel Cloudflare...');
+      const aiListening = await checkPortOpen(8000);
+      const tunnelTasks = [
+        launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
+        launchTunnel(4000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
+      ];
+      if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
+        tunnelTasks.push(launchTunnel(8000, aiLog).catch(e => { log.warn(`AI tunnel: ${e.message}`); return null; }));
+      }
+      if (dteExists) {
+        tunnelTasks.push(launchTunnel(5173, dteLog).catch(e => { log.warn(`DTE tunnel: ${e.message}`); return null; }));
+      }
+
+      const results = await Promise.all(tunnelTasks);
+      if (results[0]) backendUrl = results[0];
+      if (results[1]) searchEngineUrl = results[1];
+      let idx = 2;
+      if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
+        if (results[idx]) aiUrl = results[idx];
+        idx++;
+      }
+      if (dteExists && results[idx]) {
+        dteUrl = results[idx];
+      }
+
+      log.success(`Backend Baru      : ${backendUrl}`);
+      log.success(`Search Engine Baru: ${searchEngineUrl}`);
+      if (dteUrl) log.success(`DTE Baru          : ${dteUrl}`);
+
+      // Update konfigurasi
+      updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl);
+
+      // Quick push ke GitHub & Vercel
+      try {
+        log.info('Menyinkronkan pembaruan tunnel ke GitHub & Vercel...');
+        execSync('git add active_tunnel.json .env .env.production src/apiConfig.js vercel.json', { cwd: ROOT_DIR, stdio: 'ignore' });
+        const ts = new Date().toISOString().replace('T', ' ').slice(0, 16);
+        execSync(`git commit -m "fix(reconnect): auto-reconnect tunnels & sync Vercel endpoints (${ts})"`, { cwd: ROOT_DIR, stdio: 'ignore' });
+        execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'ignore' });
+        log.success('✅ Sinkronisasi tunnel ke GitHub & Vercel berhasil!');
+      } catch (gitErr) {
+        log.warn(`Sinkronisasi Git dilewati: ${gitErr.message}`);
+      }
+
+      log.success('✨ Auto-reconnect tuntas! Semua layanan kembali online.');
+    } catch (err) {
+      log.error(`Gagal auto-reconnect: ${err.message}`);
+    }
+  }
+
+  // Periodic Watchdog Timer
+  setInterval(async () => {
+    if (isSupervising) return;
+    isSupervising = true;
+
+    try {
+      const internetNow = await checkInternet();
+
+      // 1. Internet connection dropped/recovered
+      if (!internetNow) {
+        if (isInternetUp) {
+          isInternetUp = false;
+          log.warn('🌐 [SUPERVISOR] Jaringan internet terputus (offline). Menunggu koneksi pulih...');
+        }
+        return;
+      }
+
+      if (!isInternetUp && internetNow) {
+        isInternetUp = true;
+        log.success('🟢 [SUPERVISOR] Jaringan internet terhubung kembali! Melakukan auto-reconnect seluruh layanan...');
+        consecutiveTunnelFailures = 0;
+        await performAutoReconnect('Internet pulih kembali setelah offline');
+        return;
+      }
+
+      // 2. Health check Cloudflare tunnels
+      const [backendAlive, searchAlive] = await Promise.all([
+        isEndpointAlive(backendUrl),
+        isEndpointAlive(searchEngineUrl)
+      ]);
+
+      if (!backendAlive || !searchAlive) {
+        consecutiveTunnelFailures++;
+        log.warn(`⚠️ [SUPERVISOR] Health check tunnel gagal (percobaan ${consecutiveTunnelFailures}/2)...`);
+        if (consecutiveTunnelFailures >= 2) {
+          log.error('❌ [SUPERVISOR] Tunnel Cloudflare mati / tidak merespons. Memulai auto-reconnect...');
+          consecutiveTunnelFailures = 0;
+          await performAutoReconnect('Tunnel Cloudflare tidak merespons (502 / network error)');
+        }
+      } else {
+        if (consecutiveTunnelFailures > 0) {
+          log.success('🟢 [SUPERVISOR] Tunnel Cloudflare kembali normal.');
+          consecutiveTunnelFailures = 0;
+        }
+      }
+
+      // 3. Local service watchdog
+      if (!(await checkPortOpen(3001))) {
+        log.warn('⚠️ [SUPERVISOR] Backend Port 3001 mati! Memulai ulang...');
+        startProcess('node', ['server/server.js'], ROOT_DIR, 'Backend Deepernova AI (Port 3001)', 'backend.log');
+      }
+      if (!(await checkPortOpen(4000))) {
+        log.warn('⚠️ [SUPERVISOR] Search Engine Port 4000 mati! Memulai ulang...');
+        startProcess('node', ['--expose-gc', '--env-file=.env', '--max-old-space-size=6144', 'src/server.js'], SEARCH_DIR, 'Deepernova Search Engine (Port 4000)', 'search.log');
+      }
+      if (fs.existsSync(ORDER_DTE_SERVER_DIR) && !(await checkPortOpen(5000))) {
+        log.warn('⚠️ [SUPERVISOR] Order DTE Backend Port 5000 mati! Memulai ulang...');
+        startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend (Port 5000)', 'dte-backend.log');
+      }
+      if (fs.existsSync(ORDER_DTE_USER_DIR) && !(await checkPortOpen(5173))) {
+        log.warn('⚠️ [SUPERVISOR] Order DTE Frontend Port 5173 mati! Memulai ulang...');
+        startProcess('node', ['fast-server.mjs'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend (Port 5173)', 'dte-frontend.log');
+      }
+    } catch (err) {
+      log.warn(`[SUPERVISOR ERROR] ${err.message}`);
+    } finally {
+      isSupervising = false;
+    }
+  }, 15000);
 }
 
 main().catch((err) => {
