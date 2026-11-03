@@ -3826,53 +3826,54 @@
 
 /* ==============================================================================
    INLINE SEARCH IMAGES & CONTEXTUAL VISUAL GALLERY
-   Supports side-by-side (berjejer) layout, smooth captions, and mobile responsiveness
+   Compact floating layout with text wrapping smoothly beside the image
    ============================================================================== */
 .inline-markdown-figure {
-  display: inline-flex;
+  float: right;
+  width: 210px;
+  max-width: 40%;
+  margin: 4px 0 14px 18px;
+  display: flex;
   flex-direction: column;
-  margin: 10px 10px 14px 0;
-  width: calc(50% - 12px);
-  max-width: 380px;
   vertical-align: top;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.2s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
 
 .inline-markdown-figure:hover {
-  transform: translateY(-3px) scale(1.01);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
 }
 
 .inline-markdown-image {
   width: 100%;
-  height: 200px;
+  height: 125px;
   object-fit: cover;
   display: block;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.25);
   transition: transform 0.25s ease, opacity 0.2s ease;
 }
 
 .inline-markdown-image:hover {
-  opacity: 0.94;
+  opacity: 0.92;
 }
 
 .inline-markdown-caption {
-  padding: 8px 12px;
-  font-size: 0.78rem;
+  padding: 5px 8px;
+  font-size: 0.72rem;
   font-weight: 500;
   color: #cbd5e1;
   text-align: center;
-  line-height: 1.35;
-  background: rgba(15, 23, 42, 0.85);
+  line-height: 1.25;
+  background: rgba(15, 23, 42, 0.88);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   white-space: nowrap;
   overflow: hidden;
@@ -3880,13 +3881,37 @@
   letter-spacing: 0.2px;
 }
 
+/* Ensure headings, dividers, and tables clear the floating image cleanly */
+.ai-heading-1,
+.ai-heading-2,
+.ai-heading-3,
+.ai-heading-4,
+.ai-divider,
+.table-container {
+  clear: both;
+}
+
+/* Clearfix for message paragraph and bubbles */
+.message-paragraph::after,
+.chat-message-bubble::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
 @media (max-width: 680px) {
   .inline-markdown-figure {
-    width: 100%;
-    max-width: 100%;
-    margin: 10px 0 14px 0;
+    float: right;
+    width: 145px;
+    max-width: 44%;
+    margin: 4px 0 10px 12px;
+    border-radius: 10px;
   }
   .inline-markdown-image {
-    height: 210px;
+    height: 95px;
+  }
+  .inline-markdown-caption {
+    padding: 3px 6px;
+    font-size: 0.68rem;
   }
 }
