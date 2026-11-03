@@ -918,7 +918,8 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         `4. DILARANG BERTERIMA KASIH: Jangan pernah mengucapkan "Terima kasih atas hasil pencariannya". Langsung mulai jawaban di paragraf pertama.\n` +
         `5. SITASI LINK: Cantumkan sitasi link [Nama Sumber](URL) pada setiap fakta atau berita terkait.\n` +
         `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
-        `7. LANGSUNG KE JAWABAN: Dilarang menalar panjang, langsung berikan jawaban berita final yang lengkap dan jelas.`;
+        `7. LANGSUNG KE JAWABAN: Dilarang menalar panjang, langsung berikan jawaban berita final yang lengkap dan jelas.\n` +
+        `8. SISIPKAN FOTO HASIL PENCARIAN SECARA INLINE: Jika terdapat bagian DAFTAR FOTO & GAMBAR TERVERIFIKASI, kamu DIWAJIBKAN menyisipkan gambar-gambar foto nyata tersebut ke dalam teks penjelasanmu menggunakan format Markdown: ![Keterangan/Judul Foto](URL). Sisipkan foto kopi berjejer saat membahas kopi, foto rasa kantuk/lelah saat membahas efek kantuk, dll secara kontekstual di bawah subjudul yang relevan!`;
     } else {
       systemPromptContent =
         `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam.\n` +

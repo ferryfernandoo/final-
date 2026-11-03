@@ -464,16 +464,32 @@ export const formatMessageContent = ({
           code: ({ children }) => (
             <code className="inline-code">{children}</code>
           ),
-          img: ({ src, alt }) => (
-            <img
-              src={src}
-              alt={alt}
-              className="inline-markdown-image"
-              onClick={() => handleImageClick?.(src, alt || 'Image')}
-              style={{ cursor: 'pointer' }}
-              title={userLanguage === 'id' ? 'Klik untuk memperbesar' : 'Click to enlarge'}
-            />
-          ),
+          img: ({ src, alt }) => {
+            if (!src) return null;
+            const cleanAlt = String(alt || '').trim();
+            const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
+            return (
+              <figure className="inline-markdown-figure">
+                <img
+                  src={src}
+                  alt={cleanAlt || 'Foto'}
+                  className="inline-markdown-image"
+                  loading="lazy"
+                  onClick={() => handleImageClick?.(src, cleanAlt || 'Image')}
+                  onError={(e) => {
+                    const fig = e.currentTarget.closest('figure');
+                    if (fig) fig.style.display = 'none';
+                    else e.currentTarget.style.display = 'none';
+                  }}
+                  style={{ cursor: 'pointer' }}
+                  title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
+                />
+                {hasCaption && (
+                  <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
+                )}
+              </figure>
+            );
+          },
           p: ({ children }) => <>{children}</>,
         }}
       >
@@ -842,16 +858,32 @@ export const formatMessageContent = ({
             table: ({ children }) => <div className="table-container"><table className="markdown-table">{children}</table></div>,
             th: ({ children }) => <th>{children}</th>,
             td: ({ children }) => <td>{children}</td>,
-            img: ({ src, alt }) => (
-              <img
-                src={src}
-                alt={alt}
-                className="inline-markdown-image"
-                onClick={() => handleImageClick?.(src, alt || 'Image')}
-                style={{ cursor: 'pointer' }}
-                title={userLanguage === 'id' ? 'Klik untuk memperbesar' : 'Click to enlarge'}
-              />
-            ),
+            img: ({ src, alt }) => {
+              if (!src) return null;
+              const cleanAlt = String(alt || '').trim();
+              const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
+              return (
+                <figure className="inline-markdown-figure">
+                  <img
+                    src={src}
+                    alt={cleanAlt || 'Foto'}
+                    className="inline-markdown-image"
+                    loading="lazy"
+                    onClick={() => handleImageClick?.(src, cleanAlt || 'Image')}
+                    onError={(e) => {
+                      const fig = e.currentTarget.closest('figure');
+                      if (fig) fig.style.display = 'none';
+                      else e.currentTarget.style.display = 'none';
+                    }}
+                    style={{ cursor: 'pointer' }}
+                    title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
+                  />
+                  {hasCaption && (
+                    <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
+                  )}
+                </figure>
+              );
+            },
           }}
         >
           {preprocessedText}

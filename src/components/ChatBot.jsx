@@ -6911,38 +6911,41 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Always populate foundSources state so top source bar & active sources are visible!
       setFoundSources(sources);
 
+      // Multi-Hop Deep Search Steps & Facets Integration
+      const searchFacets = searchData.data?.search_facets || [];
+      const updatedSteps = [];
+      if (searchFacets.length > 0) {
+        updatedSteps.push({
+          query: searchQuery,
+          label: 'Riset Topik Utama & Berita Terkini',
+          isSearching: false,
+          sources: sources.slice(0, 4),
+          images: uniqueImages.slice(0, 3)
+        });
+        searchFacets.forEach((f, idx) => {
+          const facetImgs = uniqueImages.filter(img => img.facetTopic === f.topic);
+          updatedSteps.push({
+            query: f.query,
+            label: f.label,
+            isSearching: false,
+            sources: sources.slice(4 + idx * 3, 4 + (idx + 1) * 3),
+            images: (facetImgs.length > 0 ? facetImgs : uniqueImages.slice(3 + idx * 2)).slice(0, 3)
+          });
+        });
+      } else {
+        updatedSteps.push({
+          query: searchQuery,
+          label: 'Riset Komprehensif (DeeperNova & Google)',
+          isSearching: false,
+          sources: sources,
+          images: uniqueImages.slice(0, 8)
+        });
+      }
+
       // Update message state with sources and images (keep text strictly empty while preparing)
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === messageId) {
-            const steps = (msg.searchSteps && msg.searchSteps.length > 0) ? [...msg.searchSteps] : [];
-            let updatedSteps = [];
-            if (steps.length === 0) {
-              updatedSteps = [{
-                query: searchQuery,
-                isSearching: false,
-                sources: sources,
-                images: uniqueImages.slice(0, 6)
-              }];
-            } else {
-              let matched = false;
-              updatedSteps = steps.map((step) => {
-                if (step.query === searchQuery || !matched) {
-                  matched = true;
-                  return { ...step, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) };
-                }
-                return step;
-              });
-              if (!matched) {
-                updatedSteps.push({
-                  query: searchQuery,
-                  isSearching: false,
-                  sources: sources,
-                  images: uniqueImages.slice(0, 6)
-                });
-              }
-            }
-
             return { 
               ...msg, 
               text: '', // Strictly empty so search result bubbles appear FIRST!
@@ -6951,7 +6954,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               searchQuery: searchQuery, 
               searchResults: resultsList, 
               searchSources: sources,
-              searchImages: uniqueImages.slice(0, 6),
+              searchImages: uniqueImages.slice(0, 10),
               searchSteps: updatedSteps
             };
           }
@@ -7015,6 +7018,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       conclusionPrompt += `--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${accumulatedHistoryContext}\n\n`;
       if (aiOverviewText) {
         conclusionPrompt += `--- RINGKASAN INTISARI PENCARIAN ---\n${aiOverviewText}\n\n`;
+      }
+
+      // 🌟 Extract and inject Verified Real Images for Contextual Inline Embedding
+      if (uniqueImages.length > 0) {
+        const topImages = uniqueImages.slice(0, 8);
+        conclusionPrompt += `--- DAFTAR FOTO & GAMBAR TERVERIFIKASI DARI INTERNET ---\n` +
+          `Sistem telah menemukan foto-foto nyata dari internet terkait pencarian ini:\n` +
+          topImages.map((img, idx) => {
+            const cleanTitle = (img.title || searchQuery).replace(/[\[\]]/g, '').trim();
+            return `[Foto #${idx + 1}] Judul/Topik: "${cleanTitle}" | URL: ${img.url}`;
+          }).join('\n') +
+          `\n\n📌 ATURAN WAJIB MENAMPILKAN GAMBAR FOTO SECARA INLINE (MUTLAK):\n` +
+          `1. WAJIB SISIPKAN 2 HINGGA 4 FOTO RELEVAN dari daftar di atas langsung di dalam penjelasanmu menggunakan format Markdown: ![Keterangan/Judul Foto](URL_Foto).\n` +
+          `2. LETAKKAN FOTO SECARA KONTEKSTUAL di bawah subjudul yang sesuai:\n` +
+          `   - Contoh jika membahas jenis/aroma kopi: sisipkan foto secangkir kopi atau biji kopi.\n` +
+          `   - Contoh jika membahas efek rasa kantuk/ngantuk atau kelelahan: sisipkan foto orang mengantuk/efek kafein di bawah subjudul tersebut.\n` +
+          `3. GAMBAR BERJEJER: Jika ada 2 foto yang relevan untuk satu topik (misal varian kopi atau perbandingan), kamu bisa meletakkannya berurutan berdampingan:\n` +
+          `   ![Foto 1](URL_1) ![Foto 2](URL_2)\n` +
+          `   Sistem frontend akan otomatis menampilkannya rapi berdampingan (berjejer) sebagai galeri visual!\n` +
+          `4. DILARANG MENGARANG URL SENDIRI! HANYA gunakan URL yang tertera pada daftar "[Foto #...]" di atas.\n\n`;
       }
 
       // Check if user is asking for comparison (e.g. A vs B, bandingkan X dan Y)
