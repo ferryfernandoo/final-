@@ -895,14 +895,17 @@ export async function fetchImagesForQuery(query, limit = 8) {
         const json = await resp.json().catch(() => null);
         const imgList = json?.data?.images || json?.images || json?.results || [];
         if (Array.isArray(imgList) && imgList.length > 0) {
-          return imgList.map(item => ({
-            thumbnail: item.imageUrl || item.thumbnail || item.link,
-            imageUrl: item.imageUrl || item.thumbnail || item.link,
-            link: item.pageUrl || item.link || item.imageUrl || item.thumbnail,
-            title: cleanSearchText(item.title || item.pageTitle || cleanQ),
-            source: item.pageUrl || item.source || '',
-            sourceDomain: item.domain || item.sourceDomain || ''
-          })).filter(img => img.thumbnail && !img.thumbnail.includes('.ico'));
+          return imgList.map(item => {
+            const rawUrl = String(item.imageUrl || item.thumbnail || item.link || '').replace(/&amp;/g, '&').trim();
+            return {
+              thumbnail: rawUrl,
+              imageUrl: rawUrl,
+              link: item.pageUrl || item.link || rawUrl,
+              title: cleanSearchText(item.title || item.pageTitle || cleanQ),
+              source: item.pageUrl || item.source || '',
+              sourceDomain: item.domain || item.sourceDomain || ''
+            };
+          }).filter(img => img.thumbnail && !img.thumbnail.includes('.ico') && !img.thumbnail.endsWith('.php'));
         }
       }
     } catch {

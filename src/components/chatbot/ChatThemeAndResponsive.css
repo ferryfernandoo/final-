@@ -3907,9 +3907,11 @@
     margin: 4px 0 10px 12px;
     border-radius: 10px;
   }
+
   .inline-markdown-image {
     height: 95px;
   }
+
   .inline-markdown-caption {
     padding: 3px 6px;
     font-size: 0.68rem;

@@ -629,16 +629,19 @@ class WebSearchService {
     const seen = new Set();
     const addImg = (u, title, source) => {
       if (!u || typeof u !== 'string') return;
-      if (seen.has(u) || u.includes('favicons?sz=') || u.includes('.ico') || u.startsWith('data:image/svg')) return;
-      seen.add(u);
+      const cleanU = u.replace(/&amp;/g, '&').trim();
+      if (!cleanU.startsWith('http://') && !cleanU.startsWith('https://')) return;
+      if (cleanU.endsWith('.php') || cleanU.endsWith('.asp') || cleanU.endsWith('.jsp') || cleanU.includes('favicons?sz=') || cleanU.includes('.ico') || cleanU.startsWith('data:image/svg')) return;
+      if (seen.has(cleanU)) return;
+      seen.add(cleanU);
       let dom = '';
       if (source) {
         try { dom = new URL(source).hostname.replace(/^www\./i, ''); } catch (e) { dom = source; }
       }
       images.push({
-        thumbnail: u,
-        imageUrl: u,
-        link: source || u,
+        thumbnail: cleanU,
+        imageUrl: cleanU,
+        link: source || cleanU,
         title: cleanText(title) || cleanQ,
         source: source || '',
         sourceDomain: dom
