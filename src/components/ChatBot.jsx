@@ -321,7 +321,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     // 2. Initialize SpeechRecognition
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = userLanguage === 'en' ? 'en-US' : 'id-ID';
+      recognition.lang = userLanguage === 'zh' ? 'zh-CN' : userLanguage === 'id' ? 'id-ID' : 'en-US';
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
@@ -331,7 +331,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       recognition.onstart = () => {
         setIsSttListening(true);
         showAlert(
-          userLanguage === 'id' ? '🎙️ Bicara sekarang... (Klik mikrofon lagi untuk berhenti)' : '🎙️ Listening... (Click mic again to stop)',
+          userLanguage === 'zh' ? '🎙️ 正在聆听... (再次点击麦克风停止)' : userLanguage === 'id' ? '🎙️ Bicara sekarang... (Klik mikrofon lagi untuk berhenti)' : '🎙️ Listening... (Click mic again to stop)',
           'info',
           3000
         );
@@ -366,7 +366,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         console.warn('[STT] Speech recognition error:', event.error);
         if (event.error !== 'no-speech') {
           showAlert(
-            userLanguage === 'id' ? `⚠️ Rekaman suara: ${event.error}` : `⚠️ Speech recognition: ${event.error}`,
+            userLanguage === 'zh' ? `⚠️ 语音识别: ${event.error}` : userLanguage === 'id' ? `⚠️ Rekaman suara: ${event.error}` : `⚠️ Speech recognition: ${event.error}`,
             'warning',
             3000
           );
@@ -798,7 +798,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error(userLanguage === 'id' ? 'Browser/perangkat tidak mendukung akses kamera langsung.' : 'Camera API not supported on this device.');
+        throw new Error(userLanguage === 'zh' ? '当前浏览器/设备不支持直接访问相机。' : userLanguage === 'id' ? 'Browser/perangkat tidak mendukung akses kamera langsung.' : 'Camera API not supported on this device.');
       }
 
       const constraints = {
@@ -831,7 +831,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         setCameraLoading(false);
       } catch (fallbackErr) {
         setCameraLoading(false);
-        setCameraError(userLanguage === 'id' ? 'Gagal mengakses kamera. Mohon izinkan akses kamera di pengaturan.' : 'Failed to access camera. Please allow camera permissions.');
+        setCameraError(userLanguage === 'zh' ? '无法访问相机，请在浏览器设置中允许相机权限。' : userLanguage === 'id' ? 'Gagal mengakses kamera. Mohon izinkan akses kamera di pengaturan.' : 'Failed to access camera. Please allow camera permissions.');
       }
     }
   };
@@ -935,7 +935,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const handleEnhanceCapturedPhotoHD = async () => {
     if (!capturedPhoto || isCameraEnhancingHD) return;
     setIsCameraEnhancingHD(true);
-    showAlert(userLanguage === 'id' ? '✨ Sedang meningkatkan foto ke Ultra HD via Deepernova AI...' : '✨ Enhancing photo to Ultra HD via Deepernova AI...', 'info', 5000);
+    showAlert(userLanguage === 'zh' ? '✨ 正在通过 Deepernova AI 增强至超清 HD...' : userLanguage === 'id' ? '✨ Sedang meningkatkan foto ke Ultra HD via Deepernova AI...' : '✨ Enhancing photo to Ultra HD via Deepernova AI...', 'info', 5000);
 
     try {
       const hdResult = await ImageGenerationService.generateImage(
@@ -949,13 +949,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
       if (hdResult?.image?.url) {
         setCapturedPhoto(hdResult.image.url);
-        showAlert(userLanguage === 'id' ? '✅ Foto berhasil diubah menjadi Ultra HD!' : '✅ Photo successfully enhanced to Ultra HD!', 'success', 3000);
+        showAlert(userLanguage === 'zh' ? '✅ 照片已成功增强为超清 HD！' : userLanguage === 'id' ? '✅ Foto berhasil diubah menjadi Ultra HD!' : '✅ Photo successfully enhanced to Ultra HD!', 'success', 3000);
       } else {
         throw new Error('No HD image returned');
       }
     } catch (err) {
       console.warn('[Camera] HD enhancement error:', err);
-      showAlert(userLanguage === 'id' ? '⚠️ Gagal meningkatkan kualitas HD. Silakan coba lagi.' : '⚠️ Failed to enhance HD. Try again.', 'error', 3000);
+      showAlert(userLanguage === 'zh' ? '⚠️ 增强 HD 画质失败，请重试。' : userLanguage === 'id' ? '⚠️ Gagal meningkatkan kualitas HD. Silakan coba lagi.' : '⚠️ Failed to enhance HD. Try again.', 'error', 3000);
     } finally {
       setIsCameraEnhancingHD(false);
     }
@@ -1344,7 +1344,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     if (!originalImageUrl || hdUpscalingMap[originalImageUrl]) return;
 
     setHdUpscalingMap(prev => ({ ...prev, [originalImageUrl]: true }));
-    showAlert(userLanguage === 'id' ? '🔄 Sedang meningkatkan kualitas gambar ke HD...' : '🔄 Upscaling image to HD...', 'info', 5000);
+    showAlert(userLanguage === 'zh' ? '🔄 正在提升图像质量至超清 HD...' : userLanguage === 'id' ? '🔄 Sedang meningkatkan kualitas gambar ke HD...' : '🔄 Upscaling image to HD...', 'info', 5000);
 
     try {
       const hdResult = await ImageGenerationService.generateImage(
@@ -1381,14 +1381,14 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           return msg;
         }));
 
-        showAlert(userLanguage === 'id' ? '✅ Gambar berhasil ditingkatkan ke HD!' : '✅ Image upscaled to HD!', 'success', 3000);
+        showAlert(userLanguage === 'zh' ? '✅ 图像已成功升级至超清 HD！' : userLanguage === 'id' ? '✅ Gambar berhasil ditingkatkan ke HD!' : '✅ Image upscaled to HD!', 'success', 3000);
       } else {
         throw new Error('No HD image URL returned');
       }
     } catch (err) {
       console.error('[HD Upscale] ❌ Error:', err);
       showAlert(
-        userLanguage === 'id' ? '⚠️ Gagal meningkatkan kualitas gambar. Coba lagi nanti.' : '⚠️ Failed to upscale image. Try again later.',
+        userLanguage === 'zh' ? '⚠️ 图像增强失败，请稍后重试。' : userLanguage === 'id' ? '⚠️ Gagal meningkatkan kualitas gambar. Coba lagi nanti.' : '⚠️ Failed to upscale image. Try again later.',
         'error',
         4000
       );
@@ -1756,7 +1756,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
       await downloadImageDirectly(url, filename);
       showAlert(
-        userLanguage === 'id' ? '✅ Gambar berhasil diunduh' : '✅ Image downloaded',
+        userLanguage === 'zh' ? '✅ 图像下载成功' : userLanguage === 'id' ? '✅ Gambar berhasil diunduh' : '✅ Image downloaded',
         'success',
         2000
       );
@@ -5871,12 +5871,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       { time: 4000, msg: userLanguage === 'id' ? 'memproses konteks...' : 'processing context...', randomDelay: (Math.random() - 0.5) * 800 },
       { time: 7000, msg: userLanguage === 'id' ? 'menganalisis informasi...' : 'analyzing information...', randomDelay: (Math.random() - 0.5) * 800 },
       { time: 10000, msg: userLanguage === 'id' ? 'sedang berpikir...' : 'thinking...', randomDelay: (Math.random() - 0.5) * 800 },
-      { time: 13000, msg: userLanguage === 'id' ? 'menghitung respons...' : 'calculating response...', randomDelay: (Math.random() - 0.5) * 800 },
-      { time: 16000, msg: userLanguage === 'id' ? 'menyusun jawaban...' : 'composing answer...', randomDelay: (Math.random() - 0.5) * 800 },
-      { time: 19000, msg: userLanguage === 'id' ? 'memvalidasi data...' : 'validating data...', randomDelay: (Math.random() - 0.5) * 800 },
-      { time: 22000, msg: userLanguage === 'id' ? 'mengorganisir informasi...' : 'organizing information...', randomDelay: (Math.random() - 0.5) * 800 },
-      { time: 25000, msg: userLanguage === 'id' ? 'menyiapkan output...' : 'preparing output...', randomDelay: (Math.random() - 0.5) * 800 },
-      { time: 28000, msg: userLanguage === 'id' ? 'finalisasi respons...' : 'finalizing response...', randomDelay: (Math.random() - 0.5) * 800 },
+      { time: 13000, msg: userLanguage === 'zh' ? '正在计算响应...' : userLanguage === 'id' ? 'menghitung respons...' : 'calculating response...', randomDelay: (Math.random() - 0.5) * 800 },
+      { time: 16000, msg: userLanguage === 'zh' ? '正在组织回答...' : userLanguage === 'id' ? 'menyusun jawaban...' : 'composing answer...', randomDelay: (Math.random() - 0.5) * 800 },
+      { time: 19000, msg: userLanguage === 'zh' ? '正在校验数据...' : userLanguage === 'id' ? 'memvalidasi data...' : 'validating data...', randomDelay: (Math.random() - 0.5) * 800 },
+      { time: 22000, msg: userLanguage === 'zh' ? '正在梳理信息...' : userLanguage === 'id' ? 'mengorganisir informasi...' : 'organizing information...', randomDelay: (Math.random() - 0.5) * 800 },
+      { time: 25000, msg: userLanguage === 'zh' ? '正在准备输出...' : userLanguage === 'id' ? 'menyiapkan output...' : 'preparing output...', randomDelay: (Math.random() - 0.5) * 800 },
+      { time: 28000, msg: userLanguage === 'zh' ? '正在完成响应...' : userLanguage === 'id' ? 'finalisasi respons...' : 'finalizing response...', randomDelay: (Math.random() - 0.5) * 800 },
     ];
     
     // Set up status update interval
@@ -8859,7 +8859,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               type="button"
               className="header-dock-btn"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              title={sidebarOpen ? (userLanguage === 'id' ? 'Tutup sidebar' : 'Close sidebar') : (userLanguage === 'id' ? 'Buka sidebar' : 'Open sidebar')}
+              title={sidebarOpen ? (userLanguage === 'zh' ? '收起侧边栏' : userLanguage === 'id' ? 'Tutup sidebar' : 'Close sidebar') : (userLanguage === 'zh' ? '打开侧边栏' : userLanguage === 'id' ? 'Buka sidebar' : 'Open sidebar')}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -8873,7 +8873,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               <div 
                 className="header-title-pill" 
                 onClick={() => setShowConvMenu(!showConvMenu)}
-                title="Opsi percakapan"
+                title={userLanguage === 'zh' ? '会话选项' : userLanguage === 'id' ? 'Opsi percakapan' : 'Conversation options'}
               >
                 <span className="header-title-text">{activeConvTitle}</span>
                 <i className={`fa-solid fa-chevron-down header-chevron ${showConvMenu ? 'open' : ''}`}></i>
@@ -8887,7 +8887,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                     onClick={handleExportConv}
                   >
                     <i className="fa-solid fa-download"></i>
-                    <span>{userLanguage === 'id' ? 'Ekspor Obrolan (.md)' : 'Export Chat'}</span>
+                    <span>{userLanguage === 'zh' ? '导出对话 (.md)' : userLanguage === 'id' ? 'Ekspor Obrolan (.md)' : 'Export Chat'}</span>
                   </button>
                   <div className="dropdown-divider"></div>
                   <button 
@@ -8896,7 +8896,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                     onClick={handleDeleteActiveConv}
                   >
                     <i className="fa-regular fa-trash-can"></i>
-                    <span>{userLanguage === 'id' ? 'Hapus Percakapan' : 'Delete Chat'}</span>
+                    <span>{userLanguage === 'zh' ? '删除会话' : userLanguage === 'id' ? 'Hapus Percakapan' : 'Delete Chat'}</span>
                   </button>
                 </div>
               )}
@@ -8909,7 +8909,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 type="button"
                 className="header-universe-btn"
                 onClick={() => onNavigate?.('universe')}
-                title={userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
+                title={userLanguage === 'zh' ? '打开 Deepernova Universe' : userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
               >
                 <img
                   src="https://cdn-icons-png.flaticon.com/512/3212/3212608.png"
@@ -8928,10 +8928,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   setShowAgenticPanel(!showAgenticPanel);
                   if (!showAgenticPanel) setAgenticActiveTab('langkah');
                 }}
-                title={userLanguage === 'id' ? 'Buka Langkah & Sumber AI' : 'Agent Steps & Sources'}
+                title={userLanguage === 'zh' ? '查看 AI 执行步骤与来源' : userLanguage === 'id' ? 'Buka Langkah & Sumber AI' : 'Agent Steps & Sources'}
               >
                 <i className="fa-solid fa-list-check"></i>
-                <span className="agentic-btn-label">Langkah</span>
+                <span className="agentic-btn-label">{userLanguage === 'zh' ? '步骤' : userLanguage === 'id' ? 'Langkah' : 'Steps'}</span>
                 {agenticSteps.length > 0 && (
                   <span className="agentic-steps-badge">{agenticSteps.length}</span>
                 )}
@@ -8961,7 +8961,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 type="button"
                 className="header-switch-agent-btn"
                 onClick={() => onNavigate?.('agent')}
-                title={userLanguage === 'id' ? 'Buka Mode AI Agent (Eksekusi Kode & File)' : 'Open AI Agent Mode'}
+                title={userLanguage === 'zh' ? '进入 AI Agent 模式 (代码执行与文件操作)' : userLanguage === 'id' ? 'Buka Mode AI Agent (Eksekusi Kode & File)' : 'Open AI Agent Mode'}
               >
                 <i className="fa-solid fa-bolt"></i>
                 <span>AI Agent</span>
@@ -8998,12 +8998,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               type="button"
               className="show-previous-btn-modern"
               onClick={handleShowPreviousMessages}
-              title={userLanguage === 'id' ? 'Lihat pesan sebelumnya' : 'View previous messages'}
+              title={userLanguage === 'zh' ? '查看历史消息' : userLanguage === 'id' ? 'Lihat pesan sebelumnya' : 'View previous messages'}
             >
               <svg className="show-previous-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="18 15 12 9 6 15"></polyline>
               </svg>
-              <span>{userLanguage === 'id' ? 'Lihat Pesan Sebelumnya' : 'Lihat Pesan Sebelumnya'}</span>
+              <span>{userLanguage === 'zh' ? '查看更早消息' : userLanguage === 'id' ? 'Lihat Pesan Sebelumnya' : 'View Previous Messages'}</span>
             </button>
           </div>
         )}
@@ -9012,10 +9012,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           <div className="source-strip sources-above-output" onClick={() => setShowFoundSourcesPanel(true)}>
             <div className="source-strip-header">
               <div className="source-strip-text">
-                <span>{userLanguage === 'id' ? 'Sumber internet' : 'Internet sources'}</span>
-                <span className="source-strip-count">{foundSources.length} {userLanguage === 'id' ? 'sumber' : 'sources'}</span>
+                <span>{userLanguage === 'zh' ? '网络参考来源' : userLanguage === 'id' ? 'Sumber internet' : 'Internet sources'}</span>
+                <span className="source-strip-count">{foundSources.length} {userLanguage === 'zh' ? '个来源' : userLanguage === 'id' ? 'sumber' : 'sources'}</span>
               </div>
-              <div className="source-strip-label">{userLanguage === 'id' ? 'Klik untuk lihat detail' : 'Tap to view details'}</div>
+              <div className="source-strip-label">{userLanguage === 'zh' ? '点击查看详情' : userLanguage === 'id' ? 'Klik untuk lihat detail' : 'Tap to view details'}</div>
             </div>
             <div className="source-logo-row small-logos">
               {foundSources.slice(0, 4).map((source, idx) => {
@@ -9065,9 +9065,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                     </span>
                   ) : (
                     <>
-                      {loadingPhase === 'sending' && (userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
-                      {loadingPhase === 'thinking' && (userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
-                      {loadingPhase === 'slow' && (userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
+                      {loadingPhase === 'sending' && (userLanguage === 'zh' ? '正在发送...' : userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
+                      {loadingPhase === 'thinking' && (userLanguage === 'zh' ? '正在深度思考...' : userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
+                      {loadingPhase === 'slow' && (userLanguage === 'zh' ? '响应时间略长于平时，请稍候...' : userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
                     </>
                   )}
                 </span>
@@ -9119,7 +9119,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 onClick={handleRetry}
                 disabled={loading}
               >
-                {userLanguage === 'id' ? 'Lanjutkan' : 'Continue'}
+                {userLanguage === 'zh' ? '继续' : userLanguage === 'id' ? 'Lanjutkan' : 'Continue'}
               </button>
               <button
                 className="error-close"
@@ -9206,6 +9206,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setAgenticActiveTab={setAgenticActiveTab}
       agenticSteps={agenticSteps}
       activeSources={activeSources}
+      userLanguage={userLanguage}
     />
   </div>
   );

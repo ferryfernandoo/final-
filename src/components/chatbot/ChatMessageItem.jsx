@@ -97,14 +97,14 @@ const ChatMessageItemComponent = ({
                       }}
                       onMouseEnter={(e) => { e.target.style.transform = 'scale(1.02)'; }}
                       onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
-                      title={userLanguage === 'id' ? 'Klik untuk membesar' : 'Click to enlarge'}
+                      title={userLanguage === 'zh' ? '点击放大' : userLanguage === 'id' ? 'Klik untuk membesar' : 'Click to enlarge'}
                     />
                     <button
                       type="button"
                       className={`hd-upscale-btn ${hdUpscalingMap[message.imageUrl] ? 'loading' : ''}`}
                       onClick={(e) => { e.stopPropagation(); onUpscaleHD?.(message.imageUrl, message.id); }}
                       disabled={!!hdUpscalingMap[message.imageUrl]}
-                      title={userLanguage === 'id' ? 'Tingkatkan kualitas ke HD' : 'Upscale to HD'}
+                      title={userLanguage === 'zh' ? '增强至超清 HD' : userLanguage === 'id' ? 'Tingkatkan kualitas ke HD' : 'Upscale to HD'}
                     >
                       {hdUpscalingMap[message.imageUrl] ? (
                         <><i className="fas fa-spinner fa-spin" style={{ marginRight: '4px' }}></i> HD...</>
@@ -440,7 +440,7 @@ const ChatMessageItemComponent = ({
                 key={image.id}
                 className="user-attached-image-card"
                 onClick={() => onImageClick?.(imgUrl, image.fileName, image.id)}
-                title={userLanguage === 'id' ? 'Klik untuk memperbesar & unduh' : 'Click to enlarge & download'}
+                title={userLanguage === 'zh' ? '点击放大并下载' : userLanguage === 'id' ? 'Klik untuk memperbesar & unduh' : 'Click to enlarge & download'}
               >
                 <img
                   src={imgUrl}
@@ -463,21 +463,21 @@ const ChatMessageItemComponent = ({
             <button
               className={`feedback-btn like-btn ${feedbackValue === 'like' ? 'active' : ''}`}
               onClick={() => onMessageFeedback?.(message.id, 'like')}
-              title={userLanguage === 'id' ? 'Membantu' : 'Helpful'}
+              title={userLanguage === 'zh' ? '有帮助' : userLanguage === 'id' ? 'Membantu' : 'Helpful'}
             >
               <i className="fas fa-thumbs-up"></i>
             </button>
             <button
               className={`feedback-btn dislike-btn ${feedbackValue === 'dislike' ? 'active' : ''}`}
               onClick={() => onMessageFeedback?.(message.id, 'dislike')}
-              title={userLanguage === 'id' ? 'Tidak membantu' : 'Not helpful'}
+              title={userLanguage === 'zh' ? '没有帮助' : userLanguage === 'id' ? 'Tidak membantu' : 'Not helpful'}
             >
               <i className="fas fa-thumbs-down"></i>
             </button>
             <button
               className="feedback-btn copy-btn"
               onClick={() => onCopyMessage?.(message.text)}
-              title={userLanguage === 'id' ? 'Salin' : 'Copy'}
+              title={userLanguage === 'zh' ? '复制' : userLanguage === 'id' ? 'Salin' : 'Copy'}
             >
               <i className="fas fa-copy"></i>
             </button>

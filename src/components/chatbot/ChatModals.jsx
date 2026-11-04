@@ -102,7 +102,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               type="button"
               className="feature-modal-close-btn"
               onClick={() => setShowPrivateModal(false)}
-              aria-label="Tutup"
+              aria-label={userLanguage === 'zh' ? '关闭' : userLanguage === 'id' ? 'Tutup' : 'Close'}
             >
               ✕
             </button>
@@ -115,15 +115,17 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
             </div>
 
             <div className="private-modal-tag">
-              {userLanguage === 'id' ? '🔒 Mode Anonim & Privat' : '🔒 Private & Anonymous Mode'}
+              {userLanguage === 'zh' ? '🔒 隐私与匿名模式' : userLanguage === 'id' ? '🔒 Mode Anonim & Privat' : '🔒 Private & Anonymous Mode'}
             </div>
 
             <h3 className="private-modal-title">
-              {userLanguage === 'id' ? 'Mulai Obrolan Privat' : 'Start Private Chat'}
+              {userLanguage === 'zh' ? '开启隐私对话' : userLanguage === 'id' ? 'Mulai Obrolan Privat' : 'Start Private Chat'}
             </h3>
 
             <p className="private-modal-desc">
-              {userLanguage === 'id'
+              {userLanguage === 'zh'
+                ? '隐私对话不会保存到您的账户历史或长期记忆中。刷新页面后所有消息将自动清除。'
+                : userLanguage === 'id'
                 ? 'Obrolan privat tidak akan disimpan ke riwayat akun atau memori jangka panjang. Semua pesan akan langsung terhapus saat halaman di-refresh.'
                 : 'Private chats are not saved to your account history or long-term memory. All messages will be automatically cleared when you refresh the page.'}
             </p>
@@ -131,15 +133,15 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
             <div className="private-modal-chips-grid">
               <div className="private-chip-item">
                 <span className="private-chip-icon">🚫</span>
-                <span className="private-chip-text">{userLanguage === 'id' ? 'Tanpa Riwayat' : 'Zero History'}</span>
+                <span className="private-chip-text">{userLanguage === 'zh' ? '无历史记录' : userLanguage === 'id' ? 'Tanpa Riwayat' : 'Zero History'}</span>
               </div>
               <div className="private-chip-item">
                 <span className="private-chip-icon">⚡</span>
-                <span className="private-chip-text">{userLanguage === 'id' ? 'Hanya Sesi Ini' : 'Session Only'}</span>
+                <span className="private-chip-text">{userLanguage === 'zh' ? '仅限本会话' : userLanguage === 'id' ? 'Hanya Sesi Ini' : 'Session Only'}</span>
               </div>
               <div className="private-chip-item">
                 <span className="private-chip-icon">🛡️</span>
-                <span className="private-chip-text">{userLanguage === 'id' ? 'Isolasi Memori' : 'Memory Isolated'}</span>
+                <span className="private-chip-text">{userLanguage === 'zh' ? '记忆隔离' : userLanguage === 'id' ? 'Isolasi Memori' : 'Memory Isolated'}</span>
               </div>
             </div>
 
@@ -156,7 +158,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 className="private-modal-btn start-btn"
                 onClick={startPrivateChat}
               >
-                {userLanguage === 'id' ? 'Mulai Obrolan Privat' : 'Start Private Session'}
+                {userLanguage === 'zh' ? '开启隐私会话' : userLanguage === 'id' ? 'Mulai Obrolan Privat' : 'Start Private Session'}
               </button>
             </div>
           </div>
@@ -174,8 +176,8 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ✕
             </button>
             <div className="modal-header">
-              <h2>📰 {userLanguage === 'id' ? 'Sumber Ditemukan' : 'Sources Found'}</h2>
-              <p className="sources-count">{foundSources.length} {userLanguage === 'id' ? 'sumber' : 'sources'}</p>
+              <h2>📰 {userLanguage === 'zh' ? '已找到来源' : userLanguage === 'id' ? 'Sumber Ditemukan' : 'Sources Found'}</h2>
+              <p className="sources-count">{foundSources.length} {userLanguage === 'zh' ? '个来源' : userLanguage === 'id' ? 'sumber' : 'sources'}</p>
             </div>
             <div className="modal-body sources-list-body">
               {foundSources.map((source, idx) => (
@@ -187,7 +189,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                   <p className="source-description">{source.description}</p>
                   {source.url && (
                     <a href={source.url} target="_blank" rel="noopener noreferrer" className="source-link">
-                      🔗 {userLanguage === 'id' ? 'Buka Sumber' : 'Open Source'}
+                      🔗 {userLanguage === 'zh' ? '打开来源' : userLanguage === 'id' ? 'Buka Sumber' : 'Open Source'}
                     </a>
                   )}
                 </div>
@@ -209,7 +211,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                   }
                 }}
               >
-                ✨ {userLanguage === 'id' ? 'Auto Generate' : 'Auto Generate'}
+                ✨ {userLanguage === 'zh' ? '自动生成回答' : userLanguage === 'id' ? 'Auto Generate' : 'Auto Generate'}
               </button>
             </div>
           </div>
@@ -227,11 +229,13 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ✕
             </button>
             <div className="modal-header">
-              <h2><i className="fas fa-theater-masks" style={{ marginRight: '8px' }}></i>{userLanguage === 'id' ? 'Pilih Kepribadian AI' : 'Choose AI Personality'}</h2>
+              <h2><i className="fas fa-theater-masks" style={{ marginRight: '8px' }}></i>{userLanguage === 'zh' ? '选择 AI 性格' : userLanguage === 'id' ? 'Pilih Kepribadian AI' : 'Choose AI Personality'}</h2>
             </div>
             <div className="modal-body">
               <p>
-                {userLanguage === 'id'
+                {userLanguage === 'zh'
+                  ? '选择您喜欢的个性设定，改变 Deepernova AI 的交流风格'
+                  : userLanguage === 'id'
                   ? 'Pilih kepribadian yang Anda sukai untuk mengubah gaya percakapan Deepernova AI'
                   : 'Choose a personality to change how Deepernova AI communicates with you'}
               </p>
@@ -269,17 +273,17 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ✕
             </button>
             <div className="modal-header">
-              <h2>📝 {userLanguage === 'id' ? 'Siapa nama kamu?' : 'What is your name?'}</h2>
+              <h2>📝 {userLanguage === 'zh' ? '您怎么称呼？' : userLanguage === 'id' ? 'Siapa nama kamu?' : 'What is your name?'}</h2>
             </div>
             <div className="modal-body">
-              <p>{userLanguage === 'id' ? 'Supaya Deepernova AI bisa manggil kamu dengan nama yang benar.' : 'So Deepernova AI can call you by the right name.'}</p>
+              <p>{userLanguage === 'zh' ? '以便 Deepernova AI 能够用正确的名字称呼您。' : userLanguage === 'id' ? 'Supaya Deepernova AI bisa manggil kamu dengan nama yang benar.' : 'So Deepernova AI can call you by the right name.'}</p>
               <div className="settings-row">
-                <label>{userLanguage === 'id' ? 'Nama' : 'Name'}</label>
+                <label>{userLanguage === 'zh' ? '姓名' : userLanguage === 'id' ? 'Nama' : 'Name'}</label>
                 <input
                   type="text"
                   value={pendingUserName}
                   onChange={(e) => setPendingUserName(e.target.value)}
-                  placeholder={userLanguage === 'id' ? 'Contoh: Nando' : 'Example: Nando'}
+                  placeholder={userLanguage === 'zh' ? '例如: Ferry' : userLanguage === 'id' ? 'Contoh: Nando' : 'Example: Nando'}
                 />
               </div>
               <div className="settings-row modal-actions-row">
@@ -293,7 +297,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                   className="modal-btn-cancel"
                   onClick={skipNameSetup}
                 >
-                  {userLanguage === 'id' ? 'Lewati' : 'Skip'}
+                  {userLanguage === 'zh' ? '跳过' : userLanguage === 'id' ? 'Lewati' : 'Skip'}
                 </button>
               </div>
             </div>
@@ -310,13 +314,13 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
-            <h2>{userLanguage === 'id' ? 'Pengaturan' : 'Settings'}</h2>
+            <h2>{userLanguage === 'zh' ? '系统设置' : userLanguage === 'id' ? 'Pengaturan' : 'Settings'}</h2>
           </div>
           <button
             type="button"
             className="settings-drawer-close"
             onClick={() => setShowSettingsModal(false)}
-            title={userLanguage === 'id' ? 'Tutup Pengaturan' : 'Close Settings'}
+            title={userLanguage === 'zh' ? '关闭设置' : userLanguage === 'id' ? 'Tutup Pengaturan' : 'Close Settings'}
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -329,7 +333,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           {/* User Account Card */}
           <div className="settings-group-card">
             <div className="settings-group-title">
-              {userLanguage === 'id' ? 'Akun & Profil' : 'Account & Profile'}
+              {userLanguage === 'zh' ? '账户与个人资料' : userLanguage === 'id' ? 'Akun & Profil' : 'Account & Profile'}
             </div>
             <div className="settings-profile-row">
               {user?.picture ? (
@@ -341,7 +345,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               )}
               <div className="settings-profile-info">
                 <div className="settings-profile-name">
-                  {user?.name || (userLanguage === 'id' ? 'Pengguna Deepernova' : 'Deepernova User')}
+                  {user?.name || (userLanguage === 'zh' ? 'Deepernova 用户' : userLanguage === 'id' ? 'Pengguna Deepernova' : 'Deepernova User')}
                 </div>
                 <div className="settings-profile-email">
                   {user?.email || 'local-ai@deepernova'}
@@ -351,7 +355,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
             <div className="settings-field-item">
               <label className="settings-field-label">
-                {userLanguage === 'id' ? 'Nama Tampilan' : 'Display Name'}
+                {userLanguage === 'zh' ? '显示名称' : userLanguage === 'id' ? 'Nama Tampilan' : 'Display Name'}
               </label>
               <div className="settings-input-group">
                 <input
@@ -359,14 +363,14 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                   className="modern-settings-input"
                   value={pendingUserName}
                   onChange={(e) => setPendingUserName(e.target.value)}
-                  placeholder={userLanguage === 'id' ? 'Contoh: Ferry' : 'e.g. Ferry'}
+                  placeholder={userLanguage === 'zh' ? '例如: Ferry' : userLanguage === 'id' ? 'Contoh: Ferry' : 'e.g. Ferry'}
                 />
                 <button
                   type="button"
                   className="settings-save-name-btn"
                   onClick={() => {
                     saveUserName(pendingUserName);
-                    setCustomAlert(userLanguage === 'id' ? 'Nama berhasil diperbarui' : 'Name updated successfully');
+                    setCustomAlert(userLanguage === 'zh' ? '姓名更新成功' : userLanguage === 'id' ? 'Nama berhasil diperbarui' : 'Name updated successfully');
                   }}
                 >
                   {userLanguage === 'id' ? 'Simpan' : 'Save'}
@@ -378,13 +382,13 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           {/* Preferences Card */}
           <div className="settings-group-card">
             <div className="settings-group-title">
-              {userLanguage === 'id' ? 'Preferensi Antarmuka' : 'UI Preferences'}
+              {userLanguage === 'zh' ? '界面偏好设置' : userLanguage === 'id' ? 'Preferensi Antarmuka' : 'UI Preferences'}
             </div>
 
             <div className="settings-option-row">
               <div className="option-text">
-                <span className="option-title">{userLanguage === 'id' ? 'Bahasa Aplikasi' : 'App Language'}</span>
-                <span className="option-desc">{userLanguage === 'id' ? 'Pilih bahasa antarmuka Deepernova AI' : 'Choose Deepernova UI language'}</span>
+                <span className="option-title">{userLanguage === 'zh' ? '应用语言' : userLanguage === 'id' ? 'Bahasa Aplikasi' : 'App Language'}</span>
+                <span className="option-desc">{userLanguage === 'zh' ? '选择 Deepernova 界面语言' : userLanguage === 'id' ? 'Pilih bahasa antarmuka Deepernova AI' : 'Choose Deepernova UI language'}</span>
               </div>
               <select
                 className="modern-settings-select"
@@ -403,8 +407,8 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
             <div className="settings-option-row">
               <div className="option-text">
-                <span className="option-title">{userLanguage === 'id' ? 'Mode Privat' : 'Private Mode'}</span>
-                <span className="option-desc">{userLanguage === 'id' ? 'Jangan simpan sesi percakapan baru' : 'Do not save new conversation sessions'}</span>
+                <span className="option-title">{userLanguage === 'zh' ? '隐私模式' : userLanguage === 'id' ? 'Mode Privat' : 'Private Mode'}</span>
+                <span className="option-desc">{userLanguage === 'zh' ? '不保存新的会话记录' : userLanguage === 'id' ? 'Jangan simpan sesi percakapan baru' : 'Do not save new conversation sessions'}</span>
               </div>
               <label className="modern-switch">
                 <input
@@ -418,8 +422,8 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
             <div className="settings-option-row">
               <div className="option-text">
-                <span className="option-title">{userLanguage === 'id' ? 'Statistik Token' : 'Token Usage'}</span>
-                <span className="option-desc">{userLanguage === 'id' ? 'Tampilkan info token di bawah pesan' : 'Show token usage metrics under messages'}</span>
+                <span className="option-title">{userLanguage === 'zh' ? 'Token 消耗统计' : userLanguage === 'id' ? 'Statistik Token' : 'Token Usage'}</span>
+                <span className="option-desc">{userLanguage === 'zh' ? '在消息下方显示 Token 指标' : userLanguage === 'id' ? 'Tampilkan info token di bawah pesan' : 'Show token usage metrics under messages'}</span>
               </div>
               <label className="modern-switch">
                 <input
@@ -435,32 +439,32 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           {/* Data & AI Management Card */}
           <div className="settings-group-card">
             <div className="settings-group-title">
-              {userLanguage === 'id' ? 'Data & Integrasi' : 'Data & Integrations'}
+              {userLanguage === 'zh' ? '数据与集成' : userLanguage === 'id' ? 'Data & Integrasi' : 'Data & Integrations'}
             </div>
 
             <div className="settings-option-row">
               <div className="option-text">
-                <span className="option-title">{userLanguage === 'id' ? 'Memori AI' : 'AI Memory'}</span>
-                <span className="option-desc">{userLanguage === 'id' ? 'Hapus riwayat memori kontekstual AI' : 'Clear contextual long-term AI memory'}</span>
+                <span className="option-title">{userLanguage === 'zh' ? 'AI 记忆库' : userLanguage === 'id' ? 'Memori AI' : 'AI Memory'}</span>
+                <span className="option-desc">{userLanguage === 'zh' ? '清除 AI 上下文长期记忆' : userLanguage === 'id' ? 'Hapus riwayat memori kontekstual AI' : 'Clear contextual long-term AI memory'}</span>
               </div>
               <button
                 type="button"
                 className="settings-action-btn danger-btn"
                 onClick={() => {
-                  if (confirm(userLanguage === 'id' ? 'Bersihkan semua memori AI?' : 'Clear all AI memories?')) {
+                  if (confirm(userLanguage === 'zh' ? '确定清除所有 AI 记忆吗？' : userLanguage === 'id' ? 'Bersihkan semua memori AI?' : 'Clear all AI memories?')) {
                     memoryService.clearMemories();
-                    setCustomAlert(userLanguage === 'id' ? 'Memori AI telah dibersihkan' : 'AI memories cleared');
+                    setCustomAlert(userLanguage === 'zh' ? 'AI 记忆已全部清除' : userLanguage === 'id' ? 'Memori AI telah dibersihkan' : 'AI memories cleared');
                   }
                 }}
               >
-                {userLanguage === 'id' ? 'Hapus Memori' : 'Clear Memory'}
+                {userLanguage === 'zh' ? '清除记忆' : userLanguage === 'id' ? 'Hapus Memori' : 'Clear Memory'}
               </button>
             </div>
 
             <div className="settings-option-row">
               <div className="option-text">
-                <span className="option-title">🔌 API Marketplace</span>
-                <span className="option-desc">{userLanguage === 'id' ? 'Akses API Key dan integrasi pengembang' : 'Access API Keys and developer dashboard'}</span>
+                <span className="option-title">🔌 {userLanguage === 'zh' ? '开发者 API 市场' : 'API Marketplace'}</span>
+                <span className="option-desc">{userLanguage === 'zh' ? '访问 API 密钥及开发者控制台' : userLanguage === 'id' ? 'Akses API Key dan integrasi pengembang' : 'Access API Keys and developer dashboard'}</span>
               </div>
               <button
                 type="button"
@@ -470,7 +474,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                   setShowSettingsModal(false);
                 }}
               >
-                {userLanguage === 'id' ? 'Buka Dashboard' : 'Open Dashboard'}
+                {userLanguage === 'zh' ? '打开控制台' : userLanguage === 'id' ? 'Buka Dashboard' : 'Open Dashboard'}
               </button>
             </div>
           </div>
@@ -478,10 +482,10 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           {/* Latest Update & System Status Card */}
           <div className="settings-group-card latest-update-card">
             <div className="settings-group-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>{userLanguage === 'id' ? 'Info Pembaruan Terkini' : 'Latest System Update'}</span>
+              <span>{userLanguage === 'zh' ? '最新系统更新' : userLanguage === 'id' ? 'Info Pembaruan Terkini' : 'Latest System Update'}</span>
               <span className="update-pulse-badge">
                 <span className="pulse-dot"></span>
-                {userLanguage === 'id' ? 'Terkini' : 'Up to Date'}
+                {userLanguage === 'zh' ? '已是最新' : userLanguage === 'id' ? 'Terkini' : 'Up to Date'}
               </span>
             </div>
 
@@ -489,11 +493,11 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               <div className="update-version-row">
                 <span className="update-version-tag">v3.8.5 Enterprise</span>
                 <span className="update-date-text">
-                  📅 {new Intl.DateTimeFormat(userLanguage === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
+                  📅 {new Intl.DateTimeFormat(userLanguage === 'zh' ? 'zh-CN' : userLanguage === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
                 </span>
               </div>
               <div className="update-headline">
-                {userLanguage === 'id' ? 'Pembaruan Sistem Hari Ini' : "Today's System Release"}
+                {userLanguage === 'zh' ? '今日系统发布' : userLanguage === 'id' ? 'Pembaruan Sistem Hari Ini' : "Today's System Release"}
               </div>
             </div>
 
@@ -502,28 +506,28 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 <span className="feature-icon">⚡</span>
                 <div className="feature-content">
                   <div className="feature-title">Deepernova Synapse Ultra Engine</div>
-                  <div className="feature-desc">{userLanguage === 'id' ? 'Inferensi AI ultra-cepat dengan latensi respons instan <300ms.' : 'Ultra-fast AI inference with sub-300ms instant latency.'}</div>
+                  <div className="feature-desc">{userLanguage === 'zh' ? '超高速 AI 推理，毫秒级响应延迟 <300ms。' : userLanguage === 'id' ? 'Inferensi AI ultra-cepat dengan latensi respons instan <300ms.' : 'Ultra-fast AI inference with sub-300ms instant latency.'}</div>
                 </div>
               </div>
               <div className="update-feature-item">
                 <span className="feature-icon">📝</span>
                 <div className="feature-content">
                   <div className="feature-title">Typernova Word Agent</div>
-                  <div className="feature-desc">{userLanguage === 'id' ? 'Penyusun dokumen otomatis (Cover, TOC titik-titik, Bab I-V, & Daftar Pustaka).' : 'Autonomous document drafter with full TOC leader dots & chapters.'}</div>
+                  <div className="feature-desc">{userLanguage === 'zh' ? '自动化文档智能生成（封面、带导引线目录、正文各章节与参考文献）。' : userLanguage === 'id' ? 'Penyusun dokumen otomatis (Cover, TOC titik-titik, Bab I-V, & Daftar Pustaka).' : 'Autonomous document drafter with full TOC leader dots & chapters.'}</div>
                 </div>
               </div>
               <div className="update-feature-item">
                 <span className="feature-icon">💻</span>
                 <div className="feature-content">
                   <div className="feature-title">AI Agent Autonomous Workspace</div>
-                  <div className="feature-desc">{userLanguage === 'id' ? 'Autonomous multi-step reasoning AI Agent & code sandbox terintegrasi.' : 'Autonomous coding agent & live cloud terminal sandbox.'}</div>
+                  <div className="feature-desc">{userLanguage === 'zh' ? '自主多步推理 AI Agent 与集成云端代码沙箱。' : userLanguage === 'id' ? 'Autonomous multi-step reasoning AI Agent & code sandbox terintegrasi.' : 'Autonomous coding agent & live cloud terminal sandbox.'}</div>
                 </div>
               </div>
               <div className="update-feature-item">
                 <span className="feature-icon">⏱️</span>
                 <div className="feature-content">
                   <div className="feature-title">Smart Redirect Countdown</div>
-                  <div className="feature-desc">{userLanguage === 'id' ? 'Kartu transisi halus 5 detik saat beralih workspace tanpa mengejutkan pengguna.' : 'Smooth 5s transition countdown card when switching workspaces.'}</div>
+                  <div className="feature-desc">{userLanguage === 'zh' ? '工作区平滑 5 秒过渡倒计时卡片。' : userLanguage === 'id' ? 'Kartu transisi halus 5 detik saat beralih workspace tanpa mengejutkan pengguna.' : 'Smooth 5s transition countdown card when switching workspaces.'}</div>
                 </div>
               </div>
             </div>
@@ -534,10 +538,12 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
             <div className="settings-group-card settings-danger-card">
               <div className="settings-group-title danger-title">
                 <i className="fa-solid fa-triangle-exclamation"></i>
-                <span>{userLanguage === 'id' ? 'Zona Bahaya & Format Database' : 'Danger Zone & Database Format'}</span>
+                <span>{userLanguage === 'zh' ? '危险区域与数据库重置' : userLanguage === 'id' ? 'Zona Bahaya & Format Database' : 'Danger Zone & Database Format'}</span>
               </div>
               <p className="settings-group-desc-danger">
-                {userLanguage === 'id'
+                {userLanguage === 'zh'
+                  ? '完全重置您的账户数据库至初始全新状态。清除所有对话记录、文档文件、图像及 AI 记忆，并恢复 1,000,000 Token 初始额度。'
+                  : userLanguage === 'id'
                   ? 'Format total database akun Anda agar kembali fresh seperti akun baru. Seluruh riwayat chat, file dokumen, gambar, dan memori AI dibersihkan, dan kuota 1.000.000 token dipulihkan.'
                   : 'Completely format your account database to a 100% fresh state. Wipes chats, documents, images, and AI memories while restoring 1,000,000 token quota.'}
               </p>
@@ -550,7 +556,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 }}
               >
                 <i className="fa-solid fa-trash-can"></i>
-                <span>{userLanguage === 'id' ? 'Format Database Akun Fresh' : 'Format Account Database Fresh'}</span>
+                <span>{userLanguage === 'zh' ? '格式化账户数据库' : userLanguage === 'id' ? 'Format Database Akun Fresh' : 'Format Account Database Fresh'}</span>
               </button>
             </div>
           )}
@@ -558,7 +564,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           {/* Account Actions */}
           <div className="settings-group-card">
             <div className="settings-group-title">
-              {userLanguage === 'id' ? 'Sesi Akun' : 'Account Session'}
+              {userLanguage === 'zh' ? '账户会话' : userLanguage === 'id' ? 'Sesi Akun' : 'Account Session'}
             </div>
             <button
               type="button"
@@ -573,7 +579,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
               </svg>
-              <span>{userLanguage === 'id' ? 'Keluar dari Akun' : 'Sign Out'}</span>
+              <span>{userLanguage === 'zh' ? '退出登录' : userLanguage === 'id' ? 'Keluar dari Akun' : 'Sign Out'}</span>
             </button>
           </div>
         </div>
@@ -590,12 +596,12 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ✕
             </button>
             <div className="modal-header">
-              <h2>💻 {userLanguage === 'id' ? 'Editor Code' : 'Code Editor'}</h2>
+              <h2>💻 {userLanguage === 'zh' ? '代码编辑器' : userLanguage === 'id' ? 'Editor Code' : 'Code Editor'}</h2>
             </div>
 
             <div className="modal-body html-editor-body">
               <div className="html-filename-group">
-                <label>{userLanguage === 'id' ? 'Nama file:' : 'Filename:'}</label>
+                <label>{userLanguage === 'zh' ? '文件名:' : userLanguage === 'id' ? 'Nama file:' : 'Filename:'}</label>
                 <input
                   type="text"
                   value={htmlFilename}
@@ -606,13 +612,13 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               </div>
 
               <div className="html-editor-group">
-                <label>{userLanguage === 'id' ? 'Kode:' : 'Code:'}</label>
+                <label>{userLanguage === 'zh' ? '代码:' : userLanguage === 'id' ? 'Kode:' : 'Code:'}</label>
                 <textarea
                   value={htmlContent}
                   onChange={(e) => setHtmlContent(e.target.value)}
                   className="html-editor-textarea"
                   spellCheck="false"
-                  placeholder={userLanguage === 'id' ? 'Edit code di sini...' : 'Edit code here...'}
+                  placeholder={userLanguage === 'zh' ? '在此编辑代码...' : userLanguage === 'id' ? 'Edit code di sini...' : 'Edit code here...'}
                 />
               </div>
 
@@ -620,7 +626,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 <svg className="info-icon" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
                 </svg>
-                <span>{userLanguage === 'id' ? 'Preview akan terbuka di tab baru (untuk HTML)' : 'Preview opens in new tab (for HTML)'}</span>
+                <span>{userLanguage === 'zh' ? '预览将在新标签页中打开（适用于 HTML）' : userLanguage === 'id' ? 'Preview akan terbuka di tab baru (untuk HTML)' : 'Preview opens in new tab (for HTML)'}</span>
               </div>
             </div>
 
@@ -628,9 +634,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               <button
                 className="html-preview-btn"
                 onClick={() => setShowHtmlPreview(true)}
-                title={userLanguage === 'id' ? 'Preview di dalam aplikasi' : 'Preview inside app'}
+                title={userLanguage === 'zh' ? '应用内预览' : userLanguage === 'id' ? 'Preview di dalam aplikasi' : 'Preview inside app'}
               >
-                👁️ {userLanguage === 'id' ? 'Preview' : 'Preview'}
+                👁️ {userLanguage === 'zh' ? '预览' : userLanguage === 'id' ? 'Preview' : 'Preview'}
               </button>
             </div>
           </div>
@@ -648,7 +654,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 className="html-preview-iframe"
                 srcDoc={htmlContent}
                 sandbox="allow-scripts allow-same-origin"
-                title={userLanguage === 'id' ? 'Pratinjau HTML' : 'HTML Preview'}
+                title={userLanguage === 'zh' ? 'HTML 预览' : userLanguage === 'id' ? 'Pratinjau HTML' : 'HTML Preview'}
               />
               <button className="preview-close-btn" onClick={() => setShowHtmlPreview(false)}>
                 ✕
@@ -665,16 +671,20 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ×
             </button>
             <div className="modal-header">
-              <h2>{userLanguage === 'id' ? 'Konfirmasi Logout' : 'Logout Confirmation'}</h2>
+              <h2>{userLanguage === 'zh' ? '退出登录确认' : userLanguage === 'id' ? 'Konfirmasi Logout' : 'Logout Confirmation'}</h2>
             </div>
             <div className="modal-body">
               <p>
-                {userLanguage === 'id'
+                {userLanguage === 'zh'
+                  ? '您将退出此账户。当前会话将结束，您需要重新登录才能继续。'
+                  : userLanguage === 'id'
                   ? 'Anda akan keluar dari akun ini. Semua session akan berakhir dan Anda harus login lagi untuk melanjutkan.'
                   : 'You will be logged out from this account. Your session will end and you will need to log in again to continue.'}
               </p>
               <p>
-                {userLanguage === 'id'
+                {userLanguage === 'zh'
+                  ? '您确定现在退出登录吗？'
+                  : userLanguage === 'id'
                   ? 'Apakah Anda yakin ingin logout sekarang?'
                   : 'Are you sure you want to logout now?'}
               </p>
@@ -685,8 +695,8 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               </button>
               <button className="modal-btn-primary" onClick={confirmLogout} disabled={logoutLoading}>
                 {logoutLoading
-                  ? userLanguage === 'id' ? 'Logout...' : 'Logging out...'
-                  : userLanguage === 'id' ? 'Logout' : 'Logout'}
+                  ? userLanguage === 'zh' ? '正在退出...' : userLanguage === 'id' ? 'Logout...' : 'Logging out...'
+                  : userLanguage === 'zh' ? '退出登录' : userLanguage === 'id' ? 'Logout' : 'Logout'}
               </button>
             </div>
           </div>
@@ -709,9 +719,11 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 <i className="fa-solid fa-triangle-exclamation"></i>
               </div>
               <div>
-                <h2>{userLanguage === 'id' ? 'Format Database Akun' : 'Format Account Database'}</h2>
+                <h2>{userLanguage === 'zh' ? '格式化账户数据库' : userLanguage === 'id' ? 'Format Database Akun' : 'Format Account Database'}</h2>
                 <p className="format-db-subtitle">
-                  {userLanguage === 'id'
+                  {userLanguage === 'zh'
+                    ? '将账户恢复至全新初始状态'
+                    : userLanguage === 'id'
                     ? 'Kembalikan akun ke kondisi 100% fresh seperti baru'
                     : 'Restore account back to 100% fresh state'}
                 </p>
@@ -721,10 +733,10 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
             <div className="modal-body format-db-body">
               <div className="format-db-warning-banner">
                 <p>
-                  <strong>⚠️ PERINGATAN KRITIS:</strong> Tindakan ini akan <strong>menghapus permanen</strong> semua riwayat chat, dokumen cloud, gambar AI, dan memori personal akun Anda.
+                  <strong>{userLanguage === 'zh' ? '⚠️ 严重警告：' : '⚠️ PERINGATAN KRITIS:'}</strong> {userLanguage === 'zh' ? '此操作将永久删除您的所有聊天记录、云端文档、AI 生成图像及个人记忆。' : userLanguage === 'id' ? <>Tindakan ini akan <strong>menghapus permanen</strong> semua riwayat chat, dokumen cloud, gambar AI, dan memori personal akun Anda.</> : <>This action will <strong>permanently wipe</strong> all chat history, cloud documents, AI images, and personal memories.</>}
                 </p>
                 <p>
-                  Akun Anda <strong>tidak akan dihapus</strong> dan tetap dapat login, serta kuota token Anda akan <strong>dipulihkan fresh menjadi 1.000.000 token</strong>.
+                  {userLanguage === 'zh' ? '您的账户不会被注销，仍可正常登录，同时您的 Token 额度将恢复为 1,000,000。' : userLanguage === 'id' ? <>Akun Anda <strong>tidak akan dihapus</strong> dan tetap dapat login, serta kuota token Anda akan <strong>dipulihkan fresh menjadi 1.000.000 token</strong>.</> : <>Your account <strong>will not be deleted</strong> and remains active, and your token quota will be <strong>restored fresh to 1,000,000 tokens</strong>.</>}
                 </p>
               </div>
 
@@ -737,7 +749,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
               <div className="format-db-step-block">
                 <label className="format-db-label">
-                  {userLanguage === 'id'
+                  {userLanguage === 'zh'
+                    ? '1. 复制下方安全验证文本：'
+                    : userLanguage === 'id'
                     ? '1. Salin teks verifikasi keamanan di bawah ini:'
                     : '1. Copy the security verification text below:'}
                 </label>
@@ -747,13 +761,13 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                     type="button"
                     className="format-db-copy-btn"
                     onClick={handleCopyFormatConfirmText}
-                    title="Salin dan tempel teks"
+                    title={userLanguage === 'zh' ? '复制并粘贴文本' : 'Salin dan tempel teks'}
                   >
                     <i className={formatDbCopied ? "fa-solid fa-check" : "fa-regular fa-copy"}></i>
                     <span>
                       {formatDbCopied
-                        ? (userLanguage === 'id' ? 'Tersalin & Ditempel!' : 'Copied & Pasted!')
-                        : (userLanguage === 'id' ? 'Salin Teks' : 'Copy Text')}
+                        ? (userLanguage === 'zh' ? '已复制并粘贴！' : userLanguage === 'id' ? 'Tersalin & Ditempel!' : 'Copied & Pasted!')
+                        : (userLanguage === 'zh' ? '复制代码' : userLanguage === 'id' ? 'Salin Teks' : 'Copy Text')}
                     </span>
                   </button>
                 </div>
@@ -761,14 +775,16 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
               <div className="format-db-step-block">
                 <label className="format-db-label">
-                  {userLanguage === 'id'
+                  {userLanguage === 'zh'
+                    ? '2. 在此粘贴或输入验证文本：'
+                    : userLanguage === 'id'
                     ? '2. Tempel atau ketik teks verifikasi di sini:'
                     : '2. Paste or type verification text here:'}
                 </label>
                 <input
                   type="text"
                   className={`format-db-input ${formatDbConfirmText.trim().toUpperCase() === 'HAPUS DATA SAYA' ? 'valid' : ''}`}
-                  placeholder="Ketik: HAPUS DATA SAYA"
+                  placeholder={userLanguage === 'zh' ? '请输入: HAPUS DATA SAYA' : userLanguage === 'id' ? 'Ketik: HAPUS DATA SAYA' : 'Type: HAPUS DATA SAYA'}
                   value={formatDbConfirmText}
                   onChange={(e) => {
                     setFormatDbConfirmText(e.target.value);
@@ -781,7 +797,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
               <div className="format-db-step-block">
                 <label className="format-db-label">
-                  {userLanguage === 'id'
+                  {userLanguage === 'zh'
+                    ? '3. 输入您的账户密码进行验证：'
+                    : userLanguage === 'id'
                     ? '3. Masukkan kata sandi akun Anda untuk verifikasi:'
                     : '3. Enter your account password for verification:'}
                 </label>
@@ -789,7 +807,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                   <input
                     type={showFormatDbPassword ? "text" : "password"}
                     className="format-db-input password-input"
-                    placeholder={userLanguage === 'id' ? 'Masukkan sandi akun Anda' : 'Enter your account password'}
+                    placeholder={userLanguage === 'zh' ? '输入您的账户密码' : userLanguage === 'id' ? 'Masukkan sandi akun Anda' : 'Enter your account password'}
                     value={formatDbPassword}
                     onChange={(e) => {
                       setFormatDbPassword(e.target.value);
@@ -837,12 +855,12 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 {formatDbLoading ? (
                   <>
                     <i className="fa-solid fa-spinner fa-spin"></i>
-                    <span>{userLanguage === 'id' ? 'Memformat Database...' : 'Formatting Database...'}</span>
+                    <span>{userLanguage === 'zh' ? '正在格式化数据库...' : userLanguage === 'id' ? 'Memformat Database...' : 'Formatting Database...'}</span>
                   </>
                 ) : (
                   <>
                     <i className="fa-solid fa-radiation"></i>
-                    <span>{userLanguage === 'id' ? 'Format Database Sekarang' : 'Format Database Now'}</span>
+                    <span>{userLanguage === 'zh' ? '立即格式化数据库' : userLanguage === 'id' ? 'Format Database Sekarang' : 'Format Database Now'}</span>
                   </>
                 )}
               </button>
@@ -862,14 +880,14 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ✕
             </button>
             <div className="modal-header">
-              <h2>{userLanguage === 'id' ? '✏️ Edit Pesan' : '✏️ Edit Message'}</h2>
+              <h2>{userLanguage === 'zh' ? '✏️ 编辑消息' : userLanguage === 'id' ? '✏️ Edit Pesan' : '✏️ Edit Message'}</h2>
             </div>
             <div className="modal-body">
               <textarea
                 className="edit-message-textarea"
                 value={editingMessageText}
                 onChange={(e) => setEditingMessageText(e.target.value)}
-                placeholder={userLanguage === 'id' ? 'Edit pesan Anda...' : 'Edit your message...'}
+                placeholder={userLanguage === 'zh' ? '在此编辑您的消息...' : userLanguage === 'id' ? 'Edit pesan Anda...' : 'Edit your message...'}
               />
             </div>
             <div className="modal-footer">
@@ -877,7 +895,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 {userLanguage === 'id' ? 'Batal' : 'Cancel'}
               </button>
               <button className="modal-btn-primary" onClick={handleEditAndResend}>
-                {userLanguage === 'id' ? 'Edit & Kirim Ulang' : 'Edit & Resend'}
+                {userLanguage === 'zh' ? '修改并重新发送' : userLanguage === 'id' ? 'Edit & Kirim Ulang' : 'Edit & Resend'}
               </button>
             </div>
           </div>
@@ -909,19 +927,23 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ✕
             </button>
             <div className="modal-header">
-              <h2>📚 {userLanguage === 'id' ? 'Sumber Data' : 'Data Sources'}</h2>
+              <h2>📚 {userLanguage === 'zh' ? '数据来源' : userLanguage === 'id' ? 'Sumber Data' : 'Data Sources'}</h2>
             </div>
 
             <div className="modal-body sources-body">
               {!currentSources || currentSources.length === 0 ? (
                 <div className="no-sources-message">
                   <p>
-                    {userLanguage === 'id'
+                    {userLanguage === 'zh'
+                      ? '当前对话暂无数据来源'
+                      : userLanguage === 'id'
                       ? 'Belum ada sumber data untuk percakapan ini'
                       : 'No data sources available for this conversation'}
                   </p>
                   <p className="sources-hint">
-                    {userLanguage === 'id'
+                    {userLanguage === 'zh'
+                      ? '尝试询问有关经济、市场或最新资讯的问题'
+                      : userLanguage === 'id'
                       ? 'Coba tanyakan tentang ekonomi, pasar, atau berita terbaru'
                       : 'Try asking about economy, markets, or latest news'}
                   </p>
@@ -952,17 +974,17 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                           <button
                             className="source-open-btn"
                             onClick={() => handleOpenSource(source.url)}
-                            title={userLanguage === 'id' ? 'Buka sumber' : 'Open source'}
+                            title={userLanguage === 'zh' ? '打开来源' : userLanguage === 'id' ? 'Buka sumber' : 'Open source'}
                           >
-                            🔗 {userLanguage === 'id' ? 'Buka' : 'Open'}
+                            🔗 {userLanguage === 'zh' ? '打开' : userLanguage === 'id' ? 'Buka' : 'Open'}
                           </button>
                         )}
                         <button
                           className="source-detail-btn"
                           onClick={() => handleViewSourceDetail(source)}
-                          title={userLanguage === 'id' ? 'Lihat detail' : 'View details'}
+                          title={userLanguage === 'zh' ? '查看详情' : userLanguage === 'id' ? 'Lihat detail' : 'View details'}
                         >
-                          📋 {userLanguage === 'id' ? 'Detail' : 'Details'}
+                          📋 {userLanguage === 'zh' ? '详情' : userLanguage === 'id' ? 'Detail' : 'Details'}
                         </button>
                       </div>
                     </div>
@@ -985,29 +1007,29 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               ✕
             </button>
             <div className="modal-header">
-              <h2>📖 {userLanguage === 'id' ? 'Detail Sumber' : 'Source Details'}</h2>
+              <h2>📖 {userLanguage === 'zh' ? '来源详情' : userLanguage === 'id' ? 'Detail Sumber' : 'Source Details'}</h2>
             </div>
 
             <div className="modal-body source-detail-body">
               <div className="source-detail-grid">
                 <div className="detail-field">
-                  <label>{userLanguage === 'id' ? 'Judul' : 'Title'}</label>
+                  <label>{userLanguage === 'zh' ? '标题' : userLanguage === 'id' ? 'Judul' : 'Title'}</label>
                   <p className="detail-value">{selectedSource.title}</p>
                 </div>
 
                 <div className="detail-field">
-                  <label>{userLanguage === 'id' ? 'Sumber' : 'Source'}</label>
+                  <label>{userLanguage === 'zh' ? '来源' : userLanguage === 'id' ? 'Sumber' : 'Source'}</label>
                   <p className="detail-value">{selectedSource.source}</p>
                 </div>
 
                 <div className="detail-field">
-                  <label>{userLanguage === 'id' ? 'Tipe' : 'Type'}</label>
+                  <label>{userLanguage === 'zh' ? '类型' : userLanguage === 'id' ? 'Tipe' : 'Type'}</label>
                   <p className="detail-value">{selectedSource.type}</p>
                 </div>
 
                 {selectedSource.timestamp && (
                   <div className="detail-field">
-                    <label>{userLanguage === 'id' ? 'Waktu' : 'Time'}</label>
+                    <label>{userLanguage === 'zh' ? '时间' : userLanguage === 'id' ? 'Waktu' : 'Time'}</label>
                     <p className="detail-value">
                       {new Date(selectedSource.timestamp).toLocaleString(userLanguage === 'id' ? 'id-ID' : 'en-US')}
                     </p>
@@ -1016,7 +1038,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
                 {selectedSource.query && (
                   <div className="detail-field">
-                    <label>{userLanguage === 'id' ? 'Query' : 'Query'}</label>
+                    <label>{userLanguage === 'zh' ? '查询词' : userLanguage === 'id' ? 'Query' : 'Query'}</label>
                     <p className="detail-value">{selectedSource.query}</p>
                   </div>
                 )}
@@ -1024,7 +1046,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
               {selectedSource.description && (
                 <div className="detail-section">
-                  <h4>{userLanguage === 'id' ? 'Deskripsi' : 'Description'}</h4>
+                  <h4>{userLanguage === 'zh' ? '描述' : userLanguage === 'id' ? 'Deskripsi' : 'Description'}</h4>
                   <p>{selectedSource.description}</p>
                 </div>
               )}
@@ -1050,7 +1072,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           className={`top-right-token-display ${isTokenUsageLimited() ? 'limit-reached' : ''}`}
           onClick={() => {
             showAlert(
-              userLanguage === 'id'
+              userLanguage === 'zh'
+                ? `⚡ 已消耗 Token: ${tokenUsage.usedTokens.toLocaleString('zh-CN')} / ${MAX_TOKEN_LIMIT.toLocaleString('zh-CN')}。（生成图片 = 30,000 Token）。${tokenUsage.resetTime ? ` 重置倒计时: ${countdownText}` : ''}`
+                : userLanguage === 'id'
                 ? `⚡ Token terpakai: ${tokenUsage.usedTokens.toLocaleString('id-ID')} / ${MAX_TOKEN_LIMIT.toLocaleString('id-ID')}. (Gambar = 30.000 token).${tokenUsage.resetTime ? ` Reset dalam: ${countdownText}` : ''}`
                 : `⚡ Token usage: ${tokenUsage.usedTokens.toLocaleString('en-US')} / ${MAX_TOKEN_LIMIT.toLocaleString('en-US')}. (Image = 30,000 tokens).${tokenUsage.resetTime ? ` Reset in: ${countdownText}` : ''}`,
               tokenUsage.resetTime ? 'warning' : 'info',
@@ -1058,7 +1082,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
             );
           }}
           title={
-            userLanguage === 'id'
+            userLanguage === 'zh'
+              ? `Token 消耗统计: ${tokenUsage.usedTokens.toLocaleString('zh-CN')} / ${MAX_TOKEN_LIMIT.toLocaleString('zh-CN')}`
+              : userLanguage === 'id'
               ? `Penggunaan Token: ${tokenUsage.usedTokens.toLocaleString('id-ID')} / ${MAX_TOKEN_LIMIT.toLocaleString('id-ID')}`
               : `Token Usage: ${tokenUsage.usedTokens.toLocaleString('en-US')} / ${MAX_TOKEN_LIMIT.toLocaleString('en-US')}`
           }
@@ -1066,8 +1092,8 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           <span className="token-icon">{tokenUsage.resetTime ? '⏳' : '⚡'}</span>
           <span className="token-text">
             {tokenUsage.resetTime
-              ? `Reset ${countdownText}`
-              : `${tokenUsage.usedTokens.toLocaleString('id-ID')} / ${MAX_TOKEN_LIMIT.toLocaleString('id-ID')}`}
+              ? (userLanguage === 'zh' ? `重置倒计时 ${countdownText}` : `Reset ${countdownText}`)
+              : `${tokenUsage.usedTokens.toLocaleString(userLanguage === 'zh' ? 'zh-CN' : userLanguage === 'id' ? 'id-ID' : 'en-US')} / ${MAX_TOKEN_LIMIT.toLocaleString(userLanguage === 'zh' ? 'zh-CN' : userLanguage === 'id' ? 'id-ID' : 'en-US')}`}
           </span>
         </div>
       )}
@@ -1081,9 +1107,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               createNewConversation();
               setShowFloatingMenu(false);
             }}
-            title={userLanguage === 'id' ? 'Chat baru' : 'New chat'}
+            title={userLanguage === 'zh' ? '新建对话' : userLanguage === 'id' ? 'Chat baru' : 'New chat'}
           >
-            <i className="fas fa-comment-alt" style={{ marginRight: '8px' }}></i>{userLanguage === 'id' ? 'Chat Baru' : 'New Chat'}
+            <i className="fas fa-comment-alt" style={{ marginRight: '8px' }}></i>{userLanguage === 'zh' ? '新建对话' : userLanguage === 'id' ? 'Chat Baru' : 'New Chat'}
           </button>
           <button
             className="floating-menu-item"
@@ -1091,9 +1117,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               setShowPersonalityModal(true);
               setShowFloatingMenu(false);
             }}
-            title={userLanguage === 'id' ? 'Ubah kepribadian' : 'Change personality'}
+            title={userLanguage === 'zh' ? '修改性格设定' : userLanguage === 'id' ? 'Ubah kepribadian' : 'Change personality'}
           >
-            <i className="fas fa-theater-masks" style={{ marginRight: '8px' }}></i>{userLanguage === 'id' ? 'Kepribadian' : 'Personality'}
+            <i className="fas fa-theater-masks" style={{ marginRight: '8px' }}></i>{userLanguage === 'zh' ? '性格设定' : userLanguage === 'id' ? 'Kepribadian' : 'Personality'}
           </button>
           <button
             className="floating-menu-item"
@@ -1111,9 +1137,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               setShowPrivateModal(true);
               setShowFloatingMenu(false);
             }}
-            title={userLanguage === 'id' ? 'Mulai obrolan pribadi' : 'Start private chat'}
+            title={userLanguage === 'zh' ? '开启隐私对话' : userLanguage === 'id' ? 'Mulai obrolan pribadi' : 'Start private chat'}
           >
-            <i className="fas fa-lock" style={{ marginRight: '8px' }}></i>{userLanguage === 'id' ? 'Private Chat' : 'Private Chat'}
+            <i className="fas fa-lock" style={{ marginRight: '8px' }}></i>{userLanguage === 'zh' ? '隐私对话' : userLanguage === 'id' ? 'Private Chat' : 'Private Chat'}
           </button>
           <button
             className="floating-menu-item"
@@ -1121,9 +1147,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               setShowSettingsModal(true);
               setShowFloatingMenu(false);
             }}
-            title={userLanguage === 'id' ? 'Pengaturan' : 'Settings'}
+            title={userLanguage === 'zh' ? '系统设置' : userLanguage === 'id' ? 'Pengaturan' : 'Settings'}
           >
-            <i className="fas fa-cog" style={{ marginRight: '8px' }}></i>{userLanguage === 'id' ? 'Pengaturan' : 'Settings'}
+            <i className="fas fa-cog" style={{ marginRight: '8px' }}></i>{userLanguage === 'zh' ? '系统设置' : userLanguage === 'id' ? 'Pengaturan' : 'Settings'}
           </button>
           {currentSources && currentSources.length > 0 && (
             <button
@@ -1132,9 +1158,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                 handleShowSources();
                 setShowFloatingMenu(false);
               }}
-              title={userLanguage === 'id' ? 'Lihat sumber data' : 'View data sources'}
+              title={userLanguage === 'zh' ? '查看数据来源' : userLanguage === 'id' ? 'Lihat sumber data' : 'View data sources'}
             >
-              📚 {userLanguage === 'id' ? 'Sumber Data' : 'Sources'} ({currentSources.length})
+              📚 {userLanguage === 'zh' ? '数据来源' : userLanguage === 'id' ? 'Sumber Data' : 'Sources'} ({currentSources.length})
             </button>
           )}
         </div>
@@ -1231,7 +1257,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
           <div className="text-popup-modal" onClick={(e) => e.stopPropagation()}>
             <div className="text-popup-header">
               <h3>
-                {userLanguage === 'id' ? '📋 Salinan Teks' : '📋 Text Copy'}
+                {userLanguage === 'zh' ? '📋 文本复制' : userLanguage === 'id' ? '📋 Salinan Teks' : '📋 Text Copy'}
               </h3>
               <button
                 type="button"
@@ -1251,7 +1277,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                 value={editingTextContent}
                 onChange={(e) => setEditingTextContent(e.target.value)}
                 className="text-popup-textarea"
-                placeholder={userLanguage === 'id' ? 'Edit teks di sini...' : 'Edit text here...'}
+                placeholder={userLanguage === 'zh' ? '在此编辑文本...' : userLanguage === 'id' ? 'Edit teks di sini...' : 'Edit text here...'}
               />
             </div>
 
@@ -1261,7 +1287,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                 className="popup-action-btn save-btn"
                 onClick={handleSaveTextEdit}
               >
-                {userLanguage === 'id' ? '✓ Simpan & Kirim' : '✓ Save & Send'}
+                {userLanguage === 'zh' ? '✓ 保存并发送' : userLanguage === 'id' ? '✓ Simpan & Kirim' : '✓ Save & Send'}
               </button>
               <button
                 type="button"
@@ -1272,7 +1298,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                   setEditingTextContent('');
                 }}
               >
-                {userLanguage === 'id' ? '✕ Tutup' : '✕ Close'}
+                {userLanguage === 'zh' ? '✕ 关闭' : userLanguage === 'id' ? '✕ Tutup' : '✕ Close'}
               </button>
             </div>
           </div>
@@ -1297,15 +1323,17 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
             </div>
 
             <div className="feature-modal-tag">
-              {userLanguage === 'id' ? 'Sedang Dikembangkan' : 'Under Development'}
+              {userLanguage === 'zh' ? '正在开发中' : userLanguage === 'id' ? 'Sedang Dikembangkan' : 'Under Development'}
             </div>
 
             <h3 className="feature-modal-title">
-              {userLanguage === 'id' ? 'Fitur Obrolan Suara' : 'Voice Chat Feature'}
+              {userLanguage === 'zh' ? '实时语音对话' : userLanguage === 'id' ? 'Fitur Obrolan Suara' : 'Voice Chat Feature'}
             </h3>
 
             <p className="feature-modal-desc">
-              {userLanguage === 'id'
+              {userLanguage === 'zh'
+                ? '抱歉，实时语音对话功能目前正在开发中，暂未开放。敬请期待后续更新。'
+                : userLanguage === 'id'
                 ? 'Maaf, fitur obrolan suara saat ini belum tersedia dan sedang dalam tahap pengembangan. Silakan coba kembali di lain waktu.'
                 : 'Sorry, the real-time voice chat feature is currently in development and not yet available. Please try again later.'}
             </p>
@@ -1316,7 +1344,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                 className="feature-modal-confirm-btn"
                 onClick={() => setShowVoiceDevModal(false)}
               >
-                {userLanguage === 'id' ? 'Mengerti' : 'Got it'}
+                {userLanguage === 'zh' ? '知道了' : userLanguage === 'id' ? 'Mengerti' : 'Got it'}
               </button>
             </div>
           </div>
@@ -1338,6 +1366,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
         onClose={() => setShowSavedImagesGallery(false)}
         isAuthenticated={isAuthenticated}
         user={user}
+        userLanguage={userLanguage}
       />
 
       {/* Delete Confirmation Modal */}
@@ -1345,21 +1374,21 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
         <div className="modal-overlay" onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmConvId(null); }}>
           <div className="modal-content delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="delete-confirm-header">
-              <h3>⚠️ Hapus Sesi?</h3>
-              <p>Apakah Anda yakin ingin menghapus sesi ini? Tindakan ini tidak dapat dibatalkan.</p>
+              <h3>{userLanguage === 'zh' ? '⚠️ 删除会话？' : userLanguage === 'id' ? '⚠️ Hapus Sesi?' : '⚠️ Delete Session?'}</h3>
+              <p>{userLanguage === 'zh' ? '确定要删除此会话吗？此操作无法撤销。' : userLanguage === 'id' ? 'Apakah Anda yakin ingin menghapus sesi ini? Tindakan ini tidak dapat dibatalkan.' : 'Are you sure you want to delete this session? This action cannot be undone.'}</p>
             </div>
             <div className="delete-confirm-actions">
               <button
                 className="btn-cancel"
                 onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmConvId(null); }}
               >
-                Batal
+                {userLanguage === 'zh' ? '取消' : userLanguage === 'id' ? 'Batal' : 'Cancel'}
               </button>
               <button
                 className="btn-delete"
                 onClick={() => confirmDeleteConversation(deleteConfirmConvId)}
               >
-                Hapus Sesi
+                {userLanguage === 'zh' ? '删除会话' : userLanguage === 'id' ? 'Hapus Sesi' : 'Delete Session'}
               </button>
             </div>
           </div>
@@ -1463,8 +1492,8 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
             </button>
 
             <div className="search-modal-header">
-              <h2><i className="fa-solid fa-square-rss" style={{ marginRight: '8px', color: '#1e3a8a' }}></i> {userLanguage === 'id' ? 'Hasil Pencarian Lengkap' : 'Full Search Results'}</h2>
-              <p className="search-modal-query">{userLanguage === 'id' ? 'Kueri:' : 'Query:'} <strong>"{activeSearchSources.query}"</strong></p>
+              <h2><i className="fa-solid fa-square-rss" style={{ marginRight: '8px', color: '#1e3a8a' }}></i> {userLanguage === 'zh' ? '完整搜索结果' : userLanguage === 'id' ? 'Hasil Pencarian Lengkap' : 'Full Search Results'}</h2>
+              <p className="search-modal-query">{userLanguage === 'zh' ? '查询词:' : userLanguage === 'id' ? 'Kueri:' : 'Query:'} <strong>"{activeSearchSources.query}"</strong></p>
             </div>
 
             <div className="search-modal-body">
@@ -1477,7 +1506,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                       </span>
                       {item.accuracyScore && (
                         <span style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#4338ca', fontSize: '10.5px', fontWeight: '700', padding: '2px 6px', borderRadius: '6px', flexShrink: 0 }}>
-                          {Math.round(item.accuracyScore)}% Akurasi
+                          {Math.round(item.accuracyScore)}% {userLanguage === 'zh' ? '准确度' : userLanguage === 'id' ? 'Akurasi' : 'Accuracy'}
                         </span>
                       )}
                       {item.pagerank && (
@@ -1523,7 +1552,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
               className="lightbox-image"
               onError={(e) => {
                 console.error('[ChatBot] ❌ Enlarged image load error:', enlargedImage.url);
-                e.target.parentElement.innerHTML = `<div style="padding: 40px; text-align: center; color: #f87171; font-weight: 600; font-size: 16px;">⚠️ ${userLanguage === 'id' ? 'Gagal memuat gambar' : 'Failed to load image'}</div>`;
+                e.target.parentElement.innerHTML = `<div style="padding: 40px; text-align: center; color: #f87171; font-weight: 600; font-size: 16px;">⚠️ ${userLanguage === 'zh' ? '加载图片失败' : userLanguage === 'id' ? 'Gagal memuat gambar' : 'Failed to load image'}</div>`;
               }}
             />
             {enlargedImage.alt && enlargedImage.alt !== 'Generated Image' && enlargedImage.alt.trim().length > 0 && (
@@ -1538,7 +1567,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
               className="lightbox-action-btn download-btn"
               onClick={handleDownloadImage}
             >
-              ⬇️ {userLanguage === 'id' ? 'Unduh Gambar' : 'Download Image'}
+              ⬇️ {userLanguage === 'zh' ? '下载图片' : userLanguage === 'id' ? 'Unduh Gambar' : 'Download Image'}
             </button>
           </div>
         </div>
@@ -1557,9 +1586,9 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
               className="close-workspace-btn"
               onClick={() => {
                 setAiMode('brainstorm');
-                showAlert(userLanguage === 'id' ? 'Mode Brainstorm aktif' : 'Brainstorm Mode active', 'info');
+                showAlert(userLanguage === 'zh' ? '头脑风暴模式已激活' : userLanguage === 'id' ? 'Mode Brainstorm aktif' : 'Brainstorm Mode active', 'info');
               }}
-              title={userLanguage === 'id' ? 'Tutup Workspace' : 'Close Workspace'}
+              title={userLanguage === 'zh' ? '关闭工作区' : userLanguage === 'id' ? 'Tutup Workspace' : 'Close Workspace'}
             >
               ✕
             </button>
@@ -1582,7 +1611,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     type="button"
                     className="workspace-btn primary"
                     onClick={() => onNavigate?.('documents', activeFile.type)}
-                    title={userLanguage === 'id' ? 'Buka di Editor Penuh' : 'Open in Full Editor'}
+                    title={userLanguage === 'zh' ? '在完整编辑器中打开' : userLanguage === 'id' ? 'Buka di Editor Penuh' : 'Open in Full Editor'}
                   >
                     <i className="fas fa-external-link-alt"></i>
                   </button>
@@ -1590,18 +1619,18 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     type="button"
                     className="workspace-btn danger"
                     onClick={async () => {
-                      if (window.confirm(userLanguage === 'id' ? `Hapus berkas "${activeFile.name}"?` : `Delete file "${activeFile.name}"?`)) {
+                      if (window.confirm(userLanguage === 'zh' ? `删除文件 "${activeFile.name}"？` : userLanguage === 'id' ? `Hapus berkas "${activeFile.name}"?` : `Delete file "${activeFile.name}"?`)) {
                         try {
                           await fetch(`/api/cloud/files/${activeFile.id}`, { method: 'DELETE', credentials: 'include' });
                           setActiveFile(null);
                           fetchWorkspaceFiles();
-                          showAlert(userLanguage === 'id' ? 'Berkas dihapus' : 'File deleted', 'info');
+                          showAlert(userLanguage === 'zh' ? '文件已删除' : userLanguage === 'id' ? 'Berkas dihapus' : 'File deleted', 'info');
                         } catch (err) {
                           console.error(err);
                         }
                       }
                     }}
-                    title={userLanguage === 'id' ? 'Hapus Berkas' : 'Delete File'}
+                    title={userLanguage === 'zh' ? '删除文件' : userLanguage === 'id' ? 'Hapus Berkas' : 'Delete File'}
                   >
                     <i className="fas fa-trash"></i>
                   </button>
@@ -1668,9 +1697,11 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
           ) : (
             <div className="workspace-no-active-file">
               <i className="fas fa-file-signature" style={{ fontSize: 32, color: '#94a3b8', marginBottom: 12 }}></i>
-              <p>{userLanguage === 'id' ? 'Belum ada berkas aktif.' : 'No active file.'}</p>
+              <p>{userLanguage === 'zh' ? '暂无活动文件。' : userLanguage === 'id' ? 'Belum ada berkas aktif.' : 'No active file.'}</p>
               <span className="help-text">
-                {userLanguage === 'id'
+                {userLanguage === 'zh'
+                  ? '使用命令 `/buatfile [名称]` 或在下方选择文件开始自动编辑。'
+                  : userLanguage === 'id'
                   ? 'Gunakan perintah `/buatfile [nama]` atau pilih salah satu berkas di bawah untuk mulai menyunting secara otomatis.'
                   : 'Use `/buatfile [name]` or select a file below to start editing.'}
               </span>
@@ -1696,13 +1727,13 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
           <div className="workspace-file-manager">
             <h4>
               <i className="fas fa-folder-open" style={{ marginRight: 6, color: '#ea580c' }}></i>
-              {userLanguage === 'id' ? 'Berkas Workspace' : 'Workspace Files'}
+              {userLanguage === 'zh' ? '工作区文件' : userLanguage === 'id' ? 'Berkas Workspace' : 'Workspace Files'}
             </h4>
 
             <div className="workspace-search-box">
               <input
                 type="text"
-                placeholder={userLanguage === 'id' ? 'Cari file...' : 'Search files...'}
+                placeholder={userLanguage === 'zh' ? '搜索文件...' : userLanguage === 'id' ? 'Cari file...' : 'Search files...'}
                 value={workspaceSearch}
                 onChange={(e) => setWorkspaceSearch(e.target.value)}
               />
@@ -1728,7 +1759,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                 ))}
               {workspaceFiles.length === 0 && (
                 <div className="empty-files-text">
-                  {userLanguage === 'id' ? 'Belum ada berkas.' : 'No files found.'}
+                  {userLanguage === 'zh' ? '未找到文件。' : userLanguage === 'id' ? 'Belum ada berkas.' : 'No files found.'}
                 </div>
               )}
             </div>
@@ -1742,6 +1773,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
         onClose={() => setShowGlobalMemorySettings(false)}
         isAuthenticated={isAuthenticated}
         isGuest={isGuest}
+        userLanguage={userLanguage}
       />
 
       {/* Connection Error Modal */}
@@ -1750,7 +1782,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
           <div className="connection-error-modal-box" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={() => setShowConnectionErrorModal(false)}>✕</button>
             <div className="modal-icon-badge">📡</div>
-            <h3 className="modal-error-title">{userLanguage === 'id' ? 'Koneksi Terputus' : 'Connection Interrupted'}</h3>
+            <h3 className="modal-error-title">{userLanguage === 'zh' ? '连接已中断' : userLanguage === 'id' ? 'Koneksi Terputus' : 'Connection Interrupted'}</h3>
             <p className="modal-error-description">{connectionErrorMessage}</p>
             <div className="modal-action-row">
               <button className="modal-dismiss-btn" onClick={() => setShowConnectionErrorModal(false)}>
@@ -1771,7 +1803,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
               <div className="reasoning-brain-icon">🧠</div>
               <div className="reasoning-header-text">
                 <h3>Visual Reasoning & Flag Engine</h3>
-                <p>{userLanguage === 'id' ? 'Menganalisis payload gambar & menentukan intent AI...' : 'Analyzing image payload & determining AI intent...'}</p>
+                <p>{userLanguage === 'zh' ? '正在分析图像数据载荷并识别 AI 意图...' : userLanguage === 'id' ? 'Menganalisis payload gambar & menentukan intent AI...' : 'Analyzing image payload & determining AI intent...'}</p>
               </div>
             </div>
 
@@ -1793,21 +1825,21 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
             <div className="reasoning-steps-container">
               <div className={`reasoning-step-item ${reasoningStep >= 1 ? 'active' : ''}`}>
                 <span className="step-icon">{reasoningStep >= 1 ? '✅' : '🔍'}</span>
-                <span>{userLanguage === 'id' ? 'Inspeksi Visual Payload & Data Frame' : 'Visual Payload Inspection'}</span>
+                <span>{userLanguage === 'zh' ? '视觉载荷与数据帧检查' : userLanguage === 'id' ? 'Inspeksi Visual Payload & Data Frame' : 'Visual Payload Inspection'}</span>
               </div>
               <div className={`reasoning-step-item ${reasoningStep >= 2 ? 'active' : ''}`}>
                 <span className="step-icon">{reasoningStep >= 2 ? '✅' : '🤖'}</span>
-                <span>{userLanguage === 'id' ? 'Klasifikasi Intent (Edit ✏️ | Baca 👁️ | Referensi 🎨)' : 'Intent Classification (Edit ✏️ | Vision 👁️ | Ref 🎨)'}</span>
+                <span>{userLanguage === 'zh' ? '意图分类 (编辑 ✏️ | 识别 👁️ | 参考 🎨)' : userLanguage === 'id' ? 'Klasifikasi Intent (Edit ✏️ | Baca 👁️ | Referensi 🎨)' : 'Intent Classification (Edit ✏️ | Vision 👁️ | Ref 🎨)'}</span>
               </div>
               <div className={`reasoning-step-item ${reasoningStep >= 3 ? 'active' : ''}`}>
                 <span className="step-icon">{reasoningStep >= 3 ? '⚡' : '⏳'}</span>
-                <span>{userLanguage === 'id' ? 'Penetapan Flag & Eksekusi AI' : 'Flag Assignment & AI Execution'}</span>
+                <span>{userLanguage === 'zh' ? '设置标志并执行 AI' : userLanguage === 'id' ? 'Penetapan Flag & Eksekusi AI' : 'Flag Assignment & AI Execution'}</span>
               </div>
             </div>
 
             {reasoningDecision && (
               <div className="reasoning-decision-badge animate-pop">
-                <span className="decision-title">{userLanguage === 'id' ? 'FLAG DITETAPKAN' : 'FLAG SET'}</span>
+                <span className="decision-title">{userLanguage === 'zh' ? '标志已设定' : userLanguage === 'id' ? 'FLAG DITETAPKAN' : 'FLAG SET'}</span>
                 <div className="decision-value">{reasoningDecision}</div>
               </div>
             )}
@@ -1823,7 +1855,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
               <div className="camera-header-left">
                 <div className="camera-brand-badge">
                   <i className="fas fa-camera" style={{ color: '#ea580c', fontSize: '13px' }}></i>
-                  <span>{userLanguage === 'id' ? 'Kamera Deepernova AI' : 'Deepernova AI Camera'}</span>
+                  <span>{userLanguage === 'zh' ? 'Deepernova AI 相机' : userLanguage === 'id' ? 'Kamera Deepernova AI' : 'Deepernova AI Camera'}</span>
                 </div>
               </div>
 
@@ -1833,7 +1865,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     type="button"
                     className="camera-tool-btn flip-btn"
                     onClick={handleFlipCamera}
-                    title={userLanguage === 'id' ? 'Putar Kamera' : 'Flip Camera'}
+                    title={userLanguage === 'zh' ? '翻转相机' : userLanguage === 'id' ? 'Putar Kamera' : 'Flip Camera'}
                   >
                     <i className="fas fa-sync-alt"></i>
                   </button>
@@ -1855,7 +1887,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
               {cameraLoading && (
                 <div className="camera-loading-overlay">
                   <div className="camera-spinner"></div>
-                  <span>{userLanguage === 'id' ? 'Menyiapkan sensor kamera...' : 'Initializing camera sensor...'}</span>
+                  <span>{userLanguage === 'zh' ? '正在准备相机传感器...' : userLanguage === 'id' ? 'Menyiapkan sensor kamera...' : 'Initializing camera sensor...'}</span>
                 </div>
               )}
 
@@ -1868,21 +1900,21 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     className="camera-action-btn retry-btn"
                     onClick={() => startCameraStream(cameraFacingMode)}
                   >
-                    {userLanguage === 'id' ? 'Coba Lagi' : 'Try Again'}
+                    {userLanguage === 'zh' ? '重试' : userLanguage === 'id' ? 'Coba Lagi' : 'Try Again'}
                   </button>
                 </div>
               ) : capturedPhoto ? (
                 <div className="camera-preview-wrapper">
                   <img src={capturedPhoto} alt="Captured preview" className="camera-captured-img" />
                   <div className="camera-preview-badge">
-                    <span>✨ {userLanguage === 'id' ? 'Hasil Foto' : 'Photo Captured'}</span>
+                    <span>✨ {userLanguage === 'zh' ? '拍摄照片' : userLanguage === 'id' ? 'Hasil Foto' : 'Photo Captured'}</span>
                   </div>
                   {isCameraEnhancingHD && (
                     <div className="camera-hd-processing-overlay">
                       <div className="camera-spinner"></div>
                       <div className="hd-processing-text">
-                        <span>✨ Mengubah ke Ultra HD via Deepernova AI...</span>
-                        <small>Mempertahankan detail & meningkatkan ketajaman</small>
+                        <span>✨ {userLanguage === 'zh' ? '正在通过 Deepernova AI 增强至超清 HD...' : userLanguage === 'id' ? 'Mengubah ke Ultra HD via Deepernova AI...' : 'Enhancing to Ultra HD via Deepernova AI...'}</span>
+                        <small>{userLanguage === 'zh' ? '保留细节并提升画质清晰度' : userLanguage === 'id' ? 'Mempertahankan detail & meningkatkan ketajaman' : 'Preserving details & enhancing sharpness'}</small>
                       </div>
                     </div>
                   )}
@@ -1925,7 +1957,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     disabled={isCameraEnhancingHD}
                   >
                     <i className="fas fa-redo"></i>
-                    <span>{userLanguage === 'id' ? 'Foto Ulang' : 'Retake'}</span>
+                    <span>{userLanguage === 'zh' ? '重拍' : userLanguage === 'id' ? 'Foto Ulang' : 'Retake'}</span>
                   </button>
 
                   <button
@@ -1933,7 +1965,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     className={`camera-action-btn hd-enhance-btn ${isCameraEnhancingHD ? 'loading' : ''}`}
                     onClick={handleEnhanceCapturedPhotoHD}
                     disabled={isCameraEnhancingHD}
-                    title={userLanguage === 'id' ? 'Tingkatkan kualitas foto menjadi Ultra HD via Deepernova AI' : 'Enhance to Ultra HD via Deepernova AI'}
+                    title={userLanguage === 'zh' ? '通过 Deepernova AI 增强至超清 HD' : userLanguage === 'id' ? 'Tingkatkan kualitas foto menjadi Ultra HD via Deepernova AI' : 'Enhance to Ultra HD via Deepernova AI'}
                   >
                     {isCameraEnhancingHD ? (
                       <>
@@ -1943,7 +1975,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     ) : (
                       <>
                         <span className="hd-badge-glow">HD</span>
-                        <span>{userLanguage === 'id' ? 'Buat HD' : 'Make HD'}</span>
+                        <span>{userLanguage === 'zh' ? '生成超清' : userLanguage === 'id' ? 'Buat HD' : 'Make HD'}</span>
                       </>
                     )}
                   </button>
@@ -1955,7 +1987,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     disabled={isCameraEnhancingHD}
                   >
                     <i className="fas fa-check"></i>
-                    <span>{userLanguage === 'id' ? 'Gunakan Foto' : 'Use Photo'}</span>
+                    <span>{userLanguage === 'zh' ? '使用照片' : userLanguage === 'id' ? 'Gunakan Foto' : 'Use Photo'}</span>
                   </button>
                 </div>
               ) : (
@@ -1967,10 +1999,10 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                       window.imageUploadInput?.click();
                       handleCloseCamera();
                     }}
-                    title={userLanguage === 'id' ? 'Pilih dari Galeri' : 'Choose from Gallery'}
+                    title={userLanguage === 'zh' ? '从相册选择' : userLanguage === 'id' ? 'Pilih dari Galeri' : 'Choose from Gallery'}
                   >
                     <i className="fas fa-images"></i>
-                    <span>{userLanguage === 'id' ? 'Galeri' : 'Gallery'}</span>
+                    <span>{userLanguage === 'zh' ? '相册' : userLanguage === 'id' ? 'Galeri' : 'Gallery'}</span>
                   </button>
 
                   <button
@@ -1978,7 +2010,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     className="camera-shutter-btn"
                     onClick={handleCapturePhoto}
                     disabled={cameraLoading || !!cameraError}
-                    title={userLanguage === 'id' ? 'Ambil Foto' : 'Capture Photo'}
+                    title={userLanguage === 'zh' ? '拍照' : userLanguage === 'id' ? 'Ambil Foto' : 'Capture Photo'}
                   >
                     <div className="shutter-outer-ring">
                       <div className="shutter-inner-ring"></div>
@@ -1992,7 +2024,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     title={userLanguage === 'id' ? 'Putar Kamera' : 'Flip Camera'}
                   >
                     <i className="fas fa-sync-alt"></i>
-                    <span>{userLanguage === 'id' ? 'Putar' : 'Flip'}</span>
+                    <span>{userLanguage === 'zh' ? '翻转' : userLanguage === 'id' ? 'Putar' : 'Flip'}</span>
                   </button>
                 </div>
               )}
@@ -2013,6 +2045,7 @@ export const ChatAgenticRightPanel = React.memo(function ChatAgenticRightPanel({
   setAgenticActiveTab,
   agenticSteps,
   activeSources,
+  userLanguage = 'id',
 }) {
   if (!showAgenticPanel) return null;
 
@@ -2025,7 +2058,7 @@ export const ChatAgenticRightPanel = React.memo(function ChatAgenticRightPanel({
             className={`agentic-tab-btn ${agenticActiveTab === 'langkah' ? 'active' : ''}`}
             onClick={() => setAgenticActiveTab('langkah')}
           >
-            <span>Langkah</span>
+            <span>{userLanguage === 'zh' ? '执行步骤' : userLanguage === 'id' ? 'Langkah' : 'Steps'}</span>
             {agenticSteps.length > 0 && (
               <span className="agentic-tab-badge">{agenticSteps.length}</span>
             )}
@@ -2035,7 +2068,7 @@ export const ChatAgenticRightPanel = React.memo(function ChatAgenticRightPanel({
             className={`agentic-tab-btn ${agenticActiveTab === 'sumber' ? 'active' : ''}`}
             onClick={() => setAgenticActiveTab('sumber')}
           >
-            <span>Sumber</span>
+            <span>{userLanguage === 'zh' ? '参考来源' : userLanguage === 'id' ? 'Sumber' : 'Sources'}</span>
             {activeSources.length > 0 && (
               <span className="agentic-tab-badge">{activeSources.length}</span>
             )}
@@ -2060,8 +2093,8 @@ export const ChatAgenticRightPanel = React.memo(function ChatAgenticRightPanel({
                 <div className="empty-icon-circle">
                   <i className="fa-solid fa-list-check" style={{ color: '#ea580c' }}></i>
                 </div>
-                <h4>Belum Ada Langkah Aktif</h4>
-                <p>Langkah pemrosesan AI, penulisan kode, dan pembuatan artefak akan tampil di sini saat tugas dijalankan.</p>
+                <h4>{userLanguage === 'zh' ? '暂无活动步骤' : userLanguage === 'id' ? 'Belum Ada Langkah Aktif' : 'No Active Steps'}</h4>
+                <p>{userLanguage === 'zh' ? '任务运行时，AI 处理步骤、代码编写和构件生成将在此显示。' : userLanguage === 'id' ? 'Langkah pemrosesan AI, penulisan kode, dan pembuatan artefak akan tampil di sini saat tugas dijalankan.' : 'AI processing steps, code execution, and artifact generation will appear here during tasks.'}</p>
               </div>
             ) : (
               <div className="agentic-stepper-timeline">
@@ -2096,8 +2129,8 @@ export const ChatAgenticRightPanel = React.memo(function ChatAgenticRightPanel({
                 <div className="empty-icon-circle">
                   <i className="fa-solid fa-globe" style={{ color: '#ea580c' }}></i>
                 </div>
-                <h4>Tidak Ada Sumber Web</h4>
-                <p>Sumber referensi dari pencarian internet akan terdaftar di sini.</p>
+                <h4>{userLanguage === 'zh' ? '暂无网络来源' : userLanguage === 'id' ? 'Tidak Ada Sumber Web' : 'No Web Sources'}</h4>
+                <p>{userLanguage === 'zh' ? '来自互联网搜索的参考来源将在此列出。' : userLanguage === 'id' ? 'Sumber referensi dari pencarian internet akan terdaftar di sini.' : 'Internet search references will be listed here.'}</p>
               </div>
             ) : (
               <div className="agentic-sources-list">
@@ -2126,7 +2159,7 @@ export const ChatAgenticRightPanel = React.memo(function ChatAgenticRightPanel({
                         <span className="source-card-domain">{domain}</span>
                         <i className="fa-solid fa-arrow-up-right-from-square source-card-external"></i>
                       </div>
-                      <div className="source-card-headline">{source.title || source.source || 'Sumber Terpercaya'}</div>
+                      <div className="source-card-headline">{source.title || source.source || (userLanguage === 'zh' ? '可信来源' : userLanguage === 'id' ? 'Sumber Terpercaya' : 'Trusted Source')}</div>
                       {source.snippet && <div className="source-card-snippet">{source.snippet}</div>}
                     </a>
                   );

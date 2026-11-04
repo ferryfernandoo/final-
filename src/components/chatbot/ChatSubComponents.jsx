@@ -115,7 +115,7 @@ export const AutoRedirectCountdownCard = React.memo(({
           {targetConfig.badge}
         </span>
         <span style={{ fontSize: '11px', fontWeight: 700, color: targetConfig.accentColor }}>
-          {userLanguage === 'id' ? 'Tersedia di Studio' : 'Available in Studio'}
+          {userLanguage === 'zh' ? '可在工作室中使用' : userLanguage === 'id' ? 'Tersedia di Studio' : 'Available in Studio'}
         </span>
       </div>
 
@@ -181,7 +181,7 @@ export const AutoRedirectCountdownCard = React.memo(({
             boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
           }}
         >
-          <span>{userLanguage === 'id' ? 'Buka Sekarang' : 'Open Now'}</span>
+          <span>{userLanguage === 'zh' ? '立即打开' : userLanguage === 'id' ? 'Buka Sekarang' : 'Open Now'}</span>
           <i className="fas fa-arrow-right" style={{ fontSize: '10px' }}></i>
         </button>
         <button
@@ -198,7 +198,7 @@ export const AutoRedirectCountdownCard = React.memo(({
             cursor: 'pointer'
           }}
         >
-          {userLanguage === 'id' ? 'Tutup' : 'Dismiss'}
+          {userLanguage === 'zh' ? '关闭' : userLanguage === 'id' ? 'Tutup' : 'Dismiss'}
         </button>
       </div>
     </div>
@@ -256,7 +256,7 @@ export const SourceBubbleCarousel = React.memo(({ sources = [], language, onShow
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <i className="fa-solid fa-circle-nodes" style={{ color: '#4f46e5', fontSize: '13px' }}></i>
           <span style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary, #4b5563)' }}>
-            {language === 'id' ? 'Sumber Terverifikasi:' : 'Verified Sources:'}
+            {language === 'zh' ? '已验证来源:' : language === 'id' ? 'Sumber Terverifikasi:' : 'Verified Sources:'}
           </span>
           <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 700, background: 'rgba(99, 102, 241, 0.1)', padding: '1px 7px', borderRadius: '10px' }}>
             {safeSources.length}
@@ -282,7 +282,7 @@ export const SourceBubbleCarousel = React.memo(({ sources = [], language, onShow
               transition: 'all 0.2s',
             }}
           >
-            {language === 'id' ? 'Lihat Rincian' : 'See Details'} ➜
+            {language === 'zh' ? '查看详情' : language === 'id' ? 'Lihat Rincian' : 'See Details'} ➜
           </button>
         )}
       </div>
@@ -411,14 +411,14 @@ export const SourceBubbleCarousel = React.memo(({ sources = [], language, onShow
               <div
                 className="source-bubble show-all-bubble"
                 onClick={onShowAll}
-                title={language === 'id' ? 'Lihat Semua Sumber' : 'See All Sources'}
+                title={language === 'zh' ? '查看所有来源' : language === 'id' ? 'Lihat Semua Sumber' : 'See All Sources'}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="source-bubble-more-circle">
                   +{safeSources.length}
                 </div>
                 <span className="source-bubble-label" style={{ color: '#4f46e5', fontWeight: '700' }}>
-                  {language === 'id' ? 'Semua' : 'All'}
+                  {language === 'zh' ? '全部' : language === 'id' ? 'Semua' : 'All'}
                 </span>
               </div>
             )}
@@ -577,7 +577,7 @@ export const ReasoningSection = React.memo(({
             type="button"
             className="reasoning-copy-btn"
             onClick={handleCopy}
-            title={userLanguage === 'id' ? 'Salin pemikiran' : 'Copy thoughts'}
+            title={userLanguage === 'zh' ? '复制思考过程' : userLanguage === 'id' ? 'Salin pemikiran' : 'Copy thoughts'}
           >
             {copied ? '✓' : '📋'}
           </button>

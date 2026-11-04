@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Search, X, ExternalLink, ChevronLeft, ChevronRight, Zap, Code2, 
+import {
+  Search, X, ExternalLink, ChevronLeft, ChevronRight, Zap, Code2,
   Layers, Clock, ShieldCheck, Sparkles, Globe, BarChart2, Info, ArrowUpRight, Cpu,
   Image as ImageIcon, Copy, Check, Maximize2, Download, LayoutGrid, Eye, Newspaper, Compass,
   Menu, SlidersHorizontal, ChevronDown, CheckCircle2, BookOpen, Terminal, Landmark, TrendingUp, Calculator, Bookmark,
@@ -158,7 +158,7 @@ function CurrencyCardWidget({ data }) {
   const getX = (idx) => padding + (idx / Math.max(points.length - 1, 1)) * (svgWidth - padding * 2);
   const getY = (rate) => svgHeight - padding - ((rate - minRate) / range) * (svgHeight - padding * 2);
 
-  const pathD = points.length > 0 
+  const pathD = points.length > 0
     ? points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(p.rate)}`, '')
     : '';
 
@@ -202,7 +202,7 @@ function CurrencyCardWidget({ data }) {
       {/* Dual Interactive Input Boxes */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', marginBottom: '1.15rem' }}>
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.6rem 0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <input 
+          <input
             type="number"
             value={amountFrom}
             onChange={(e) => setAmountFrom(Math.max(0, parseFloat(e.target.value) || 0))}
@@ -331,8 +331,8 @@ function FinancialAssetCardWidget({ data }) {
 
   const formattedMainPrice = data.priceMain || (data.currency === 'IDR'
     ? `Rp ${Math.round(livePrice).toLocaleString('id-ID')}`
-    : (data.assetType === 'crypto' 
-      ? `Rp ${Math.round(livePrice * 17700).toLocaleString('id-ID')}` 
+    : (data.assetType === 'crypto'
+      ? `Rp ${Math.round(livePrice * 17700).toLocaleString('id-ID')}`
       : `$${livePrice.toLocaleString('id-ID')}`));
 
   const chartSeries = data.chartSeries || {};
@@ -358,7 +358,7 @@ function FinancialAssetCardWidget({ data }) {
   const getX = (idx) => padX + (idx / Math.max(points.length - 1, 1)) * (svgWidth - padX * 2);
   const getY = (rate) => svgHeight - padY - ((rate - minRate) / range) * (svgHeight - padY * 2);
 
-  const pathD = points.length > 0 
+  const pathD = points.length > 0
     ? points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(Number(p.price) || 0)}`, '')
     : '';
 
@@ -491,9 +491,9 @@ function SlimBiographyCardWidget({ data }) {
               background: '#e2e8f0',
               border: '1px solid #cbd5e1'
             }}>
-              <img 
-                src={data.photo} 
-                alt={data.title} 
+              <img
+                src={data.photo}
+                alt={data.title}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
               />
@@ -563,9 +563,9 @@ function SlimBiographyCardWidget({ data }) {
             </button>
           )}
           {data.sourceUrl && (
-            <a 
-              href={data.sourceUrl} 
-              target="_blank" 
+            <a
+              href={data.sourceUrl}
+              target="_blank"
               rel="noopener noreferrer"
               style={{
                 color: '#2563eb',
@@ -680,9 +680,9 @@ function SmartImageCard({ img, onSelect }) {
       <div className="image-card-caption">
         <div className="image-domain-line">
           {img.logoUrl ? (
-            <img 
-              src={img.logoUrl} 
-              alt="" 
+            <img
+              src={img.logoUrl}
+              alt=""
               className="image-domain-logo"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
@@ -758,7 +758,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     setTheme(nextTheme);
     try {
       localStorage.setItem('deepernova_search_theme', nextTheme);
-    } catch {}
+    } catch { }
   };
 
   // AI Overview Toggle (Instant mode vs Deep AI mode)
@@ -775,7 +775,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
       const next = !prev;
       try {
         localStorage.setItem('deepernova_ai_enabled', String(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -792,7 +792,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
       try {
         const saved = localStorage.getItem('deepernova_language');
         if (saved && ['id', 'en', 'zh'].includes(saved)) return saved;
-      } catch (_) {}
+      } catch (_) { }
     }
     return 'id';
   });
@@ -803,7 +803,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
       localStorage.setItem('deepernova_language', langCode);
       document.cookie = `deepernova_language=${langCode}; path=/; max-age=31536000; SameSite=Lax`;
       window.dispatchEvent(new CustomEvent('deepernova_language_changed', { detail: { language: langCode } }));
-    } catch (_) {}
+    } catch (_) { }
   };
 
   useEffect(() => {
@@ -838,7 +838,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch {}
+    } catch { }
     return [
       'deepernova ai',
       'deepseek',
@@ -861,10 +861,10 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
         })].slice(0, 15);
         try {
           localStorage.setItem('deepernova_search_history', JSON.stringify(filtered));
-        } catch {}
+        } catch { }
         return filtered;
       });
-    } catch {}
+    } catch { }
   };
 
   const handlePlusClick = () => {
@@ -1044,7 +1044,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Fetch search suggestions
@@ -1210,7 +1210,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                 clientSearchCache.current.set(imgKey, imgData);
               }
             })
-            .catch(() => {});
+            .catch(() => { });
         }
       }
     } catch (e) {
@@ -1364,7 +1364,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
           clientSearchCache.current.set(cacheKey, data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   };
 
   const handleSearchTypeChange = (typeId) => {
@@ -1592,8 +1592,8 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
   // Modern DeeperNova Search Input Form with Visual & Voice Search
   const renderSearchForm = (isHeaderMode = false) => (
-    <div 
-      ref={searchContainerRef} 
+    <div
+      ref={searchContainerRef}
       className={`dn-search-form-wrap ${isHeaderMode ? 'in-header' : 'in-hero'}`}
       onClick={() => {
         if (!isHeaderMode && !isSearchFocused) {
@@ -1605,7 +1605,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     >
       <form onSubmit={handleSubmit} className="dn-search-form">
         <div className={`dn-search-bar ${isHeaderMode ? 'is-header-bar google-header-bar' : 'is-hero-bar'} ${showSuggestions && suggestions.length > 0 ? 'has-dropdown' : ''} ${isListening ? 'listening-pulse' : ''}`}>
-          
+
           {/* Left Icon: In header mode, clean '+' button; in hero mode, clickable Search icon */}
           {isHeaderMode ? (
             <button
@@ -1895,7 +1895,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             </button>
 
             {/* QoS 10-Second Search Deadline Indicator */}
-            <div 
+            <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1915,7 +1915,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
               <span>Maks 10s</span>
             </div>
             {showCrawlerLiveBadge && telemetry?.crawler?.state === 'RUNNING' && (
-              <div 
+              <div
                 className="crawler-live-pill"
                 onClick={onSwitchToAdmin}
                 style={{
@@ -1941,8 +1941,8 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             )}
 
             {onSwitchToAdmin && isLocalOrAdmin && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={onSwitchToAdmin}
                 className="admin-switch-btn"
                 title="Buka panel Admin Crawler & Database"
@@ -2140,17 +2140,17 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
           <section className="search-results-section">
             {/* TAB: News Mode */}
             {searchType === 'news' && (
-              <NewsTab 
-                query={query} 
+              <NewsTab
+                query={query}
                 onSelectNews={(article) => {
                   if (article && article.url) window.open(article.url, '_blank', 'noopener,noreferrer');
-                }} 
+                }}
               />
             )}
 
             {/* TAB: Economics Mode */}
             {searchType === 'economics' && (
-              <EconomicsTab 
+              <EconomicsTab
                 query={query}
                 onSelectAsset={(asset) => {
                   if (asset && asset.query) {
@@ -2163,7 +2163,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
             {/* TAB: API Portal Mode */}
             {searchType === 'api' && (
-              <ApiPortalTab 
+              <ApiPortalTab
                 activeQuery={query}
                 onTestQuery={(sampleQ) => {
                   setQuery(sampleQ);
@@ -2189,7 +2189,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                     color: 'var(--text-muted, #64748b)'
                   }}>
                     <span>
-                      Sekitar {resultsData.total || (resultsData.results ? resultsData.results.length : 0)} hasil 
+                      Sekitar {resultsData.total || (resultsData.results ? resultsData.results.length : 0)} hasil
                       {resultsData.durationMs ? ` (${(resultsData.durationMs / 1000).toFixed(2)} detik)` : ''}
                     </span>
                     <span style={{
@@ -2231,8 +2231,8 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                         </div>
                         <div>
                           Pencarian selesai dalam batas maksimal 10 detik per sesi untuk menjaga server tetap super cepat dan mencegah beban berlebih.
-                          {resultsData.results && resultsData.results.length > 0 
-                            ? ' Menampilkan hasil terbaik yang berhasil dikumpulkan.' 
+                          {resultsData.results && resultsData.results.length > 0
+                            ? ' Menampilkan hasil terbaik yang berhasil dikumpulkan.'
                             : ' Belum ada hasil dalam jendela 10 detik. Silakan coba kata kunci yang lebih spesifik.'}
                         </div>
                       </div>
@@ -2259,9 +2259,9 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                   {/* Ringkasan Cerdas DeeperNova AI Overview (Powered by Real AI) */}
                   {aiOverviewEnabled && (
                     <ErrorBoundary fallback={null}>
-                      <AiOverview 
-                        query={resultsData.query || query} 
-                        results={resultsData.results || []} 
+                      <AiOverview
+                        query={resultsData.query || query}
+                        results={resultsData.results || []}
                         currentLang={currentLang}
                       />
                     </ErrorBoundary>
@@ -2272,8 +2272,8 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                     <>
                       <div className={`search-results-list ${loading ? 'is-refreshing-results' : ''}`}>
                         {resultsData.results.map((item, idx) => (
-                          <article 
-                            key={`${resultsData.query || query}_${item.id || item.url || idx}`} 
+                          <article
+                            key={`${resultsData.query || query}_${item.id || item.url || idx}`}
                             className="search-result-card"
                             style={{ animationDelay: `${Math.min(idx, 15) * 35}ms`, touchAction: 'pan-y' }}
                             onClick={(e) => {
@@ -2286,9 +2286,9 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                                 <div className="result-header-row">
                                   <div className="domain-favicon-wrapper">
                                     {item.logoUrl ? (
-                                      <img 
-                                        src={item.logoUrl} 
-                                        alt="" 
+                                      <img
+                                        src={item.logoUrl}
+                                        alt=""
                                         className="domain-logo-img"
                                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                       />
@@ -2306,7 +2306,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                                   </a>
                                 </h2>
 
-                                <p 
+                                <p
                                   className="result-snippet-text"
                                   dangerouslySetInnerHTML={{
                                     __html: item.snippet || item.description || ''
@@ -2316,9 +2316,9 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
                               {item.leadImageUrl && (
                                 <div className="result-lead-thumbnail-wrap">
-                                  <img 
-                                    src={item.leadImageUrl} 
-                                    alt="" 
+                                  <img
+                                    src={item.leadImageUrl}
+                                    alt=""
                                     className="result-lead-img"
                                     onError={(e) => {
                                       if (!e.currentTarget.dataset.proxied) {
@@ -2371,13 +2371,13 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                         {resultsData.timedOut ? <Clock size={32} style={{ color: '#d97706' }} /> : <Search size={32} />}
                       </div>
                       <h3>
-                        {resultsData.timedOut 
-                          ? 'Batas Waktu 10 Detik Tercapai' 
+                        {resultsData.timedOut
+                          ? 'Batas Waktu 10 Detik Tercapai'
                           : `Tidak ada hasil yang ditemukan untuk "${query}"`}
                       </h3>
                       <p>
-                        {resultsData.timedOut 
-                          ? 'Pencarian dihentikan pada batas 10 detik demi menjaga performa server tetap responsif untuk semua pengguna. Silakan coba kata kunci yang lebih spesifik.' 
+                        {resultsData.timedOut
+                          ? 'Pencarian dihentikan pada batas 10 detik demi menjaga performa server tetap responsif untuk semua pengguna. Silakan coba kata kunci yang lebih spesifik.'
                           : 'Coba gunakan kata kunci yang lebih umum, periksa ejaan, atau gunakan kata kunci lain.'}
                       </p>
                     </div>
@@ -2449,8 +2449,8 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             {/* TAB 3: JSON Inspector */}
             {viewMode === 'json' && resultsData && (
               <div className="json-inspector-section">
-                <JsonViewer 
-                  data={resultsData} 
+                <JsonViewer
+                  data={resultsData}
                   title={`API Response: /api/search?q=${encodeURIComponent(resultsData.query || query)}&type=${searchType}`}
                 />
               </div>

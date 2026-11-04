@@ -14,12 +14,12 @@ const GalleryItem = ({ image, onClick, userLanguage }) => {
       {isError ? (
         <div className="broken-image-placeholder">
           <span style={{ fontSize: '20px', marginBottom: '4px' }}>⚠️</span>
-          <span>{userLanguage === 'id' ? 'Gambar Rusak' : 'Broken Image'}</span>
+          <span>{userLanguage === 'zh' ? '图片损坏' : userLanguage === 'id' ? 'Gambar Rusak' : 'Broken Image'}</span>
         </div>
       ) : (
         <img 
           src={image.imageUrl} 
-          alt={userLanguage === 'id' ? 'Gambar tersimpan' : 'Saved image'} 
+          alt={userLanguage === 'zh' ? '已保存图片' : userLanguage === 'id' ? 'Gambar tersimpan' : 'Saved image'} 
           onError={() => setIsError(true)}
         />
       )}
@@ -34,7 +34,7 @@ const DetailImage = ({ src, prompt, userLanguage }) => {
     return (
       <div className="broken-detail-placeholder" style={{ width: '100%', height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '8px', color: '#94a3b8', border: '1px dashed #cbd5e1', marginBottom: '16px' }}>
         <span style={{ fontSize: '24px', marginBottom: '6px' }}>⚠️</span>
-        <span style={{ fontSize: '12px' }}>{userLanguage === 'id' ? 'Gagal memuat gambar' : 'Failed to load image'}</span>
+        <span style={{ fontSize: '12px' }}>{userLanguage === 'zh' ? '加载图片失败' : userLanguage === 'id' ? 'Gagal memuat gambar' : 'Failed to load image'}</span>
       </div>
     );
   }
@@ -49,16 +49,16 @@ const DetailImage = ({ src, prompt, userLanguage }) => {
   );
 };
 
-const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user }) => {
+const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user, userLanguage: propLanguage }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [userLanguage, setUserLanguage] = useState('id');
+  const [userLanguage, setUserLanguage] = useState(() => propLanguage || (typeof window !== 'undefined' ? (window.__DEEPERNOVA_CURRENT_LANG__ || localStorage.getItem('deepernova_language')) : 'id') || 'id');
 
   // Fetch saved images when panel opens (works for BOTH local mode and logged-in mode)
   useEffect(() => {
-    const lang = localStorage.getItem('deepernova_language') || 'id';
+    const lang = propLanguage || (typeof window !== 'undefined' ? (window.__DEEPERNOVA_CURRENT_LANG__ || localStorage.getItem('deepernova_language')) : 'id') || 'id';
     setUserLanguage(lang);
 
     if (isOpen) {
@@ -91,7 +91,7 @@ const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user }) => {
   };
 
   const handleDelete = async (imageId) => {
-    if (!window.confirm(userLanguage === 'id' ? 'Hapus gambar ini?' : 'Delete this image?')) {
+    if (!window.confirm(userLanguage === 'zh' ? '确定删除此图片吗？' : userLanguage === 'id' ? 'Hapus gambar ini?' : 'Delete this image?')) {
       return;
     }
 
@@ -114,7 +114,7 @@ const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user }) => {
       <div className="saved-images-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="saved-images-header">
-          <h2>{userLanguage === 'id' ? '🖼️ Gambar Saya' : '🖼️ My Images'}</h2>
+          <h2>{userLanguage === 'zh' ? '🖼️ 我的图库' : userLanguage === 'id' ? '🖼️ Gambar Saya' : '🖼️ My Images'}</h2>
           <button className="close-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
@@ -123,20 +123,20 @@ const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user }) => {
           {loading ? (
             <div className="loading-state">
               <div className="spinner"></div>
-              <p>{userLanguage === 'id' ? 'Memuat gambar...' : 'Loading images...'}</p>
+              <p>{userLanguage === 'zh' ? '正在加载图片...' : userLanguage === 'id' ? 'Memuat gambar...' : 'Loading images...'}</p>
             </div>
           ) : error ? (
             <div className="error-state">
               <p>❌ {error}</p>
               <button onClick={fetchSavedImages} className="retry-btn">
-                {userLanguage === 'id' ? 'Coba Lagi' : 'Retry'}
+                {userLanguage === 'zh' ? '重试' : userLanguage === 'id' ? 'Coba Lagi' : 'Retry'}
               </button>
             </div>
           ) : images.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon" role="img" aria-label="No images">📷</div>
               <p className="empty-text">
-                {userLanguage === 'id' ? 'Belum ada gambar yang disimpan.' : 'No saved images found.'}
+                {userLanguage === 'zh' ? '暂无已保存的图片。' : userLanguage === 'id' ? 'Belum ada gambar yang disimpan.' : 'No saved images found.'}
               </p>
             </div>
           ) : (
@@ -160,7 +160,7 @@ const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user }) => {
               <div className="lightbox-content" onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: '12px', padding: '20px', width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', border: '1px solid #f1f5f9' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
                   <h3 style={{ margin: 0, fontSize: '14px', color: '#1e293b', fontWeight: 600 }}>
-                    {userLanguage === 'id' ? 'Detail Gambar' : 'Image Details'}
+                    {userLanguage === 'zh' ? '图片详情' : userLanguage === 'id' ? 'Detail Gambar' : 'Image Details'}
                   </h3>
                   <button 
                     onClick={() => setSelectedImage(null)}
@@ -180,7 +180,7 @@ const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user }) => {
 
                 <div className="detail-info">
                   <h4 style={{ margin: '0 0 6px 0', fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {userLanguage === 'id' ? 'Deskripsi Prompt' : 'Prompt Description'}
+                    {userLanguage === 'zh' ? '提示词描述' : userLanguage === 'id' ? 'Deskripsi Prompt' : 'Prompt Description'}
                   </h4>
                   <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: '#334155', background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', wordBreak: 'break-word', maxHeight: '80px', overflowY: 'auto' }}>
                     {selectedImage.prompt}
@@ -192,13 +192,13 @@ const SavedImagesGallery = ({ isOpen, onClose, isAuthenticated, user }) => {
                     onClick={() => handleDownload(selectedImage)}
                     style={{ padding: '8px 14px', background: '#ff6b00', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
-                    ⬇️ {userLanguage === 'id' ? 'Unduh' : 'Download'}
+                    ⬇️ {userLanguage === 'zh' ? '下载' : userLanguage === 'id' ? 'Unduh' : 'Download'}
                   </button>
                   <button 
                     onClick={() => handleDelete(selectedImage.id)}
                     style={{ padding: '8px 14px', background: '#fff', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                   >
-                    🗑️ {userLanguage === 'id' ? 'Hapus' : 'Delete'}
+                    🗑️ {userLanguage === 'zh' ? '删除' : userLanguage === 'id' ? 'Hapus' : 'Delete'}
                   </button>
                 </div>
               </div>

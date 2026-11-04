@@ -53,7 +53,7 @@ export const ChatSidebar = React.memo(({
           <div
             className="lp-brand meta-sidebar-brand"
             onClick={() => onNavigate?.('landing')}
-            title={userLanguage === 'id' ? 'Kembali ke Beranda' : 'Return to Home'}
+            title={userLanguage === 'zh' ? '返回首页' : userLanguage === 'id' ? 'Kembali ke Beranda' : 'Return to Home'}
           >
             <img src="/logo.png" alt="Deepernova AI" className="lp-brand-icon meta-sidebar-brand-icon" />
             <div className="lp-brand-text meta-sidebar-brand-text">
@@ -66,7 +66,7 @@ export const ChatSidebar = React.memo(({
             type="button"
             className="meta-sidebar-collapse-btn"
             onClick={() => setSidebarOpen(false)}
-            title={userLanguage === 'id' ? 'Tutup sidebar' : 'Collapse sidebar'}
+            title={userLanguage === 'zh' ? '收起侧边栏' : userLanguage === 'id' ? 'Tutup sidebar' : 'Collapse sidebar'}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -82,14 +82,14 @@ export const ChatSidebar = React.memo(({
             type="button"
             className="meta-sidebar-nav-btn"
             onClick={createNewConversation}
-            title="Mulai percakapan baru (Ctrl+Shift+O)"
+            title={userLanguage === 'zh' ? '开始新对话 (Ctrl+Shift+O)' : userLanguage === 'id' ? 'Mulai percakapan baru (Ctrl+Shift+O)' : 'Start new conversation (Ctrl+Shift+O)'}
           >
             <div className="meta-nav-left-content">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
-              <span>{userLanguage === 'id' ? 'New chat' : 'New chat'}</span>
+              <span>{userLanguage === 'zh' ? '新建对话' : userLanguage === 'id' ? 'New chat' : 'New chat'}</span>
             </div>
             <span className="meta-nav-shortcut">Ctrl+Shift+O</span>
           </button>
@@ -105,14 +105,14 @@ export const ChatSidebar = React.memo(({
                 if (el) el.focus();
               }, 60);
             }}
-            title="Cari riwayat (Ctrl+K)"
+            title={userLanguage === 'zh' ? '搜索历史 (Ctrl+K)' : userLanguage === 'id' ? 'Cari riwayat (Ctrl+K)' : 'Search history (Ctrl+K)'}
           >
             <div className="meta-nav-left-content">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <span>{userLanguage === 'id' ? 'Search' : 'Search'}</span>
+              <span>{userLanguage === 'zh' ? '搜索' : userLanguage === 'id' ? 'Search' : 'Search'}</span>
             </div>
             <span className="meta-nav-shortcut">Ctrl+K</span>
           </button>
@@ -122,7 +122,7 @@ export const ChatSidebar = React.memo(({
             <div className="meta-sidebar-search-box">
               <input
                 type="text"
-                placeholder={userLanguage === 'id' ? "Cari obrolan..." : "Search chats..."}
+                placeholder={userLanguage === 'zh' ? "搜索对话..." : userLanguage === 'id' ? "Cari obrolan..." : "Search chats..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
@@ -138,7 +138,7 @@ export const ChatSidebar = React.memo(({
             type="button"
             className="meta-sidebar-nav-btn"
             onClick={() => onNavigate?.('universe')}
-            title="Deepernova Universe (Ekosistem Aplikasi & Produktivitas)"
+            title={userLanguage === 'zh' ? 'Deepernova Universe (应用与创作生态)' : userLanguage === 'id' ? 'Deepernova Universe (Ekosistem Aplikasi & Produktivitas)' : 'Deepernova Universe (Apps & Ecosystem)'}
           >
             <div className="meta-nav-left-content">
               <img
@@ -146,7 +146,7 @@ export const ChatSidebar = React.memo(({
                 alt="Universe"
                 style={{ width: 18, height: 18, objectFit: 'contain' }}
               />
-              <span>{userLanguage === 'id' ? 'Universe' : 'Universe'}</span>
+              <span>{userLanguage === 'zh' ? 'Universe 生态' : userLanguage === 'id' ? 'Universe' : 'Universe'}</span>
             </div>
           </button>
 
@@ -155,7 +155,7 @@ export const ChatSidebar = React.memo(({
             type="button"
             className="meta-sidebar-nav-btn"
             onClick={() => setShowSavedImagesGallery(true)}
-            title="Galeri Media & Foto AI"
+            title={userLanguage === 'zh' ? '媒体相册与 AI 照片' : userLanguage === 'id' ? 'Galeri Media & Foto AI' : 'Media Gallery & AI Photos'}
           >
             <div className="meta-nav-left-content">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
@@ -163,7 +163,7 @@ export const ChatSidebar = React.memo(({
                 <circle cx="8.5" cy="8.5" r="1.5"></circle>
                 <polyline points="21 15 16 10 5 21"></polyline>
               </svg>
-              <span>{userLanguage === 'id' ? 'Media' : 'Media'}</span>
+              <span>{userLanguage === 'zh' ? '媒体相册' : userLanguage === 'id' ? 'Media' : 'Media'}</span>
             </div>
           </button>
 
@@ -175,7 +175,7 @@ export const ChatSidebar = React.memo(({
               setShowAgenticPanel(true);
               setAgenticActiveTab('langkah');
             }}
-            title="Artefak & Kode AI"
+            title={userLanguage === 'zh' ? '构件与 AI 代码' : userLanguage === 'id' ? 'Artefak & Kode AI' : 'Artifacts & AI Code'}
           >
             <div className="meta-nav-left-content">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
@@ -184,7 +184,7 @@ export const ChatSidebar = React.memo(({
                 <rect x="14" y="14" width="7" height="7"></rect>
                 <rect x="3" y="14" width="7" height="7"></rect>
               </svg>
-              <span>{userLanguage === 'id' ? 'Artifacts' : 'Artifacts'}</span>
+              <span>{userLanguage === 'zh' ? '构件产物' : userLanguage === 'id' ? 'Artifacts' : 'Artifacts'}</span>
             </div>
           </button>
 
@@ -201,7 +201,7 @@ export const ChatSidebar = React.memo(({
                 3500
               );
             }}
-            title="Jadwal & Pengingat AI"
+            title={userLanguage === 'zh' ? '日程与提醒' : userLanguage === 'id' ? 'Jadwal & Pengingat AI' : 'Scheduled & Reminders'}
           >
             <div className="meta-nav-left-content">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
@@ -210,7 +210,7 @@ export const ChatSidebar = React.memo(({
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
-              <span>{userLanguage === 'id' ? 'Scheduled' : 'Scheduled'}</span>
+              <span>{userLanguage === 'zh' ? '日程计划' : userLanguage === 'id' ? 'Scheduled' : 'Scheduled'}</span>
             </div>
           </button>
 
@@ -220,7 +220,7 @@ export const ChatSidebar = React.memo(({
               type="button"
               className={`meta-sidebar-nav-btn ${showSidebarMoreMenu ? 'active' : ''}`}
               onClick={() => setShowSidebarMoreMenu(!showSidebarMoreMenu)}
-              title="Menu Lainnya"
+              title={userLanguage === 'zh' ? '更多菜单' : userLanguage === 'id' ? 'Menu Lainnya' : 'More Menu'}
             >
               <div className="meta-nav-left-content">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
@@ -228,7 +228,7 @@ export const ChatSidebar = React.memo(({
                   <circle cx="19" cy="12" r="1.5"></circle>
                   <circle cx="5" cy="12" r="1.5"></circle>
                 </svg>
-                <span>{userLanguage === 'id' ? 'More' : 'More'}</span>
+                <span>{userLanguage === 'zh' ? '更多' : userLanguage === 'id' ? 'More' : 'More'}</span>
               </div>
             </button>
 
@@ -243,7 +243,7 @@ export const ChatSidebar = React.memo(({
                   }}
                 >
                   <i className="fa-solid fa-cloud-bolt"></i>
-                  <span>AI & API Platforms</span>
+                  <span>{userLanguage === 'zh' ? '开发者 API 平台' : 'AI & API Platforms'}</span>
                 </button>
                 <button
                   type="button"
@@ -254,7 +254,7 @@ export const ChatSidebar = React.memo(({
                   }}
                 >
                   <i className="fa-solid fa-masks-theater"></i>
-                  <span>{userLanguage === 'id' ? 'Kepribadian AI' : 'AI Personality'}</span>
+                  <span>{userLanguage === 'zh' ? 'AI 性格设定' : userLanguage === 'id' ? 'Kepribadian AI' : 'AI Personality'}</span>
                 </button>
                 <button
                   type="button"
@@ -265,7 +265,7 @@ export const ChatSidebar = React.memo(({
                   }}
                 >
                   <i className="fa-solid fa-user-shield"></i>
-                  <span>{userLanguage === 'id' ? 'Obrolan Privat' : 'Private Chat'}</span>
+                  <span>{userLanguage === 'zh' ? '隐私对话' : userLanguage === 'id' ? 'Obrolan Privat' : 'Private Chat'}</span>
                 </button>
                 <button
                   type="button"
@@ -276,7 +276,7 @@ export const ChatSidebar = React.memo(({
                   }}
                 >
                   <i className="fa-solid fa-dna"></i>
-                  <span>{userLanguage === 'id' ? 'Fine-Tune & Memori' : 'Fine-Tune & Memory'}</span>
+                  <span>{userLanguage === 'zh' ? '微调与记忆库' : userLanguage === 'id' ? 'Fine-Tune & Memori' : 'Fine-Tune & Memory'}</span>
                 </button>
                 <div className="meta-more-dropdown-divider"></div>
                 <button
@@ -288,7 +288,7 @@ export const ChatSidebar = React.memo(({
                   }}
                 >
                   <i className="fa-solid fa-gear"></i>
-                  <span>{userLanguage === 'id' ? 'Pengaturan' : 'Settings'}</span>
+                  <span>{userLanguage === 'zh' ? '系统设置' : userLanguage === 'id' ? 'Pengaturan' : 'Settings'}</span>
                 </button>
               </div>
             )}
@@ -297,7 +297,7 @@ export const ChatSidebar = React.memo(({
 
         {/* Section: History Header */}
         <div className="meta-sidebar-section-header">
-          <span>{userLanguage === 'id' ? 'History' : 'History'}</span>
+          <span>{userLanguage === 'zh' ? '历史会话' : userLanguage === 'id' ? 'History' : 'History'}</span>
         </div>
 
         {/* History Scroll Area */}
@@ -305,11 +305,11 @@ export const ChatSidebar = React.memo(({
           {searchQuery.trim() ? (
             <div className="search-results-list">
               <div className="search-results-header">
-                {userLanguage === 'id' ? `Hasil pencarian (${searchResults.length})` : `Search results (${searchResults.length})`}
+                {userLanguage === 'zh' ? `搜索结果 (${searchResults.length})` : userLanguage === 'id' ? `Hasil pencarian (${searchResults.length})` : `Search results (${searchResults.length})`}
               </div>
               {searchResults.length === 0 ? (
                 <div className="search-results-empty">
-                  {userLanguage === 'id' ? 'Tidak ditemukan pesan' : 'No messages found'}
+                  {userLanguage === 'zh' ? '未找到相关消息' : userLanguage === 'id' ? 'Tidak ditemukan pesan' : 'No messages found'}
                 </div>
               ) : (
                 searchResults.map((result, idx) => {
@@ -325,7 +325,7 @@ export const ChatSidebar = React.memo(({
                       onClick={() => handleSearchResultClick(result.conversationId, result.messageId)}
                     >
                       <div className="result-conv-title">{result.conversationTitle}</div>
-                      <div className="result-sender">{result.sender === 'user' ? '👤 Anda' : '🤖 AI'}</div>
+                      <div className="result-sender">{result.sender === 'user' ? (userLanguage === 'zh' ? '👤 您' : userLanguage === 'id' ? '👤 Anda' : '👤 You') : '🤖 AI'}</div>
                       <div className="result-snippet">
                         {snippet.split(new RegExp(`(${searchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi')).map((part, i) =>
                           part.toLowerCase() === searchQuery.toLowerCase() ? (
@@ -346,17 +346,17 @@ export const ChatSidebar = React.memo(({
                 </svg>
               </div>
               <div className="meta-empty-chat-main-text">
-                {userLanguage === 'id' ? 'Belum ada obrolan' : 'No conversations yet'}
+                {userLanguage === 'zh' ? '暂无对话记录' : userLanguage === 'id' ? 'Belum ada obrolan' : 'No conversations yet'}
               </div>
               <div className="meta-empty-chat-sub-text">
-                {userLanguage === 'id' ? 'Mulai obrolan dengan DeeperNova AI' : 'Start a conversation with DeeperNova AI'}
+                {userLanguage === 'zh' ? '开始与 DeeperNova AI 对话' : userLanguage === 'id' ? 'Mulai obrolan dengan DeeperNova AI' : 'Start a conversation with DeeperNova AI'}
               </div>
               <button
                 type="button"
                 className="meta-empty-chat-btn"
                 onClick={createNewConversation}
               >
-                {userLanguage === 'id' ? 'Obrolan baru' : 'New chat'}
+                {userLanguage === 'zh' ? '新建对话' : userLanguage === 'id' ? 'Obrolan baru' : 'New chat'}
               </button>
             </div>
           ) : (
@@ -377,7 +377,7 @@ export const ChatSidebar = React.memo(({
                       e.stopPropagation();
                       deleteConversation(conv.id);
                     }}
-                    title="Hapus percakapan"
+                    title={userLanguage === 'zh' ? '删除会话' : userLanguage === 'id' ? 'Hapus percakapan' : 'Delete conversation'}
                   >
                     <i className="fa-regular fa-trash-can"></i>
                   </button>
@@ -440,7 +440,7 @@ export const ChatSidebar = React.memo(({
                 }}
               >
                 <i className="fa-solid fa-gear"></i>
-                <span>{userLanguage === 'id' ? 'Pengaturan Akun' : 'Account Settings'}</span>
+                <span>{userLanguage === 'zh' ? '账户设置' : userLanguage === 'id' ? 'Pengaturan Akun' : 'Account Settings'}</span>
               </button>
               <button
                 type="button"
@@ -451,7 +451,7 @@ export const ChatSidebar = React.memo(({
                 }}
               >
                 <i className="fa-solid fa-house"></i>
-                <span>{userLanguage === 'id' ? 'Kembali ke Beranda' : 'Back to Home'}</span>
+                <span>{userLanguage === 'zh' ? '返回首页' : userLanguage === 'id' ? 'Kembali ke Beranda' : 'Back to Home'}</span>
               </button>
               {isAuthenticated && !isGuest && (
                 <>
@@ -464,7 +464,7 @@ export const ChatSidebar = React.memo(({
                     }}
                   >
                     <i className="fa-solid fa-triangle-exclamation"></i>
-                    <span>{userLanguage === 'id' ? 'Format Database Akun' : 'Format Account Database'}</span>
+                    <span>{userLanguage === 'zh' ? '格式化账户数据库' : userLanguage === 'id' ? 'Format Database Akun' : 'Format Account Database'}</span>
                   </button>
                   <div className="meta-popover-divider"></div>
                   <button
@@ -476,7 +476,7 @@ export const ChatSidebar = React.memo(({
                     }}
                   >
                     <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                    <span>Logout</span>
+                    <span>{userLanguage === 'zh' ? '退出登录' : 'Logout'}</span>
                   </button>
                 </>
               )}
