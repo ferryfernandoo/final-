@@ -1,12 +1,12 @@
 {
-  "backendUrl": "https://lines-inn-pair-commitments.trycloudflare.com",
-  "aiUrl": "https://livecam-aberdeen-style-missions.trycloudflare.com",
-  "searchEngineUrl": "https://pipeline-misc-boat-numeric.trycloudflare.com",
-  "dteUrl": "https://advocacy-impressive-maui-solaris.trycloudflare.com",
+  "backendUrl": "https://4725b536de91bd.lhr.life",
+  "aiUrl": "https://4725b536de91bd.lhr.life",
+  "searchEngineUrl": "https://8fc94b105b010a.lhr.life",
+  "dteUrl": "https://a1905f6b271eee.lhr.life",
   "backendPort": 3001,
   "aiPort": 8000,
   "searchEnginePort": 4000,
   "dtePort": 5173,
   "status": "LIVE",
-  "updatedAt": "2026-11-04T00:45:43.689Z"
+  "updatedAt": "2026-11-04T05:24:13.099Z"
 }
