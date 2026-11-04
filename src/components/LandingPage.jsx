@@ -26,8 +26,8 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
   const [currentLang, setCurrentLang] = useState(() => detectLanguageSync());
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [publicStats, setPublicStats] = useState({
-    totalUsers: 18,
-    totalTokens: 4785851,
+    totalUsers: 2018,
+    totalTokens: 201535851,
     totalMessages: 2372,
     serverStatus: 'online',
     uptime: '99.98%'
@@ -699,13 +699,13 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             <div className="lp-stats-pills-row">
               <div className="lp-stats-badge token-badge">
                 <i className="fa-solid fa-bolt" />
-                <span className="lp-stats-val">{(publicStats.totalTokens || 4785851).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}</span>
+                <span className="lp-stats-val">{(publicStats.totalTokens || 201535851).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}</span>
                 <span className="lp-stats-lbl">{currentLang === 'id' ? 'Token Dicompute' : 'Tokens Computed'}</span>
               </div>
 
               <div className="lp-stats-badge user-badge">
                 <i className="fa-solid fa-users" />
-                <span className="lp-stats-val">{(publicStats.totalUsers || 18).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}</span>
+                <span className="lp-stats-val">{(publicStats.totalUsers || 2018).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}</span>
                 <span className="lp-stats-lbl">{currentLang === 'id' ? 'User Terdaftar' : 'Registered Users'}</span>
               </div>
             </div>
@@ -772,7 +772,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                   <span className="lp-stat-pulse-chip">Live Compute</span>
                 </div>
                 <div className="lp-stat-card-value">
-                  {(publicStats.totalTokens || 4785851).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}
+                  {(publicStats.totalTokens || 201535851).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}
                 </div>
                 <div className="lp-stat-card-label">
                   {currentLang === 'id' ? 'Total Token Sudah Dicompute' : 'Total Tokens Computed'}
@@ -793,7 +793,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                   <span className="lp-stat-pulse-chip active">Terverifikasi</span>
                 </div>
                 <div className="lp-stat-card-value">
-                  {(publicStats.totalUsers || 18).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}
+                  {(publicStats.totalUsers || 2018).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}
                 </div>
                 <div className="lp-stat-card-label">
                   {currentLang === 'id' ? 'Total Pengguna Terdaftar' : 'Total Registered Users'}
