@@ -202,127 +202,127 @@
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/api/ping"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/items",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/api/items"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/api/items/:path*"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/api/items/:path*"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/api/admin/:path*"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/api/requests"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/api/requests/:path*"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/api/:path*"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://here-david-unfortunately-msg.trycloudflare.com/uploads/:path*"
+      "destination": "https://performances-wma-vacuum-banners.trycloudflare.com/uploads/:path*"
     },
     {
       "source": "/api/search",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/search"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/search"
     },
     {
       "source": "/api/status",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/status"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/status"
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/suggest"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/suggest"
     },
     {
       "source": "/api/v1/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/v1/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/v1/:path*"
     },
     {
       "source": "/api/suggestions",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/suggestions"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/suggestions"
     },
     {
       "source": "/api/suggestions/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/suggestions/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/ai/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/news"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/news/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/tokoh"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/geo"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/geo/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/crawl"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/crawl/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/economics"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/economics/:path*"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://scanned-cattle-parent-lightbox.trycloudflare.com/api/proxy-image"
+      "destination": "https://traveller-obligations-avoiding-echo.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://cooperation-printed-lung-main.trycloudflare.com/api/:path*"
+      "destination": "https://travis-implied-sacrifice-literature.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://cooperation-printed-lung-main.trycloudflare.com/auth/:path*"
+      "destination": "https://travis-implied-sacrifice-literature.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://cooperation-printed-lung-main.trycloudflare.com/v1/:path*"
+      "destination": "https://travis-implied-sacrifice-literature.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://cooperation-printed-lung-main.trycloudflare.com/download/:path*"
+      "destination": "https://travis-implied-sacrifice-literature.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://cooperation-printed-lung-main.trycloudflare.com/watermarked/:path*"
+      "destination": "https://travis-implied-sacrifice-literature.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
