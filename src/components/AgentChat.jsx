@@ -4,9 +4,304 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
 import AgentExecutionTree, { extractExecutionStepsAndCleanContent } from './AgentExecutionTree';
+import { detectLanguageSync, saveLanguage, LANGUAGE_OPTIONS } from '../utils/languageDetector';
 import './AgentChat.css';
 
-export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, onLogout }) {
+const AGENT_I18N = {
+  id: {
+    brandSubtitle: 'AI Agent',
+    newSession: 'Tugas Agent Baru',
+    searchSessions: 'Cari sesi tugas...',
+    autonomousTask: 'Tugas Otonom AI',
+    deleteSession: 'Hapus sesi',
+    deleteConfirm: 'Hapus sesi agent dan seluruh berkas sandbox ini?',
+    backHome: 'Kembali ke Beranda',
+    menuSessions: 'Menu Sesi',
+    switchChat: 'Chat Biasa',
+    switchChatTitle: 'Beralih ke Chat Biasa',
+    workspace: 'Workspace',
+    openFiles: 'Buka panel berkas & workspace sandbox',
+    moreOptions: 'Opsi & Alat Agent',
+    effortTitle: 'Tingkat Usaha AI Agent',
+    effortLow: 'Usaha Rendah',
+    effortLowDesc: '1-3 iterasi · Eksekusi cepat & hemat token',
+    effortMed: 'Usaha Sedang',
+    effortMedDesc: 'Hingga 6 iterasi · Standar seimbang & teliti',
+    effortHigh: 'Pantang Menyerah',
+    effortHighDesc: 'Hingga 10+ iterasi · Pantang menyerah, analisa eror & perbaiki sampai berhasil',
+    activeCheck: '✓ Aktif',
+    toolsHeader: 'Menu Alat & Workspace',
+    workspaceFiles: 'Berkas Workspace',
+    workspaceFilesSub: 'Lihat file hasil generasi sandbox',
+    terminalTitle: 'Terminal Console',
+    terminalSub: 'Log terminal & eksekusi shell',
+    previewTitle: 'Live Web Preview',
+    previewSub: 'Pratinjau antarmuka web / HTML',
+    skillTitle: 'Panduan SKILL.md',
+    skillSub: 'Aturan & arsitektur dokumen',
+    switchChatSub: 'Mode percakapan standar non-agent',
+    welcomeHeading: 'Ada yang bisa saya bantu hari ini?',
+    welcomeSub: 'Rekan berpikir dan asisten otonom untuk koding, analisis data, dokumen, dan riset.',
+    starterDocxTitle: 'Dokumen Bisnis (.docx)',
+    starterDocxSub: 'Proposal eksekutif & laporan formal',
+    starterDocxPrompt: 'Buatkan dokumen proposal bisnis eksekutif profesional berformat .docx lengkap dengan tabel metrik KPI dan callout box.',
+    starterPptxTitle: 'Presentasi Slide (.pptx)',
+    starterPptxSub: 'Rancang deck 16:9 modern & visual KPI',
+    starterPptxPrompt: 'Buatkan presentasi PowerPoint .pptx modern 16:9 bertema emerald dengan bento box cards dan visual KPI.',
+    starterWebTitle: 'Aplikasi Web Interaktif',
+    starterWebSub: 'Bangun web HTML/CSS/JS di sandbox',
+    starterWebPrompt: 'Buatkan aplikasi web dashboard analitik interaktif modern lengkap dengan index.html, CSS, dan JS interaktif di sandbox.',
+    starterChatTitle: 'Diskusi & Brainstorming',
+    starterChatSub: 'Tukar ide, strategi, atau tanya santai',
+    starterChatPrompt: 'Halo! Bisa bantu saya brainstorming ide dan berdiskusi santai tentang tren teknologi terkini?',
+    composerPlaceholder: 'Tanya apa saja atau delegasikan tugas...',
+    uploadTooltip: 'Unggah Lampiran ke Sandbox',
+    effortPillHigh: 'Mode Mendalam',
+    effortPillLow: 'Mode Cepat',
+    effortPillMed: 'Mode Seimbang',
+    effortPillTitle: 'Klik untuk mengganti mode kerja Agent (Cepat / Sedang / Mendalam)',
+    sendMsg: 'Kirim pesan',
+    stopExec: 'Hentikan eksekusi',
+    uploadingIndicator: 'Mengunggah berkas ke sandbox...',
+    savedInSandbox: 'Tersimpan di sandbox',
+    filesBadge: (n) => `${n} berkas`,
+    closePanel: 'Tutup Panel (Esc)',
+    tabFiles: 'Berkas',
+    tabTerminal: 'Terminal',
+    tabPreview: 'Live Preview',
+    tabSkill: 'SKILL.md',
+    fileListTitle: 'Daftar Berkas',
+    downloadZip: '.ZIP Semua',
+    downloadZipTitle: 'Unduh seluruh project sebagai ZIP',
+    emptySandboxFiles: 'Belum ada berkas di sandbox ini',
+    backToFileList: 'Berkas',
+    backToFileListTitle: 'Kembali ke daftar berkas',
+    savingFile: 'Menyimpan...',
+    saveFile: 'Simpan',
+    downloadFile: 'Unduh',
+    downloadFileTitle: 'Unduh berkas ini',
+    previewFileTitle: 'Lihat di Web Preview',
+    emptyFileContent: 'Isi berkas kosong...',
+    selectFileToView: 'Pilih berkas untuk melihat atau mengedit',
+    selectFileHint: 'Klik salah satu berkas dari daftar di atas',
+    termReady: '$ Sandbox terminal siap.',
+    termPlaceholder: 'Ketik perintah shell (misal: ls, node app.js)...',
+    termRun: 'Jalankan',
+    refreshPreview: 'Muat Ulang Preview',
+    toggleViewport: 'Ubah Mode Layar (Desktop/Mobile)',
+    openNewTab: 'Buka di Tab Baru',
+    skillProtocolTitle: 'Protokol Panduan Agent (SKILL.md)',
+    skillPlaceholder: 'Tulis aturan protokol agen di sini...',
+    skillSavedAlert: 'Aturan SKILL.md berhasil diperbarui untuk sesi ini!'
+  },
+  en: {
+    brandSubtitle: 'AI Agent',
+    newSession: 'New Agent Task',
+    searchSessions: 'Search sessions...',
+    autonomousTask: 'Autonomous AI Task',
+    deleteSession: 'Delete session',
+    deleteConfirm: 'Delete this agent session and all sandbox files?',
+    backHome: 'Back to Home',
+    menuSessions: 'Session Menu',
+    switchChat: 'Regular Chat',
+    switchChatTitle: 'Switch to Regular Chat',
+    workspace: 'Workspace',
+    openFiles: 'Open sandbox files & workspace panel',
+    moreOptions: 'Agent Tools & Options',
+    effortTitle: 'AI Agent Effort Level',
+    effortLow: 'Low Effort',
+    effortLowDesc: '1-3 iterations · Fast execution & token efficient',
+    effortMed: 'Medium Effort',
+    effortMedDesc: 'Up to 6 iterations · Balanced & thorough standard',
+    effortHigh: 'High Persistence',
+    effortHighDesc: 'Up to 10+ iterations · Relentless self-correction & debugging until success',
+    activeCheck: '✓ Active',
+    toolsHeader: 'Tools & Workspace Menu',
+    workspaceFiles: 'Workspace Files',
+    workspaceFilesSub: 'View sandbox generated files',
+    terminalTitle: 'Terminal Console',
+    terminalSub: 'Terminal logs & shell execution',
+    previewTitle: 'Live Web Preview',
+    previewSub: 'Interactive web / HTML preview',
+    skillTitle: 'SKILL.md Guide',
+    skillSub: 'Document architecture & rules',
+    switchChatSub: 'Standard conversation non-agent mode',
+    welcomeHeading: 'What can I help you build today?',
+    welcomeSub: 'Autonomous thinking copilot for coding, data analysis, documents, and deep research.',
+    starterDocxTitle: 'Business Document (.docx)',
+    starterDocxSub: 'Executive proposals & formal reports',
+    starterDocxPrompt: 'Create a professional executive business proposal .docx document complete with KPI metric tables and callout boxes.',
+    starterPptxTitle: 'Slide Presentation (.pptx)',
+    starterPptxSub: 'Design modern 16:9 deck with KPI visual cards',
+    starterPptxPrompt: 'Create a modern emerald-themed 16:9 PowerPoint .pptx presentation with bento box cards and KPI visual cards.',
+    starterWebTitle: 'Interactive Web App',
+    starterWebSub: 'Build HTML/CSS/JS web in sandbox',
+    starterWebPrompt: 'Build a modern responsive analytics web dashboard index.html with interactive CSS and JS in the sandbox.',
+    starterChatTitle: 'Brainstorm & Discuss',
+    starterChatSub: 'Exchange ideas, strategy, or open discussion',
+    starterChatPrompt: 'Hi! Can you help me brainstorm ideas and discuss the latest technology trends?',
+    composerPlaceholder: 'Ask anything or delegate an autonomous task...',
+    uploadTooltip: 'Upload attachments to sandbox',
+    effortPillHigh: 'Deep Mode',
+    effortPillLow: 'Fast Mode',
+    effortPillMed: 'Balanced Mode',
+    effortPillTitle: 'Click to toggle Agent effort level (Fast / Balanced / Deep)',
+    sendMsg: 'Send message',
+    stopExec: 'Stop execution',
+    uploadingIndicator: 'Uploading files to sandbox...',
+    savedInSandbox: 'Saved in sandbox',
+    filesBadge: (n) => `${n} files`,
+    closePanel: 'Close Panel (Esc)',
+    tabFiles: 'Files',
+    tabTerminal: 'Terminal',
+    tabPreview: 'Live Preview',
+    tabSkill: 'SKILL.md',
+    fileListTitle: 'File List',
+    downloadZip: 'All .ZIP',
+    downloadZipTitle: 'Download entire project as ZIP',
+    emptySandboxFiles: 'No files in this sandbox yet',
+    backToFileList: 'Files',
+    backToFileListTitle: 'Back to file list',
+    savingFile: 'Saving...',
+    saveFile: 'Save',
+    downloadFile: 'Download',
+    downloadFileTitle: 'Download this file',
+    previewFileTitle: 'View in Web Preview',
+    emptyFileContent: 'File content is empty...',
+    selectFileToView: 'Select a file to view or edit',
+    selectFileHint: 'Click a file from the list above',
+    termReady: '$ Sandbox terminal ready.',
+    termPlaceholder: 'Type shell command (e.g., ls, node app.js)...',
+    termRun: 'Run',
+    refreshPreview: 'Reload Preview',
+    toggleViewport: 'Toggle Viewport (Desktop/Mobile)',
+    openNewTab: 'Open in New Tab',
+    skillProtocolTitle: 'Agent Guidance Protocol (SKILL.md)',
+    skillPlaceholder: 'Write agent protocol rules here...',
+    skillSavedAlert: 'SKILL.md rules updated successfully for this session!'
+  },
+  zh: {
+    brandSubtitle: 'AI Agent',
+    newSession: '新建任务',
+    searchSessions: '搜索任务会话...',
+    autonomousTask: '自主 AI 任务',
+    deleteSession: '删除会话',
+    deleteConfirm: '确定删除该 Agent 任务会话及其沙盒文件吗？',
+    backHome: '返回主页',
+    menuSessions: '会话菜单',
+    switchChat: '常规对话',
+    switchChatTitle: '切换到常规对话',
+    workspace: '工作区',
+    openFiles: '打开工作区文件与沙盒面板',
+    moreOptions: 'Agent 工具与设置',
+    effortTitle: 'AI Agent 思考与努力等级',
+    effortLow: '快速精简',
+    effortLowDesc: '1-3 次迭代 · 快速执行且节省 Token',
+    effortMed: '标准平衡',
+    effortMedDesc: '最多 6 次迭代 · 均衡严谨的标准模式',
+    effortHigh: '坚韧深入',
+    effortHighDesc: '最多 10+ 次循环迭代 · 坚韧不拔，自主分析报错并修复直至成功',
+    activeCheck: '✓ 当前生效',
+    toolsHeader: '工具与工作区菜单',
+    workspaceFiles: '工作区文件',
+    workspaceFilesSub: '查看沙盒生成的成果文件',
+    terminalTitle: '终端控制台',
+    terminalSub: '终端运行日志与 Shell 执行',
+    previewTitle: '实时网页预览',
+    previewSub: 'Web / HTML 交互式界面预览',
+    skillTitle: 'SKILL.md 规则',
+    skillSub: '文档规范与智能体指导协议',
+    switchChatSub: '标准非 Agent 对话模式',
+    welcomeHeading: '今天有什么我可以帮您构建的？',
+    welcomeSub: '专注于全自主代码编写、数据分析、专业文档起草与深度调研的智能体。',
+    starterDocxTitle: '商务执行方案书 (.docx)',
+    starterDocxSub: '高管商务提案与正规分析报告',
+    starterDocxPrompt: '请制作一份高管商务提案专业 .docx 文档，包含 KPI 核心指标分析表及重点提示框。',
+    starterPptxTitle: '演示文稿幻灯片 (.pptx)',
+    starterPptxSub: '设计现代 16:9 幻灯片与 KPI 视觉卡片',
+    starterPptxPrompt: '请制作一份现代翡翠绿风格的 16:9 PowerPoint .pptx 演示文稿，包含便当盒卡片和 KPI 数据看板。',
+    starterWebTitle: '交互式 Web 应用',
+    starterWebSub: '在沙盒中构建 HTML/CSS/JS 网页应用',
+    starterWebPrompt: '请在沙盒中构建一个现代响应式交互 Web 仪表盘 index.html，包含交互式 CSS 和 JS 图表组件。',
+    starterChatTitle: '头脑风暴与深度讨论',
+    starterChatSub: '交流创意、探讨战略或自由提问',
+    starterChatPrompt: '你好！能否帮我进行头脑风暴并深入探讨当前最新的科技趋势？',
+    composerPlaceholder: '向 Deepernova AI Agent 提问或指派自主任务...',
+    uploadTooltip: '上传附件到沙盒',
+    effortPillHigh: '深入模式',
+    effortPillLow: '极速模式',
+    effortPillMed: '平衡模式',
+    effortPillTitle: '点击切换 Agent 模式（极速 / 平衡 / 深入）',
+    sendMsg: '发送指令',
+    stopExec: '停止执行',
+    uploadingIndicator: '正在上传文件到沙盒...',
+    savedInSandbox: '已存入沙盒',
+    filesBadge: (n) => `${n} 个文件`,
+    closePanel: '关闭面板 (Esc)',
+    tabFiles: '文件',
+    tabTerminal: '终端',
+    tabPreview: '实时预览',
+    tabSkill: 'SKILL.md',
+    fileListTitle: '文件列表',
+    downloadZip: '全部 .ZIP',
+    downloadZipTitle: '将整个项目下载为 ZIP 压缩包',
+    emptySandboxFiles: '当前沙盒中暂无文件',
+    backToFileList: '文件',
+    backToFileListTitle: '返回文件列表',
+    savingFile: '正在保存...',
+    saveFile: '保存',
+    downloadFile: '下载',
+    downloadFileTitle: '下载此文件',
+    previewFileTitle: '在 Web 预览中查看',
+    emptyFileContent: '文件内容为空...',
+    selectFileToView: '选择文件以查看或编辑',
+    selectFileHint: '点击上方列表中的任一文件',
+    termReady: '$ 沙盒终端已就绪。',
+    termPlaceholder: '输入 Shell 指令（如：ls, node app.js）...',
+    termRun: '运行',
+    refreshPreview: '刷新预览',
+    toggleViewport: '切换视口（桌面/移动端）',
+    openNewTab: '在新标签页中打开',
+    skillProtocolTitle: 'Agent 行为指引协议 (SKILL.md)',
+    skillPlaceholder: '在此编写智能体协议规则...',
+    skillSavedAlert: 'SKILL.md 规则已成功保存至当前会话！'
+  }
+};
+
+export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, onLogout, userLanguage: propLanguage, onLanguageChange }) {
+  // Synchronized language state
+  const [userLanguage, setUserLanguage] = useState(() => propLanguage || detectLanguageSync());
+  const t = AGENT_I18N[userLanguage] || AGENT_I18N.id;
+
+  useEffect(() => {
+    if (propLanguage && propLanguage !== userLanguage) {
+      setUserLanguage(propLanguage);
+    }
+  }, [propLanguage]);
+
+  useEffect(() => {
+    const handleLangChange = (e) => {
+      const nextLang = e?.detail?.language;
+      if (nextLang) setUserLanguage(nextLang);
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'deepernova_language' && e.newValue) {
+        setUserLanguage(e.newValue);
+      }
+    };
+    window.addEventListener('deepernova_language_changed', handleLangChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('deepernova_language_changed', handleLangChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const handleSelectLanguage = (langCode) => {
+    setUserLanguage(langCode);
+    saveLanguage(langCode);
+    if (onLanguageChange) onLanguageChange(langCode);
+  };
   // Sessions & Active Conversation
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -259,7 +554,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   // 4. Delete session
   const handleDeleteSession = async (e, sessionId) => {
     e.stopPropagation();
-    if (!window.confirm('Hapus sesi agent dan seluruh berkas sandbox ini?')) return;
+    if (!window.confirm(t.deleteConfirm)) return;
     await AgentService.deleteSession(sessionId);
     const updated = sessions.filter(s => s.id !== sessionId);
     setSessions(updated);
@@ -492,6 +787,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         model: 'deepernova-gold-1.5',
         history: messages,
         effort: agentEffort,
+        language: userLanguage,
         signal: abortController.signal,
         onDelta: (chunk) => {
           targetContent += chunk;
@@ -842,7 +1138,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     setIsSkillSaving(true);
     await AgentService.writeFile(currentSessionId, 'SKILL.md', skillContent);
     setIsSkillSaving(false);
-    alert('Aturan SKILL.md berhasil diperbarui untuk sesi ini!');
+    alert(t.skillSavedAlert);
   };
 
   const filteredSessions = sessions.filter(s =>
@@ -873,14 +1169,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
         <button className="agent-new-chat-btn" onClick={startNewSession}>
           <i className="fa-solid fa-plus" />
-          <span>Tugas Agent Baru</span>
+          <span>{t.newSession}</span>
         </button>
 
         <div className="agent-search-box">
           <i className="fa-solid fa-magnifying-glass agent-search-icon" />
           <input
             type="text"
-            placeholder="Cari sesi tugas..."
+            placeholder={t.searchSessions}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -895,12 +1191,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             >
               <div className="agent-session-title">
                 <i className="fa-solid fa-bolt" style={{ color: '#ea580c', fontSize: 11 }} />
-                <span>{session.title || 'Tugas Otonom AI'}</span>
+                <span>{session.title || t.autonomousTask}</span>
               </div>
               <button
                 className="agent-session-delete"
                 onClick={(e) => handleDeleteSession(e, session.id)}
-                title="Hapus sesi"
+                title={t.deleteSession}
               >
                 <i className="fa-solid fa-trash" />
               </button>
@@ -926,7 +1222,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           <button
             onClick={() => onNavigate?.('landing')}
             style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 6, fontSize: 15 }}
-            title="Kembali ke Beranda"
+            title={t.backHome}
           >
             <i className="fa-solid fa-arrow-right-from-bracket" />
           </button>
@@ -938,24 +1234,50 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         {/* Top Header */}
         <header className="agent-header">
           <div className="agent-header-left">
-            <button className="agent-sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Menu Sesi">
+            <button className="agent-sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title={t.menuSessions}>
               <i className="fa-solid fa-bars" />
             </button>
             <div className="agent-header-brand-clean">
               <span className="agent-header-brand-title">Deepernova</span>
-              <span className="agent-header-brand-badge">Agent</span>
+              <span className="agent-header-brand-badge">{t.brandSubtitle}</span>
             </div>
           </div>
 
           <div className="agent-header-right" ref={menuDropdownRef}>
+            {/* Quick Language Selector */}
+            <div className="agent-lang-selector" style={{ display: 'flex', alignItems: 'center', gap: 3, marginRight: 6 }}>
+              {LANGUAGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.code}
+                  type="button"
+                  onClick={() => handleSelectLanguage(opt.code)}
+                  style={{
+                    padding: '3px 7px',
+                    borderRadius: 6,
+                    border: '1px solid',
+                    borderColor: userLanguage === opt.code ? '#ea580c' : 'rgba(0,0,0,0.08)',
+                    background: userLanguage === opt.code ? 'rgba(234, 88, 12, 0.1)' : 'transparent',
+                    color: userLanguage === opt.code ? '#ea580c' : '#64748b',
+                    fontSize: 11,
+                    fontWeight: userLanguage === opt.code ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title={opt.label}
+                >
+                  {opt.shortLabel}
+                </button>
+              ))}
+            </div>
+
             <button
               type="button"
               className="agent-header-switch-chat-btn"
               onClick={() => onNavigate?.('chat')}
-              title="Beralih ke Chat Biasa"
+              title={t.switchChatTitle}
             >
               <i className="fa-regular fa-comments" />
-              <span>Chat Biasa</span>
+              <span>{t.switchChat}</span>
             </button>
 
             <button
@@ -965,10 +1287,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 setActiveDrawerTab('files');
                 setIsDrawerOpen(prev => !prev);
               }}
-              title="Buka panel berkas & workspace sandbox"
+              title={t.openFiles}
             >
               <i className="fa-regular fa-folder-open" />
-              <span className="agent-header-workspace-label">Workspace</span>
+              <span className="agent-header-workspace-label">{t.workspace}</span>
               {sandboxFiles.length > 0 && (
                 <span className="agent-header-file-count">{sandboxFiles.length}</span>
               )}
@@ -979,8 +1301,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 type="button"
                 className={`agent-more-menu-btn ${showMenuDropdown ? 'is-active' : ''}`}
                 onClick={() => setShowMenuDropdown(prev => !prev)}
-                title="Opsi & Alat Agent"
-                aria-label="Opsi & Alat Agent"
+                title={t.moreOptions}
+                aria-label={t.moreOptions}
               >
                 <i className="fa-solid fa-ellipsis-vertical" />
                 {sandboxFiles.length > 0 && <span className="agent-menu-indicator-dot" />}
@@ -990,7 +1312,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 <div className="agent-menu-dropdown">
                   {/* Tingkat Usaha AI Agent Section */}
                   <div className="agent-menu-dropdown-header">
-                    <span>Tingkat Usaha AI Agent</span>
+                    <span>{t.effortTitle}</span>
                   </div>
                   <div className="agent-effort-selector-group">
                     <button
@@ -1000,11 +1322,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     >
                       <div className="agent-effort-btn-header">
                         <span className="agent-effort-btn-title">
-                          <i className="fa-solid fa-bolt" style={{ color: '#0284c7' }} /> Usaha Rendah
+                          <i className="fa-solid fa-bolt" style={{ color: '#0284c7' }} /> {t.effortLow}
                         </span>
-                        {agentEffort === 'low' && <span className="agent-effort-check">✓ Aktif</span>}
+                        {agentEffort === 'low' && <span className="agent-effort-check">{t.activeCheck}</span>}
                       </div>
-                      <span className="agent-effort-btn-desc">1-3 iterasi · Eksekusi cepat & hemat token</span>
+                      <span className="agent-effort-btn-desc">{t.effortLowDesc}</span>
                     </button>
 
                     <button
@@ -1014,11 +1336,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     >
                       <div className="agent-effort-btn-header">
                         <span className="agent-effort-btn-title">
-                          <i className="fa-solid fa-scale-balanced" style={{ color: '#64748b' }} /> Usaha Sedang
+                          <i className="fa-solid fa-scale-balanced" style={{ color: '#64748b' }} /> {t.effortMed}
                         </span>
-                        {agentEffort === 'medium' && <span className="agent-effort-check">✓ Aktif</span>}
+                        {agentEffort === 'medium' && <span className="agent-effort-check">{t.activeCheck}</span>}
                       </div>
-                      <span className="agent-effort-btn-desc">Hingga 6 iterasi · Standar seimbang & teliti</span>
+                      <span className="agent-effort-btn-desc">{t.effortMedDesc}</span>
                     </button>
 
                     <button
@@ -1028,18 +1350,18 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     >
                       <div className="agent-effort-btn-header">
                         <span className="agent-effort-btn-title">
-                          <i className="fa-solid fa-fire" style={{ color: '#ea580c' }} /> Pantang Menyerah
+                          <i className="fa-solid fa-fire" style={{ color: '#ea580c' }} /> {t.effortHigh}
                         </span>
-                        {agentEffort === 'high' && <span className="agent-effort-check">✓ Aktif</span>}
+                        {agentEffort === 'high' && <span className="agent-effort-check">{t.activeCheck}</span>}
                       </div>
-                      <span className="agent-effort-btn-desc">Hingga 10+ iterasi · Pantang menyerah, analisa eror & perbaiki sampai berhasil</span>
+                      <span className="agent-effort-btn-desc">{t.effortHighDesc}</span>
                     </button>
                   </div>
 
                   <div className="agent-menu-divider" />
 
                   <div className="agent-menu-dropdown-header">
-                    <span>Menu Alat & Workspace</span>
+                    <span>{t.toolsHeader}</span>
                   </div>
 
                   <button
@@ -1056,10 +1378,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     </span>
                     <div className="agent-menu-item-info">
                       <div className="agent-menu-item-title-row">
-                        <span className="agent-menu-item-name">Berkas Workspace</span>
+                        <span className="agent-menu-item-name">{t.workspaceFiles}</span>
                         <span className="agent-menu-count-badge">{sandboxFiles.length}</span>
                       </div>
-                      <span className="agent-menu-item-sub">Lihat file hasil generasi sandbox</span>
+                      <span className="agent-menu-item-sub">{t.workspaceFilesSub}</span>
                     </div>
                   </button>
 
@@ -1076,8 +1398,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       <i className="fa-solid fa-terminal" />
                     </span>
                     <div className="agent-menu-item-info">
-                      <span className="agent-menu-item-name">Terminal Console</span>
-                      <span className="agent-menu-item-sub">Log terminal & eksekusi shell</span>
+                      <span className="agent-menu-item-name">{t.terminalTitle}</span>
+                      <span className="agent-menu-item-sub">{t.terminalSub}</span>
                     </div>
                   </button>
 
@@ -1094,8 +1416,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       <i className="fa-solid fa-globe" />
                     </span>
                     <div className="agent-menu-item-info">
-                      <span className="agent-menu-item-name">Live Web Preview</span>
-                      <span className="agent-menu-item-sub">Pratinjau antarmuka web / HTML</span>
+                      <span className="agent-menu-item-name">{t.previewTitle}</span>
+                      <span className="agent-menu-item-sub">{t.previewSub}</span>
                     </div>
                   </button>
 
@@ -1112,8 +1434,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       <i className="fa-solid fa-book-bookmark" />
                     </span>
                     <div className="agent-menu-item-info">
-                      <span className="agent-menu-item-name">Panduan SKILL.md</span>
-                      <span className="agent-menu-item-sub">Aturan & arsitektur dokumen</span>
+                      <span className="agent-menu-item-name">{t.skillTitle}</span>
+                      <span className="agent-menu-item-sub">{t.skillSub}</span>
                     </div>
                   </button>
 
@@ -1131,8 +1453,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       <i className="fa-solid fa-comments" />
                     </span>
                     <div className="agent-menu-item-info">
-                      <span className="agent-menu-item-name">Beralih ke Chat Biasa</span>
-                      <span className="agent-menu-item-sub">Mode percakapan standar non-agent</span>
+                      <span className="agent-menu-item-name">{t.switchChat}</span>
+                      <span className="agent-menu-item-sub">{t.switchChatSub}</span>
                     </div>
                   </button>
                 </div>
@@ -1155,9 +1477,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <div className="agent-welcome-avatar">
                 <img src="/logo.png" alt="Deepernova AI" />
               </div>
-              <h2 className="agent-welcome-title">Ada yang bisa saya bantu hari ini?</h2>
+              <h2 className="agent-welcome-title">{t.welcomeHeading}</h2>
               <p className="agent-welcome-subtitle">
-                Rekan berpikir dan asisten otonom untuk koding, analisis data, dokumen, dan riset.
+                {t.welcomeSub}
               </p>
 
               {/* Minimal Clean Starter Cards */}
@@ -1165,14 +1487,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 <button
                   type="button"
                   className="agent-starter-card"
-                  onClick={() => handleSendMessage("Buatkan dokumen proposal bisnis eksekutif profesional berformat .docx lengkap dengan tabel metrik KPI dan callout box.")}
+                  onClick={() => handleSendMessage(t.starterDocxPrompt)}
                 >
                   <div className="agent-starter-icon">
                     <i className="fa-solid fa-file-word" />
                   </div>
                   <div className="agent-starter-body">
-                    <span className="agent-starter-title">Dokumen Bisnis (.docx)</span>
-                    <span className="agent-starter-desc">Proposal eksekutif & laporan formal</span>
+                    <span className="agent-starter-title">{t.starterDocxTitle}</span>
+                    <span className="agent-starter-desc">{t.starterDocxSub}</span>
                   </div>
                   <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
                 </button>
@@ -1180,14 +1502,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 <button
                   type="button"
                   className="agent-starter-card"
-                  onClick={() => handleSendMessage("Buatkan presentasi PowerPoint .pptx modern 16:9 bertema emerald dengan bento box cards dan visual KPI.")}
+                  onClick={() => handleSendMessage(t.starterPptxPrompt)}
                 >
                   <div className="agent-starter-icon">
                     <i className="fa-solid fa-file-powerpoint" />
                   </div>
                   <div className="agent-starter-body">
-                    <span className="agent-starter-title">Presentasi Slide (.pptx)</span>
-                    <span className="agent-starter-desc">Rancang deck 16:9 modern & visual KPI</span>
+                    <span className="agent-starter-title">{t.starterPptxTitle}</span>
+                    <span className="agent-starter-desc">{t.starterPptxSub}</span>
                   </div>
                   <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
                 </button>
@@ -1195,14 +1517,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 <button
                   type="button"
                   className="agent-starter-card"
-                  onClick={() => handleSendMessage("Buatkan aplikasi web dashboard analitik interaktif modern lengkap dengan index.html, CSS, dan JS interaktif di sandbox.")}
+                  onClick={() => handleSendMessage(t.starterWebPrompt)}
                 >
                   <div className="agent-starter-icon">
                     <i className="fa-solid fa-laptop-code" />
                   </div>
                   <div className="agent-starter-body">
-                    <span className="agent-starter-title">Aplikasi Web Interaktif</span>
-                    <span className="agent-starter-desc">Bangun web HTML/CSS/JS di sandbox</span>
+                    <span className="agent-starter-title">{t.starterWebTitle}</span>
+                    <span className="agent-starter-desc">{t.starterWebSub}</span>
                   </div>
                   <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
                 </button>
@@ -1210,14 +1532,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                 <button
                   type="button"
                   className="agent-starter-card"
-                  onClick={() => handleSendMessage("Halo! Bisa bantu saya brainstorming ide dan berdiskusi santai tentang tren teknologi terkini?")}
+                  onClick={() => handleSendMessage(t.starterChatPrompt)}
                 >
                   <div className="agent-starter-icon">
                     <i className="fa-solid fa-comments" />
                   </div>
                   <div className="agent-starter-body">
-                    <span className="agent-starter-title">Diskusi & Brainstorming</span>
-                    <span className="agent-starter-desc">Tukar ide, strategi, atau tanya santai</span>
+                    <span className="agent-starter-title">{t.starterChatTitle}</span>
+                    <span className="agent-starter-desc">{t.starterChatSub}</span>
                   </div>
                   <i className="fa-solid fa-arrow-up-right-from-square agent-starter-arrow" />
                 </button>
@@ -1260,6 +1582,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                         setActiveDrawerTab(tab);
                         setIsDrawerOpen(true);
                       }}
+                      language={userLanguage}
                     />
                   )}
 
@@ -1531,17 +1854,17 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   <span key={name} className="agent-upload-chip">
                     <i className="fa-solid fa-paperclip" />
                     <span>{name}</span>
-                    <button type="button" onClick={() => removeAttachment(name)} title="Hapus lampiran">✕</button>
+                    <button type="button" onClick={() => removeAttachment(name)} title="✕">✕</button>
                   </span>
                 ))}
-                <span className="agent-upload-status">Tersimpan di sandbox</span>
+                <span className="agent-upload-status">{t.savedInSandbox}</span>
               </div>
             )}
 
             {isUploading && (
               <div className="agent-uploading-indicator">
                 <i className="fa-solid fa-circle-notch fa-spin" />
-                <span>Mengunggah berkas ke sandbox...</span>
+                <span>{t.uploadingIndicator}</span>
               </div>
             )}
 
@@ -1558,7 +1881,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               <div className="agent-composer-textarea-wrapper">
                 <textarea
                   className="agent-composer-input"
-                  placeholder="Tanya apa saja atau delegasikan tugas..."
+                  placeholder={t.composerPlaceholder}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -1579,7 +1902,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     className="agent-composer-attach-btn"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isExecuting || isUploading}
-                    title="Unggah Lampiran ke Sandbox"
+                    title={t.uploadTooltip}
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -1593,11 +1916,11 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       const nextEffort = agentEffort === 'high' ? 'low' : (agentEffort === 'low' ? 'medium' : 'high');
                       handleSetEffort(nextEffort);
                     }}
-                    title="Klik untuk mengganti mode kerja Agent (Cepat / Sedang / Mendalam)"
+                    title={t.effortPillTitle}
                   >
                     <i className={agentEffort === 'high' ? "fa-solid fa-bolt-lightning" : (agentEffort === 'low' ? "fa-solid fa-feather" : "fa-solid fa-sliders")} />
                     <span>
-                      {agentEffort === 'high' ? 'Mode Mendalam' : (agentEffort === 'low' ? 'Mode Cepat' : 'Mode Seimbang')}
+                      {agentEffort === 'high' ? t.effortPillHigh : (agentEffort === 'low' ? t.effortPillLow : t.effortPillMed)}
                     </span>
                   </button>
                 </div>
@@ -1608,7 +1931,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       type="button"
                       className="agent-composer-action-btn stop-mode"
                       onClick={handleStopExecution}
-                      title="Hentikan eksekusi"
+                      title={t.stopExec}
                     >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                         <rect x="5" y="5" width="14" height="14" rx="2"></rect>
@@ -1620,7 +1943,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       className={`agent-composer-action-btn send-mode ${(inputValue.trim() || uploadedAttachments.length > 0) ? 'has-text' : 'empty'}`}
                       onClick={() => handleSendMessage()}
                       disabled={!inputValue.trim() && uploadedAttachments.length === 0}
-                      title="Kirim pesan"
+                      title={t.sendMsg}
                     >
                       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="19" x2="12" y2="5"></line>
@@ -1653,10 +1976,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       type="button"
                       className="agent-drawer-back-btn"
                       onClick={() => setSelectedFile(null)}
-                      title="Kembali ke daftar berkas"
+                      title={t.backToFileListTitle}
                     >
                       <i className="fa-solid fa-arrow-left" />
-                      <span>Berkas</span>
+                      <span>{t.backToFileList}</span>
                     </button>
                   )}
                   <div className="agent-drawer-heading">
@@ -1664,7 +1987,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       <i className="fa-solid fa-folder-tree" style={{ color: '#ea580c', marginRight: 8 }} />
                       Sandbox Workspace
                     </span>
-                    <span className="agent-drawer-badge">{sandboxFiles.length} berkas</span>
+                    <span className="agent-drawer-badge">{t.filesBadge(sandboxFiles.length)}</span>
                   </div>
                 </div>
 
@@ -1672,8 +1995,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   type="button"
                   className="agent-drawer-close" 
                   onClick={() => setIsDrawerOpen(false)} 
-                  title="Tutup Panel (Esc)"
-                  aria-label="Tutup Panel"
+                  title={t.closePanel}
+                  aria-label={t.closePanel}
                 >
                   <i className="fa-solid fa-xmark" />
                 </button>
@@ -1687,28 +2010,28 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                     className={`agent-drawer-tab ${activeDrawerTab === 'files' ? 'is-active' : ''}`}
                     onClick={() => setActiveDrawerTab('files')}
                   >
-                    <i className="fa-solid fa-folder" /> Berkas ({sandboxFiles.length})
+                    <i className="fa-solid fa-folder" /> {t.tabFiles} ({sandboxFiles.length})
                   </button>
                   <button
                     type="button"
                     className={`agent-drawer-tab ${activeDrawerTab === 'terminal' ? 'is-active' : ''}`}
                     onClick={() => setActiveDrawerTab('terminal')}
                   >
-                    <i className="fa-solid fa-terminal" /> Terminal
+                    <i className="fa-solid fa-terminal" /> {t.tabTerminal}
                   </button>
                   <button
                     type="button"
                     className={`agent-drawer-tab ${activeDrawerTab === 'preview' ? 'is-active' : ''}`}
                     onClick={() => setActiveDrawerTab('preview')}
                   >
-                    <i className="fa-solid fa-globe" /> Live Preview
+                    <i className="fa-solid fa-globe" /> {t.tabPreview}
                   </button>
                   <button
                     type="button"
                     className={`agent-drawer-tab ${activeDrawerTab === 'skill' ? 'is-active' : ''}`}
                     onClick={() => setActiveDrawerTab('skill')}
                   >
-                    <i className="fa-solid fa-book" /> SKILL.md
+                    <i className="fa-solid fa-book" /> {t.tabSkill}
                   </button>
                 </div>
               </div>
@@ -1722,16 +2045,16 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   <div className="agent-files-tree">
                     <div className="agent-files-tree-header">
                       <span className="agent-files-tree-title">
-                        Daftar Berkas ({sandboxFiles.length})
+                        {t.fileListTitle} ({sandboxFiles.length})
                       </span>
                       {sandboxFiles.length > 0 && (
                         <button
                           type="button"
                           onClick={handleDownloadAllZip}
                           className="agent-zip-download-btn"
-                          title="Unduh seluruh project sebagai ZIP"
+                          title={t.downloadZipTitle}
                         >
-                          <i className="fa-solid fa-file-zipper" /> .ZIP Semua
+                          <i className="fa-solid fa-file-zipper" /> {t.downloadZip}
                         </button>
                       )}
                     </div>
@@ -1756,7 +2079,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       {sandboxFiles.length === 0 && (
                         <div className="agent-files-empty">
                           <i className="fa-solid fa-folder-open" style={{ fontSize: 26, opacity: 0.35, marginBottom: 8 }} />
-                          <div>Belum ada berkas di sandbox ini</div>
+                          <div>{t.emptySandboxFiles}</div>
                         </div>
                       )}
                     </div>
@@ -1772,10 +2095,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               type="button"
                               className="agent-editor-mobile-back"
                               onClick={() => setSelectedFile(null)}
-                              title="Kembali ke daftar berkas"
+                              title={t.backToFileListTitle}
                             >
                               <i className="fa-solid fa-arrow-left" />
-                              <span>Berkas</span>
+                              <span>{t.backToFileList}</span>
                             </button>
                             <span className="agent-editor-filename" title={selectedFile}>
                               <i className={(getFileIcon(selectedFile.split('.').pop()) || {}).icon || 'fa-solid fa-file-code'} style={{ color: (getFileIcon(selectedFile.split('.').pop()) || {}).color || '#ea580c', marginRight: 6 }} />
@@ -1790,16 +2113,16 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               className="agent-editor-btn is-save"
                             >
                               <i className={isFileSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"} />
-                              <span>{isFileSaving ? 'Menyimpan...' : 'Simpan'}</span>
+                              <span>{isFileSaving ? t.savingFile : t.saveFile}</span>
                             </button>
                             <button
                               type="button"
                               onClick={handleDownloadFile}
                               className="agent-editor-btn is-download"
-                              title="Unduh berkas ini"
+                              title={t.downloadFileTitle}
                             >
                               <i className="fa-solid fa-download" />
-                              <span>Unduh</span>
+                              <span>{t.downloadFile}</span>
                             </button>
                             {selectedFile.endsWith('.html') && (
                               <button
@@ -1809,7 +2132,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                   setActiveDrawerTab('preview');
                                 }}
                                 className="agent-editor-btn is-preview"
-                                title="Lihat di Web Preview"
+                                title={t.previewFileTitle}
                               >
                                 <i className="fa-solid fa-eye" />
                                 <span>Preview</span>
@@ -1823,15 +2146,15 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                             value={fileContent}
                             onChange={(e) => setFileContent(e.target.value)}
                             spellCheck={false}
-                            placeholder="Isi berkas kosong..."
+                            placeholder={t.emptyFileContent}
                           />
                         </div>
                       </>
                     ) : (
                       <div className="agent-editor-placeholder">
                         <i className="fa-solid fa-code" style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }} />
-                        <div style={{ fontWeight: 600 }}>Pilih berkas untuk melihat atau mengedit</div>
-                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Klik salah satu berkas dari daftar di atas</div>
+                        <div style={{ fontWeight: 600 }}>{t.selectFileToView}</div>
+                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>{t.selectFileHint}</div>
                       </div>
                     )}
                   </div>
@@ -1842,14 +2165,14 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               {activeDrawerTab === 'terminal' && (
                 <div className="agent-terminal-view">
                   <div className="agent-terminal-logs">
-                    {terminalLogs || '$ Sandbox terminal siap.'}
+                    {terminalLogs || t.termReady}
                   </div>
                   <form className="agent-terminal-prompt-bar" onSubmit={handleRunTerminalCommand}>
                     <span className="agent-term-prompt-sym">$</span>
                     <input
                       type="text"
                       className="agent-term-input"
-                      placeholder="Ketik perintah shell (misal: ls, node app.js)..."
+                      placeholder={t.termPlaceholder}
                       value={terminalInput}
                       onChange={(e) => setTerminalInput(e.target.value)}
                       disabled={isTermExecuting}
@@ -1859,7 +2182,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       disabled={isTermExecuting || !terminalInput.trim()}
                       className="agent-term-run-btn"
                     >
-                      {isTermExecuting ? <i className="fa-solid fa-spinner fa-spin" /> : 'Jalankan'}
+                      {isTermExecuting ? <i className="fa-solid fa-spinner fa-spin" /> : t.termRun}
                     </button>
                   </form>
                 </div>
@@ -1873,7 +2196,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       type="button"
                       onClick={() => setPreviewKey(Date.now())}
                       className="agent-preview-tool-btn"
-                      title="Muat Ulang Preview"
+                      title={t.refreshPreview}
                     >
                       <i className="fa-solid fa-rotate-right" />
                     </button>
@@ -1884,7 +2207,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       type="button"
                       onClick={() => setPreviewViewport(prev => prev === 'desktop' ? 'mobile' : 'desktop')}
                       className="agent-preview-tool-btn"
-                      title="Ubah Mode Layar (Desktop/Mobile)"
+                      title={t.toggleViewport}
                     >
                       <i className={`fa-solid fa-${previewViewport === 'desktop' ? 'mobile-screen' : 'desktop'}`} />
                     </button>
@@ -1893,7 +2216,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                         type="button"
                         onClick={() => window.open(previewUrl, '_blank')}
                         className="agent-preview-tool-btn"
-                        title="Buka di Tab Baru"
+                        title={t.openNewTab}
                       >
                         <i className="fa-solid fa-arrow-up-right-from-square" />
                       </button>
@@ -1918,7 +2241,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   <div className="agent-skill-header">
                     <span className="agent-skill-title">
                       <i className="fa-solid fa-book-bookmark" style={{ color: '#10b981', marginRight: 6 }} />
-                      Protokol Panduan Agent (SKILL.md)
+                      {t.skillProtocolTitle}
                     </span>
                     <button
                       type="button"
@@ -1927,7 +2250,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       className="agent-skill-save-btn"
                     >
                       <i className={isSkillSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-check"} />
-                      <span>{isSkillSaving ? 'Menyimpan...' : 'Simpan'}</span>
+                      <span>{isSkillSaving ? t.savingFile : t.saveFile}</span>
                     </button>
                   </div>
                   <div className="agent-skill-textarea-wrap">
@@ -1936,7 +2259,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       value={skillContent}
                       onChange={(e) => setSkillContent(e.target.value)}
                       spellCheck={false}
-                      placeholder="Tulis aturan protokol agen di sini..."
+                      placeholder={t.skillPlaceholder}
                     />
                   </div>
                 </div>

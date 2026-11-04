@@ -20,7 +20,7 @@ const openSearch = (q) => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user }) => {
+const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, onOpenLogin, onNavigate, isAuthenticated, isGuest, user, userLanguage, onLanguageChange }) => {
   const [activeFaq, setActiveFaq] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [currentLang, setCurrentLang] = useState(() => detectLanguageSync());
@@ -74,6 +74,12 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
     };
 
     window.addEventListener('deepernova_language_changed', handleLanguageChanged);
+    const handleStorage = (e) => {
+      if (e.key === 'deepernova_language' && e.newValue && SUPPORTED_LANGUAGES.includes(e.newValue)) {
+        setCurrentLang(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
 
     const handleOutsideClick = (e) => {
       if (!e.target.closest('.lp-lang-picker')) {
@@ -85,6 +91,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
     return () => {
       isMounted = false;
       window.removeEventListener('deepernova_language_changed', handleLanguageChanged);
+      window.removeEventListener('storage', handleStorage);
       document.removeEventListener('click', handleOutsideClick);
     };
   }, []);
@@ -114,6 +121,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
   const handleSelectLanguage = (code) => {
     saveLanguage(code);
     setCurrentLang(code);
+    onLanguageChange?.(code);
     setLangDropdownOpen(false);
   };
 

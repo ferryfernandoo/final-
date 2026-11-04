@@ -1648,7 +1648,8 @@ app.post('/api/queries/log', (req, res) => {
 // 🤖 PERPLEXITY-GRADE MULTI-STEP AI DIRECT SYNTHESIS & REASONING STREAM
 // ============================================================================
 app.post('/api/ai/stream', searchPriorityMiddleware, async (req, res) => {
-  const { query, results = [], mode = 'search_overview', options = {} } = req.body || {};
+  const { query, results = [], mode = 'search_overview', options = {}, language: reqLang } = req.body || {};
+  const targetLanguage = reqLang || req.query.lang || (req.headers.cookie && req.headers.cookie.match(/deepernova_language=([a-z]+)/)?.[1]) || 'id';
   if (!query || !query.trim()) {
     return res.status(400).json({ error: 'Query parameter is required' });
   }
@@ -1708,7 +1709,7 @@ app.post('/api/ai/stream', searchPriorityMiddleware, async (req, res) => {
       query,
       results: targetResults,
       mode,
-      options: { ...options, instantAnswer, mode },
+      options: { ...options, instantAnswer, mode, language: targetLanguage },
       signal: controller.signal,
       onStep: (stepInfo) => sendEvent('step', stepInfo),
       onThinking: (chunk, accumulated) => {
@@ -1781,7 +1782,8 @@ app.post('/api/ai/summary', searchPriorityMiddleware, async (req, res) => {
 
 // Interactive Multi-Step Deep Search / Research Assistant
 app.post('/api/ai/deep-search', searchPriorityMiddleware, async (req, res) => {
-  const { query, history = [] } = req.body || {};
+  const { query, history = [], language: reqLang } = req.body || {};
+  const targetLanguage = reqLang || req.query.lang || (req.headers.cookie && req.headers.cookie.match(/deepernova_language=([a-z]+)/)?.[1]) || 'id';
   if (!query || !query.trim()) {
     return res.status(400).json({ error: 'Query is required' });
   }
@@ -1805,7 +1807,7 @@ app.post('/api/ai/deep-search', searchPriorityMiddleware, async (req, res) => {
     });
 
     // Step 2: Synthesis with DeepSeek reading top 15 results
-    const summaryPromise = aiSynthesisEngine.synthesizeFast(query, results, { instantAnswer });
+    const summaryPromise = aiSynthesisEngine.synthesizeFast(query, results, { instantAnswer, language: targetLanguage });
     const summaryData = await Promise.race([summaryPromise, timeoutPromise]);
     if (deepTimer) clearTimeout(deepTimer);
 

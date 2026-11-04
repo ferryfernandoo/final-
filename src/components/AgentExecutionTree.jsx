@@ -17,11 +17,120 @@ function unescapeXml(safe) {
  * Format step title to match Claude / Cursor / Antigravity Agent design
  * e.g. "Thought for 1s", "Ran git status", "Explored 1 file", etc.
  */
-export function formatExecutionStepTitle(step) {
+export function formatExecutionStepTitle(step, lang) {
+  const currentLang = lang || (typeof window !== 'undefined' && localStorage.getItem('deepernova_language')) || 'id';
   const type = step.type || '';
   const title = (step.title || '').trim();
   const meta = (step.meta || '').trim();
   const dur = step.duration || '2s';
+
+  if (currentLang === 'en') {
+    switch (type) {
+      case 'thought':
+        return `Thinking for ${step.duration || '1s'}`;
+      case 'command':
+      case 'terminal':
+        return `Terminal command executed · ${dur}`;
+      case 'write':
+      case 'file_write':
+      case 'file':
+        return `Created file ${meta || title || 'file'} · ${step.duration || '1s'}`;
+      case 'patch':
+      case 'patch_file':
+        return `Patched ${meta || title || 'file'} · ${step.duration || '1s'}`;
+      case 'grep':
+      case 'grep_search':
+        return `Grep code search ${meta ? `"${meta}"` : ''} · ${step.duration || '1s'}`;
+      case 'revert':
+      case 'revert_file':
+        return `Rollback ${meta || title || 'file'} · ${step.duration || '1s'}`;
+      case 'delete':
+      case 'file_delete':
+        return `Deleted ${meta || title || 'file'} · ${step.duration || '1s'}`;
+      case 'execute':
+      case 'execute_code':
+      case 'run_code':
+        return `Executed sandbox code · ${dur}`;
+      case 'read':
+      case 'read_file':
+        return `Read ${meta || 'file'} · ${step.duration || '1s'}`;
+      case 'check':
+      case 'verify_file':
+        return `Verified ${meta || 'file'} · ${step.duration || '1s'}`;
+      case 'search':
+      case 'search_web':
+        return `Deepernova Web Search · ${step.duration || '1s'}`;
+      case 'screenshot':
+        return `Web preview screenshot · ${step.duration || '1s'}`;
+      case 'preview':
+        return `Interactive web preview · ${step.duration || '1s'}`;
+      case 'skill':
+      case 'read_skill':
+        return `📖 Read Skill: ${meta || title} · ${step.duration || '1s'}`;
+      case 'search_skill':
+        return `🔍 Search Skill Library: ${meta || title} · ${step.duration || '1s'}`;
+      case 'healing':
+        return `Self-Healing & Auto-repair · ${dur}`;
+      default:
+        if (/terminal/i.test(title)) return `Terminal command executed · ${dur}`;
+        if (/berkas|file/i.test(title)) return `Created file ${meta || title} · ${step.duration || '1s'}`;
+        return `${title || 'Action executed'} · ${dur}`;
+    }
+  }
+
+  if (currentLang === 'zh') {
+    switch (type) {
+      case 'thought':
+        return `思考用时 ${step.duration || '1s'}`;
+      case 'command':
+      case 'terminal':
+        return `终端指令已执行 · ${dur}`;
+      case 'write':
+      case 'file_write':
+      case 'file':
+        return `创建文件 ${meta || title || '文件'} · ${step.duration || '1s'}`;
+      case 'patch':
+      case 'patch_file':
+        return `补丁更新 ${meta || title || '文件'} · ${step.duration || '1s'}`;
+      case 'grep':
+      case 'grep_search':
+        return `代码检索 ${meta ? `"${meta}"` : ''} · ${step.duration || '1s'}`;
+      case 'revert':
+      case 'revert_file':
+        return `回滚文件 ${meta || title || '文件'} · ${step.duration || '1s'}`;
+      case 'delete':
+      case 'file_delete':
+        return `删除文件 ${meta || title || '文件'} · ${step.duration || '1s'}`;
+      case 'execute':
+      case 'execute_code':
+      case 'run_code':
+        return `运行沙盒代码 · ${dur}`;
+      case 'read':
+      case 'read_file':
+        return `读取文件 ${meta || '文件'} · ${step.duration || '1s'}`;
+      case 'check':
+      case 'verify_file':
+        return `校验文件 ${meta || '文件'} · ${step.duration || '1s'}`;
+      case 'search':
+      case 'search_web':
+        return `Deepernova 联网搜索 · ${step.duration || '1s'}`;
+      case 'screenshot':
+        return `网页快照截图 · ${step.duration || '1s'}`;
+      case 'preview':
+        return `交互式网页预览 · ${step.duration || '1s'}`;
+      case 'skill':
+      case 'read_skill':
+        return `📖 查阅技能：${meta || title} · ${step.duration || '1s'}`;
+      case 'search_skill':
+        return `🔍 检索技能库：${meta || title} · ${step.duration || '1s'}`;
+      case 'healing':
+        return `自主故障自愈 · ${dur}`;
+      default:
+        if (/terminal/i.test(title)) return `终端指令已执行 · ${dur}`;
+        if (/berkas|file/i.test(title)) return `创建文件 ${meta || title} · ${step.duration || '1s'}`;
+        return `${title || '操作已执行'} · ${dur}`;
+    }
+  }
 
   switch (type) {
     case 'thought':
@@ -209,8 +318,10 @@ export default function AgentExecutionTree({
   startTime = null,
   duration = null,
   onSelectFile,
-  onOpenDrawer
+  onOpenDrawer,
+  language
 }) {
+  const currentLang = language || (typeof window !== 'undefined' && localStorage.getItem('deepernova_language')) || 'id';
   // Always collapsed by default for maximum simplicity! User can click to inspect.
   const [isTreeOpen, setIsTreeOpen] = useState(false);
   const [activeStepId, setActiveStepId] = useState(null);
@@ -240,12 +351,12 @@ export default function AgentExecutionTree({
   const durText = duration || (elapsedSec ? formatDurationText(elapsedSec) : null);
   const lastStep = steps.length > 0 ? steps[steps.length - 1] : null;
   const activeStepTitle = lastStep
-    ? formatExecutionStepTitle(lastStep).replace(/\s*·\s*\d+[smhd].*$/i, '')
-    : 'Memproses permintaan...';
+    ? formatExecutionStepTitle(lastStep, currentLang).replace(/\s*·\s*\d+[smhd].*$/i, '')
+    : (currentLang === 'zh' ? '正在处理任务...' : currentLang === 'en' ? 'Processing task...' : 'Memproses permintaan...');
 
   const mainLabel = isStreaming
     ? activeStepTitle
-    : `${steps.length} langkah selesai`;
+    : (currentLang === 'zh' ? `${steps.length} 个步骤已完成` : currentLang === 'en' ? `${steps.length} steps completed` : `${steps.length} langkah selesai`);
 
   const handleCopyText = (e, text, idKey) => {
     e.stopPropagation();
@@ -262,7 +373,9 @@ export default function AgentExecutionTree({
         type="button"
         className="agent-tree-summary-row" 
         onClick={() => setIsTreeOpen(!isTreeOpen)}
-        title={isTreeOpen ? "Sembunyikan rincian langkah" : "Lihat rincian langkah kerja AI"}
+        title={isTreeOpen 
+          ? (currentLang === 'zh' ? "收起执行详情" : currentLang === 'en' ? "Hide execution steps" : "Sembunyikan rincian langkah") 
+          : (currentLang === 'zh' ? "查看 AI 执行链路详情" : currentLang === 'en' ? "View AI execution steps" : "Lihat rincian langkah kerja AI")}
       >
         <div className="agent-tree-summary-left">
           {isStreaming ? (

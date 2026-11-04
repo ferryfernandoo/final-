@@ -18,6 +18,7 @@ import { ConversationPersistenceService } from './services/conversationPersisten
 import { API_BASE_URL, SEARCH_ENGINE_URL } from './apiConfig';
 import { safeSetItem, safeGetItem, safeRemoveItem } from './utils/safeStorage.js';
 import { initMobileNavigation, setNavigationDispatcher, registerBackHandler } from './services/mobileNavigationService';
+import { detectLanguageSync, saveLanguage } from './utils/languageDetector';
 import './App.css'
 
 export const isNativePlatform = () => {
@@ -119,6 +120,27 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   const isNative = isNativePlatform();
+  const [userLanguage, setUserLanguage] = useState(() => detectLanguageSync());
+
+  useEffect(() => {
+    const handleLanguageChanged = (e) => {
+      const nextLang = e?.detail?.language;
+      if (nextLang && ['id', 'en', 'zh'].includes(nextLang)) {
+        setUserLanguage(nextLang);
+      }
+    };
+    window.addEventListener('deepernova_language_changed', handleLanguageChanged);
+    const handleStorage = (e) => {
+      if (e.key === 'deepernova_language' && e.newValue && ['id', 'en', 'zh'].includes(e.newValue)) {
+        setUserLanguage(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('deepernova_language_changed', handleLanguageChanged);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     try {
       const saved = safeGetItem('authUser');
@@ -204,7 +226,8 @@ function App() {
     }
 
     if (view === 'search') {
-      window.open(SEARCH_ENGINE_URL, '_blank', 'noopener,noreferrer');
+      const searchUrl = `${SEARCH_ENGINE_URL}${SEARCH_ENGINE_URL.includes('?') ? '&' : '?'}lang=${userLanguage || 'id'}`;
+      window.open(searchUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -733,6 +756,8 @@ function App() {
           isAuthenticated={isAuthenticated}
           isGuest={isGuest}
           user={user}
+          userLanguage={userLanguage}
+          onLanguageChange={saveLanguage}
         />
       </ErrorBoundary>
     );
@@ -806,6 +831,8 @@ function App() {
       <ErrorBoundary onNavigate={handleNavigate}>
         <AgentChat
           user={user}
+          userLanguage={userLanguage}
+          onLanguageChange={saveLanguage}
           isAuthenticated={isAuthenticated}
           isGuest={isGuest}
           onLogout={handleLogout}
@@ -910,6 +937,8 @@ function App() {
           isAuthenticated={isAuthenticated}
           isGuest={isGuest}
           user={user}
+          userLanguage={userLanguage}
+          onLanguageChange={saveLanguage}
           onLoginRequest={(targetView = 'office') => {
             setPendingPostLoginRedirect(targetView);
             localStorage.removeItem('authUser');
@@ -1009,6 +1038,8 @@ function App() {
       )}
       <ChatBot
         user={user}
+        userLanguage={userLanguage}
+        onLanguageChange={saveLanguage}
         isAuthenticated={isAuthenticated}
         isGuest={isGuest}
         onLogout={handleLogout}

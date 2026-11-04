@@ -3596,6 +3596,16 @@ app.post('/api/chat', async (req, res) => {
             finalSystemPrompt = SERVER_PERSONALITY_PROMPTS[effectivePersonality] + '\n\n' + finalSystemPrompt;
           }
 
+          // 🌐 SINKRONISASI BAHASA AKTIF (LANDING PAGE & PENGATURAN)
+          const reqLanguage = (req.body.language || req.cookies?.deepernova_language || 'id').toLowerCase();
+          if (reqLanguage === 'en') {
+            finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT ENGLISH LANGUAGE REQUIREMENT]: You MUST communicate, reason, and answer entirely in English. All explanations, reasoning steps, code comments, and summaries must be written in fluent, natural English. Do NOT answer in Indonesian unless explicitly requested by the user.';
+          } else if (reqLanguage === 'zh') {
+            finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT CHINESE LANGUAGE REQUIREMENT]: 你必须全程使用中文进行沟通、思考与回答。所有的解释、步骤指南、代码注释和总结必须全部使用准确自然的中文。除非用户明确要求，否则不要使用其他语言。';
+          } else {
+            finalSystemPrompt += '\n\n[DIREKTIF SISTEM MUTLAK - BAHASA INDONESIA]: Berikan jawaban, penalaran, dan penjelasan selalu dalam Bahasa Indonesia yang alami, bersahabat, dan mengalir.';
+          }
+
           if (hasImagesInPayload && !finalSystemPrompt.includes('KEMAMPUAN VISION')) {
             finalSystemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK): Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh. Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna. Dilarang mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!';
           }

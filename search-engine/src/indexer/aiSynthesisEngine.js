@@ -186,7 +186,31 @@ export class AiSynthesisEngine {
   /**
    * Builds Google SGE / DeepSeek prompt instructions
    */
-  _getSystemPrompt() {
+  _getSystemPrompt(language = 'id') {
+    if (language === 'en') {
+      return `You are DeeperNova AI, an ultra-fast, direct, and concise search synthesis engine.
+Your task is to provide a brief, direct, and factual English summary based on the search results. Respond strictly in English.
+
+Formatting Rules:
+1. Directly answer the core query in 2-3 concise, clear, and informative sentences (max 50-80 words).
+2. DO NOT use markdown headers (#, ##, ###).
+3. If bullet points are necessary, use at most 2 brief bullet points.
+4. Include source citation numbers like [1], [2], etc.
+5. No fluff or cliché opening phrases (e.g. never say "Based on the search results...").`;
+    }
+
+    if (language === 'zh') {
+      return `You are DeeperNova AI, an ultra-fast, direct, and concise search synthesis engine.
+Your task is to provide a brief, direct, and factual Simplified Chinese summary (简体中文) based on the search results. Respond strictly in Simplified Chinese.
+
+Formatting Rules:
+1. 用 2-3 句精炼、直接、信息密度高的话回答核心问题（字数控制在 60-100 字以内）。
+2. 严禁使用 Markdown 大标题（#、##、###）。
+3. 如需列出要点，最多使用 2 个简短的列表项。
+4. 标注引用来源编号，如 [1]、[2] 等。
+5. 直奔主题，禁止使用空话套话（如“根据搜索结果显示...”）。`;
+    }
+
     return `You are DeeperNova AI, an ultra-fast, direct, and concise search synthesis engine.
 Your task is to provide a brief, direct, and factual Indonesian summary (ringkasan super ringkas & padat) based on the search results.
 
@@ -560,11 +584,19 @@ Pedoman Penulisan Koran:
 
     try {
       const isNewspaper = options?.mode === 'newspaper_editorial';
+      const lang = options?.language || 'id';
       const sourcesPrompt = this._buildSourcesPrompt(top15, 15);
-      const systemPrompt = isNewspaper ? this._getNewspaperEditorialPrompt() : this._getSystemPrompt();
-      const userPrompt = isNewspaper
-        ? `Topik Utama / Peristiwa: "${query ? query.trim() : 'Peristiwa Berita Terhangat Nasional'}"\n\nSumber Berita Berbagai Media Nasional:\n${sourcesPrompt}\n\nSusunlah 1 Tajuk Rencana Redaksi Harian DeeperNova yang menyatukan seluruh sumber berita di atas menjadi editorial koran yang utuh, berwibawa, dan rapi.`
-        : `Pertanyaan / Topik: "${query.trim()}"\n\n15 Hasil Penelusuran Web Teratas:\n${sourcesPrompt}\n\nBuatlah Ringkasan AI yang mendalam, kaya data, dan terstruktur rapi berdasarkan 15 sumber di atas.`;
+      const systemPrompt = isNewspaper ? this._getNewspaperEditorialPrompt() : this._getSystemPrompt(lang);
+      let userPrompt;
+      if (isNewspaper) {
+        userPrompt = `Topik Utama / Peristiwa: "${query ? query.trim() : 'Peristiwa Berita Terhangat Nasional'}"\n\nSumber Berita Berbagai Media Nasional:\n${sourcesPrompt}\n\nSusunlah 1 Tajuk Rencana Redaksi Harian DeeperNova yang menyatukan seluruh sumber berita di atas menjadi editorial koran yang utuh, berwibawa, dan rapi.`;
+      } else if (lang === 'en') {
+        userPrompt = `Question / Topic: "${query.trim()}"\n\nTop 15 Web Search Results:\n${sourcesPrompt}\n\nCreate a brief, fact-dense AI Overview strictly in English based on the 15 sources above.`;
+      } else if (lang === 'zh') {
+        userPrompt = `问题 / 主题: "${query.trim()}"\n\n前 15 个网页检索结果:\n${sourcesPrompt}\n\n请根据上述 15 个来源，使用简体中文生成一份快速精炼的高质量 AI 概览。`;
+      } else {
+        userPrompt = `Pertanyaan / Topik: "${query.trim()}"\n\n15 Hasil Penelusuran Web Teratas:\n${sourcesPrompt}\n\nBuatlah Ringkasan AI yang mendalam, kaya data, dan terstruktur rapi berdasarkan 15 sumber di atas.`;
+      }
 
       const aiResult = await this._callAiChat({
         messages: [
@@ -670,11 +702,19 @@ Pedoman Penulisan Koran:
         });
       }
 
+      const lang = options?.language || 'id';
       const sourcesPrompt = this._buildSourcesPrompt(top15, 15);
-      const systemPrompt = isNewspaper ? this._getNewspaperEditorialPrompt() : this._getSystemPrompt();
-      const userPrompt = isNewspaper
-        ? `Topik Utama / Peristiwa: "${query ? query.trim() : 'Peristiwa Berita Terhangat Nasional'}"\n\nSumber Berita Berbagai Media Pers Nasional:\n${sourcesPrompt}\n\nSusunlah 1 Tajuk Rencana Redaksi Harian DeeperNova yang menyatukan seluruh sumber berita di atas menjadi editorial koran yang utuh, berwibawa, dan rapi.`
-        : `Pertanyaan / Topik: "${query.trim()}"\n\n15 Hasil Penelusuran Web Teratas:\n${sourcesPrompt}\n\nBuatlah Ringkasan AI yang cepat, padat, dan terstruktur rapi berdasarkan 15 sumber di atas.`;
+      const systemPrompt = isNewspaper ? this._getNewspaperEditorialPrompt() : this._getSystemPrompt(lang);
+      let userPrompt;
+      if (isNewspaper) {
+        userPrompt = `Topik Utama / Peristiwa: "${query ? query.trim() : 'Peristiwa Berita Terhangat Nasional'}"\n\nSumber Berita Berbagai Media Pers Nasional:\n${sourcesPrompt}\n\nSusunlah 1 Tajuk Rencana Redaksi Harian DeeperNova yang menyatukan seluruh sumber berita di atas menjadi editorial koran yang utuh, berwibawa, dan rapi.`;
+      } else if (lang === 'en') {
+        userPrompt = `Question / Topic: "${query.trim()}"\n\nTop 15 Web Search Results:\n${sourcesPrompt}\n\nProvide a rapid, high-density AI Summary strictly in English based on the 15 sources above.`;
+      } else if (lang === 'zh') {
+        userPrompt = `问题 / 主题: "${query.trim()}"\n\n前 15 个网页检索结果:\n${sourcesPrompt}\n\n请根据上述 15 个来源，使用简体中文生成一份快速精炼的高质量 AI 概览。`;
+      } else {
+        userPrompt = `Pertanyaan / Topik: "${query.trim()}"\n\n15 Hasil Penelusuran Web Teratas:\n${sourcesPrompt}\n\nBuatlah Ringkasan AI yang cepat, padat, dan terstruktur rapi berdasarkan 15 sumber di atas.`;
+      }
 
       const { response, engine } = await this._callAiChat({
         messages: [

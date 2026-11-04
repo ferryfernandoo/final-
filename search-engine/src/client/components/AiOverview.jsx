@@ -160,7 +160,8 @@ function MarkdownRenderer({ content, sources = [] }) {
   return <div className="ai-markdown-body">{elements}</div>;
 }
 
-export default function AiOverview({ query, results = [] }) {
+export default function AiOverview({ query, results = [], currentLang: propLang }) {
+  const [currentLang, setCurrentLang] = useState(() => propLang || (typeof window !== 'undefined' && localStorage.getItem('deepernova_language')) || 'id');
   const [summary, setSummary] = useState('');
   const [thinking, setThinking] = useState('');
   const [showThinking, setShowThinking] = useState(false);
@@ -185,6 +186,25 @@ export default function AiOverview({ query, results = [] }) {
   const [loadingPhase, setLoadingPhase] = useState(0);
 
   useEffect(() => {
+    if (propLang && propLang !== currentLang) setCurrentLang(propLang);
+  }, [propLang]);
+
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'deepernova_language' && e.newValue) setCurrentLang(e.newValue);
+    };
+    const handleLangEvent = (e) => {
+      if (e?.detail?.language) setCurrentLang(e.detail.language);
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('deepernova_language_changed', handleLangEvent);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('deepernova_language_changed', handleLangEvent);
+    };
+  }, []);
+
+  useEffect(() => {
     let timer = null;
     if (loading) {
       setLoadingPhase(0);
@@ -195,7 +215,15 @@ export default function AiOverview({ query, results = [] }) {
     return () => clearInterval(timer);
   }, [loading]);
 
-  const loadingPhrases = [
+  const loadingPhrases = currentLang === 'zh' ? [
+    `正在阅读并分析前 15 个网页来源： "${query}"...`,
+    `DeepSeek 正在综合提炼快速精简摘要...`,
+    `正在为您呈现带权威引用标记的即时解答...`
+  ] : currentLang === 'en' ? [
+    `Reading & analyzing top 15 web sources for "${query}"...`,
+    `DeepSeek is synthesizing a concise summary...`,
+    `Presenting direct answers with verified citations...`
+  ] : [
     `Membaca & menganalisis 15 sumber web untuk "${query}"...`,
     `DeepSeek sedang menyusun ringkasan cepat & padat...`,
     `Menyajikan jawaban langsung dengan sitasi terverifikasi...`
@@ -261,7 +289,8 @@ export default function AiOverview({ query, results = [] }) {
         body: JSON.stringify({
           query: targetQuery,
           // Send top 15 results for comprehensive grounding
-          results: targetResults && targetResults.length > 0 ? targetResults.slice(0, 15) : []
+          results: targetResults && targetResults.length > 0 ? targetResults.slice(0, 15) : [],
+          language: currentLang
         }),
         signal: controller.signal
       });
@@ -466,7 +495,9 @@ export default function AiOverview({ query, results = [] }) {
         <div className="ai-compact-row">
           <div className="ai-compact-brand">
             <GoogleSparkleIcon size={14} className={loading ? 'sparkle-spin-anim' : ''} />
-            <span className="ai-compact-label">Ringkasan AI</span>
+            <span className="ai-compact-label">
+              {currentLang === 'zh' ? 'AI 智能概览' : currentLang === 'en' ? 'AI Overview' : 'Ringkasan AI'}
+            </span>
           </div>
 
           <div className="ai-compact-actions">
@@ -474,7 +505,7 @@ export default function AiOverview({ query, results = [] }) {
               <button
                 type="button"
                 onClick={handleCopy}
-                title="Salin ringkasan"
+                title={currentLang === 'zh' ? '复制摘要' : currentLang === 'en' ? 'Copy summary' : 'Salin ringkasan'}
                 className="ai-compact-icon-btn"
               >
                 {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
@@ -485,7 +516,7 @@ export default function AiOverview({ query, results = [] }) {
               type="button"
               onClick={() => fetchSummary(query, results, true)}
               disabled={loading}
-              title="Perbarui ringkasan"
+              title={currentLang === 'zh' ? '重新生成摘要' : currentLang === 'en' ? 'Refresh summary' : 'Perbarui ringkasan'}
               className="ai-compact-icon-btn"
             >
               <RefreshCw size={12} className={loading ? 'spin-anim' : ''} />

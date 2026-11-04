@@ -254,6 +254,7 @@ class AgentService {
     model = 'deepernova-gold-1.5',
     history = [],
     effort = 'high',
+    language,
     signal,
     onDelta,
     onReasoning,
@@ -265,6 +266,7 @@ class AgentService {
     onError
   }) {
     try {
+      const activeLang = language || (typeof localStorage !== 'undefined' ? localStorage.getItem('deepernova_language') : null) || 'id';
       const res = await fetch(`${API_BASE_URL}/api/agent/run`, {
         method: 'POST',
         credentials: 'include',
@@ -278,7 +280,8 @@ class AgentService {
           prompt,
           model,
           history,
-          effort
+          effort,
+          language: activeLang
         })
       });
 

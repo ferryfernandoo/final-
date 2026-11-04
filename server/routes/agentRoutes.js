@@ -924,7 +924,7 @@ function createStreamActionParser(callbacks) {
 }
 
 router.post('/run', async (req, res) => {
-  const { sessionId, prompt, model = 'deepernova-gold-1.5', history = [], effort = 'high' } = req.body;
+  const { sessionId, prompt, model = 'deepernova-gold-1.5', history = [], effort = 'high', language = 'id' } = req.body;
   const userId = getUserId(req);
 
   if (!sessionId || !prompt) {
@@ -1352,7 +1352,15 @@ JIKA TERJADI KENDALA TEKNIS APAPUN (syntax error, missing module/library, runtim
       ? `\n📖 BUKU SKILL AKTIF: Tugas ini dieksekusi dengan standar buku skill \`${activeSkill.file}\` (${activeSkill.title}). Anda WAJIB berpegang teguh pada aturan dan template di dalamnya!\n`
       : '';
 
+    const reqLang = (language || 'id').toLowerCase();
+    const langDirective = reqLang === 'en'
+      ? '\n[MANDATORY SYSTEM DIRECTIVE - STRICT ENGLISH LANGUAGE REQUIREMENT]: You MUST communicate, write your <thought> analyses, deliver the final executive summary, and interact with the user entirely in English. All explanations and messages must be in fluent English.\n'
+      : (reqLang === 'zh'
+        ? '\n[MANDATORY SYSTEM DIRECTIVE - STRICT CHINESE LANGUAGE REQUIREMENT]: 你的所有 <thought> 分析、最终执行总结以及与用户的交互必须全程使用地道自然的中文进行。\n'
+        : '\n[DIREKTIF BAHASA MUTLAK - BAHASA INDONESIA]: Seluruh penalaran, thought, dan kesimpulan akhir wajib disampaikan dalam Bahasa Indonesia yang alami dan jelas.\n');
+
     const systemPrompt = `Anda adalah Deepernova AI Agent — asisten koding dan eksekusi sandbox otonom tercanggih dengan standar Autonomous Agent Orchestrator, Workspace Artifacts & Dynamic Skill Architecture.
+${langDirective}
 Anda bertugas mengeksekusi instruksi pengguna secara nyata di dalam sandbox hingga menghasilkan berkas jadi berkualitas tinggi tanpa error.
 
 PRINSIP UTAMA: EKSEKUSI SENYAP & KESIMPULAN AKHIR PADAT (ZERO-CHATTER & HEMAT TOKEN):

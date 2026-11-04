@@ -24,20 +24,58 @@ const POPULAR_TOPICS = [
   'Wikipedia'
 ];
 
-const SEARCH_TYPES = [
-  { id: 'all', label: 'Semua Web', shortLabel: 'Semua', icon: Globe },
-  { id: 'images', label: 'Gambar', shortLabel: 'Gambar', icon: ImageIcon },
-  { id: 'news', label: 'Berita', shortLabel: 'Berita', icon: Newspaper },
-  { id: 'economics', label: 'Finansial', shortLabel: 'Finansial', icon: TrendingUp },
-  { id: 'api', label: 'API Developer', shortLabel: 'API', icon: Terminal }
-];
+const getSearchTypes = (lang = 'id') => {
+  if (lang === 'en') {
+    return [
+      { id: 'all', label: 'All Web', shortLabel: 'All', icon: Globe },
+      { id: 'images', label: 'Images', shortLabel: 'Images', icon: ImageIcon },
+      { id: 'news', label: 'News', shortLabel: 'News', icon: Newspaper },
+      { id: 'economics', label: 'Financial', shortLabel: 'Finance', icon: TrendingUp },
+      { id: 'api', label: 'Developer API', shortLabel: 'API', icon: Terminal }
+    ];
+  }
+  if (lang === 'zh') {
+    return [
+      { id: 'all', label: '全部网页', shortLabel: '全部', icon: Globe },
+      { id: 'images', label: '高清图片', shortLabel: '图片', icon: ImageIcon },
+      { id: 'news', label: '新闻资讯', shortLabel: '新闻', icon: Newspaper },
+      { id: 'economics', label: '财经金融', shortLabel: '财经', icon: TrendingUp },
+      { id: 'api', label: '开发者 API', shortLabel: 'API', icon: Terminal }
+    ];
+  }
+  return [
+    { id: 'all', label: 'Semua Web', shortLabel: 'Semua', icon: Globe },
+    { id: 'images', label: 'Gambar', shortLabel: 'Gambar', icon: ImageIcon },
+    { id: 'news', label: 'Berita', shortLabel: 'Berita', icon: Newspaper },
+    { id: 'economics', label: 'Finansial', shortLabel: 'Finansial', icon: TrendingUp },
+    { id: 'api', label: 'API Developer', shortLabel: 'API', icon: Terminal }
+  ];
+};
 
-const TIME_FILTERS = [
-  { id: 'all', label: 'Kapan saja' },
-  { id: '24h', label: '24 Jam Terakhir' },
-  { id: 'week', label: '1 Minggu Terakhir' },
-  { id: 'month', label: '1 Bulan Terakhir' }
-];
+const getTimeFilters = (lang = 'id') => {
+  if (lang === 'en') {
+    return [
+      { id: 'all', label: 'Any time' },
+      { id: '24h', label: 'Past 24 hours' },
+      { id: 'week', label: 'Past week' },
+      { id: 'month', label: 'Past month' }
+    ];
+  }
+  if (lang === 'zh') {
+    return [
+      { id: 'all', label: '不限时间' },
+      { id: '24h', label: '过去 24 小时' },
+      { id: 'week', label: '过去 1 周' },
+      { id: 'month', label: '过去 1 个月' }
+    ];
+  }
+  return [
+    { id: 'all', label: 'Kapan saja' },
+    { id: '24h', label: '24 Jam Terakhir' },
+    { id: 'week', label: '1 Minggu Terakhir' },
+    { id: 'month', label: '1 Bulan Terakhir' }
+  ];
+};
 
 const HOT_SEARCH_CATEGORIES = {
   all: [
@@ -746,6 +784,49 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Language Management (Synchronized with DeeperNova AI & Landing Page)
+  const [currentLang, setCurrentLang] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlLang = new URLSearchParams(window.location.search).get('lang');
+      if (urlLang && ['id', 'en', 'zh'].includes(urlLang)) return urlLang;
+      try {
+        const saved = localStorage.getItem('deepernova_language');
+        if (saved && ['id', 'en', 'zh'].includes(saved)) return saved;
+      } catch (_) {}
+    }
+    return 'id';
+  });
+
+  const handleSelectLanguage = (langCode) => {
+    setCurrentLang(langCode);
+    try {
+      localStorage.setItem('deepernova_language', langCode);
+      document.cookie = `deepernova_language=${langCode}; path=/; max-age=31536000; SameSite=Lax`;
+      window.dispatchEvent(new CustomEvent('deepernova_language_changed', { detail: { language: langCode } }));
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'deepernova_language' && e.newValue) {
+        setCurrentLang(e.newValue);
+      }
+    };
+    const handleLangEvent = (e) => {
+      const next = e?.detail?.language;
+      if (next) setCurrentLang(next);
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('deepernova_language_changed', handleLangEvent);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('deepernova_language_changed', handleLangEvent);
+    };
+  }, []);
+
+  const SEARCH_TYPES = getSearchTypes(currentLang);
+  const TIME_FILTERS = getTimeFilters(currentLang);
+
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const isSearchActive = Boolean(hasSearched || resultsData || searchType === 'news' || searchType === 'images' || searchType === 'economics' || searchType === 'api');
 
@@ -846,13 +927,19 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'id-ID';
+      recognition.lang = currentLang === 'zh' ? 'zh-CN' : currentLang === 'en' ? 'en-US' : 'id-ID';
       recognition.continuous = false;
       recognition.interimResults = true;
 
       recognition.onstart = () => {
         setIsListening(true);
-        setVoiceNotice('Mendengarkan... Silakan ucapkan kata kunci pencarian Anda.');
+        setVoiceNotice(
+          currentLang === 'zh'
+            ? '正在聆听... 请说出搜索关键词。'
+            : currentLang === 'en'
+              ? 'Listening... Please speak your search query.'
+              : 'Mendengarkan... Silakan ucapkan kata kunci pencarian Anda.'
+        );
       };
 
       recognition.onresult = (event) => {
@@ -1553,7 +1640,11 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
             onChange={(e) => handleInputChange(e.target.value)}
             onFocus={handleInputFocus}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Mendengarkan... Silakan berbicara kata kunci" : (isHeaderMode ? "Tanya DeeperNova (Batas maks 10s)" : "Telusuri dengan DeeperNova (Batas maks 10 detik/sesi)...")}
+            placeholder={
+              isListening
+                ? (currentLang === 'zh' ? "正在聆听... 请说出搜索关键词" : currentLang === 'en' ? "Listening... Speak your search query" : "Mendengarkan... Silakan berbicara kata kunci")
+                : (currentLang === 'zh' ? "搜索全网或向 AI 提问..." : currentLang === 'en' ? "Search the web or ask AI anything..." : "Telusuri dengan DeeperNova atau tanyakan apa saja...")
+            }
             className="dn-search-input"
             autoFocus={false}
             autoComplete="off"
@@ -1763,6 +1854,36 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
 
           {/* Header Right Actions */}
           <div className="header-actions-group">
+            {/* Synchronized Language Selector */}
+            <div className="search-lang-selector" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              {[
+                { code: 'id', label: 'ID' },
+                { code: 'en', label: 'EN' },
+                { code: 'zh', label: '中文' }
+              ].map((opt) => (
+                <button
+                  key={opt.code}
+                  type="button"
+                  onClick={() => handleSelectLanguage(opt.code)}
+                  style={{
+                    padding: '2px 7px',
+                    borderRadius: '12px',
+                    border: '1px solid',
+                    borderColor: currentLang === opt.code ? '#0284c7' : 'rgba(0,0,0,0.12)',
+                    background: currentLang === opt.code ? 'rgba(2, 132, 199, 0.12)' : 'transparent',
+                    color: currentLang === opt.code ? '#0284c7' : 'inherit',
+                    fontSize: '0.72rem',
+                    fontWeight: currentLang === opt.code ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title={opt.label}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
             <button
               type="button"
               onClick={toggleTheme}
@@ -2141,6 +2262,7 @@ export default function PublicSearch({ onSwitchToAdmin, telemetry }) {
                       <AiOverview 
                         query={resultsData.query || query} 
                         results={resultsData.results || []} 
+                        currentLang={currentLang}
                       />
                     </ErrorBoundary>
                   )}

@@ -45,16 +45,28 @@ export const ChatEmptyHero = React.memo(({
     <div className="meta-hero-empty-state">
       <div className="meta-hero-header-wrap">
         <h1 className="meta-hero-heading">
-          {userLanguage === 'id' ? 'Apa yang bisa saya bantu hari ini?' : 'What can I help you with today?'}
+          {userLanguage === 'zh'
+            ? '今天我能为您提供什么帮助？'
+            : userLanguage === 'id'
+              ? 'Apa yang bisa saya bantu hari ini?'
+              : 'What can I help you with today?'}
         </h1>
         <button
           type="button"
           className="meta-hero-agent-pill-btn"
           onClick={() => onNavigate?.('agent')}
-          title={userLanguage === 'id' ? 'Buka Autonomous AI Agent (Eksekusi Kode, Terminal & Proyek)' : 'Launch Autonomous AI Agent'}
+          title={
+            userLanguage === 'zh'
+              ? '启动自主 AI Agent（代码执行、终端与项目）'
+              : userLanguage === 'id'
+                ? 'Buka Autonomous AI Agent (Eksekusi Kode, Terminal & Proyek)'
+                : 'Launch Autonomous AI Agent (Code execution, terminal & projects)'
+          }
         >
           <span className="agent-pill-icon">⚡</span>
-          <span className="agent-pill-label">{userLanguage === 'id' ? 'Mode AI Agent' : 'AI Agent'}</span>
+          <span className="agent-pill-label">
+            {userLanguage === 'zh' ? 'AI Agent 模式' : userLanguage === 'id' ? 'Mode AI Agent' : 'AI Agent'}
+          </span>
           <span className="agent-pill-arrow">→</span>
         </button>
       </div>
@@ -163,8 +175,8 @@ export const ChatEmptyHero = React.memo(({
             onPaste={handlePaste}
             placeholder={
               isTokenLimited
-                ? (userLanguage === 'id' ? "🔒 Token penggunaan telah habis (tunggu reset)..." : "🔒 Token limit reached (waiting for reset)...")
-                : (userLanguage === 'id' ? "Tanya Deepernova AI..." : "Ask Deepernova AI...")
+                ? (userLanguage === 'zh' ? '🔒 额度已用完（等待重置）...' : userLanguage === 'id' ? '🔒 Token penggunaan telah habis (tunggu reset)...' : '🔒 Token limit reached (waiting for reset)...')
+                : (userLanguage === 'zh' ? '询问 Deepernova AI，起草文档或输入 / 开启命令...' : userLanguage === 'id' ? 'Tanyakan apa saja, buat dokumen, atau minta riset...' : 'Ask anything, draft documents, or start research...')
             }
             disabled={false}
             className="message-input"
@@ -440,7 +452,13 @@ export const ChatEmptyHero = React.memo(({
           type="button"
           className="meta-prompt-chip"
           onClick={() => {
-            setInputValue(userLanguage === 'id' ? 'Jelaskan konsep ini secara jelas dan mudah dipahami: ' : 'Explain this concept clearly and simply: ');
+            setInputValue(
+              userLanguage === 'zh'
+                ? '请清晰易懂地解释这个概念：'
+                : userLanguage === 'id'
+                  ? 'Jelaskan konsep ini secara jelas dan mudah dipahami: '
+                  : 'Explain this concept clearly and simply: '
+            );
             setTimeout(() => {
               if (textareaElementRef?.current) {
                 textareaElementRef.current.focus();
@@ -449,13 +467,19 @@ export const ChatEmptyHero = React.memo(({
             }, 20);
           }}
         >
-          💡 {userLanguage === 'id' ? 'Tanyakan apa pun' : 'Ask anything'}
+          💡 {userLanguage === 'zh' ? '随心提问' : userLanguage === 'id' ? 'Tanyakan apa pun' : 'Ask anything'}
         </button>
         <button
           type="button"
           className="meta-prompt-chip"
           onClick={() => {
-            setInputValue(userLanguage === 'id' ? 'Bantu saya menulis kode program untuk: ' : 'Help write code for: ');
+            setInputValue(
+              userLanguage === 'zh'
+                ? '请帮我编写代码实现：'
+                : userLanguage === 'id'
+                  ? 'Bantu saya menulis kode program untuk: '
+                  : 'Help write code for: '
+            );
             setTimeout(() => {
               if (textareaElementRef?.current) {
                 textareaElementRef.current.focus();
@@ -464,13 +488,19 @@ export const ChatEmptyHero = React.memo(({
             }, 20);
           }}
         >
-          💻 {userLanguage === 'id' ? 'Tulis kode' : 'Write code'}
+          💻 {userLanguage === 'zh' ? '编写代码' : userLanguage === 'id' ? 'Tulis kode' : 'Write code'}
         </button>
         <button
           type="button"
           className="meta-prompt-chip"
           onClick={() => {
-            setInputValue(userLanguage === 'id' ? 'Bantu susun rencana dan langkah terstruktur untuk: ' : 'Help plan a structured strategy for: ');
+            setInputValue(
+              userLanguage === 'zh'
+                ? '请帮我制定结构化计划与策略：'
+                : userLanguage === 'id'
+                  ? 'Bantu susun rencana dan langkah terstruktur untuk: '
+                  : 'Help plan a structured strategy for: '
+            );
             setTimeout(() => {
               if (textareaElementRef?.current) {
                 textareaElementRef.current.focus();
@@ -479,13 +509,19 @@ export const ChatEmptyHero = React.memo(({
             }, 20);
           }}
         >
-          🎯 {userLanguage === 'id' ? 'Rencana & strategi' : 'Plan & strategy'}
+          🎯 {userLanguage === 'zh' ? '计划与策略' : userLanguage === 'id' ? 'Rencana & strategi' : 'Plan & strategy'}
         </button>
         <button
           type="button"
           className="meta-prompt-chip"
           onClick={() => {
-            setInputValue(userLanguage === 'id' ? 'Buatkan draf teks profesional tentang: ' : 'Draft a professional document about: ');
+            setInputValue(
+              userLanguage === 'zh'
+                ? '请帮我起草一份关于以下内容的专业文档：'
+                : userLanguage === 'id'
+                  ? 'Buatkan draf teks profesional tentang: '
+                  : 'Draft a professional document about: '
+            );
             setTimeout(() => {
               if (textareaElementRef?.current) {
                 textareaElementRef.current.focus();
@@ -494,7 +530,7 @@ export const ChatEmptyHero = React.memo(({
             }, 20);
           }}
         >
-          📝 {userLanguage === 'id' ? 'Tulis dokumen' : 'Write document'}
+          📝 {userLanguage === 'zh' ? '撰写文档' : userLanguage === 'id' ? 'Tulis dokumen' : 'Write document'}
         </button>
       </div>
     </div>

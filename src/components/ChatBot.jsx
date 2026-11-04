@@ -55,7 +55,7 @@ import './ChatBot.css';
 
 export { DEEPERNOVA_MODELS, SUGGESTION_PROMPTS_POOL };
 
-const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser }) => {
+const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser, userLanguage: propLanguage, onLanguageChange }) => {
   // Conversations management
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
@@ -2687,6 +2687,12 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   // - CN/TW/HK/MO -> 'zh'
   // - All other countries -> strictly 'en' (never Indonesian)
   useEffect(() => {
+    if (propLanguage && propLanguage !== userLanguage) {
+      setUserLanguage(propLanguage);
+    }
+  }, [propLanguage]);
+
+  useEffect(() => {
     let isMounted = true;
     detectLanguageAsync().then((lang) => {
       if (isMounted && lang) {
@@ -2700,11 +2706,18 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         setUserLanguage(nextLang);
       }
     };
+    const handleStorage = (e) => {
+      if (e.key === 'deepernova_language' && e.newValue) {
+        setUserLanguage(e.newValue);
+      }
+    };
     window.addEventListener('deepernova_language_changed', handleLanguageChanged);
+    window.addEventListener('storage', handleStorage);
 
     return () => {
       isMounted = false;
       window.removeEventListener('deepernova_language_changed', handleLanguageChanged);
+      window.removeEventListener('storage', handleStorage);
     };
   }, []);
 

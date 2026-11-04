@@ -35,6 +35,14 @@ export function saveLanguage(lang) {
   try {
     if (typeof localStorage !== 'undefined' && SUPPORTED_LANGUAGES.includes(lang)) {
       localStorage.setItem(STORAGE_KEY, lang);
+      try {
+        if (typeof document !== 'undefined') {
+          document.cookie = `${STORAGE_KEY}=${lang}; path=/; max-age=31536000; SameSite=Lax`;
+        }
+        if (typeof window !== 'undefined') {
+          window.__DEEPERNOVA_CURRENT_LANG__ = lang;
+        }
+      } catch (_) {}
       // Dispatch custom event so all components/tabs can react
       window.dispatchEvent(new CustomEvent('deepernova_language_changed', { detail: { language: lang } }));
     }

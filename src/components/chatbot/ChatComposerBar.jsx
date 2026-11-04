@@ -401,8 +401,8 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
             onPaste={handlePaste}
             placeholder={
               isTokenLimited
-                ? (userLanguage === 'id' ? '🔒 Token penggunaan telah habis (tunggu reset)...' : '🔒 Token limit reached (waiting for reset)...')
-                : (userLanguage === 'id' ? 'Tanya Deepernova AI...' : 'Ask Deepernova AI...')
+                ? (userLanguage === 'zh' ? '🔒 额度已用完（等待重置）...' : userLanguage === 'id' ? '🔒 Token penggunaan telah habis (tunggu reset)...' : '🔒 Token limit reached (waiting for reset)...')
+                : (userLanguage === 'zh' ? '询问 Deepernova AI，起草文档或输入 / 开启命令...' : userLanguage === 'id' ? 'Tanyakan apa saja, buat dokumen, atau minta riset...' : 'Ask anything, draft documents, or start research...')
             }
             disabled={false}
             className="message-input"
