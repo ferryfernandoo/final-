@@ -6922,6 +6922,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         };
       });
 
+      // Filter out image thumbnails or gstatic URLs so they NEVER show up as web article source bubbles
+      sources = sources.filter(s => {
+        if (!s || !s.link) return false;
+        const l = (s.link || '').toLowerCase();
+        const d = (s.domain || '').toLowerCase();
+        const isImage =
+          d.includes('gstatic.com') ||
+          d.includes('googleusercontent.com') ||
+          d.startsWith('encrypted') ||
+          l.includes('encrypted-tbn') ||
+          l.includes('/images?q=tbn:') ||
+          /\.(jpe?g|png|webp|gif|svg|avif)(\?.*)?$/i.test(l);
+        return !isImage;
+      });
+
       if (sources.length === 0) {
         sources = buildGuaranteedReferenceSources(searchQuery);
       }
@@ -7055,12 +7070,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             return `[Foto #${idx + 1}] Judul/Topik: "${cleanTitle}" | URL: ${img.url}`;
           }).join('\n') +
           `\n\n📌 ATURAN WAJIB MENAMPILKAN GAMBAR FOTO & TEKS DAMPINGAN (SIDE-BY-SIDE):\n` +
-          `1. WAJIB SISIPKAN 2 HINGGA 4 FOTO RELEVAN dari daftar di atas langsung di dalam penjelasanmu menggunakan format Markdown: ![Keterangan/Judul Foto](URL_Foto).\n` +
-          `2. LETAKKAN FOTO TEPAT DI BAWAH SUBJUDUL TOPIK (###) LALU LANGSUNG TULISKAN PARAGRAF PENJELASAN BERKAITAN:\n` +
+          `1. WAJIB SISIPKAN 2 HINGGA 4 FOTO RELEVAN dari daftar di atas langsung di dalam penjelasanmu menggunakan format Markdown Gambar: ![Keterangan Singkat](URL_Foto) (WAJIB selalu ada tanda seru ! di paling depan tanda kurung siku).\n` +
+          `2. DILARANG KERAS menuliskan foto sebagai link teks biasa seperti [Foto](URL) atau [Encrypted](URL) atau menuliskan deretan URL mentah di dalam teks!\n` +
+          `3. DILARANG membuat sitasi atau bubble untuk domain gambar seperti 'encrypted-tbn0' atau 'gstatic'. Sitasi [Nama Web](URL) HANYA untuk web artikel berita/informasi (seperti Detik, Kompas, Wikipedia).\n` +
+          `4. LETAKKAN FOTO TEPAT DI BAWAH SUBJUDUL TOPIK (###) LALU LANGSUNG TULISKAN PARAGRAF PENJELASAN BERKAITAN:\n` +
           `   - Contoh jika membahas jenis kopi: letakkan foto kopi di bawah subjudul kopi, lalu tulis penjelasan kopi di sampingnya.\n` +
           `   - Contoh jika membahas efek rasa kantuk/ngantuk: letakkan foto orang mengantuk di bawah subjudul rasa kantuk, lalu tulis penjelasan mekanisme kantuk di sampingnya.\n` +
-          `3. FORMAT DAMPINGAN OTOMATIS: Frontend telah diprogram untuk otomatis mengecilkan foto dan mem-float foto ke sebelah kanan, sehingga paragraf teks penjelasan yang kamu tulis akan mengalir rapi di sebelah gambar (teks dan gambar berdampingan) tanpa memenuhi layar!\n` +
-          `4. DILARANG MENGARANG URL SENDIRI! HANYA gunakan URL yang tertera pada daftar "[Foto #...]" di atas.\n\n`;
+          `5. FORMAT DAMPINGAN OTOMATIS: Frontend telah diprogram untuk otomatis mengecilkan foto dan mem-float foto ke sebelah kanan, sehingga paragraf teks penjelasan yang kamu tulis akan mengalir rapi di sebelah gambar (teks dan gambar berdampingan) tanpa memenuhi layar!\n` +
+          `6. DILARANG MENGARANG URL SENDIRI! HANYA gunakan URL yang tertera pada daftar "[Foto #...]" di atas.\n\n`;
       }
 
       // Check if user is asking for comparison (e.g. A vs B, bandingkan X dan Y)
@@ -7087,7 +7104,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    - Tulis ulasan atau penjelasan yang LENGKAP, MENYELURUH, KAYA INFORMASI, dan MENDALAM (artikel utuh berkualitas tinggi). Kupas tuntas fakta, latar belakang sejarah, sains, ragam jenis, tips praktis, mekanisme, dan perbandingannya secara komprehensif.
    - DILARANG menyingkat atau memotong ulasan menjadi terlalu pendek atau dangkal! Pengguna menginginkan isi artikel yang lengkap dan berbobot tinggi.
    - Tulis dengan kalimat dan gayamu sendiri yang hangat, luwes, dan ramah (jangan menempelkan blok kutipan mentah dari mesin pencari).
-   - SITASI BUBBLE SIMPEL & ELEGAN: Untuk setiap rujukan sumber fakta dari web, CUKUP cantumkan link sitasi di akhir kalimat penting: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url)). Frontend otomatis merendernya sebagai bubble badge kecil elegan dengan logo favicon dan nama media saja, sehingga artikel penjelasanmu tetap bersih, rapi, dan nyaman dibaca tanpa deretan URL panjang!
+   - SITASI BUBBLE SIMPEL & ELEGAN: Untuk setiap rujukan sumber fakta dari web, CUKUP cantumkan link sitasi di akhir kalimat penting: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url)). Frontend otomatis merendernya sebagai bubble badge kecil elegan dengan logo favicon dan nama media saja, sehingga artikel penjelasanmu tetap bersih, rapi, dan nyaman dibaca tanpa deretan URL panjang! DILARANG membuat sitasi untuk URL foto gambar!
 
 6. ANALISIS PERBANDINGAN CERDAS & OBYEKTIF:
    - Jika pengguna membandingkan dua hal atau menanyakan perbandingan (termasuk hasil Google vs Deepernova, atau produk/topik A vs B), sajikan perbandingan yang komprehensif, faktual, dan tidak memihak berdasarkan temuan data di atas.
