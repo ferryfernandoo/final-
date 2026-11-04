@@ -3676,7 +3676,7 @@ app.post('/api/chat', async (req, res) => {
                 } else {
                   const errText = await tokenmixResponse.text().catch(() => '');
                   const status = tokenmixResponse.status;
-                  if (status === 402 || status === 401) {
+                  if (status === 402 || status === 401 || status === 429) {
                     exhaustedTokenMixKeys.add(key);
                     console.warn(`[CHAT] ⚠️ Key index ${idx} marked exhausted (${status}). Removed from active rotation.`);
                   }

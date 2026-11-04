@@ -24,6 +24,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
 
 export const HARDCODED_TOKENMIX_KEYS = [
+  'sk-tm-dchQ1crRbE6qPxNKCPjzHUEdgFCntueI2iE0nd1xnmDpYQGx',
   'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
   'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
   'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
