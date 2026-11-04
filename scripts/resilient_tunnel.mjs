@@ -83,7 +83,10 @@ function createTunnel(port, label) {
           return;
         }
 
-        const match = text.match(/https:\/\/([a-zA-Z0-9\-]+)\.trycloudflare\.com/);
+        // Ignore Cloudflare's own API host (appears in error logs), only accept real quick-tunnel URLs
+        const matches = [...text.matchAll(/https:\/\/([a-zA-Z0-9\-]+)\.trycloudflare\.com/g)]
+          .filter(m => m[1] !== 'api' && m[1].includes('-'));
+        const match = matches[0];
         if (match && !isResolved) {
           clearTimeout(timeoutTimer);
           isResolved = true;
@@ -298,6 +301,12 @@ async function startAll() {
     aiUrl: bTunnel.url
   };
 
+  const invalid = Object.values(urls).some(u => !u || /\/\/api\.trycloudflare\.com/.test(u));
+  if (invalid) {
+    log('❌ URL tunnel tidak valid terdeteksi, konfigurasi TIDAK disinkronkan/dipush.');
+    return;
+  }
+
   syncConfigs(urls);
 
   log('==================================================');
@@ -308,43 +317,62 @@ async function startAll() {
   log('==================================================');
 }
 
-// 4. Background Heartbeat Watchdog every 30 seconds
-setInterval(async () => {
+// 4. Background Heartbeat Watchdog (safe): per-tunnel GET probe with timeout,
+//    reconnect only after 3 consecutive failures, never overlapping, 3-minute cooldown.
+let watchdogBusy = false;
+let consecutiveFailures = 0;
+let lastRestartAt = Date.now();
+
+async function probe(url) {
+  if (!url || /\/\/api\.trycloudflare\.com/.test(url)) return false;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const checkBackend = activeTunnels.backend?.process && !activeTunnels.backend.process.killed;
-    const checkSearch = activeTunnels.searchEngine?.process && !activeTunnels.searchEngine.process.killed;
-    const checkDte = activeTunnels.dte?.process && !activeTunnels.dte.process.killed;
+    const res = await fetch(url, { method: 'GET', signal: ctrl.signal });
+    // Any response that is not a tunnel gateway error means the tunnel is alive
+    return ![502, 503, 504, 530].includes(res.status);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(t);
+  }
+}
 
-    let isHealthy = checkBackend && checkSearch && checkDte;
-    if (isHealthy && activeTunnels.backend?.url) {
-      try {
-        const res = await fetch(`${activeTunnels.backend.url}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [] })
-        });
-        if (res.status === 502 || res.status === 504) {
-          log(`⚠️ Health check failed with status ${res.status}, reconnecting tunnels...`);
-          isHealthy = false;
-        }
-      } catch (_e) {
-        isHealthy = false;
-      }
+setInterval(async () => {
+  if (watchdogBusy) return;
+  watchdogBusy = true;
+  try {
+    const procAlive = [activeTunnels.backend, activeTunnels.searchEngine, activeTunnels.dte]
+      .every(tn => tn?.process && !tn.process.killed && tn.process.exitCode === null);
+    const results = await Promise.all([
+      probe(activeTunnels.backend?.url),
+      probe(activeTunnels.searchEngine?.url),
+      probe(activeTunnels.dte?.url)
+    ]);
+    const healthy = procAlive && results.every(Boolean);
+
+    if (healthy) {
+      consecutiveFailures = 0;
+      return;
     }
+    consecutiveFailures++;
+    log(`⚠️ Health check gagal (${consecutiveFailures}/3) [backend=${results[0]}, search=${results[1]}, dte=${results[2]}]`);
 
-    if (!isHealthy) {
-      log('⚠️ Terdeteksi tunnel tidak sehat/terputus, menghubungkan ulang secara otomatis...');
-      try {
-        if (activeTunnels.backend?.process) activeTunnels.backend.process.kill();
-        if (activeTunnels.searchEngine?.process) activeTunnels.searchEngine.process.kill();
-        if (activeTunnels.dte?.process) activeTunnels.dte.process.kill();
-      } catch (_k) {}
+    if (consecutiveFailures >= 3 && Date.now() - lastRestartAt > 180000) {
+      log('🔁 Menghubungkan ulang semua tunnel...');
+      for (const tn of [activeTunnels.backend, activeTunnels.searchEngine, activeTunnels.dte]) {
+        try { tn?.process?.kill(); } catch {}
+      }
+      lastRestartAt = Date.now();
+      consecutiveFailures = 0;
       await startAll();
     }
   } catch (e) {
     log(`Watchdog error: ${e.message}`);
+  } finally {
+    watchdogBusy = false;
   }
-}, 30000);
+}, 40000);
 
 startAll().catch(err => {
   log(`FATAL ERROR: ${err.message}`);

@@ -734,25 +734,27 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
         '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan apakah perlu mencari di web 100% ditentukan olehmu!\n' +
         '- ATURAN EKSEKUSI FLAG SEARCH (MUTLAK):\n' +
-        '  * JIKA DAN HANYA JIKA:\n' +
-        '    1. Pengguna secara eksplisit meminta pencarian web (misal: "cari di web", "search", "googling", "browsing", "cek info terkini tentang...")\n' +
-        '    2. ATAU pengguna menanyakan data yang membutuhkan info real-time hari ini / terbaru yang mudah berubah (berita terkini/hari ini, cuaca hari ini, harga pasar/saham/crypto/kurs hari ini, skor/jadwal pertandingan hari ini):\n' +
-        '    KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):\n' +
+        '  * WAJIB MENCARI (KELUARKAN FLAG) JIKA pertanyaan menyangkut salah satu dari:\n' +
+        '    1. Permintaan pencarian eksplisit ("cari", "search", "googling", "cek", "info tentang", "carikan").\n' +
+        '    2. Berita, peristiwa, tren, rilis, atau apa pun yang "terbaru", "sekarang", "hari ini", "tahun ini", atau tahun 2024 ke atas.\n' +
+        '    3. Fakta spesifik dunia nyata: tokoh/orang, jabatan/pejabat, perusahaan, produk & spesifikasi, harga, tempat/lokasi/alamat, jadwal, skor, statistik, angka, tanggal, aturan/regulasi, film/lagu/game, dan data yang bisa berubah.\n' +
+        '    4. Apa pun yang KAMU TIDAK 100% YAKIN jawabannya. LEBIH BAIK MENCARI DARIPADA MENEBAK/HALUSINASI.\n' +
+        '    Format: KELUARKAN HANYA FLAG DI BARIS PERTAMA (TANPA TEKS LAIN):\n' +
         '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
-        '    (atau [EXECUTE_SEARCH: kata kunci pencarian pilihanmu])\n' +
-        '    dan LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang berita sebelum menerima hasil pencarian!\n' +
-        '  * UNTUK SELURUH PERTANYAAN LAINNYA: Pengetahuan umum, sains, sejarah, definisi, fakta umum dunia, matematika, pemrograman/koding, tutorial, resep masakan, tips, analisis, sapaan santai, obrolan sehari-hari, dan logika mandiri: JAWAB LANGSUNG SECARA CERDAS, TUNTAS, RAMAH, DAN INSTAN TANPA FLAG SEARCH!'
+        '    lalu LANGSUNG BERHENTI setelah `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang fakta sebelum menerima hasil pencarian!\n' +
+        '  * JAWAB LANGSUNG TANPA FLAG HANYA untuk: sapaan/obrolan santai, matematika/hitungan, menulis/merapikan kode, menerjemahkan, merangkum teks yang diberikan pengguna, ide kreatif, dan konsep dasar yang sangat umum & tidak berubah.'
         : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
         '- You are directly connected to DeeperNova Search Engine & Live Web Crawler. You alone decide when a web search is needed!\n' +
         '- SEARCH EXECUTION FLAG RULES (MANDATORY):\n' +
-        '  * IF AND ONLY IF:\n' +
-        '    1. The user explicitly requests a web search (e.g. "search the web", "look up", "googling", "browse")\n' +
-        '    2. OR asks for fast-changing, real-time current info for today (today\'s breaking news, today\'s weather, live crypto/stock prices, live sports scores):\n' +
-        '    OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE VERY FIRST LINE (WITH NO OTHER TEXT AFTER IT):\n' +
+        '  * YOU MUST SEARCH (EMIT THE FLAG) IF the question involves any of:\n' +
+        '    1. An explicit search request ("search", "find", "look up", "check").\n' +
+        '    2. News, events, trends, releases, or anything "latest", "now", "today", "this year", or 2024 onward.\n' +
+        '    3. Specific real-world facts: people, officials, companies, products & specs, prices, places/addresses, schedules, scores, statistics, numbers, dates, regulations, movies/songs/games, and any changeable data.\n' +
+        '    4. Anything you are NOT 100% sure about. SEARCHING IS ALWAYS BETTER THAN GUESSING/HALLUCINATING.\n' +
+        '    Format: OUTPUT ONLY THE FLAG ON THE FIRST LINE (NO OTHER TEXT):\n' +
         '    [SEARCH_REQUEST: your targeted search query]\n' +
-        '    (or [EXECUTE_SEARCH: your targeted search query])\n' +
-        '    and STOP IMMEDIATELY after `]`. NEVER write speculative answers before receiving verified search results!\n' +
-        '  * FOR ALL OTHER QUESTIONS: General knowledge, science, history, definitions, world facts, programming/code, math, tutorials, recipes, casual conversation, and greetings: ANSWER DIRECTLY, INTELLIGENTLY, AND INSTANTLY WITHOUT ANY SEARCH FLAG.'
+        '    and STOP IMMEDIATELY after `]`. NEVER write speculative answers or invent facts before receiving search results!\n' +
+        '  * ANSWER DIRECTLY WITHOUT A FLAG ONLY for: greetings/small talk, math, writing/fixing code, translation, summarizing user-provided text, creative ideas, and very basic timeless concepts.'
       );
 
       const visionInstruction = validImageUrls.length > 0

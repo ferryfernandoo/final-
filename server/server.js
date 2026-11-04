@@ -3525,7 +3525,7 @@ app.post('/api/chat', async (req, res) => {
               'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
               '1. SANGAT RAMAH, HANGAT, DAN SANTUN: Berbicaralah dengan ramah, bersahabat, sopan, dan tulus membantu. DILARANG kaku dan DILARANG memanggil dengan sebutan "bro", "cuy", atau bahasa gaul canggung yang tidak pantas. ' +
               '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-              'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA DAN HANYA JIKA pengguna secara eksplisit meminta pencarian web (misal: "cari di web", "search", "googling", "browsing", "cek info terkini tentang..."), ATAU menanyakan data yang membutuhkan info real-time hari ini yang mudah berubah (berita terkini/hari ini, cuaca hari ini, harga pasar/saham/crypto/kurs hari ini, skor/jadwal pertandingan hari ini): KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] (atau [EXECUTE_SEARCH: kata kunci pilihanmu]) DAN LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. UNTUK SELURUH PERTANYAAN LAINNYA (pengetahuan umum, sains, sejarah, definisi, fakta umum dunia, matematika, pemrograman/koding, tutorial, resep masakan, tips, analisis, sapaan, dan obrolan santai): JAWAB LANGSUNG SECARA CERDAS, TUNTAS, RAMAH, DAN INSTAN TANPA FLAG SEARCH! ' +
+              'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian, ATAU menanyakan berita/peristiwa terbaru, harga, cuaca, jadwal/skor, tokoh/pejabat, perusahaan, produk & spesifikasi, tempat, statistik/angka, tanggal, regulasi, atau fakta spesifik dunia nyata apa pun, ATAU kamu tidak 100% yakin: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] DAN LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. LEBIH BAIK MENCARI DARIPADA MENEBAK. Jawab langsung tanpa flag HANYA untuk sapaan, matematika, coding, terjemahan, merangkum teks pengguna, dan ide kreatif. ' +
               'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
           }
           
@@ -3535,6 +3535,19 @@ app.post('/api/chat', async (req, res) => {
 
           if (hasImagesInPayload && !finalSystemPrompt.includes('KEMAMPUAN VISION')) {
             finalSystemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK): Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh. Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna. Dilarang mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!';
+          }
+
+          // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual dan WAJIBKAN pencarian web
+          const lastUserText = (userQuery || '').trim();
+          const isCasualOrTask = /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(lastUserText) ||
+            /\b(buatkan|buat(?:in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai)\b/i.test(lastUserText);
+          const looksFactual = lastUserText.length > 0 && !isCasualOrTask && (
+            /\b(cari(?:kan)?|search|googling|cek|info|berita|kabar terbaru|terbaru|terkini|sekarang|hari ini|kemarin|minggu ini|bulan ini|tahun ini|update|rilis|launching|harga|biaya|tarif|kurs|saham|crypto|bitcoin|cuaca|jadwal|skor|klasemen|hasil pertandingan|siapa|kapan|dimana|di mana|berapa|alamat|lokasi|presiden|menteri|gubernur|ceo|pendiri|founder|spesifikasi|spek|review|vs|versus|perbandingan|statistik|data|populasi|jumlah penduduk|undang-undang|uu|peraturan|film|lagu|album|anime|game)\b/i.test(lastUserText) ||
+            /\b20(2[3-9]|3\d)\b/.test(lastUserText)
+          );
+          if (!isSearchConclusion && !hasImagesInPayload && looksFactual) {
+            finalSystemPrompt += '\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI]: Pertanyaan pengguna saat ini menyangkut fakta dunia nyata / informasi yang bisa berubah. Kamu TIDAK BOLEH menjawab dari ingatan. Baris pertama jawabanmu WAJIB HANYA berisi: [SEARCH_REQUEST: kata kunci pencarian yang tepat] lalu BERHENTI. Jangan menulis teks lain apa pun.';
+            console.log('[CHAT] 🛡️ Factual query detected → forcing web search flag');
           }
 
           // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
