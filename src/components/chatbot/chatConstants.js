@@ -821,14 +821,14 @@ export const getSmoothTypingStep = (diff, isFinished = false) => {
   if (diff <= 0) return 0;
 
   if (isFinished) {
-    if (diff <= 20) return 2;
-    if (diff <= 60) return 4;
-    return Math.min(diff, Math.max(6, Math.ceil(diff / 4)));
+    if (diff <= 20) return 4;
+    if (diff <= 60) return 8;
+    return Math.min(diff, Math.max(10, Math.ceil(diff / 3)));
   }
 
-  if (diff <= 15) return 2;
-  if (diff <= 45) return 3;
-  if (diff <= 100) return 5;
-  return Math.min(diff, Math.max(7, Math.ceil(diff / 10)));
+  if (diff <= 15) return 4;
+  if (diff <= 45) return 6;
+  if (diff <= 100) return 9;
+  return Math.min(diff, Math.max(12, Math.ceil(diff / 8)));
 };
 

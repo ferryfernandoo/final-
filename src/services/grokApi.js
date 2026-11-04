@@ -734,21 +734,25 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
         '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan apakah perlu mencari di web 100% ditentukan olehmu!\n' +
         '- ATURAN EKSEKUSI FLAG SEARCH (MUTLAK):\n' +
-        '  * JIKA pengguna meminta pencarian (misal: "cari", "search", "googling", "cek", "info tentang"), ATAU menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto/kurs terbaru, cuaca, skor/jadwal pertandingan, pejabat/tokoh terkini, fakta spesifik dunia nyata, atau riset data web:\n' +
+        '  * JIKA DAN HANYA JIKA:\n' +
+        '    1. Pengguna secara eksplisit meminta pencarian web (misal: "cari di web", "search", "googling", "browsing", "cek info terkini tentang...")\n' +
+        '    2. ATAU pengguna menanyakan data yang membutuhkan info real-time hari ini / terbaru yang mudah berubah (berita terkini/hari ini, cuaca hari ini, harga pasar/saham/crypto/kurs hari ini, skor/jadwal pertandingan hari ini):\n' +
         '    KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):\n' +
         '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
         '    (atau [EXECUTE_SEARCH: kata kunci pencarian pilihanmu])\n' +
-        '  * BERHENTI SEGERA setelah tanda kurung siku tutup `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang berita sebelum menerima hasil pencarian! Sistem akan mengeksekusi flag tersebut, memunculkan bubble hasil pencarian terlebih dahulu, lalu mengirimkan data terverifikasi untuk kamu rangkum.\n' +
-        '  * JIKA pertanyaan murni berupa sapaan santai ("halo", "apa kabar"), konsep umum, matematika murni, atau logika coding mandiri: jawab langsung secara alami tanpa mengeluarkan flag search.'
+        '    dan LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang berita sebelum menerima hasil pencarian!\n' +
+        '  * UNTUK SELURUH PERTANYAAN LAINNYA: Pengetahuan umum, sains, sejarah, definisi, fakta umum dunia, matematika, pemrograman/koding, tutorial, resep masakan, tips, analisis, sapaan santai, obrolan sehari-hari, dan logika mandiri: JAWAB LANGSUNG SECARA CERDAS, TUNTAS, RAMAH, DAN INSTAN TANPA FLAG SEARCH!'
         : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
         '- You are directly connected to DeeperNova Search Engine & Live Web Crawler. You alone decide when a web search is needed!\n' +
         '- SEARCH EXECUTION FLAG RULES (MANDATORY):\n' +
-        '  * IF the user requests a search ("search", "find", "look up", "check"), OR asks about current news, today\'s events, live prices/crypto/stocks, weather, sports scores/schedules, current officials, or real-world facts:\n' +
+        '  * IF AND ONLY IF:\n' +
+        '    1. The user explicitly requests a web search (e.g. "search the web", "look up", "googling", "browse")\n' +
+        '    2. OR asks for fast-changing, real-time current info for today (today\'s breaking news, today\'s weather, live crypto/stock prices, live sports scores):\n' +
         '    OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE VERY FIRST LINE (WITH NO OTHER TEXT AFTER IT):\n' +
         '    [SEARCH_REQUEST: your targeted search query]\n' +
         '    (or [EXECUTE_SEARCH: your targeted search query])\n' +
-        '  * STOP IMMEDIATELY after the closing bracket `]`. NEVER write speculative answers or hallucinate news before receiving the search results! The system will execute your flag, render the search results bubble first, and pass the verified data back to you to synthesize.\n' +
-        '  * ONLY if the question is a casual greeting ("hello", "how are you"), general knowledge, pure math, or self-contained coding logic: answer directly without emitting a search flag.'
+        '    and STOP IMMEDIATELY after `]`. NEVER write speculative answers before receiving verified search results!\n' +
+        '  * FOR ALL OTHER QUESTIONS: General knowledge, science, history, definitions, world facts, programming/code, math, tutorials, recipes, casual conversation, and greetings: ANSWER DIRECTLY, INTELLIGENTLY, AND INSTANTLY WITHOUT ANY SEARCH FLAG.'
       );
 
       const visionInstruction = validImageUrls.length > 0

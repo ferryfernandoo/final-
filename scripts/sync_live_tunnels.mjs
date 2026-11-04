@@ -181,3 +181,4 @@ for (const ROOT_DIR of ROOT_DIRS) {
 }
 
 console.log('All tunnel configs synchronized successfully!');
+

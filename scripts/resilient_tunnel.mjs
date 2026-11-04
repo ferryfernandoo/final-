@@ -308,21 +308,43 @@ async function startAll() {
   log('==================================================');
 }
 
-// 4. Background Heartbeat Watchdog every 45 seconds
+// 4. Background Heartbeat Watchdog every 30 seconds
 setInterval(async () => {
   try {
     const checkBackend = activeTunnels.backend?.process && !activeTunnels.backend.process.killed;
     const checkSearch = activeTunnels.searchEngine?.process && !activeTunnels.searchEngine.process.killed;
     const checkDte = activeTunnels.dte?.process && !activeTunnels.dte.process.killed;
 
-    if (!checkBackend || !checkSearch || !checkDte) {
-      log('⚠️ Terdeteksi salah satu tunnel terputus, menghubungkan ulang secara otomatis...');
+    let isHealthy = checkBackend && checkSearch && checkDte;
+    if (isHealthy && activeTunnels.backend?.url) {
+      try {
+        const res = await fetch(`${activeTunnels.backend.url}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [] })
+        });
+        if (res.status === 502 || res.status === 504) {
+          log(`⚠️ Health check failed with status ${res.status}, reconnecting tunnels...`);
+          isHealthy = false;
+        }
+      } catch (_e) {
+        isHealthy = false;
+      }
+    }
+
+    if (!isHealthy) {
+      log('⚠️ Terdeteksi tunnel tidak sehat/terputus, menghubungkan ulang secara otomatis...');
+      try {
+        if (activeTunnels.backend?.process) activeTunnels.backend.process.kill();
+        if (activeTunnels.searchEngine?.process) activeTunnels.searchEngine.process.kill();
+        if (activeTunnels.dte?.process) activeTunnels.dte.process.kill();
+      } catch (_k) {}
       await startAll();
     }
   } catch (e) {
     log(`Watchdog error: ${e.message}`);
   }
-}, 45000);
+}, 30000);
 
 startAll().catch(err => {
   log(`FATAL ERROR: ${err.message}`);
