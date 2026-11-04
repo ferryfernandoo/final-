@@ -202,139 +202,139 @@
     },
     {
       "source": "/api/ping",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/ping"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/ping"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/auth/:path*",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/auth/:path*"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/auth/:path*"
     },
     {
       "source": "/api/items",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/items"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/items/:path*"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/items/:path*"
     },
     {
       "source": "/api/admin",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/admin"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/admin"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/admin/:path*"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/requests"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/requests/:path*"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/api/:path*"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://pieces-attributes-drives-update.trycloudflare.com/uploads/:path*"
+      "destination": "https://manuals-kinase-yoga-disable.trycloudflare.com/uploads/:path*"
     },
     {
       "source": "/api/search",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/search"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/search"
     },
     {
       "source": "/api/status",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/status"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/status"
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/suggest"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/suggest"
     },
     {
       "source": "/api/v1/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/v1/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/v1/:path*"
     },
     {
       "source": "/api/suggestions",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/suggestions"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/suggestions"
     },
     {
       "source": "/api/suggestions/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/suggestions/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/ai/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/news"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/news/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/tokoh"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/geo"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/geo/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/crawl"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/crawl/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/economics"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/economics/:path*"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://homes-theaters-utc-rachel.trycloudflare.com/api/proxy-image"
+      "destination": "https://pediatric-expires-generation-scientists.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://hey-twisted-openings-beginner.trycloudflare.com/api/:path*"
+      "destination": "https://boys-citizen-bay-vanilla.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://hey-twisted-openings-beginner.trycloudflare.com/auth/:path*"
+      "destination": "https://boys-citizen-bay-vanilla.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://hey-twisted-openings-beginner.trycloudflare.com/v1/:path*"
+      "destination": "https://boys-citizen-bay-vanilla.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://hey-twisted-openings-beginner.trycloudflare.com/download/:path*"
+      "destination": "https://boys-citizen-bay-vanilla.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://hey-twisted-openings-beginner.trycloudflare.com/watermarked/:path*"
+      "destination": "https://boys-citizen-bay-vanilla.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
