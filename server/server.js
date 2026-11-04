@@ -32,6 +32,7 @@ import apiProxyRoutes from './routes/api-proxy.js';
 import agentRoutes from './routes/agentRoutes.js';
 import { apiProxyService } from './apiProxyService.js';
 import webSearchService from './webSearchService.js';
+import imageDownloadService, { downloadAndCacheImage, batchPreloadImages } from './imageDownloadService.js';
 import ragService from './ragService.js';
 import externalFinanceService from './externalFinanceService.js';
 import sourceTracker from './sourceTracker.js';
@@ -6910,13 +6911,35 @@ app.get('/api/images/download/:imageId', async (req, res) => {
  * CORS relay: fetch an external image URL server-side and stream it back to the client.
  * This solves cross-origin & hotlink issues where browser blocks direct fetch.
  */
+/**
+ * POST /api/images/cache-batch
+ * Pre-warms the server disk cache by downloading candidate images concurrently in the background
+ */
+app.post('/api/images/cache-batch', express.json({ limit: '2mb' }), async (req, res) => {
+  try {
+    const urls = Array.isArray(req.body?.urls) ? req.body.urls : [];
+    if (urls.length > 0) {
+      batchPreloadImages(urls).catch(() => {});
+    }
+    return res.json({ success: true, count: urls.length });
+  } catch (err) {
+    return res.json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/images/proxy & /api/images/proxy-download
+ * Dedicated Server-Side Image Downloader & Disk Cache Relay:
+ * Downloads external images on the server with anti-hotlink bypass,
+ * caches them locally on disk, and serves them with immutable caching so images NEVER fail!
+ */
 app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) => {
   try {
     const rawUrl = req.query.url;
     if (!rawUrl) {
       return res.status(400).json({ error: 'Missing url parameter' });
     }
-    const imageUrl = String(rawUrl).replace(/&amp;/g, '&');
+    const imageUrl = String(rawUrl).replace(/&amp;/g, '&').trim();
 
     // Validate URL format
     let parsedUrl;
@@ -6926,57 +6949,34 @@ app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) =>
       return res.status(400).json({ error: 'Invalid URL format' });
     }
 
-    // Only allow safe external http/https URLs (SSRF protection)
+    // SSRF protection
     if (!['http:', 'https:'].includes(parsedUrl.protocol) || !isSafeExternalUrl(imageUrl)) {
       return res.status(400).json({ error: 'Only safe public HTTP/HTTPS URLs are allowed' });
     }
 
-    // Fetch image from external URL with timeout & browser User-Agent
-    const fetchPromise = fetch(imageUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
-      },
-    });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Proxy fetch timeout')), 15000)
-    );
+    const titleHint = (req.query.title || '').trim();
+    const imgData = await downloadAndCacheImage(imageUrl, titleHint);
 
-    const imageResponse = await Promise.race([fetchPromise, timeoutPromise]);
-
-    if (!imageResponse.ok) {
-      return res.status(502).json({ error: `Failed to fetch image: ${imageResponse.status}` });
-    }
-
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    const imageBuffer = Buffer.from(arrayBuffer);
-
-    if (imageBuffer.length === 0) {
-      return res.status(502).json({ error: 'Empty image response' });
-    }
-
-    // Determine file extension
-    let fileExtension = '.png';
-    if (contentType.includes('jpeg') || contentType.includes('jpg')) fileExtension = '.jpg';
-    else if (contentType.includes('webp')) fileExtension = '.webp';
-    else if (contentType.includes('gif')) fileExtension = '.gif';
+    let fileExtension = '.jpg';
+    if (imgData.contentType.includes('png')) fileExtension = '.png';
+    else if (imgData.contentType.includes('webp')) fileExtension = '.webp';
+    else if (imgData.contentType.includes('gif')) fileExtension = '.gif';
+    else if (imgData.contentType.includes('svg')) fileExtension = '.svg';
 
     const isDownload = req.path.includes('proxy-download');
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', imageBuffer.length);
+    res.setHeader('Content-Type', imgData.contentType);
+    res.setHeader('Content-Length', imgData.contentLength);
     if (isDownload) {
       res.setHeader('Content-Disposition', `attachment; filename="deepernova-image-${Date.now()}${fileExtension}"`);
     } else {
       res.setHeader('Content-Disposition', 'inline');
     }
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
 
-    res.send(imageBuffer);
+    res.send(imgData.buffer);
   } catch (err) {
-    res.status(500).json({ error: 'Proxy fetch failed: ' + err.message });
+    res.status(500).json({ error: 'Proxy download failed: ' + err.message });
   }
 });
 

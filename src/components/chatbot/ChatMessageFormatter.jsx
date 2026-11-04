@@ -339,22 +339,24 @@ export const formatMessageContent = ({
       /^(?:encrypted|image|foto|link|url|foto\s*#?\d*|gambar\s*#?\d*)$/i.test(rawAlt);
     const cleanAlt = isGarbageAlt ? '' : rawAlt;
     const hasCaption = Boolean(cleanAlt && !cleanAlt.toLowerCase().includes('encrypted'));
+
+    // Always route external images through the server download proxy directly!
+    // Server downloads the image binary, saves it to disk cache, and serves it with 100% reliability.
+    const resolvedSrc = (cleanSrc.startsWith('http://') || cleanSrc.startsWith('https://')) && !cleanSrc.includes('/api/images/proxy')
+      ? `/api/images/proxy?url=${encodeURIComponent(cleanSrc)}${cleanAlt ? `&title=${encodeURIComponent(cleanAlt)}` : ''}`
+      : cleanSrc;
+
     return (
       <figure className="inline-markdown-figure">
         <img
-          src={cleanSrc}
+          src={resolvedSrc}
           alt={cleanAlt || 'Foto'}
           className="inline-markdown-image"
           loading="lazy"
           referrerPolicy="no-referrer"
-          onClick={() => handleImageClick?.(cleanSrc, cleanAlt || 'Image')}
+          onClick={() => handleImageClick?.(resolvedSrc, cleanAlt || 'Image')}
           onError={(e) => {
             const imgEl = e.currentTarget;
-            if (!imgEl.dataset.proxyRetried && cleanSrc.startsWith('http')) {
-              imgEl.dataset.proxyRetried = 'true';
-              imgEl.src = `/api/images/proxy?url=${encodeURIComponent(cleanSrc)}`;
-              return;
-            }
             const fig = imgEl.closest('figure');
             if (fig) fig.style.display = 'none';
             else imgEl.style.display = 'none';

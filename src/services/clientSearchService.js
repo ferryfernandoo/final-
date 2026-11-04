@@ -905,7 +905,13 @@ export async function fetchImagesForQuery(query, limit = 8) {
               source: item.pageUrl || item.source || '',
               sourceDomain: item.domain || item.sourceDomain || ''
             };
-          }).filter(img => img.thumbnail && !img.thumbnail.includes('.ico') && !img.thumbnail.endsWith('.php'));
+          }).filter(img => {
+            if (!img.thumbnail || typeof img.thumbnail !== 'string') return false;
+            const t = img.thumbnail.trim();
+            if (t.endsWith('/') || t.endsWith('.php') || t.endsWith('.asp') || t.endsWith('.jsp') || t.includes('.ico')) return false;
+            if (t.includes('favicons?sz=') || t.startsWith('data:image/svg')) return false;
+            return true;
+          });
         }
       }
     } catch {

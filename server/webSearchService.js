@@ -1,3 +1,4 @@
+import { batchPreloadImages } from './imageDownloadService.js';
 /**
  * DeeperNova Ultra-Fast Hybrid Web & News Search Service
  * Combines Sub-20ms DeeperNova Local FTS5/RAM Index (Port 4000) +
@@ -631,7 +632,7 @@ class WebSearchService {
       if (!u || typeof u !== 'string') return;
       const cleanU = u.replace(/&amp;/g, '&').trim();
       if (!cleanU.startsWith('http://') && !cleanU.startsWith('https://')) return;
-      if (cleanU.endsWith('.php') || cleanU.endsWith('.asp') || cleanU.endsWith('.jsp') || cleanU.includes('favicons?sz=') || cleanU.includes('.ico') || cleanU.startsWith('data:image/svg')) return;
+      if (cleanU.endsWith('/') || cleanU.endsWith('.php') || cleanU.endsWith('.asp') || cleanU.endsWith('.jsp') || cleanU.includes('favicons?sz=') || cleanU.includes('.ico') || cleanU.startsWith('data:image/svg')) return;
       if (seen.has(cleanU)) return;
       seen.add(cleanU);
       let dom = '';
@@ -682,6 +683,12 @@ class WebSearchService {
           }
         }
       } catch (_e) { }
+    }
+
+    // Preload top images to server disk cache in background
+    if (images.length > 0) {
+      const urlsToWarm = images.slice(0, 8).map(i => i.imageUrl).filter(Boolean);
+      batchPreloadImages(urlsToWarm).catch(() => {});
     }
 
     return images.slice(0, limit);

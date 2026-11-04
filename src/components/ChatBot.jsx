@@ -6899,6 +6899,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         } catch (_imgErr) { }
       }
 
+      // Pre-warm server disk cache by pre-downloading candidate images in background
+      if (uniqueImages.length > 0) {
+        try {
+          const prewarmUrls = uniqueImages.slice(0, 8).map(i => i.url).filter(Boolean);
+          fetch('/api/images/cache-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls: prewarmUrls })
+          }).catch(() => {});
+        } catch (_) {}
+      }
+
       // Map sources using uniqueImages for fallback thumbnails
       let sources = resultsList.map(item => {
         let domain = item.domain || '';
