@@ -263,7 +263,7 @@ function syncConfigs(urls) {
   // Quick Git Commit & Push to Vercel
   try {
     log('Mempersiapkan auto-deploy ke Vercel via GitHub...');
-    execSync('git add active_tunnel.json .env.production src/apiConfig.js vercel.json', { cwd: ROOT_DIR_PROD, stdio: 'ignore' });
+    execSync('git add active_tunnel.json src/apiConfig.js vercel.json dpn-search-app/dist/index.html search-engine/vercel.json', { cwd: ROOT_DIR_PROD, stdio: 'ignore' });
     const ts = new Date().toISOString().replace('T', ' ').slice(0, 16);
     execSync(`git commit -m "fix(tunnel): update live tunnel URLs for AI, DTE, and Search Engine (${ts})"`, { cwd: ROOT_DIR_PROD, stdio: 'ignore' });
     execSync('git push origin main', { cwd: ROOT_DIR_PROD, stdio: 'ignore' });
@@ -307,6 +307,22 @@ async function startAll() {
   log(`  📦 Order DTE    : ${dTunnel.url}`);
   log('==================================================');
 }
+
+// 4. Background Heartbeat Watchdog every 45 seconds
+setInterval(async () => {
+  try {
+    const checkBackend = activeTunnels.backend?.process && !activeTunnels.backend.process.killed;
+    const checkSearch = activeTunnels.searchEngine?.process && !activeTunnels.searchEngine.process.killed;
+    const checkDte = activeTunnels.dte?.process && !activeTunnels.dte.process.killed;
+
+    if (!checkBackend || !checkSearch || !checkDte) {
+      log('⚠️ Terdeteksi salah satu tunnel terputus, menghubungkan ulang secara otomatis...');
+      await startAll();
+    }
+  } catch (e) {
+    log(`Watchdog error: ${e.message}`);
+  }
+}, 45000);
 
 startAll().catch(err => {
   log(`FATAL ERROR: ${err.message}`);
