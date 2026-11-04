@@ -111,9 +111,12 @@ for (const ROOT_DIR of ROOT_DIRS) {
       { source: '/dte/favicon.ico', destination: '/dte/favicon.ico' },
       { source: '/dte/:path*', destination: '/dte/index.html' },
 
+      { source: '/api/ping', destination: `${dteUrl}/api/ping` },
       { source: '/api/dte/ping', destination: `${dteUrl}/api/ping` },
+      { source: '/api/auth/:path*', destination: `${dteUrl}/api/auth/:path*` },
       { source: '/api/items', destination: `${dteUrl}/api/items` },
       { source: '/api/items/:path*', destination: `${dteUrl}/api/items/:path*` },
+      { source: '/api/admin', destination: `${dteUrl}/api/admin` },
       { source: '/api/admin/:path*', destination: `${dteUrl}/api/admin/:path*` },
       { source: '/api/requests', destination: `${dteUrl}/api/requests` },
       { source: '/api/requests/:path*', destination: `${dteUrl}/api/requests/:path*` },
@@ -181,3 +184,4 @@ for (const ROOT_DIR of ROOT_DIRS) {
 }
 
 console.log('All tunnel configs synchronized successfully!');
+

@@ -7348,7 +7348,15 @@ app.get(['/dte', '/dte/', '/dte/*'], (req, res, next) => {
 
 // Proxy DTE API endpoints & uploads to local Order DTE backend (Port 5000)
 const DTE_BACKEND_PORT = 5000;
-app.use(['/api/dte', '/api/items', '/api/admin/items', '/api/admin/settings', '/api/requests', '/uploads'], (req, res, next) => {
+app.use([
+  '/api/ping',
+  '/api/auth',
+  '/api/dte',
+  '/api/items',
+  '/api/admin',
+  '/api/requests',
+  '/uploads'
+], (req, res, next) => {
   if (req.path.startsWith('/api/chat') || req.path.startsWith('/api/search')) return next();
   
   const targetPath = req.originalUrl.replace(/^\/api\/dte/, '/api');

@@ -183,9 +183,12 @@ function syncConfigs(urls) {
         { source: '/dte/favicon.ico', destination: '/dte/favicon.ico' },
         { source: '/dte/:path*', destination: '/dte/index.html' },
 
+        { source: '/api/ping', destination: `${dteUrl}/api/ping` },
         { source: '/api/dte/ping', destination: `${dteUrl}/api/ping` },
+        { source: '/api/auth/:path*', destination: `${dteUrl}/api/auth/:path*` },
         { source: '/api/items', destination: `${dteUrl}/api/items` },
         { source: '/api/items/:path*', destination: `${dteUrl}/api/items/:path*` },
+        { source: '/api/admin', destination: `${dteUrl}/api/admin` },
         { source: '/api/admin/:path*', destination: `${dteUrl}/api/admin/:path*` },
         { source: '/api/requests', destination: `${dteUrl}/api/requests` },
         { source: '/api/requests/:path*', destination: `${dteUrl}/api/requests/:path*` },
@@ -317,19 +320,43 @@ async function startAll() {
   log('==================================================');
 }
 
-// 4. Background Heartbeat Watchdog (safe): per-tunnel GET probe with timeout,
-//    reconnect only after 3 consecutive failures, never overlapping, 3-minute cooldown.
+function killProcessTree(proc) {
+  if (!proc || !proc.pid) return;
+  try {
+    if (process.platform === 'win32') {
+      execSync(`taskkill /F /T /PID ${proc.pid}`, { stdio: 'ignore' });
+    } else {
+      proc.kill('SIGKILL');
+    }
+  } catch {}
+}
+
+// 4. Background Heartbeat Watchdog:
+//    - Primary check: local processes and ports are healthy.
+//    - Reconnect only when a process genuinely exits or crashes.
 let watchdogBusy = false;
 let consecutiveFailures = 0;
 let lastRestartAt = Date.now();
 
-async function probe(url) {
+async function probeLocal(port) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 3000);
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/`, { method: 'HEAD', signal: ctrl.signal });
+    return res.status < 500;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function probeRemote(url) {
   if (!url || /\/\/api\.trycloudflare\.com/.test(url)) return false;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 12000);
+  const t = setTimeout(() => ctrl.abort(), 15000);
   try {
     const res = await fetch(url, { method: 'GET', signal: ctrl.signal });
-    // Any response that is not a tunnel gateway error means the tunnel is alive
     return ![502, 503, 504, 530].includes(res.status);
   } catch {
     return false;
@@ -342,37 +369,35 @@ setInterval(async () => {
   if (watchdogBusy) return;
   watchdogBusy = true;
   try {
-    const procAlive = [activeTunnels.backend, activeTunnels.searchEngine, activeTunnels.dte]
-      .every(tn => tn?.process && !tn.process.killed && tn.process.exitCode === null);
-    const results = await Promise.all([
-      probe(activeTunnels.backend?.url),
-      probe(activeTunnels.searchEngine?.url),
-      probe(activeTunnels.dte?.url)
-    ]);
-    const healthy = procAlive && results.every(Boolean);
+    const tns = [activeTunnels.backend, activeTunnels.searchEngine, activeTunnels.dte];
+    const procAlive = tns.every(tn => tn?.process && !tn.process.killed && tn.process.exitCode === null);
 
-    if (healthy) {
-      consecutiveFailures = 0;
-      return;
-    }
-    consecutiveFailures++;
-    log(`⚠️ Health check gagal (${consecutiveFailures}/3) [backend=${results[0]}, search=${results[1]}, dte=${results[2]}]`);
-
-    if (consecutiveFailures >= 3 && Date.now() - lastRestartAt > 180000) {
-      log('🔁 Menghubungkan ulang semua tunnel...');
-      for (const tn of [activeTunnels.backend, activeTunnels.searchEngine, activeTunnels.dte]) {
-        try { tn?.process?.kill(); } catch {}
+    if (!procAlive) {
+      log('⚠️ Salah satu proses tunnel mati/exit. Menghubungkan ulang...');
+      for (const tn of tns) {
+        killProcessTree(tn?.process);
       }
       lastRestartAt = Date.now();
       consecutiveFailures = 0;
       await startAll();
+      return;
+    }
+
+    // Check local port availability
+    const localChecks = await Promise.all([
+      probeLocal(3001),
+      probeLocal(4000),
+      probeLocal(5173)
+    ]);
+    if (!localChecks.every(Boolean)) {
+      log(`⚠️ Port lokal tidak merespons [3001=${localChecks[0]}, 4000=${localChecks[1]}, 5173=${localChecks[2]}]`);
     }
   } catch (e) {
     log(`Watchdog error: ${e.message}`);
   } finally {
     watchdogBusy = false;
   }
-}, 40000);
+}, 60000);
 
 startAll().catch(err => {
   log(`FATAL ERROR: ${err.message}`);
