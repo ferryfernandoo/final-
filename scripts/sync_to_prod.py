@@ -22,7 +22,8 @@ files_to_sync = [
     'public/order-dte.apk',
     'dist/order-dte.apk',
     'order-dte.apk',
-    'dist/index.html'
+    'dist/index.html',
+    'search-engine/vercel.json'
 ]
 
 for rel_path in files_to_sync:
