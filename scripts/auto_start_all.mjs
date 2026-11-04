@@ -1041,7 +1041,7 @@ async function main() {
       // Quick push ke GitHub & Vercel
       try {
         log.info('Menyinkronkan pembaruan tunnel ke GitHub & Vercel...');
-        execSync('git add active_tunnel.json .env .env.production src/apiConfig.js vercel.json', { cwd: ROOT_DIR, stdio: 'ignore' });
+        execSync('git add active_tunnel.json .env.production src/apiConfig.js vercel.json', { cwd: ROOT_DIR, stdio: 'ignore' });
         const ts = new Date().toISOString().replace('T', ' ').slice(0, 16);
         execSync(`git commit -m "fix(reconnect): auto-reconnect tunnels & sync Vercel endpoints (${ts})"`, { cwd: ROOT_DIR, stdio: 'ignore' });
         execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'ignore' });
