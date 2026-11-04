@@ -62,7 +62,7 @@ async function seed() {
     const domain = domains[Math.floor(Math.random() * domains.length)];
     const cleanFn = fn.toLowerCase().replace(/[^a-z]/g, '');
     const cleanLn = ln.toLowerCase().replace(/[^a-z]/g, '');
-    
+
     // Different realistic email patterns
     const pattern = counter % 4;
     let email = '';

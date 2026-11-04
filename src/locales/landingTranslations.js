@@ -53,18 +53,18 @@ export const landingTranslations = {
       }
     },
     hero: {
-      titleLead: 'Asisten AI yang',
-      titleGradient: 'cerdas, cepat',
-      titleTrail: 'dan sepenuhnya gratis.',
-      sub: 'Chat multi-model, AI Agent mandiri dengan sandbox eksekusi kode, naskah Word/Excel/PPT otomatis — semua dalam satu ekosistem.',
-      startFreeChat: 'Mulai Chat Gratis',
+      titleLead: 'Platform Inteligensi Artifisial',
+      titleGradient: 'Otonom & Terintegrasi',
+      titleTrail: 'Generasi Berikutnya.',
+      sub: 'Infrastruktur komputasi kognitif mutakhir yang memadukan penalaran multi-model, AI Coding Agent dengan sandbox eksekusi terisolasi, otomasi dokumen profesional, serta riset web presisi.',
+      startFreeChat: 'Eksplorasi Platform',
       aiAgent: 'AI Agent',
       agentBadge: 'Sandbox',
       documentStudio: 'Document Studio',
       trust: [
-        'Tanpa langganan',
+        'Arsitektur Terisolasi & Aman',
         'Sandbox Eksekusi Aman',
-        'Bahasa Indonesia & Multi-Bahasa'
+        'Akselerasi Cloudflare Edge Global'
       ]
     },
     products: {
@@ -179,18 +179,18 @@ export const landingTranslations = {
       }
     },
     hero: {
-      titleLead: 'An AI assistant that is',
-      titleGradient: 'smart, fast',
-      titleTrail: 'and completely free.',
-      sub: 'Multi-model chat, autonomous AI Agent with code execution sandbox, automated Word/Excel/PPT generation — all in one ecosystem.',
-      startFreeChat: 'Start Free Chat',
+      titleLead: 'Next-Generation Autonomous',
+      titleGradient: 'Cognitive Intelligence',
+      titleTrail: 'Engineered for Performance.',
+      sub: 'An integrated cognitive infrastructure uniting state-of-the-art multi-model reasoning, autonomous coding agents in isolated sandboxes, professional document orchestration, and precision web intelligence.',
+      startFreeChat: 'Explore Platform',
       aiAgent: 'AI Agent',
       agentBadge: 'Sandbox',
       documentStudio: 'Document Studio',
       trust: [
-        'No subscription required',
+        'Isolated & Secure Architecture',
         'Secure Execution Sandbox',
-        'Multilingual & Smart Search'
+        'Accelerated by Cloudflare Edge CDN'
       ]
     },
     products: {
@@ -305,18 +305,18 @@ export const landingTranslations = {
       }
     },
     hero: {
-      titleLead: '一款',
-      titleGradient: '智能、迅捷',
-      titleTrail: '且完全免费的 AI 助手。',
-      sub: '多模型对话、配备独立代码沙箱的自主 AI Agent、自动化 Word/Excel/PPT 文档生成——尽在一站式生态中。',
-      startFreeChat: '免费开始对话',
+      titleLead: '新一代自主',
+      titleGradient: '认知智能基础设施',
+      titleTrail: '驱动企业级极致效能。',
+      sub: '深度融合多模型前沿推理、隔离沙箱代码执行的自主 AI Coding Agent、自动化专业文档编排（Word/Excel/PPT）与实时全网情报检索的一体化平台。',
+      startFreeChat: '立即探索平台',
       aiAgent: 'AI 智能体',
       agentBadge: '沙箱环境',
       documentStudio: '文档工作台',
       trust: [
-        '完全免费 无需订阅',
+        '高规格隔离安全架构',
         '高安全隔离运行沙箱',
-        '深度多语言与实时检索'
+        'Cloudflare 全球边缘 CDN 加速'
       ]
     },
     products: {

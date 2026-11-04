@@ -45,7 +45,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           setPublicStats(data.stats);
         }
       }
-    } catch (_) {} finally {
+    } catch (_) { } finally {
       setIsFetchingStats(false);
     }
   };
@@ -534,7 +534,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
               </article>
 
               {/* Search Engine */}
-              <article 
+              <article
                 className="lp-card lp-product is-clickable"
                 onClick={() => openSearch()}
               >
@@ -677,7 +677,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             <button type="button" onClick={() => onNavigate?.('help')}>{t.footer.help}</button>
           </div>
         </div>
-                {/* ===== STATISTIK PUBLIK TRANSPARAN (Token Dicompute & User Terdaftar) ===== */}
+        {/* ===== STATISTIK PUBLIK TRANSPARAN (Token Dicompute & User Terdaftar) ===== */}
         <div className="lp-container lp-stats-bar-container">
           <button
             type="button"
