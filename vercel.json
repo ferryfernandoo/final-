@@ -202,127 +202,127 @@
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://a1905f6b271eee.lhr.life/api/ping"
+      "destination": "https://c3fd73653d0bae.lhr.life/api/ping"
     },
     {
       "source": "/api/items",
-      "destination": "https://a1905f6b271eee.lhr.life/api/items"
+      "destination": "https://c3fd73653d0bae.lhr.life/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://a1905f6b271eee.lhr.life/api/items/:path*"
+      "destination": "https://c3fd73653d0bae.lhr.life/api/items/:path*"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://a1905f6b271eee.lhr.life/api/admin/:path*"
+      "destination": "https://c3fd73653d0bae.lhr.life/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://a1905f6b271eee.lhr.life/api/requests"
+      "destination": "https://c3fd73653d0bae.lhr.life/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://a1905f6b271eee.lhr.life/api/requests/:path*"
+      "destination": "https://c3fd73653d0bae.lhr.life/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://a1905f6b271eee.lhr.life/api/:path*"
+      "destination": "https://c3fd73653d0bae.lhr.life/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://a1905f6b271eee.lhr.life/uploads/:path*"
+      "destination": "https://c3fd73653d0bae.lhr.life/uploads/:path*"
     },
     {
       "source": "/api/search",
-      "destination": "https://8fc94b105b010a.lhr.life/api/search"
+      "destination": "https://db2cabad13f899.lhr.life/api/search"
     },
     {
       "source": "/api/status",
-      "destination": "https://8fc94b105b010a.lhr.life/api/status"
+      "destination": "https://db2cabad13f899.lhr.life/api/status"
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "https://8fc94b105b010a.lhr.life/suggest"
+      "destination": "https://db2cabad13f899.lhr.life/suggest"
     },
     {
       "source": "/api/v1/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/v1/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/v1/:path*"
     },
     {
       "source": "/api/suggestions",
-      "destination": "https://8fc94b105b010a.lhr.life/api/suggestions"
+      "destination": "https://db2cabad13f899.lhr.life/api/suggestions"
     },
     {
       "source": "/api/suggestions/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/suggestions/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/ai/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://8fc94b105b010a.lhr.life/api/news"
+      "destination": "https://db2cabad13f899.lhr.life/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/news/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://8fc94b105b010a.lhr.life/api/tokoh"
+      "destination": "https://db2cabad13f899.lhr.life/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/tokoh/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://8fc94b105b010a.lhr.life/api/geo"
+      "destination": "https://db2cabad13f899.lhr.life/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/geo/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://8fc94b105b010a.lhr.life/api/crawl"
+      "destination": "https://db2cabad13f899.lhr.life/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/crawl/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://8fc94b105b010a.lhr.life/api/economics"
+      "destination": "https://db2cabad13f899.lhr.life/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://8fc94b105b010a.lhr.life/api/economics/:path*"
+      "destination": "https://db2cabad13f899.lhr.life/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://8fc94b105b010a.lhr.life/api/proxy-image"
+      "destination": "https://db2cabad13f899.lhr.life/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://4725b536de91bd.lhr.life/api/:path*"
+      "destination": "https://e3103e0d10a31f.lhr.life/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://4725b536de91bd.lhr.life/auth/:path*"
+      "destination": "https://e3103e0d10a31f.lhr.life/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://4725b536de91bd.lhr.life/v1/:path*"
+      "destination": "https://e3103e0d10a31f.lhr.life/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://4725b536de91bd.lhr.life/download/:path*"
+      "destination": "https://e3103e0d10a31f.lhr.life/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://4725b536de91bd.lhr.life/watermarked/:path*"
+      "destination": "https://e3103e0d10a31f.lhr.life/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
