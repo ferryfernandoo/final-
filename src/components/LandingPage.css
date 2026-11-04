@@ -1024,6 +1024,10 @@ body[data-view="landing"] #root {
   border-color: #fb923c;
 }
 
+.lp-modern-apk-card.is-dte:hover {
+  border-color: #34d399;
+}
+
 .lp-apk-card-top {
   display: flex;
   gap: 18px;
@@ -1050,6 +1054,11 @@ body[data-view="landing"] #root {
 .lp-apk-icon-wrapper.ai-theme {
   background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
   border-color: #fed7aa;
+}
+
+.lp-apk-icon-wrapper.dte-theme {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #a7f3d0;
 }
 
 .lp-apk-app-icon {
@@ -1113,6 +1122,12 @@ body[data-view="landing"] #root {
 .lp-apk-version-badge.ai-badge {
   color: #ea580c;
   background: #fff7ed;
+}
+
+.lp-apk-version-badge.dte-badge {
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
 }
 
 .lp-apk-desc {
@@ -1208,6 +1223,79 @@ body[data-view="landing"] #root {
 .lp-btn-modern-dl.is-ai:hover {
   background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
   box-shadow: 0 8px 20px -2px rgba(234, 88, 12, 0.4);
+  transform: translateY(-1px);
+}
+
+.lp-btn-modern-dl.is-dte {
+  background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+  color: #ffffff;
+}
+
+.lp-btn-modern-dl.is-dte:hover {
+  background: linear-gradient(135deg, #047857 0%, #0f766e 100%);
+  box-shadow: 0 8px 20px -2px rgba(5, 150, 105, 0.4);
+  transform: translateY(-1px);
+}
+
+.lp-apk-action-grid {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.lp-apk-action-grid .lp-btn-modern-dl {
+  flex: 1;
+}
+
+.lp-btn-web-app {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  height: 52px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.lp-btn-web-app.is-dte {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1.5px solid #a7f3d0;
+}
+
+.lp-btn-web-app.is-dte:hover {
+  background: #d1fae5;
+  border-color: #059669;
+  color: #047857;
+  transform: translateY(-1px);
+}
+
+.lp-nav-dte-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.lp-nav-dte-btn:hover {
+  background: #d1fae5;
+  border-color: #059669;
+  color: #047857;
   transform: translateY(-1px);
 }
 

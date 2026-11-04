@@ -47,6 +47,24 @@
       ]
     },
     {
+      "source": "/dte/(index.html)?",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/dte/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/search/(index.html)?",
       "headers": [
         {
@@ -147,99 +165,167 @@
       "destination": "/search/index.html"
     },
     {
+      "source": "/dte",
+      "destination": "/dte/index.html"
+    },
+    {
+      "source": "/dte/",
+      "destination": "/dte/index.html"
+    },
+    {
+      "source": "/dte/assets/:path*",
+      "destination": "/dte/assets/:path*"
+    },
+    {
+      "source": "/dte/icons/:path*",
+      "destination": "/dte/icons/:path*"
+    },
+    {
+      "source": "/dte/manifest.json",
+      "destination": "/dte/manifest.json"
+    },
+    {
+      "source": "/dte/favicon.svg",
+      "destination": "/dte/favicon.svg"
+    },
+    {
+      "source": "/dte/favicon.png",
+      "destination": "/dte/favicon.png"
+    },
+    {
+      "source": "/dte/favicon.ico",
+      "destination": "/dte/favicon.ico"
+    },
+    {
+      "source": "/dte/:path*",
+      "destination": "/dte/index.html"
+    },
+    {
+      "source": "/api/dte/ping",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/api/ping"
+    },
+    {
+      "source": "/api/items",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/api/items"
+    },
+    {
+      "source": "/api/items/:path*",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/api/items/:path*"
+    },
+    {
+      "source": "/api/admin/:path*",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/api/admin/:path*"
+    },
+    {
+      "source": "/api/requests",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/api/requests"
+    },
+    {
+      "source": "/api/requests/:path*",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/api/requests/:path*"
+    },
+    {
+      "source": "/api/dte/:path*",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://col-dialogue-reflection-edition.trycloudflare.com/uploads/:path*"
+    },
+    {
       "source": "/api/search",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/search"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/search"
     },
     {
       "source": "/api/status",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/status"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/status"
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/suggest"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/suggest"
     },
     {
       "source": "/api/v1/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/v1/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/v1/:path*"
     },
     {
       "source": "/api/suggestions",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/suggestions"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/suggestions"
     },
     {
       "source": "/api/suggestions/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/suggestions/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/ai/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/news"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/news/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/tokoh"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/geo"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/geo/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/crawl"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/crawl/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/economics"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/economics/:path*"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://union-camp-submissions-ware.trycloudflare.com/api/proxy-image"
+      "destination": "https://implementation-revealed-pattern-prototype.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://analyses-cheats-updates-expires.trycloudflare.com/api/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://analyses-cheats-updates-expires.trycloudflare.com/auth/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://analyses-cheats-updates-expires.trycloudflare.com/v1/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://analyses-cheats-updates-expires.trycloudflare.com/download/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://analyses-cheats-updates-expires.trycloudflare.com/watermarked/:path*"
+      "destination": "https://privileges-survey-talks-academy.trycloudflare.com/watermarked/:path*"
     },
     {
-      "source": "/((?!assets/|search/|api/|auth/|v1/|download/|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+      "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ]

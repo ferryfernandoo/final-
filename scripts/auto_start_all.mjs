@@ -377,6 +377,18 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         ]
       },
       {
+        source: "/dte/(index.html)?",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate, max-age=0" }
+        ]
+      },
+      {
+        source: "/dte/assets/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
         source: "/assets/(.*)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
@@ -436,6 +448,74 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
       {
         source: "/search/:path*",
         destination: "/search/index.html"
+      },
+      {
+        source: "/dte",
+        destination: "/dte/index.html"
+      },
+      {
+        source: "/dte/",
+        destination: "/dte/index.html"
+      },
+      {
+        source: "/dte/assets/:path*",
+        destination: "/dte/assets/:path*"
+      },
+      {
+        source: "/dte/icons/:path*",
+        destination: "/dte/icons/:path*"
+      },
+      {
+        source: "/dte/manifest.json",
+        destination: "/dte/manifest.json"
+      },
+      {
+        source: "/dte/favicon.svg",
+        destination: "/dte/favicon.svg"
+      },
+      {
+        source: "/dte/favicon.png",
+        destination: "/dte/favicon.png"
+      },
+      {
+        source: "/dte/favicon.ico",
+        destination: "/dte/favicon.ico"
+      },
+      {
+        source: "/dte/:path*",
+        destination: "/dte/index.html"
+      },
+      {
+        source: "/api/dte/ping",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/ping`
+      },
+      {
+        source: "/api/items",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/items`
+      },
+      {
+        source: "/api/items/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/items/:path*`
+      },
+      {
+        source: "/api/admin/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/admin/:path*`
+      },
+      {
+        source: "/api/requests",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/requests`
+      },
+      {
+        source: "/api/requests/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/requests/:path*`
+      },
+      {
+        source: "/api/dte/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/:path*`
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/uploads/:path*`
       },
       {
         source: "/api/search",
@@ -530,7 +610,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         destination: `${backendUrl}/watermarked/:path*`
       },
       {
-        source: "/((?!assets/|search/|api/|auth/|v1/|download/|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+        source: "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
         destination: "/index.html"
       }
     ]

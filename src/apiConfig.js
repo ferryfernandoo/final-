@@ -36,14 +36,12 @@ export const API_BASE_URL = getApiBaseUrl();
 // Direct DeeperNova AI Public Endpoint (Cloudflare Tunnel to GPU Engine)
 export const DEEPERNOVA_AI_PUBLIC_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DEEPERNOVA_PUBLIC_API_URL) ||
-  'https://actions-intervals-powerpoint-gaming.trycloudflare.com';
+  'https://lou-direction-commentary-record.trycloudflare.com';
 
-// Order DTE Portal URL (Local Vite Port 5173 or Public Cloudflare Tunnel)
+// Order DTE Portal URL (Hosted directly on Vercel CDN and Local Server under /dte)
 export const ORDER_DTE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ORDER_DTE_URL) ||
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:5173'
-    : 'https://col-dialogue-reflection-edition.trycloudflare.com');
+  (typeof window !== 'undefined' ? `${window.location.origin}/dte` : '/dte');
 
 // Deepernova Search Engine URL (Hosted directly on Vercel CDN under /search)
 export const SEARCH_ENGINE_URL =
