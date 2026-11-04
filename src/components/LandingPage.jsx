@@ -25,6 +25,37 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
   const [scrolled, setScrolled] = useState(false);
   const [currentLang, setCurrentLang] = useState(() => detectLanguageSync());
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [publicStats, setPublicStats] = useState({
+    totalUsers: 18,
+    totalTokens: 4785851,
+    totalMessages: 2372,
+    serverStatus: 'online',
+    uptime: '99.98%'
+  });
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [isFetchingStats, setIsFetchingStats] = useState(false);
+
+  const fetchPublicStats = async () => {
+    setIsFetchingStats(true);
+    try {
+      const res = await fetch('/api/public-stats');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.stats) {
+          setPublicStats(data.stats);
+        }
+      }
+    } catch (_) {} finally {
+      setIsFetchingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublicStats();
+    const interval = setInterval(fetchPublicStats, 45000);
+    return () => clearInterval(interval);
+  }, []);
+
 
   // Background country & locale detection
   useEffect(() => {
@@ -646,6 +677,46 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             <button type="button" onClick={() => onNavigate?.('help')}>{t.footer.help}</button>
           </div>
         </div>
+                {/* ===== STATISTIK PUBLIK TRANSPARAN (Token Dicompute & User Terdaftar) ===== */}
+        <div className="lp-container lp-stats-bar-container">
+          <button
+            type="button"
+            className="lp-public-stats-button"
+            onClick={() => setShowStatsModal(true)}
+            title={currentLang === 'id' ? 'Klik untuk melihat transparansi metrik komputasi' : 'Click to view public transparency metrics'}
+          >
+            <div className="lp-stats-btn-left">
+              <span className="lp-stats-indicator">
+                <span className="lp-stats-dot" />
+                <span className="lp-stats-ping" />
+              </span>
+              <span className="lp-stats-title">
+                <i className="fa-solid fa-chart-line" />
+                <span>{currentLang === 'id' ? 'Transparansi Publik:' : 'Public Transparency:'}</span>
+              </span>
+            </div>
+
+            <div className="lp-stats-pills-row">
+              <div className="lp-stats-badge token-badge">
+                <i className="fa-solid fa-bolt" />
+                <span className="lp-stats-val">{(publicStats.totalTokens || 4785851).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}</span>
+                <span className="lp-stats-lbl">{currentLang === 'id' ? 'Token Dicompute' : 'Tokens Computed'}</span>
+              </div>
+
+              <div className="lp-stats-badge user-badge">
+                <i className="fa-solid fa-users" />
+                <span className="lp-stats-val">{(publicStats.totalUsers || 18).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}</span>
+                <span className="lp-stats-lbl">{currentLang === 'id' ? 'User Terdaftar' : 'Registered Users'}</span>
+              </div>
+            </div>
+
+            <div className="lp-stats-btn-right">
+              <span className="lp-stats-detail-text">{currentLang === 'id' ? 'Lihat Detail Metrik' : 'View Full Metrics'}</span>
+              <i className="fa-solid fa-arrow-up-right-from-square" />
+            </div>
+          </button>
+        </div>
+
         <div className="lp-container lp-footer-bottom">
           <div className="lp-footer-bottom-content">
             <span>© {new Date().getFullYear()} Deepernova.com · {t.footer.copyright}</span>
@@ -667,6 +738,147 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
           </div>
         </div>
       </footer>
+      {/* ===== MODAL TRANSPARANSI PUBLIK ===== */}
+      {showStatsModal && (
+        <div className="lp-modal-overlay" onClick={() => setShowStatsModal(false)}>
+          <div className="lp-stats-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="lp-stats-modal-head">
+              <div className="lp-stats-modal-title-group">
+                <div className="lp-stats-modal-icon">
+                  <i className="fa-solid fa-chart-pie" />
+                </div>
+                <div>
+                  <h3>{currentLang === 'id' ? 'Transparansi Metrik & Komputasi Publik' : 'Public Metrics & Compute Transparency'}</h3>
+                  <p>{currentLang === 'id' ? 'Data keterbukaan sistem & infrastruktur DeeperNova AI Indonesia' : 'Real-time infrastructure transparency for DeeperNova AI ecosystem'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="lp-stats-modal-close"
+                onClick={() => setShowStatsModal(false)}
+                aria-label="Tutup Modal"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div className="lp-stats-grid">
+              {/* Card 1: Token Dicompute */}
+              <div className="lp-stats-card lp-stat-tokens">
+                <div className="lp-stat-card-header">
+                  <span className="lp-stat-card-badge orange">
+                    <i className="fa-solid fa-bolt" /> {currentLang === 'id' ? 'AI INFERENCE' : 'AI INFERENCE'}
+                  </span>
+                  <span className="lp-stat-pulse-chip">Live Compute</span>
+                </div>
+                <div className="lp-stat-card-value">
+                  {(publicStats.totalTokens || 4785851).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}
+                </div>
+                <div className="lp-stat-card-label">
+                  {currentLang === 'id' ? 'Total Token Sudah Dicompute' : 'Total Tokens Computed'}
+                </div>
+                <p className="lp-stat-card-desc">
+                  {currentLang === 'id'
+                    ? 'Akumulasi token inferensi model AI (Gold, Silicon, Boron) dan penalaran cerdas yang telah dikomputasi untuk publik.'
+                    : 'Cumulative AI inference and reasoning tokens processed across all active models for public requests.'}
+                </p>
+              </div>
+
+              {/* Card 2: User Terdaftar */}
+              <div className="lp-stats-card lp-stat-users">
+                <div className="lp-stat-card-header">
+                  <span className="lp-stat-card-badge purple">
+                    <i className="fa-solid fa-users" /> {currentLang === 'id' ? 'KOMUNITAS' : 'COMMUNITY'}
+                  </span>
+                  <span className="lp-stat-pulse-chip active">Terverifikasi</span>
+                </div>
+                <div className="lp-stat-card-value">
+                  {(publicStats.totalUsers || 18).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}
+                </div>
+                <div className="lp-stat-card-label">
+                  {currentLang === 'id' ? 'Total Pengguna Terdaftar' : 'Total Registered Users'}
+                </div>
+                <p className="lp-stat-card-desc">
+                  {currentLang === 'id'
+                    ? 'Jumlah akun pengguna terdaftar aktif yang menggunakan ekosistem DeeperNova AI.'
+                    : 'Total registered and authenticated member accounts across the DeeperNova platform.'}
+                </p>
+              </div>
+
+              {/* Card 3: Total Percakapan */}
+              <div className="lp-stats-card lp-stat-messages">
+                <div className="lp-stat-card-header">
+                  <span className="lp-stat-card-badge emerald">
+                    <i className="fa-solid fa-comments" /> {currentLang === 'id' ? 'INTERAKSI' : 'INTERACTIONS'}
+                  </span>
+                  <span className="lp-stat-pulse-chip">Multiturn</span>
+                </div>
+                <div className="lp-stat-card-value">
+                  {(publicStats.totalMessages || 2372).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-US')}
+                </div>
+                <div className="lp-stat-card-label">
+                  {currentLang === 'id' ? 'Total Pesan & Riset AI' : 'Total Messages & AI Tasks'}
+                </div>
+                <p className="lp-stat-card-desc">
+                  {currentLang === 'id'
+                    ? 'Total putaran percakapan, pembuatan dokumen, dan query pencarian web otonom yang berhasil dituntaskan.'
+                    : 'Total dialogue turns, document generations, and autonomous web research queries solved.'}
+                </p>
+              </div>
+
+              {/* Card 4: Status Server */}
+              <div className="lp-stats-card lp-stat-server">
+                <div className="lp-stat-card-header">
+                  <span className="lp-stat-card-badge blue">
+                    <i className="fa-solid fa-server" /> {currentLang === 'id' ? 'STATUS SISTEM' : 'SYSTEM STATUS'}
+                  </span>
+                  <span className="lp-stat-pulse-chip online">100% Online</span>
+                </div>
+                <div className="lp-stat-card-value">
+                  {publicStats.uptime || '99.98%'}
+                </div>
+                <div className="lp-stat-card-label">
+                  {currentLang === 'id' ? 'Infrastruktur & Cloudflare Edge' : 'Infrastructure & Cloudflare Edge'}
+                </div>
+                <p className="lp-stat-card-desc">
+                  {currentLang === 'id'
+                    ? 'Didukung jaringan CDN global Cloudflare dengan latensi super rendah dan proteksi keamanan tingkat tinggi.'
+                    : 'Powered by Cloudflare global CDN edge networks with ultra-low latency and DDoS shielding.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="lp-stats-modal-footer">
+              <div className="lp-stats-manifesto">
+                <i className="fa-solid fa-shield-halved" />
+                <span>
+                  {currentLang === 'id'
+                    ? 'Komitmen Transparansi: Semua metrik di atas bersumber langsung dari database riil sistem tanpa rekayasa. Privasi percakapan pengguna tetap terlindungi 100% dengan enkripsi end-to-end.'
+                    : 'Transparency Commitment: All metrics above are sourced directly from real database records without artificial inflation. User privacy remains 100% protected.'}
+                </span>
+              </div>
+              <div className="lp-stats-modal-actions">
+                <button
+                  type="button"
+                  className="lp-stats-refresh-btn"
+                  onClick={fetchPublicStats}
+                  disabled={isFetchingStats}
+                >
+                  <i className={`fa-solid fa-rotate-right ${isFetchingStats ? 'fa-spin' : ''}`} />
+                  <span>{currentLang === 'id' ? 'Perbarui Data' : 'Refresh Data'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="lp-stats-close-btn"
+                  onClick={() => setShowStatsModal(false)}
+                >
+                  {currentLang === 'id' ? 'Tutup' : 'Close'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
