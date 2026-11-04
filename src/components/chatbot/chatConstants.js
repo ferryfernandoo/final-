@@ -171,7 +171,7 @@ GAYA KEPRIBADIAN: MENTOR / BIJAKSANA & MEMBIMBING
   },
 };
 
-export const DEFAULT_PERSONALITY = 'formal';
+export const DEFAULT_PERSONALITY = 'friendly';
 
 export const DEEPERNOVA_MODELS = [
   {

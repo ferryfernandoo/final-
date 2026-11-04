@@ -89,7 +89,22 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [compactView, setCompactView] = useState(false); // show only last exchange when true and at bottom
   const [loadingStatusMsg, setLoadingStatusMsg] = useState('');
-  const [selectedPersonality, setSelectedPersonality] = useState(DEFAULT_PERSONALITY);
+  const [selectedPersonality, setSelectedPersonality] = useState(() => {
+    try {
+      const saved = localStorage.getItem('deepernova_selected_personality');
+      if (saved && PERSONALITIES[saved]) return saved;
+    } catch (_) {}
+    return DEFAULT_PERSONALITY;
+  });
+
+  // Persist selected personality preference
+  useEffect(() => {
+    if (selectedPersonality) {
+      try {
+        localStorage.setItem('deepernova_selected_personality', selectedPersonality);
+      } catch (_) {}
+    }
+  }, [selectedPersonality]);
   const [showPersonalityModal, setShowPersonalityModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showFormatDbModal, setShowFormatDbModal] = useState(false);

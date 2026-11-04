@@ -242,6 +242,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
                     className={`personality-modal-btn ${selectedPersonality === personality.id ? 'active' : ''}`}
                     onClick={() => {
                       setSelectedPersonality(personality.id);
+                      try {
+                        localStorage.setItem('deepernova_selected_personality', personality.id);
+                      } catch (_) {}
                       setShowPersonalityModal(false);
                     }}
                   >

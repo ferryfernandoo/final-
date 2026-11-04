@@ -434,8 +434,10 @@ CHRONOLOGICAL GUIDELINE:
     return finalPrompt;
   }
 
+  const selectedPersonality = PERSONALITIES[personality] || PERSONALITIES[DEFAULT_PERSONALITY];
+  const personalityBlock = selectedPersonality?.systemPromptAppend || '';
   const systemPrompt = SYSTEM_PROMPTS[language] || SYSTEM_PROMPTS.id;
-  let finalPrompt = systemPrompt;
+  let finalPrompt = (personalityBlock ? (personalityBlock + '\n\n') : '') + systemPrompt;
 
   // Add username if provided
   if (userName && userName.trim()) {
@@ -463,11 +465,7 @@ CHRONOLOGICAL GUIDELINE:
     }
   }
 
-  // Add personality if exists
-  const selectedPersonality = PERSONALITIES[personality] || PERSONALITIES[DEFAULT_PERSONALITY];
-  if (selectedPersonality && selectedPersonality.systemPromptAppend) {
-    finalPrompt += selectedPersonality.systemPromptAppend;
-  }
+  // (Personality already applied at head of prompt)
 
   // Code rule
   finalPrompt += language === 'id'
@@ -785,34 +783,34 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       if (isSearchConclusion) {
         // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
         systemPromptContent =
-          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI yang sangat ramah, hangat, santun, dan berwawasan luas.\n` +
-          timeInfo + '\n' +
-          `PERAN SINTESIS BERITA & ULASAN PENCARIAN REAL-TIME (MUTLAK):\n` +
-          `1. SIKAP SANGAT RAMAH, SANTUN & HANGAT: Sambut pengguna dan topik dengan nada yang sangat ramah, bersahabat, sopan, dan hangat. DILARANG kaku, dingin, atau memanggil dengan sebutan "bro", "cuy", dll. Tunjukkan kepribadian ramah khas DeeperNova AI Indonesia.\n` +
-          `2. BERIKAN ULASAN & ARTIKEL LENGKAP SECARA MENDALAM DENGAN BAHASA SENDIRI:\n` +
-          `   - Tulis penjelasan yang LENGKAP, MENYELURUH, KAYA INFORMASI, dan MENDALAM (artikel lengkap berbobot tinggi). Kupas tuntas fakta, konteks sejarah, latar belakang, mekanisme ilmiah, ragam jenis, tips praktis, dan perbandingannya secara komprehensif.\n` +
-          `   - DILARANG menyingkat atau memotong jawaban menjadi terlalu dangkal atau pendek! Pengguna membutuhkan ulasan yang lengkap dan tuntas.\n` +
-          `   - Tulis seluruh ulasan dengan kalimat dan gayamu sendiri yang luwes dan ramah, hindari menempelkan kutipan mentah/potongan mentah mesin pencari.\n` +
-          `3. SITASI SUMBER BUBBLE SIMPEL & ELEGAN: Untuk rujukan sumber fakta dari web, CUKUP cantumkan link sitasi di akhir kalimat penting: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url)). Frontend otomatis merendernya sebagai bubble badge kecil elegan dengan logo dan nama media, menjaga teks artikel tetap bersih dan rapi.\n` +
-          `4. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan topik terbaru ini. Dilarang mengungkit obrolan lama yang sudah tidak relevan.\n` +
-          `5. STRUKTUR RAPI & BERJARAK NYAMAN: Awali dengan ringkasan pembuka yang ramah, gunakan subjudul (###), dan buat poin-poin terstruktur dengan satu baris kosong pemisah agar sangat nyaman dibaca.\n` +
-          `6. SISIPKAN FOTO HASIL PENCARIAN & TEKS DAMPINGAN: Jika terdapat bagian DAFTAR FOTO & GAMBAR TERVERIFIKASI, kamu DIWAJIBKAN menyisipkan 2-4 foto nyata menggunakan format Markdown: ![Keterangan Foto](URL) tepat di bawah subjudul topik yang relevan, lalu segera ikuti dengan paragraf teks penjelasan terkait. Frontend otomatis mem-float foto ke sebelah kanan sehingga teks penjelasan mengalir berdampingan tanpa memenuhi layar. DILARANG mengarang URL di luar daftar yang diberikan.\n` +
-          personalitySystemAppend;
-      } else {
-        systemPromptContent =
-          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, ramah, santun, dan berdaya nalar tinggi buatan DeeperNova AI Indonesia.\n` +
+          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI Indonesia.\n` +
+          `${personalitySystemAppend}\n\n` +
           timeInfo + '\n' +
           `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
-          'ATURAN SIKAP & GAYA KOMUNIKASI (MUTLAK):\n' +
-          '1. SANGAT RAMAH, HANGAT, DAN SANTUN: Berbicaralah dengan ramah, bersahabat, sopan, dan tulus membantu. DILARANG kaku dan DILARANG memanggil dengan sebutan "bro", "cuy", atau bahasa gaul canggung yang tidak pantas.\n' +
-          '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan ramah, padat, dan manis (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
+          'ATURAN UTAMA GAYA KOMUNIKASI:\n' +
+          '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, seru, jangan kaku/baku). Jika Friendly, bicaralah sangat ramah, hangat, dan manis. Jika Formal, bicaralah resmi dan profesional. Jika Cute, bicaralah imut dan ceria. Jika Witty, berikan sentuhan humor cerdas.\n' +
+          '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
           '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
           searchInstruction +
           visionInstruction +
           (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
           (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
-          (memoryBlock ? ('\n' + memoryBlock) : '') +
-          personalitySystemAppend;
+          (memoryBlock ? ('\n' + memoryBlock) : '');
+      } else {
+        systemPromptContent =
+          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, dan berdaya nalar tinggi buatan DeeperNova AI Indonesia.\n` +
+          `${personalitySystemAppend}\n\n` +
+          timeInfo + '\n' +
+          `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
+          'ATURAN SIKAP & GAYA KOMUNIKASI (MUTLAK):\n' +
+          '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (gunakan panggilan luwes aku-kamu, santai, asyik, jangan kaku atau baku seperti buku pelajaran). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. Jika Witty, selipkan kecerdasan dan humor. Jika Cute, gunakan ekspresi imut, ceria, dan penuh energi.\n' +
+          '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai gaya kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
+          '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
+          searchInstruction +
+          visionInstruction +
+          (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
+          (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
+          (memoryBlock ? ('\n' + memoryBlock) : '');
       }
 
       // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
