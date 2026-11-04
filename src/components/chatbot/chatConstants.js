@@ -4,7 +4,14 @@
 
 export const formatBubbleDomainLabel = (cleanDomain) => {
   if (!cleanDomain) return 'Web';
+  const domainLower = cleanDomain.toLowerCase();
+  if (domainLower.includes('gstatic.com') || domainLower.includes('googleusercontent.com') || domainLower.includes('encrypted-tbn')) {
+    return 'Google';
+  }
   const brand = cleanDomain.split('.')[0].toLowerCase();
+  if (brand.startsWith('encrypted')) {
+    return 'Google';
+  }
   const known = {
     'cnnindonesia': 'CNN Indo',
     'detik': 'Detik',

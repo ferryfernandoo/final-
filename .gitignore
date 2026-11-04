@@ -17,6 +17,11 @@ server/node_modules/
 !dist/DPN-Search.apk
 !public/deepernova-ai.apk
 !dist/deepernova-ai.apk
+!public/order-dte.apk
+!dist/order-dte.apk
+!public/DTE-Order.apk
+!dist/DTE-Order.apk
+!order-dte.apk
 *.mp4
 *.mkv
 *.avi

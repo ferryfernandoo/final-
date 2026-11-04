@@ -34,7 +34,13 @@ const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
 const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
 const AI_SERVER_DIR = 'F:\\llm deepernova';
 
-const CLOUDFLARED_BIN = path.join(ROOT_DIR, 'bin', 'cloudflared.exe');
+const CLOUDFLARED_BIN = fs.existsSync(path.join(ROOT_DIR, 'bin', 'cloudflared.exe'))
+  ? path.join(ROOT_DIR, 'bin', 'cloudflared.exe')
+  : (fs.existsSync('C:\\Program Files (x86)\\cloudflared\\cloudflared.exe')
+      ? 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe'
+      : (fs.existsSync('F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe')
+          ? 'F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe'
+          : 'cloudflared'));
 
 // Helper to sanitize URL (remove trailing slash)
 const cleanUrl = (url) => String(url || '').trim().replace(/\/+$/, '');
@@ -371,6 +377,18 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         ]
       },
       {
+        source: "/dte/(index.html)?",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate, max-age=0" }
+        ]
+      },
+      {
+        source: "/dte/assets/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
         source: "/assets/(.*)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
@@ -430,6 +448,74 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
       {
         source: "/search/:path*",
         destination: "/search/index.html"
+      },
+      {
+        source: "/dte",
+        destination: "/dte/index.html"
+      },
+      {
+        source: "/dte/",
+        destination: "/dte/index.html"
+      },
+      {
+        source: "/dte/assets/:path*",
+        destination: "/dte/assets/:path*"
+      },
+      {
+        source: "/dte/icons/:path*",
+        destination: "/dte/icons/:path*"
+      },
+      {
+        source: "/dte/manifest.json",
+        destination: "/dte/manifest.json"
+      },
+      {
+        source: "/dte/favicon.svg",
+        destination: "/dte/favicon.svg"
+      },
+      {
+        source: "/dte/favicon.png",
+        destination: "/dte/favicon.png"
+      },
+      {
+        source: "/dte/favicon.ico",
+        destination: "/dte/favicon.ico"
+      },
+      {
+        source: "/dte/:path*",
+        destination: "/dte/index.html"
+      },
+      {
+        source: "/api/dte/ping",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/ping`
+      },
+      {
+        source: "/api/items",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/items`
+      },
+      {
+        source: "/api/items/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/items/:path*`
+      },
+      {
+        source: "/api/admin/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/admin/:path*`
+      },
+      {
+        source: "/api/requests",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/requests`
+      },
+      {
+        source: "/api/requests/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/requests/:path*`
+      },
+      {
+        source: "/api/dte/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/:path*`
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/uploads/:path*`
       },
       {
         source: "/api/search",
@@ -524,7 +610,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
         destination: `${backendUrl}/watermarked/:path*`
       },
       {
-        source: "/((?!assets/|search/|api/|auth/|v1/|download/|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
+        source: "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
         destination: "/index.html"
       }
     ]
@@ -636,7 +722,12 @@ async function main() {
   if (await checkPortOpen(5174)) {
     log.success('Frontend Vite sudah aktif di port 5174.');
   } else {
-    startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
+    const viteBin = path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
+    if (fs.existsSync(viteBin)) {
+      startProcess('node', [viteBin, '--port', '5174'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
+    } else {
+      startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
+    }
     log.info('Menunggu Frontend siap di port 5174 (max 25 detik)...');
     if (await waitForPort(5174, 25000)) {
       log.success('Frontend Vite siap di port 5174.');
@@ -759,7 +850,10 @@ async function main() {
     log.title('🔨 STEP 8: Build Frontend');
     log.info('Membangun bundle frontend (npm run build)...');
     try {
-      execSync('npm run build', { cwd: ROOT_DIR, stdio: 'inherit' });
+      const buildCmd = fs.existsSync(path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js'))
+        ? `node "${path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js')}" build && node "${path.join(ROOT_DIR, 'scripts', 'copy_search_dist.mjs')}"`
+        : 'npm run build';
+      execSync(buildCmd, { cwd: ROOT_DIR, stdio: 'inherit', shell: true });
       log.success('Frontend build selesai.');
     } catch (err) {
       log.error(`Build gagal: ${err.message}`);

@@ -452,6 +452,36 @@ export const ensurePerfectTable = (text) => {
   return resultLines.join('\n');
 };
 
+export const normalizeInlineMarkdownImages = (text) => {
+  if (!text || typeof text !== 'string') return text || '';
+  let res = text;
+
+  // 1. Convert standard markdown links pointing to images into markdown image syntax ![]()
+  // Matches [Alt Text](URL) where URL is an image or Google thumbnail
+  res = res.replace(
+    /(?<!!)\[([^\]]*)\]\((https?:\/\/[^\s)]*(?:gstatic\.com\/images|googleusercontent\.com|encrypted-tbn|\.(?:jpe?g|png|webp|gif|svg|avif))(?:\?[^\s)]*)?)\)/gi,
+    (match, alt, url) => {
+      let cleanAlt = (alt || '').trim();
+      cleanAlt = cleanAlt.replace(/^(?:foto|gambar|image)\s*#?\d*\s*[:\-]\s*/i, '');
+      if (/^(?:encrypted|image|foto|link|url|http|foto\s*#?\d*|gambar\s*#?\d*)$/i.test(cleanAlt)) {
+        cleanAlt = '';
+      }
+      return `![${cleanAlt}](${url})`;
+    }
+  );
+
+  // 2. Remove redundant raw image URLs immediately following an image tag (e.g. ![Alt](url) (url))
+  res = res.replace(/(!\[[^\]]*\]\([^\)]+\))\s*(?:\(|\[)?https?:\/\/[^\s\)]+(?:\)|\])?/gi, '$1');
+
+  // 3. Convert standalone photo lines like "Foto: https://..." or "Gambar 1: https://..." into markdown image
+  res = res.replace(/^(?:Foto|Gambar|Image)\s*(?:#?\d+)?\s*[:\-]\s*(https?:\/\/[^\s]+)$/gmi, '![]($1)');
+
+  // 4. Strip stray citation bubbles for encrypted-tbn or gstatic (e.g. [Encrypted](https://encrypted-tbn0...))
+  res = res.replace(/\[\s*(?:encrypted|encrypted-tbn\d*)\s*\]\((https?:\/\/[^\)]+)\)/gi, '![]($1)');
+
+  return res;
+};
+
 export const cleanResponseText = (text) => {
   if (!text || typeof text !== 'string') return text || '';
 
@@ -536,6 +566,7 @@ export const cleanResponseText = (text) => {
   s = s.replace(/--\*\*/g, '').replace(/\*\*--/g, '');
   s = s.replace(/\n\s*[-*_]{3,}\s*\n/g, '\n\n---\n\n');
   s = s.replace(/([^\n#])\n(#{1,6}\s+)/g, '$1\n\n$2');
+  s = normalizeInlineMarkdownImages(s);
 
   const rawLines = s.split('\n');
   const cleanedLines = [];
@@ -611,6 +642,7 @@ export const sanitizeStreamingText = (text) => {
   s = s.replace(/--\*\*/g, '');
   s = s.replace(/\*\*--/g, '');
   s = s.replace(/[\u2012\u2013\u2014\u2015]+/g, '-');
+  s = normalizeInlineMarkdownImages(s);
 
   const streamingLines = s.split('\n');
   const formattedStreamingLines = [];

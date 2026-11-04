@@ -15,7 +15,8 @@ import {
   detectChartType,
   parseChartDataFromText,
   removeExecutionLogLines,
-  removeDownloadStatusLines
+  removeDownloadStatusLines,
+  normalizeInlineMarkdownImages
 } from './chatTextUtils';
 import { formatBubbleDomainLabel } from './chatConstants';
 
@@ -321,6 +322,53 @@ export const formatMessageContent = ({
     return true;
   };
 
+  const renderMarkdownFigure = (src, alt) => {
+    if (!src) return null;
+    const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
+    if (cleanSrc.includes('favicons?sz=') || cleanSrc.endsWith('.ico') || cleanSrc.startsWith('data:image/svg')) {
+      return null;
+    }
+    let rawAlt = String(alt || '').trim();
+    rawAlt = rawAlt.replace(/^(?:foto|gambar|image)\s*#?\d*\s*[:\-]\s*/i, '');
+    const isGarbageAlt =
+      !rawAlt ||
+      rawAlt === 'Image' ||
+      rawAlt === 'Foto' ||
+      rawAlt.startsWith('http://') ||
+      rawAlt.startsWith('https://') ||
+      /^(?:encrypted|image|foto|link|url|foto\s*#?\d*|gambar\s*#?\d*)$/i.test(rawAlt);
+    const cleanAlt = isGarbageAlt ? '' : rawAlt;
+    const hasCaption = Boolean(cleanAlt && !cleanAlt.toLowerCase().includes('encrypted'));
+    return (
+      <figure className="inline-markdown-figure">
+        <img
+          src={cleanSrc}
+          alt={cleanAlt || 'Foto'}
+          className="inline-markdown-image"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onClick={() => handleImageClick?.(cleanSrc, cleanAlt || 'Image')}
+          onError={(e) => {
+            const imgEl = e.currentTarget;
+            if (!imgEl.dataset.proxyRetried && cleanSrc.startsWith('http')) {
+              imgEl.dataset.proxyRetried = 'true';
+              imgEl.src = `/api/images/proxy?url=${encodeURIComponent(cleanSrc)}`;
+              return;
+            }
+            const fig = imgEl.closest('figure');
+            if (fig) fig.style.display = 'none';
+            else imgEl.style.display = 'none';
+          }}
+          style={{ cursor: 'pointer' }}
+          title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
+        />
+        {hasCaption && (
+          <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
+        )}
+      </figure>
+    );
+  };
+
   const renderInlineCitationPill = (href, children) => {
     if (!href) {
       return <span className="message-link-fallback">{children}</span>;
@@ -337,6 +385,16 @@ export const formatMessageContent = ({
         targetUrl = matchedSource.link || '#';
         domain = matchedSource.domain || '';
       }
+    }
+
+    // Intercept image target URLs (Google thumbnails, image extensions, gstatic)
+    // to prevent rendering them as text links or citation pills
+    const isImageTarget =
+      /(\.(?:jpe?g|png|webp|gif|svg|avif)(?:\?.*)?$)|(?:gstatic\.com\/images)|(?:googleusercontent\.com)|(?:\/images\?q=tbn:)|(?:encrypted-tbn)/i.test(targetUrl);
+
+    if (isImageTarget) {
+      const rawChildren = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
+      return renderMarkdownFigure(targetUrl, rawChildren);
     }
 
     if (!domain && targetUrl && (targetUrl.startsWith('http://') || targetUrl.startsWith('https://'))) {
@@ -497,43 +555,7 @@ export const formatMessageContent = ({
           code: ({ children }) => (
             <code className="inline-code">{children}</code>
           ),
-          img: ({ src, alt }) => {
-            if (!src) return null;
-            const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
-            if (cleanSrc.includes('favicons?sz=') || cleanSrc.endsWith('.ico') || cleanSrc.startsWith('data:image/svg')) {
-              return null;
-            }
-            const cleanAlt = String(alt || '').trim();
-            const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
-            return (
-              <figure className="inline-markdown-figure">
-                <img
-                  src={cleanSrc}
-                  alt={cleanAlt || 'Foto'}
-                  className="inline-markdown-image"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onClick={() => handleImageClick?.(cleanSrc, cleanAlt || 'Image')}
-                  onError={(e) => {
-                    const imgEl = e.currentTarget;
-                    if (!imgEl.dataset.proxyRetried && cleanSrc.startsWith('http')) {
-                      imgEl.dataset.proxyRetried = 'true';
-                      imgEl.src = `/api/images/proxy?url=${encodeURIComponent(cleanSrc)}`;
-                      return;
-                    }
-                    const fig = imgEl.closest('figure');
-                    if (fig) fig.style.display = 'none';
-                    else imgEl.style.display = 'none';
-                  }}
-                  style={{ cursor: 'pointer' }}
-                  title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
-                />
-                {hasCaption && (
-                  <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
-                )}
-              </figure>
-            );
-          },
+          img: ({ src, alt }) => renderMarkdownFigure(src, alt),
           p: ({ children }) => <>{children}</>,
         }}
       >
@@ -843,7 +865,7 @@ export const formatMessageContent = ({
       .replace(/([^\n#])\n(#{1,6}\s+)/g, '$1\n\n$2')
       .replace(/([^\n])\n(\*\*(?:\d+[\.\)]|[A-Z][\.\)]|•|-|\*|[A-Za-z0-9\s]+:)[^*]+\*\*)/g, '$1\n\n$2');
 
-    let preprocessedText = cleanedNormalized;
+    let preprocessedText = normalizeInlineMarkdownImages(cleanedNormalized);
     if (sources && sources.length > 0) {
       preprocessedText = preprocessedText.replace(/\[(?:Sumber|Source|Ref)\s*#?\s*(\d+)\](?!\s*\()/gi, (match, num) => {
         const idx = parseInt(num, 10);
@@ -894,43 +916,7 @@ export const formatMessageContent = ({
             table: ({ children }) => <div className="table-container"><table className="markdown-table">{children}</table></div>,
             th: ({ children }) => <th>{children}</th>,
             td: ({ children }) => <td>{children}</td>,
-            img: ({ src, alt }) => {
-              if (!src) return null;
-              const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
-              if (cleanSrc.includes('favicons?sz=') || cleanSrc.endsWith('.ico') || cleanSrc.startsWith('data:image/svg')) {
-                return null;
-              }
-              const cleanAlt = String(alt || '').trim();
-              const hasCaption = cleanAlt && cleanAlt !== 'Image' && cleanAlt !== 'Foto' && !cleanAlt.startsWith('http');
-              return (
-                <figure className="inline-markdown-figure">
-                  <img
-                    src={cleanSrc}
-                    alt={cleanAlt || 'Foto'}
-                    className="inline-markdown-image"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    onClick={() => handleImageClick?.(cleanSrc, cleanAlt || 'Image')}
-                    onError={(e) => {
-                      const imgEl = e.currentTarget;
-                      if (!imgEl.dataset.proxyRetried && cleanSrc.startsWith('http')) {
-                        imgEl.dataset.proxyRetried = 'true';
-                        imgEl.src = `/api/images/proxy?url=${encodeURIComponent(cleanSrc)}`;
-                        return;
-                      }
-                      const fig = imgEl.closest('figure');
-                      if (fig) fig.style.display = 'none';
-                      else imgEl.style.display = 'none';
-                    }}
-                    style={{ cursor: 'pointer' }}
-                    title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
-                  />
-                  {hasCaption && (
-                    <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
-                  )}
-                </figure>
-              );
-            },
+            img: ({ src, alt }) => renderMarkdownFigure(src, alt),
           }}
         >
           {preprocessedText}

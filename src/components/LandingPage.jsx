@@ -124,6 +124,9 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             <button type="button" onClick={() => scrollTo('unduh-apk')} className="lp-nav-apk-btn">
               <i className="fa-brands fa-android" /> {t.nav?.download || 'Unduh APK'}
             </button>
+            <a href="/dte" target="_blank" rel="noopener noreferrer" className="lp-nav-dte-btn" title="Buka Aplikasi Web Order DTE">
+              <i className="fa-solid fa-boxes-stacked" /> Order DTE
+            </a>
             <button type="button" onClick={() => scrollTo('fitur')}>{t.nav.features}</button>
             <button type="button" onClick={() => onNavigate?.('api')}>{t.nav.api}</button>
             <button type="button" onClick={() => scrollTo('faq')}>{t.nav.faq}</button>
@@ -368,6 +371,83 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                   </div>
                 </div>
               </div>
+
+              {/* Card 3: Order DTE (Daily Task Engine) APK */}
+              <div className="lp-modern-apk-card is-dte">
+                <div className="lp-apk-card-top">
+                  <div className="lp-apk-icon-wrapper dte-theme">
+                    <img
+                      src="/dte/favicon.svg"
+                      alt="Order DTE"
+                      className="lp-apk-app-icon"
+                      onError={(e) => { e.currentTarget.src = '/logo192.png'; }}
+                    />
+                    <span className="lp-cf-card-tag is-dte">
+                      <i className="fa-brands fa-cloudflare" /> CDN
+                    </span>
+                  </div>
+
+                  <div className="lp-apk-header-info">
+                    <div className="lp-apk-title-row">
+                      <h3 className="lp-apk-title">{t.download?.dteCard?.title || 'Order DTE'}</h3>
+                      <span className="lp-apk-version-badge dte-badge">{t.download?.dteCard?.version || 'v1.0.0'}</span>
+                    </div>
+                    <p className="lp-apk-desc">{t.download?.dteCard?.subtitle || 'Daily Task Engine • Manajemen Pesanan & Produksi'}</p>
+
+                    <div className="lp-apk-spec-pills">
+                      <span className="lp-spec-pill"><i className="fa-solid fa-boxes-stacked" /> Real-time Stok</span>
+                      <span className="lp-spec-pill"><i className="fa-solid fa-file-zipper" /> {t.download?.dteCard?.size || '3.6 MB'}</span>
+                      <span className="lp-spec-pill"><i className="fa-brands fa-android" /> Android 5.0+</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lp-apk-features-strip">
+                  <div className="lp-apk-feature-item">
+                    <i className="fa-solid fa-circle-check" />
+                    <span>{t.download?.dteCard?.feature1 || 'Katalog alat kerja, kontrol stok & shift operator'}</span>
+                  </div>
+                  <div className="lp-apk-feature-item">
+                    <i className="fa-solid fa-circle-check" />
+                    <span>{t.download?.dteCard?.feature2 || 'Tanda tangan digital nota & ekspor laporan Excel'}</span>
+                  </div>
+                </div>
+
+                <div className="lp-apk-bottom-action">
+                  <div className="lp-apk-action-grid">
+                    <a
+                      href="/order-dte.apk"
+                      download="order-dte.apk"
+                      className="lp-btn-modern-dl is-dte"
+                      title="Unduh Order DTE APK via Cloudflare CDN"
+                    >
+                      <div className="lp-dl-btn-icon-box">
+                        <i className="fa-solid fa-arrow-down-to-bracket" />
+                      </div>
+                      <div className="lp-dl-btn-content">
+                        <span className="lp-dl-btn-label">{t.download?.dteCard?.btn || 'Unduh Order DTE APK'}</span>
+                        <span className="lp-dl-btn-sublabel">
+                          <i className="fa-brands fa-cloudflare" /> {t.download?.dteCard?.btnSub || '3.6 MB · Cloudflare Edge'}
+                        </span>
+                      </div>
+                    </a>
+                    <a
+                      href="/dte"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="lp-btn-web-app is-dte"
+                      title="Buka Aplikasi Web Order DTE di Browser"
+                    >
+                      <i className="fa-solid fa-arrow-up-right-from-square" />
+                      <span>{t.download?.dteCard?.webBtn || 'Buka Web App'}</span>
+                    </a>
+                  </div>
+                  <div className="lp-dl-verification">
+                    <i className="fa-solid fa-shield-halved" />
+                    <span>SHA-256 Verified · 100% Virus-Free · Cloudflare CDN</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Cloudflare Edge Infrastructure Trust Strip */}
@@ -556,6 +636,12 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
             <button type="button" onClick={onOpenOffice}>{t.footer.documentStudio}</button>
             <button type="button" onClick={onOpenUniverse}>{t.footer.universe}</button>
             <button type="button" onClick={() => openSearch()}>{t.footer.searchEngine}</button>
+            <a href="/dte" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontWeight: 600 }}>
+              <i className="fa-solid fa-boxes-stacked" /> Order DTE (Web)
+            </a>
+            <a href="/order-dte.apk" download="order-dte.apk" style={{ color: '#0d9488', fontWeight: 600 }}>
+              <i className="fa-brands fa-android" /> DTE APK
+            </a>
             <button type="button" onClick={() => onNavigate?.('api')}>{t.footer.api}</button>
             <button type="button" onClick={() => onNavigate?.('help')}>{t.footer.help}</button>
           </div>

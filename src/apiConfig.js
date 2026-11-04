@@ -1,5 +1,5 @@
 // Production Base URL (Vercel CDN + reverse proxy)
-export const CLOUDFLARE_BACKEND_URL = 'https://privileges-survey-talks-academy.trycloudflare.com';
+export const CLOUDFLARE_BACKEND_URL = 'https://analyses-cheats-updates-expires.trycloudflare.com';
 export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
 
 const getApiBaseUrl = () => {
@@ -38,12 +38,10 @@ export const DEEPERNOVA_AI_PUBLIC_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DEEPERNOVA_PUBLIC_API_URL) ||
   'https://lou-direction-commentary-record.trycloudflare.com';
 
-// Order DTE Portal URL (Local Vite Port 5173 or Public Cloudflare Tunnel)
+// Order DTE Portal URL (Hosted directly on Vercel CDN and Local Server under /dte)
 export const ORDER_DTE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ORDER_DTE_URL) ||
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:5173'
-    : 'https://phrases-tulsa-scheduling-silence.trycloudflare.com');
+  (typeof window !== 'undefined' ? `${window.location.origin}/dte` : '/dte');
 
 // Deepernova Search Engine URL (Hosted directly on Vercel CDN under /search)
 export const SEARCH_ENGINE_URL =

@@ -34,7 +34,12 @@ import ragService from './ragService.js';
 import externalFinanceService from './externalFinanceService.js';
 import sourceTracker from './sourceTracker.js';
 import DocumentGeneratorService from './documentGeneratorService.js';
-import sharp from 'sharp';
+let sharp = null;
+try {
+  sharp = (await import('sharp')).default;
+} catch (_sharpErr) {
+  console.warn('[SERVER] Optional package sharp not installed; image watermarking fallback active.');
+}
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import { installNodeSecurityShield, nodeSecurityMiddleware, validateSafeUrl } from './nodeSecurityShield.js';
@@ -385,29 +390,64 @@ app.use('/api/', (req, res, next) => {
   next();
 });
 
-// ===== Direct APK Downloads for Landing Page =====
-app.get('/download/deepernova-ai.apk', (req, res) => {
+// ===== Direct APK Downloads for Landing Page (Cloudflare Edge CDN) =====
+app.get(['/download/deepernova-ai.apk', '/deepernova-ai.apk'], (req, res) => {
   const rootDir = path.resolve(__dirname, '..');
-  const apkPath = path.join(rootDir, 'deepernova-ai.apk');
-  if (fs.existsSync(apkPath)) {
-    console.log(`[DOWNLOAD] Streaming deepernova-ai.apk (${fs.statSync(apkPath).size} bytes) to ${req.ip}`);
-    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-    res.setHeader('Content-Disposition', 'attachment; filename="deepernova-ai.apk"');
-    return res.download(apkPath, 'deepernova-ai.apk');
+  const candidates = [
+    path.join(rootDir, 'public', 'deepernova-ai.apk'),
+    path.join(rootDir, 'dist', 'deepernova-ai.apk'),
+    path.join(rootDir, 'deepernova-ai.apk'),
+    path.join(process.cwd(), 'public', 'deepernova-ai.apk')
+  ];
+  for (const apkPath of candidates) {
+    if (fs.existsSync(apkPath)) {
+      console.log(`[DOWNLOAD] Streaming deepernova-ai.apk (${fs.statSync(apkPath).size} bytes) to ${req.ip}`);
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="deepernova-ai.apk"');
+      return res.download(apkPath, 'deepernova-ai.apk');
+    }
   }
   return res.status(404).send('File APK deepernova-ai.apk tidak ditemukan di server.');
 });
 
-app.get('/download/DPN-Search.apk', (req, res) => {
+app.get(['/download/DPN-Search.apk', '/DPN-Search.apk'], (req, res) => {
   const rootDir = path.resolve(__dirname, '..');
-  const apkPath = path.join(rootDir, 'DPN-Search.apk');
-  if (fs.existsSync(apkPath)) {
-    console.log(`[DOWNLOAD] Streaming DPN-Search.apk (${fs.statSync(apkPath).size} bytes) to ${req.ip}`);
-    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-    res.setHeader('Content-Disposition', 'attachment; filename="DPN-Search.apk"');
-    return res.download(apkPath, 'DPN-Search.apk');
+  const candidates = [
+    path.join(rootDir, 'public', 'DPN-Search.apk'),
+    path.join(rootDir, 'dist', 'DPN-Search.apk'),
+    path.join(rootDir, 'DPN-Search.apk'),
+    path.join(process.cwd(), 'public', 'DPN-Search.apk')
+  ];
+  for (const apkPath of candidates) {
+    if (fs.existsSync(apkPath)) {
+      console.log(`[DOWNLOAD] Streaming DPN-Search.apk (${fs.statSync(apkPath).size} bytes) to ${req.ip}`);
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="DPN-Search.apk"');
+      return res.download(apkPath, 'DPN-Search.apk');
+    }
   }
   return res.status(404).send('File APK DPN-Search.apk tidak ditemukan di server.');
+});
+
+app.get(['/download/order-dte.apk', '/order-dte.apk', '/download/DTE-Order.apk'], (req, res) => {
+  const rootDir = path.resolve(__dirname, '..');
+  const candidates = [
+    path.join(rootDir, 'public', 'order-dte.apk'),
+    path.join(rootDir, 'dist', 'order-dte.apk'),
+    path.join(rootDir, 'order-dte.apk'),
+    'F:\\order dte\\order-dte.apk',
+    path.join(rootDir, 'public', 'DTE-Order.apk'),
+    path.join(process.cwd(), 'public', 'order-dte.apk')
+  ];
+  for (const apkPath of candidates) {
+    if (fs.existsSync(apkPath)) {
+      console.log(`[DOWNLOAD] Streaming order-dte.apk (${fs.statSync(apkPath).size} bytes) to ${req.ip}`);
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="order-dte.apk"');
+      return res.download(apkPath, 'order-dte.apk');
+    }
+  }
+  return res.status(404).send('File APK order-dte.apk tidak ditemukan di server.');
 });
 
 // ===== IP-Based Token Limit System =====
@@ -5954,6 +5994,11 @@ async function addWatermarkToImage(imageUrl, watermarkText = 'Deepernova AI') {
       const imageBuffer = Buffer.from(arrayBuffer);
       console.log(`[WATERMARK] Image downloaded: ${imageBuffer.length} bytes`);
       
+      if (!sharp) {
+        console.warn('[WATERMARK] sharp module not available, returning original image');
+        return imageBuffer;
+      }
+
       // Get image dimensions to position watermark
       const metadata = await sharp(imageBuffer).metadata();
       const { width, height } = metadata;
@@ -7244,6 +7289,62 @@ app.get(['/help', '/help/', '/help.html'], (req, res) => {
   const distIndex = path.join(__dirname, '..', 'dist', 'index.html');
   if (fs.existsSync(distIndex)) return res.sendFile(distIndex);
   res.redirect('/');
+});
+
+// ==================== ORDER DTE WEB APP ROUTES & PROXY ====================
+// SPA route for /dte and all subpaths (/dte, /dte/admin, /dte/operator)
+app.get(['/dte', '/dte/', '/dte/*'], (req, res, next) => {
+  if (path.extname(req.path)) {
+    return next();
+  }
+  const dteCandidates = [
+    path.join(__dirname, '..', 'dist', 'dte', 'index.html'),
+    path.join(__dirname, '..', 'public', 'dte', 'index.html'),
+    path.join(process.cwd(), 'dist', 'dte', 'index.html'),
+    path.join(process.cwd(), 'public', 'dte', 'index.html'),
+    'F:\\order dte\\user\\dist\\index.html'
+  ];
+  for (const candidate of dteCandidates) {
+    if (fs.existsSync(candidate)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.sendFile(path.resolve(candidate));
+    }
+  }
+  next();
+});
+
+// Proxy DTE API endpoints & uploads to local Order DTE backend (Port 5000)
+const DTE_BACKEND_PORT = 5000;
+app.use(['/api/dte', '/api/items', '/api/admin/items', '/api/admin/settings', '/api/requests', '/uploads'], (req, res, next) => {
+  if (req.path.startsWith('/api/chat') || req.path.startsWith('/api/search')) return next();
+  
+  const targetPath = req.originalUrl.replace(/^\/api\/dte/, '/api');
+  const options = {
+    hostname: '127.0.0.1',
+    port: DTE_BACKEND_PORT,
+    path: targetPath,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: `127.0.0.1:${DTE_BACKEND_PORT}`
+    }
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', (err) => {
+    if (!res.headersSent) {
+      res.status(502).json({
+        error: 'Order DTE Backend sedang tidak aktif atau reconnecting.',
+        detail: err.message
+      });
+    }
+  });
+
+  req.pipe(proxyReq, { end: true });
 });
 
 // SPA catch-all for public frontend routes
