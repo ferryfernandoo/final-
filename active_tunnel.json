@@ -1,12 +1,12 @@
 {
-  "backendUrl": "https://e3103e0d10a31f.lhr.life",
-  "aiUrl": "https://e3103e0d10a31f.lhr.life",
-  "searchEngineUrl": "https://db2cabad13f899.lhr.life",
-  "dteUrl": "https://c3fd73653d0bae.lhr.life",
+  "backendUrl": "https://cooperation-printed-lung-main.trycloudflare.com",
+  "aiUrl": "https://cooperation-printed-lung-main.trycloudflare.com",
+  "searchEngineUrl": "https://scanned-cattle-parent-lightbox.trycloudflare.com",
+  "dteUrl": "https://here-david-unfortunately-msg.trycloudflare.com",
   "backendPort": 3001,
   "aiPort": 8000,
   "searchEnginePort": 4000,
   "dtePort": 5173,
   "status": "LIVE",
-  "updatedAt": "2026-11-04T05:29:22.566Z"
+  "updatedAt": "2026-11-04T05:51:41.656Z"
 }
