@@ -5944,7 +5944,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // 2. Smoothly advance main content text
         if (displayedFullText.length < targetFullText.length) {
           const diff = targetFullText.length - displayedFullText.length;
-          const step = getSmoothTypingStep(diff, streamDone, displayedFullText.length, targetFullText.length);
+          // Initial token instant kickstart: reveal initial 18 chars immediately so answer appears without lag
+          const step = displayedFullText.length === 0
+            ? Math.min(diff, 18)
+            : getSmoothTypingStep(diff, streamDone, displayedFullText.length, targetFullText.length);
           displayedFullText += targetFullText.substr(displayedFullText.length, step);
           currentStreamingTextRef.current = displayedFullText;
           updated = true;

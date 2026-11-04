@@ -145,8 +145,14 @@ const transcodeToUniversalMP4 = (inputPath, outputPath) => {
 };
 
 
-// RAG Service initialization flag
+// RAG Service initialization flag (Pre-load in background non-blockingly on server boot)
 let ragInitialized = false;
+ragService.loadKnowledgeBase().then(success => {
+  ragInitialized = success;
+  if (success) console.log('✅ RAG: Pre-loaded knowledge base in background');
+}).catch(err => {
+  console.warn('⚠️ RAG background load warning:', err.message);
+});
 
 // Initialize database
 initializeDatabase();
@@ -3130,18 +3136,27 @@ app.post('/api/chat', async (req, res) => {
   const reqModelEarly = req.body?.model || 'deepernova v1 flash 1';
 
   try {
-    // Initialize RAG on first request
-    if (!ragInitialized) {
-      const success = await ragService.loadKnowledgeBase();
-      ragInitialized = success;
-    }
-
     // Safety check for messages
     if (!req.body.messages || !Array.isArray(req.body.messages)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid request: messages array is required'
       });
+    }
+
+    const shouldStream = req.body.stream === true;
+
+    // ⚡ INSTANT UNBUFFERED SSE HANDSHAKE:
+    // Flush response headers immediately to unblock reverse proxy (Vercel/tunnel) edge buffers
+    if (shouldStream && !res.headersSent) {
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+      res.write(': connected\n\n');
     }
 
     let messages = JSON.parse(JSON.stringify(req.body.messages)); // Deep clone
@@ -3291,8 +3306,7 @@ app.post('/api/chat', async (req, res) => {
       messages = enforceChunkedContextMemory(messages, 3500);
     }
 
-    // Check if streaming is requested
-    const shouldStream = req.body.stream === true;
+    // Log streaming state
     console.log(`[CHAT] Streaming requested: ${shouldStream}`);
 
     // ============================================================
@@ -3509,9 +3523,9 @@ app.post('/api/chat', async (req, res) => {
               `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
               `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia. ` +
               'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
-              '1. JANGAN BASA-BASI: Dilarang keras menggunakan kalimat pembuka klise ("Tentu!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya") dan kalimat penutup basa-basi ("Semoga membantu!", "Ada lagi yang ingin ditanyakan?"). Langsung jawab ke inti substansi. ' +
-              '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-              'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian ("cari", "search", "googling", "cek", "info"), atau menanyakan berita terkini, peristiwa hari ini, harga pasar/saham/crypto/kurs terkini, cuaca, fakta spesifik dunia nyata, skor/jadwal, atau riset data web: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] (atau [EXECUTE_SEARCH: kata kunci pilihanmu]) DAN LANGSUNG BERHENTI. Dilarang menulis jawaban spekulatif sebelum menerima hasil pencarian! Jika pertanyaan murni berupa sapaan, konsep umum, matematika, atau coding mandiri: jawab langsung secara alami tanpa flag search. ' +
+              '1. SANGAT RAMAH, HANGAT, DAN SANTUN: Berbicaralah dengan ramah, bersahabat, sopan, dan tulus membantu. DILARANG kaku dan DILARANG memanggil dengan sebutan "bro", "cuy", atau bahasa gaul canggung yang tidak pantas. ' +
+              '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
+              'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA DAN HANYA JIKA pengguna secara eksplisit meminta pencarian web (misal: "cari di web", "search", "googling", "browsing", "cek info terkini tentang..."), ATAU menanyakan data yang membutuhkan info real-time hari ini yang mudah berubah (berita terkini/hari ini, cuaca hari ini, harga pasar/saham/crypto/kurs hari ini, skor/jadwal pertandingan hari ini): KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] (atau [EXECUTE_SEARCH: kata kunci pilihanmu]) DAN LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. UNTUK SELURUH PERTANYAAN LAINNYA (pengetahuan umum, sains, sejarah, definisi, fakta umum dunia, matematika, pemrograman/koding, tutorial, resep masakan, tips, analisis, sapaan, dan obrolan santai): JAWAB LANGSUNG SECARA CERDAS, TUNTAS, RAMAH, DAN INSTAN TANPA FLAG SEARCH! ' +
               'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
           }
           
@@ -3576,35 +3590,37 @@ app.post('/api/chat', async (req, res) => {
 
         let clientDisconnected = false;
         const handleClientDisconnect = () => {
-          clientDisconnected = true;
-          activeUpstreamRequests.delete(reqRecord);
-          try {
-            if (upstreamAbortController) upstreamAbortController.abort();
-            if (reqRecord.responseStream && reqRecord.responseStream.body && typeof reqRecord.responseStream.body.destroy === 'function') {
-              reqRecord.responseStream.body.destroy();
-            }
-          } catch (_e) {}
+          if (res.writableEnded) return;
+          if (res.destroyed || (res.socket && res.socket.destroyed)) {
+            clientDisconnected = true;
+            activeUpstreamRequests.delete(reqRecord);
+            try {
+              if (upstreamAbortController) upstreamAbortController.abort();
+              if (reqRecord.responseStream && reqRecord.responseStream.body && typeof reqRecord.responseStream.body.destroy === 'function') {
+                reqRecord.responseStream.body.destroy();
+              }
+            } catch (_e) {}
+          }
         };
 
-        req.on('close', handleClientDisconnect);
         req.on('aborted', handleClientDisconnect);
         res.on('close', handleClientDisconnect);
 
         // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & IMMEDIATE FIRST-TOKEN STREAMING)
-        let selectedModel = 'llama-4-maverick';
+        let selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'gemini-2.5-flash';
         const reqModelLower = (requestedModel || '').toLowerCase();
         const enableReasoning = req.body.enableReasoning === true || reqModelLower.includes('reason') || reqModelLower.includes('think') || reqModelLower.includes('boron');
 
         if (hasImagesInPayload) {
-          selectedModel = 'llama-4-maverick';
+          selectedModel = 'gemini-2.5-flash';
           console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
         } else if (reqModelLower.includes('70b')) {
           selectedModel = 'llama-3.3-70b';
         } else if (enableReasoning) {
           selectedModel = 'doubao-seed-2.0-lite';
         } else {
-          // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to llama-4-maverick for instant zero-lag response
-          selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'llama-4-maverick';
+          // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to gemini-2.5-flash for instant sub-second response
+          selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'gemini-2.5-flash';
         }
         console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Reasoning: ${enableReasoning}, Vision: ${hasImagesInPayload})`);
 
@@ -3723,16 +3739,18 @@ app.post('/api/chat', async (req, res) => {
         const activeStreamBody = (tokenmixResponse && tokenmixResponse.ok) ? tokenmixResponse.body : standbyStream;
 
         if (shouldStream) {
-          // Set response headers for streaming - unblock Cloudflare edge buffer immediately
-          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-          res.setHeader('Cache-Control', 'no-cache, no-transform');
-          res.setHeader('Connection', 'keep-alive');
-          res.setHeader('X-Accel-Buffering', 'no');
-          if (typeof res.flushHeaders === 'function') {
-            res.flushHeaders();
+          if (!res.headersSent) {
+            // Set response headers for streaming - unblock Cloudflare edge buffer immediately
+            res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache, no-transform');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+            if (typeof res.flushHeaders === 'function') {
+              res.flushHeaders();
+            }
+            // Immediate comment chunk to flush HTTP edge buffers (Cloudflare/reverse proxies)
+            res.write(': connected\n\n');
           }
-          // Immediate comment chunk to flush HTTP edge buffers (Cloudflare/reverse proxies)
-          res.write(': connected\n\n');
 
           const sessionId = req.body.sessionId || req.body.conversationId || null;
           const userMessageId = req.body.userMessageId || null;
