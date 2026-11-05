@@ -133,6 +133,26 @@
   ],
   "rewrites": [
     {
+      "source": "/api/chat",
+      "destination": "/api/chat"
+    },
+    {
+      "source": "/api/chat/stop",
+      "destination": "/api/chat/stop"
+    },
+    {
+      "source": "/api/ping",
+      "destination": "/api/ping"
+    },
+    {
+      "source": "/api/token-usage/:path*",
+      "destination": "/api/token-usage/:path*"
+    },
+    {
+      "source": "/auth/me",
+      "destination": "/api/auth/me"
+    },
+    {
       "source": "/search",
       "destination": "/search/index.html"
     },
