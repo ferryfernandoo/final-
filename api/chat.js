@@ -112,6 +112,52 @@ export default async function handler(req) {
     systemPrompt += '\n\n[DIREKTIF SISTEM MUTLAK - BAHASA INDONESIA]: Berikan jawaban, penalaran, dan penjelasan selalu dalam Bahasa Indonesia yang alami, bersahabat, dan mengalir.';
   }
 
+  // Autonomous Real-Time Web Search Augmentation on Edge
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+  const userText = (lastUserMsg?.content || '').trim();
+  const isSearchIntent = body.webSearch === true ||
+    /\b(cari\s+(di\s+)?(internet|web|google)|tolong\s+cari|berita\s+terbaru|kabar\s+terkini|harga\s+terbaru|hari\s+ini|jadwal\s+hari\s+ini|skor\s+pertandingan|siapa\s+juara|kurs\s+dollar|cuaca)\b/i.test(userText);
+
+  if (isSearchIntent && !userText.includes('[DATA HASIL PENCARIAN') && !userText.includes('### Hasil Pencarian')) {
+    try {
+      const qClean = userText
+        .replace(/\b(coba\s+)?(tolong\s+)?(cari(?:kan)?\s+(?:di\s+(?:internet|web|google)\s+)?(?:tentang\s+|soal\s+)?|apa\s+kabar\s+|apa\s+saja\s+|berita\s+)\b/gi, '')
+        .replace(/[?.,!]/g, '')
+        .trim();
+      const searchQuery = qClean.length >= 2 ? qClean : userText.slice(0, 50);
+
+      const serpUrl = new URL('https://serpapi.com/search.json');
+      serpUrl.searchParams.set('engine', 'google');
+      serpUrl.searchParams.set('q', searchQuery);
+      serpUrl.searchParams.set('hl', effLanguage === 'zh' ? 'zh-cn' : (effLanguage === 'en' ? 'en' : 'id'));
+      serpUrl.searchParams.set('gl', effLanguage === 'zh' ? 'cn' : (effLanguage === 'en' ? 'us' : 'id'));
+      serpUrl.searchParams.set('num', '5');
+      serpUrl.searchParams.set('api_key', '3dcea72b423f7514a9428d398e9f42cd5d7b9004928fb8212f3694342f61133a');
+
+      const ctrl = new AbortController();
+      const tOut = setTimeout(() => ctrl.abort(), 2600);
+      const serpResp = await fetch(serpUrl.toString(), { signal: ctrl.signal });
+      clearTimeout(tOut);
+
+      if (serpResp.ok) {
+        const serpData = await serpResp.json();
+        let searchContext = `\n\n[DATA HASIL PENCARIAN REAL-TIME TERKINI - "${searchQuery}"]:\n`;
+        if (serpData.answer_box) {
+          const ab = serpData.answer_box;
+          searchContext += `[Fakta Utama]: ${ab.title || ''} - ${ab.snippet || ab.answer || ''} (Sumber: ${ab.link || 'Google'})\n`;
+        }
+        if (Array.isArray(serpData.organic_results)) {
+          serpData.organic_results.slice(0, 5).forEach((r, idx) => {
+            searchContext += `[${idx + 1}] ${r.title}\nURL: ${r.link}\nRingkasan: ${r.snippet || ''}\n`;
+          });
+        }
+        systemPrompt += searchContext + '\nPETUNJUK SINTESIS: Gunakan data hasil pencarian web real-time di atas untuk menjawab secara akurat, faktual, dan sertakan sitasi link sumber jika relevan.\n';
+      }
+    } catch (e) {
+      console.warn('[Edge Chat QuickSearch] Non-fatal search error:', e.message);
+    }
+  }
+
   // Build sanitized final messages
   const finalMessages = [];
   const clientSys = messages.find(m => m.role === 'system');
