@@ -1,5 +1,5 @@
 // Production Base URL (Vercel CDN + reverse proxy)
-export const CLOUDFLARE_BACKEND_URL = 'https://officer-jeffrey-companies-officially.trycloudflare.com';
+export const CLOUDFLARE_BACKEND_URL = 'https://0cb0e44cce91b6.lhr.life';
 export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
 
 const getApiBaseUrl = () => {
@@ -36,7 +36,7 @@ export const API_BASE_URL = getApiBaseUrl();
 // Direct DeeperNova AI Public Endpoint (Cloudflare Tunnel to GPU Engine)
 export const DEEPERNOVA_AI_PUBLIC_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DEEPERNOVA_PUBLIC_API_URL) ||
-  'https://snow-they-spots-guarantees.trycloudflare.com';
+  'https://prevent-calling-kenny-rec.trycloudflare.com';
 
 // Order DTE Portal URL (Hosted directly on Vercel CDN and Local Server under /dte)
 export const ORDER_DTE_URL =

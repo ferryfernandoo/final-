@@ -26,8 +26,8 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const SEARCH_DIR = fs.existsSync('C:\\deepernova-search-main')
   ? 'C:\\deepernova-search-main'
   : (fs.existsSync(path.join(ROOT_DIR, 'search-engine'))
-  ? path.join(ROOT_DIR, 'search-engine')
-  : (fs.existsSync('F:\\deepernova-search-main')
+    ? path.join(ROOT_DIR, 'search-engine')
+    : (fs.existsSync('F:\\deepernova-search-main')
       ? 'F:\\deepernova-search-main'
       : 'F:\\search engine\\search-engine'));
 const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
@@ -37,10 +37,10 @@ const AI_SERVER_DIR = 'F:\\llm deepernova';
 const CLOUDFLARED_BIN = fs.existsSync(path.join(ROOT_DIR, 'bin', 'cloudflared.exe'))
   ? path.join(ROOT_DIR, 'bin', 'cloudflared.exe')
   : (fs.existsSync('C:\\Program Files (x86)\\cloudflared\\cloudflared.exe')
-      ? 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe'
-      : (fs.existsSync('F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe')
-          ? 'F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe'
-          : 'cloudflared'));
+    ? 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe'
+    : (fs.existsSync('F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe')
+      ? 'F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe'
+      : 'cloudflared'));
 
 // Helper to sanitize URL (remove trailing slash)
 const cleanUrl = (url) => String(url || '').trim().replace(/\/+$/, '');
@@ -88,11 +88,11 @@ function killPort(port) {
         const pid = parts[parts.length - 1];
         if (pid && pid !== '0' && pid !== String(process.pid)) {
           log.info(`Membersihkan proses lama di port ${port} (PID: ${pid})...`);
-          try { execSync(`taskkill /f /pid ${pid}`, { stdio: 'ignore' }); } catch {}
+          try { execSync(`taskkill /f /pid ${pid}`, { stdio: 'ignore' }); } catch { }
         }
       }
     }
-  } catch {}
+  } catch { }
 }
 
 function sleep(ms) {
@@ -140,7 +140,7 @@ function launchTunnel(port, logFilePath) {
     log.info(`Menyalakan Cloudflare Tunnel untuk port ${port}...`);
 
     // Hapus log lama
-    try { if (fs.existsSync(logFilePath)) fs.unlinkSync(logFilePath); } catch {}
+    try { if (fs.existsSync(logFilePath)) fs.unlinkSync(logFilePath); } catch { }
 
     const child = spawn(CLOUDFLARED_BIN, [
       'tunnel',
@@ -173,16 +173,16 @@ function launchTunnel(port, logFilePath) {
           const content = fs.readFileSync(logFilePath, 'utf8');
           const match = content.match(/https:\/\/[a-z0-9\-]+\.trycloudflare\.com/i);
           const isRegistered = content.includes('Registered tunnel connection') ||
-                               content.includes('Registered at') ||
-                               content.includes('connection=') ||
-                               content.includes('location=') ||
-                               content.includes('connIndex=');
+            content.includes('Registered at') ||
+            content.includes('connection=') ||
+            content.includes('location=') ||
+            content.includes('connIndex=');
           if (match && match[0] && isRegistered) {
             resolved = true;
             clearInterval(interval);
             resolve(cleanUrl(match[0]));
           }
-        } catch {}
+        } catch { }
       }
     }, 800);
   });
@@ -201,7 +201,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
     if (fs.existsSync(activeTunnelPath)) {
       oldTunnel = JSON.parse(fs.readFileSync(activeTunnelPath, 'utf8'));
     }
-  } catch {}
+  } catch { }
 
   const finalAiUrl = aiUrl || oldTunnel.aiUrl || backendUrl;
 
@@ -643,7 +643,7 @@ function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
           log.success('search-engine/vercel.json rewrites berhasil diperbarui.');
         }
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -656,18 +656,18 @@ async function main() {
 
   // ── Step 0: Kill proses cloudflared lama ───
   log.info('Membersihkan cloudflared lama...');
-  try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
+  try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch { }
   await sleep(1000);
 
   // Pastikan C:\deepernova-data dan D:\deepernova-data siap
   if (!fs.existsSync('C:\\deepernova-data')) {
-    try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch {}
+    try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch { }
   }
   if (!fs.existsSync('D:\\deepernova-data')) {
-    try { fs.mkdirSync('D:\\deepernova-data', { recursive: true }); } catch {}
+    try { fs.mkdirSync('D:\\deepernova-data', { recursive: true }); } catch { }
   }
   if (!fs.existsSync('D:\\deepernova-data\\temp')) {
-    try { fs.mkdirSync('D:\\deepernova-data\\temp', { recursive: true }); } catch {}
+    try { fs.mkdirSync('D:\\deepernova-data\\temp', { recursive: true }); } catch { }
   }
 
   // ── Step 0.5: DeeperNova AI Server (Port 8000) ───
@@ -788,7 +788,7 @@ async function main() {
     if (fs.existsSync(activeTunnelPath)) {
       oldTunnel = JSON.parse(fs.readFileSync(activeTunnelPath, 'utf8'));
     }
-  } catch {}
+  } catch { }
 
   let backendUrl = null;
   let searchEngineUrl = null;
@@ -955,13 +955,13 @@ async function main() {
   // Cleanup on exit
   const cleanup = () => {
     log.info('Mematikan semua service...');
-    try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
+    try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch { }
     process.exit(0);
   };
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
-    // ─────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   // 🛡️ STEP 10: AUTONOMOUS RECONNECT & HEALTH SUPERVISOR
   // ─────────────────────────────────────────────
   log.title('🛡️  STEP 10: Auto-Reconnect Supervisor Aktif');
@@ -1003,7 +1003,7 @@ async function main() {
     log.title(`🔄 AUTO-RECONNECT: ${reason}`);
     try {
       log.info('Menghentikan tunnel lama yang macet...');
-      try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch {}
+      try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch { }
       await sleep(2000);
 
       log.info('Menyalakan ulang semua tunnel Cloudflare...');

@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://algebra-called-import-cleanup.trycloudflare.com/api/:path*"
+      "destination": "https://gig-biz-predicted-nearly.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
