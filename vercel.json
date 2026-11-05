@@ -153,6 +153,38 @@
       "destination": "/api/auth/me"
     },
     {
+      "source": "/api/serp-search",
+      "destination": "/api/serp-search"
+    },
+    {
+      "source": "/api/google-search",
+      "destination": "/api/google-search"
+    },
+    {
+      "source": "/api/search",
+      "destination": "/api/search"
+    },
+    {
+      "source": "/api/v1/search",
+      "destination": "/api/v1/search"
+    },
+    {
+      "source": "/api/v1/search-fast",
+      "destination": "/api/v1/search"
+    },
+    {
+      "source": "/api/suggestions",
+      "destination": "/api/suggestions"
+    },
+    {
+      "source": "/api/v1/suggest",
+      "destination": "/api/v1/suggest"
+    },
+    {
+      "source": "/api/status",
+      "destination": "/api/status"
+    },
+    {
       "source": "/search",
       "destination": "/search/index.html"
     },
@@ -251,30 +283,6 @@
     {
       "source": "/uploads/:path*",
       "destination": "https://8b63061f47bada.lhr.life/uploads/:path*"
-    },
-    {
-      "source": "/api/search",
-      "destination": "https://5f01e25791c054.lhr.life/api/search"
-    },
-    {
-      "source": "/api/status",
-      "destination": "https://5f01e25791c054.lhr.life/api/status"
-    },
-    {
-      "source": "/api/v1/suggest",
-      "destination": "https://5f01e25791c054.lhr.life/suggest"
-    },
-    {
-      "source": "/api/v1/:path*",
-      "destination": "https://5f01e25791c054.lhr.life/api/v1/:path*"
-    },
-    {
-      "source": "/api/suggestions",
-      "destination": "https://5f01e25791c054.lhr.life/api/suggestions"
-    },
-    {
-      "source": "/api/suggestions/:path*",
-      "destination": "https://5f01e25791c054.lhr.life/api/suggestions/:path*"
     },
     {
       "source": "/api/ai/:path*",
