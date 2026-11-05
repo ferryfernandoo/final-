@@ -166,11 +166,11 @@
     },
     {
       "source": "/api/v1/search",
-      "destination": "/api/v1/search"
+      "destination": "/api/search"
     },
     {
       "source": "/api/v1/search-fast",
-      "destination": "/api/v1/search"
+      "destination": "/api/search"
     },
     {
       "source": "/api/suggestions",
@@ -178,7 +178,7 @@
     },
     {
       "source": "/api/v1/suggest",
-      "destination": "/api/v1/suggest"
+      "destination": "/api/suggestions"
     },
     {
       "source": "/api/status",
