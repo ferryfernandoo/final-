@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://foam-fees-heart-scotland.trycloudflare.com/api/:path*"
+      "destination": "https://algebra-called-import-cleanup.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",

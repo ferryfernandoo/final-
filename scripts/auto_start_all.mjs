@@ -692,7 +692,7 @@ async function main() {
     log.success('Search Engine sudah aktif di port 4000.');
   } else if (fs.existsSync(SEARCH_DIR)) {
     const serverFile = fs.existsSync(path.join(SEARCH_DIR, 'server.js')) ? 'server.js' : 'src/server.js';
-    startProcess('node', ['--env-file=.env', '--max-old-space-size=4096', serverFile], SEARCH_DIR, 'Deepernova Search Engine', 'search-server.log');
+    startProcess('node', ['--expose-gc', '--env-file=.env', '--max-old-space-size=4096', serverFile], SEARCH_DIR, 'Deepernova Search Engine', 'search-server.log');
     log.info('Menunggu Search Engine siap di port 4000 (max 40 detik)...');
     if (await waitForPort(4000, 40000)) {
       log.success('Search Engine siap di port 4000.');

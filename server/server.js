@@ -7457,7 +7457,14 @@ app.use([
     }
   });
 
-  req.pipe(proxyReq, { end: true });
+  if (req.body && Object.keys(req.body).length > 0 && req.is('application/json')) {
+    const bodyStr = JSON.stringify(req.body);
+    proxyReq.setHeader('content-length', Buffer.byteLength(bodyStr));
+    proxyReq.write(bodyStr);
+    proxyReq.end();
+  } else {
+    req.pipe(proxyReq, { end: true });
+  }
 });
 
 // SPA catch-all for public frontend routes
