@@ -290,107 +290,107 @@
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/api/ping"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/items",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/api/items"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/api/items/:path*"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/api/items/:path*"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/api/admin/:path*"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/api/requests"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/api/requests/:path*"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/api/:path*"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://4b3f2b8976b2e6.lhr.life/uploads/:path*"
+      "destination": "https://department-earthquake-calvin-arrangement.trycloudflare.com/uploads/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://fb930197ce3025.lhr.life/api/ai/:path*"
+      "destination": "https://desktops-drums-liver-superb.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://a31213341b044a.lhr.life/api/news"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://a31213341b044a.lhr.life/api/news/:path*"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://a31213341b044a.lhr.life/api/tokoh"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://a31213341b044a.lhr.life/api/tokoh/:path*"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://a31213341b044a.lhr.life/api/geo"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://a31213341b044a.lhr.life/api/geo/:path*"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://a31213341b044a.lhr.life/api/crawl"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://a31213341b044a.lhr.life/api/crawl/:path*"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://a31213341b044a.lhr.life/api/economics"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://a31213341b044a.lhr.life/api/economics/:path*"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://a31213341b044a.lhr.life/api/proxy-image"
+      "destination": "https://provider-cognitive-headed-breathing.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/upstream/:path*",
-      "destination": "https://fb930197ce3025.lhr.life/api/:path*"
+      "destination": "https://desktops-drums-liver-superb.trycloudflare.com/api/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://fb930197ce3025.lhr.life/api/:path*"
+      "destination": "https://desktops-drums-liver-superb.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://fb930197ce3025.lhr.life/auth/:path*"
+      "destination": "https://desktops-drums-liver-superb.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://fb930197ce3025.lhr.life/v1/:path*"
+      "destination": "https://desktops-drums-liver-superb.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://fb930197ce3025.lhr.life/download/:path*"
+      "destination": "https://desktops-drums-liver-superb.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://fb930197ce3025.lhr.life/watermarked/:path*"
+      "destination": "https://desktops-drums-liver-superb.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",

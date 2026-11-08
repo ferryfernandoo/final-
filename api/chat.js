@@ -11,7 +11,7 @@ const TOKENMIX_API_KEYS = Array.from(new Set([
   process.env.TOKENMIX_FALLBACK_API_KEY
 ].map(k => (k || '').trim()).filter(Boolean)));
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://fb930197ce3025.lhr.life';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://desktops-drums-liver-superb.trycloudflare.com';
 
 const SERVER_PERSONALITY_PROMPTS = {
   casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab seperti teman karib (gunakan aku-kamu, partikel nih, yuk, dong, loh, santai aja).\n- DILARANG KERAS menggunakan bahasa baku, kaku, formal, atau seperti surat dinas!',
