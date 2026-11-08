@@ -185,6 +185,42 @@
       "destination": "/api/status"
     },
     {
+      "source": "/api/agent/sessions",
+      "destination": "/api/agent/sessions"
+    },
+    {
+      "source": "/api/agent/sessions/:path*",
+      "destination": "/api/agent/sessions"
+    },
+    {
+      "source": "/api/agent/messages",
+      "destination": "/api/agent/messages"
+    },
+    {
+      "source": "/api/agent/files",
+      "destination": "/api/agent/files"
+    },
+    {
+      "source": "/api/agent/file",
+      "destination": "/api/agent/file"
+    },
+    {
+      "source": "/api/agent/file/:action*",
+      "destination": "/api/agent/file"
+    },
+    {
+      "source": "/api/agent/preview/:path*",
+      "destination": "/api/agent/preview"
+    },
+    {
+      "source": "/api/agent/execute",
+      "destination": "/api/agent/execute"
+    },
+    {
+      "source": "/api/agent/run",
+      "destination": "/api/agent/run"
+    },
+    {
       "source": "/search",
       "destination": "/search/index.html"
     },
