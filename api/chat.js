@@ -126,32 +126,59 @@ export default async function handler(req) {
         .trim();
       const searchQuery = qClean.length >= 2 ? qClean : userText.slice(0, 50);
 
-      const serpUrl = new URL('https://serpapi.com/search.json');
-      serpUrl.searchParams.set('engine', 'google');
-      serpUrl.searchParams.set('q', searchQuery);
-      serpUrl.searchParams.set('hl', effLanguage === 'zh' ? 'zh-cn' : (effLanguage === 'en' ? 'en' : 'id'));
-      serpUrl.searchParams.set('gl', effLanguage === 'zh' ? 'cn' : (effLanguage === 'en' ? 'us' : 'id'));
-      serpUrl.searchParams.set('num', '5');
-      serpUrl.searchParams.set('api_key', '3dcea72b423f7514a9428d398e9f42cd5d7b9004928fb8212f3694342f61133a');
+      const enc = encodeURIComponent(searchQuery);
+      const hl = effLanguage === 'zh' ? 'zh-cn' : (effLanguage === 'en' ? 'en-US' : 'id');
+      const gl = effLanguage === 'zh' ? 'CN' : (effLanguage === 'en' ? 'US' : 'ID');
+      const ceid = effLanguage === 'zh' ? 'CN:zh-Hans' : (effLanguage === 'en' ? 'US:en' : 'ID:id');
+      const googleNewsUrl = `https://news.google.com/rss/search?q=${enc}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
 
       const ctrl = new AbortController();
-      const tOut = setTimeout(() => ctrl.abort(), 2600);
-      const serpResp = await fetch(serpUrl.toString(), { signal: ctrl.signal });
+      const tOut = setTimeout(() => ctrl.abort(), 2800);
+      const [googleResp, wikiResp] = await Promise.allSettled([
+        fetch(googleNewsUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36' },
+          signal: ctrl.signal
+        }),
+        fetch(`https://${effLanguage === 'en' ? 'en' : 'id'}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${enc}&utf8=&format=json&srlimit=2`, {
+          signal: ctrl.signal
+        })
+      ]);
       clearTimeout(tOut);
 
-      if (serpResp.ok) {
-        const serpData = await serpResp.json();
-        let searchContext = `\n\n[DATA HASIL PENCARIAN REAL-TIME TERKINI - "${searchQuery}"]:\n`;
-        if (serpData.answer_box) {
-          const ab = serpData.answer_box;
-          searchContext += `[Fakta Utama]: ${ab.title || ''} - ${ab.snippet || ab.answer || ''} (Sumber: ${ab.link || 'Google'})\n`;
+      let searchContext = `\n\n[DATA HASIL PENCARIAN REAL-TIME TERKINI GOOGLE & WEB - "${searchQuery}"]:\n`;
+      let foundCount = 0;
+
+      if (googleResp.status === 'fulfilled' && googleResp.value.ok) {
+        const xml = await googleResp.value.text();
+        const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+        for (const m of items.slice(0, 6)) {
+          const itemXml = m[1];
+          const title = itemXml.match(/<title>([\s\S]*?)<\/title>/i)?.[1]?.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').replace(/<[^>]+>/g, '').trim();
+          const link = itemXml.match(/<link>([\s\S]*?)<\/link>/i)?.[1]?.trim();
+          const source = itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1]?.trim() || 'Google Search';
+          const desc = itemXml.match(/<description>([\s\S]*?)<\/description>/i)?.[1]?.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').replace(/<[^>]+>/g, ' ').trim();
+          if (title && link) {
+            foundCount++;
+            searchContext += `[${foundCount}] [Google / ${source}] ${title}\nURL: ${link}\nRingkasan: ${desc || title}\n`;
+          }
         }
-        if (Array.isArray(serpData.organic_results)) {
-          serpData.organic_results.slice(0, 5).forEach((r, idx) => {
-            searchContext += `[${idx + 1}] ${r.title}\nURL: ${r.link}\nRingkasan: ${r.snippet || ''}\n`;
-          });
+      }
+
+      if (wikiResp.status === 'fulfilled' && wikiResp.value.ok) {
+        const wikiData = await wikiResp.value.json().catch(() => null);
+        if (wikiData?.query?.search) {
+          for (const w of wikiData.query.search.slice(0, 2)) {
+            foundCount++;
+            const wTitle = w.title;
+            const wLink = `https://${effLanguage === 'en' ? 'en' : 'id'}.wikipedia.org/wiki/${encodeURIComponent(wTitle.replace(/\s+/g, '_'))}`;
+            const wSnippet = (w.snippet || '').replace(/<[^>]+>/g, ' ').trim();
+            searchContext += `[${foundCount}] [Wikipedia] ${wTitle}\nURL: ${wLink}\nRingkasan: ${wSnippet}\n`;
+          }
         }
-        systemPrompt += searchContext + '\nPETUNJUK SINTESIS: Gunakan data hasil pencarian web real-time di atas untuk menjawab secara akurat, faktual, dan sertakan sitasi link sumber jika relevan.\n';
+      }
+
+      if (foundCount > 0) {
+        systemPrompt += searchContext + '\nPETUNJUK SINTESIS: Gunakan data hasil pencarian Google & Web real-time di atas untuk menjawab secara akurat, faktual, dan sertakan sitasi link sumber jika relevan.\n';
       }
     } catch (e) {
       console.warn('[Edge Chat QuickSearch] Non-fatal search error:', e.message);
