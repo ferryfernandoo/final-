@@ -51,6 +51,14 @@ import ChatSidebar from './chatbot/ChatSidebar';
 import ChatEmptyHero from './chatbot/ChatEmptyHero';
 import ChatComposerBar from './chatbot/ChatComposerBar';
 import { ChatPrimaryModals, ChatSecondaryModals, ChatAgenticRightPanel } from './chatbot/ChatModals';
+import {
+  parseSubAgentFlag,
+  detectExplicitSubAgentUserIntent,
+  buildDefaultIntroText,
+  hasPartialSubAgentTag,
+  stripSubAgentFlags,
+  executeSynchronousSubAgent,
+} from '../services/subAgentOrchestratorService';
 import './ChatBot.css';
 
 export { DEEPERNOVA_MODELS, SUGGESTION_PROMPTS_POOL };
@@ -508,7 +516,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const isGenerating = useMemo(() => {
     if (isSendGenerating) return true;
     try {
-      const streaming = messages.some((m) => m.isStreaming);
+      const streaming = messages.some((m) => m.isStreaming || m.subAgentData?.status === 'running');
       return !!generatingGreeting || streaming;
     } catch (e) {
       return !!generatingGreeting;
@@ -518,7 +526,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   // ===== AGGRESSIVE SAFETY: Auto-reconcile generating state =====
   useEffect(() => {
     const hasActiveFlags = messages.some(
-      (m) => m.sender === 'bot' && (m.isStreaming || m.isThinking || m.isSearching || m.isRecallingMemory || m.isImageGenerating || m.isReasoning)
+      (m) => m.sender === 'bot' && (m.isStreaming || m.isThinking || m.isSearching || m.isRecallingMemory || m.isImageGenerating || m.isReasoning || m.subAgentData?.status === 'running')
     );
 
     // If NO bot message is actively running in any state:
@@ -537,29 +545,23 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       return;
     }
 
-    // Safety fallback: if active flags remain stuck beyond 60s, force-clear them aggressively
+    // Safety fallback: if active flags remain stuck beyond 90s (when not running sub-agent), force-clear them
     const safetyTimer = setTimeout(() => {
       setMessages((prev) => {
         const stillStuck = prev.some(
-          (m) => m.sender === 'bot' && (m.isStreaming || m.isThinking || m.isSearching || m.isRecallingMemory || m.isImageGenerating || m.isReasoning)
+          (m) => m.sender === 'bot' && m.subAgentData?.status !== 'running' && (m.isStreaming || m.isThinking || m.isSearching || m.isRecallingMemory || m.isImageGenerating || m.isReasoning)
         );
         if (stillStuck) {
-          console.warn('[ChatBot] Safety: force-clearing stuck message flags after 60s timeout');
+          console.warn('[ChatBot] Safety: force-clearing stuck message flags after timeout');
           return prev.map((msg) =>
-            msg.sender === 'bot' && (msg.isStreaming || msg.isThinking || msg.isSearching || msg.isRecallingMemory || msg.isImageGenerating || msg.isReasoning)
+            msg.sender === 'bot' && msg.subAgentData?.status !== 'running' && (msg.isStreaming || msg.isThinking || msg.isSearching || msg.isRecallingMemory || msg.isImageGenerating || msg.isReasoning)
               ? { ...msg, isStreaming: false, isThinking: false, isSearching: false, isRecallingMemory: false, isImageGenerating: false, isReasoning: false }
               : msg
           );
         }
         return prev;
       });
-      setConversations((prev) => prev.map((c) => (c.isLoading ? { ...c, isLoading: false } : c)));
-      setLoading(false);
-      setIsSendGenerating(false);
-      isSendGeneratingRef.current = false;
-      setLoadingPhase(null);
-      isProcessingRef.current = false;
-    }, 60000);
+    }, 90000);
 
     return () => clearTimeout(safetyTimer);
   }, [messages, loading, isSendGenerating]);
@@ -1451,9 +1453,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
             }
           }
           
-          // Detect if user asked to create a file or open deepernova universe
-          const isCreateFileQuery = /\b(buat|bikin|create|new|tulis|buka)\b.*\b(file|dokumen|document|docx|excel|spreadsheet|ppt|slide|xlsx|pptx|universe|typernova)\b/i.test(lastSentPromptRef.current || '');
-          if (isCreateFileQuery && textToUse && !textToUse.includes('[NAVIGATE_UNIVERSE]')) {
+          // Detect if user explicitly asked to open Deepernova Universe / Office Studio (docx, xlsx, pptx, universe, typernova)
+          const isCreateFileQuery = /\b(buat|bikin|create|new|tulis|buka)\b.*\b(docx|excel|spreadsheet|ppt|slide|xlsx|pptx|universe|typernova)\b/i.test(lastSentPromptRef.current || '');
+          if (isCreateFileQuery && !msg.subAgentData && textToUse && !textToUse.includes('[NAVIGATE_UNIVERSE]')) {
             textToUse += '\n\n[NAVIGATE_UNIVERSE]';
           }
           
@@ -4631,7 +4633,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const targetMsgId = currentMessageIdRef.current;
     setMessages((prev) =>
       prev.map((msg) =>
-        msg.isStreaming || msg.isThinking || msg.isSearching || msg.isRecallingMemory || msg.isImageGenerating || (targetMsgId && msg.id === targetMsgId)
+        msg.isStreaming || msg.isThinking || msg.isSearching || msg.isRecallingMemory || msg.isImageGenerating || msg.subAgentData?.status === 'running' || (targetMsgId && msg.id === targetMsgId)
           ? {
               ...msg,
               isStreaming: false,
@@ -4641,6 +4643,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               isSearching: false,
               isRecallingMemory: false,
               isImageGenerating: false,
+              subAgentData:
+                msg.subAgentData?.status === 'running'
+                  ? { ...msg.subAgentData, status: 'aborted' }
+                  : msg.subAgentData,
             }
           : msg
       )
@@ -6083,7 +6089,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             /^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(leadingText) ||
             /^<(?:s|se|sea|sear|searc|search)(?:_request)?(?:>[\s\S]*)?$/i.test(leadingText) && !/<\/search(?:_request)?>/i.test(leadingText) ||
             /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*$/i.test(rawText);
-          if (isPartialSearchTag) {
+          if (isPartialSearchTag || hasPartialSubAgentTag(rawText)) {
             return;
           }
           startSmoothStreamer();
@@ -6143,6 +6149,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       displayedFullText = targetFullText;
       displayedReasoningText = targetReasoningText;
       fullText = targetFullText;
+
+      // Pre-check if AI emitted a Sub-Agent Orchestrator flag in rawText/fullText
+      const preCheckSubAgent = parseSubAgentFlag(
+        `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`,
+        lastSentUserInputTextRef.current || fullMessage || '',
+        userLanguage
+      );
+      if (preCheckSubAgent && preCheckSubAgent.introText) {
+        fullText = preCheckSubAgent.introText;
+        displayedFullText = fullText;
+        targetFullText = fullText;
+      }
 
       // GUARANTEE: NEVER FORGET TO RESPOND AFTER REASONING OR ON EMPTY STREAM
       if (!fullText || !fullText.trim()) {
@@ -6284,84 +6302,144 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       
 
       
-      // ✨ AI Self-Trigger Agent Detection
-      // Parse [AGENT_EXECUTE: task_description] flag from response
-      const agentExecuteMatch = fullText.match(/\[AGENT_EXECUTE:\s*([^\]]+)\]/);
-      if (agentExecuteMatch) {
-        const agentTaskDescription = agentExecuteMatch[1].trim();
-        console.log(`[ChatBot] 🤖 AI triggered agent execution: "${agentTaskDescription}"`);
-        
-        // Remove the flag from displayed text
-        const cleanedText = fullText.replace(/\s*\[AGENT_EXECUTE:[^\]]*\]/, '').trim();
-        
-        // Update message with cleaned text (without flag)
-        setMessages((prevMessages) => {
-          const updatedMessages = [...prevMessages];
-          const msgIndex = updatedMessages.findIndex(m => m.id === placeholderId);
-          if (msgIndex !== -1) {
-            updatedMessages[msgIndex] = {
-              ...updatedMessages[msgIndex],
-              text: cleanedText
-            };
-          }
-          return updatedMessages;
-        });
+      // ============================================================
+      // 🤖 SYNCHRONOUS SUB-AGENT ORCHESTRATOR (FLAG-TRIGGERED)
+      // Flow:
+      // 1. AI answers normally first ("jawab biasa" -> introText)
+      // 2. AI emits flag [SUBAGENT_ORCHESTRATE: <task_description>] (or user explicitly requested sub-agent/file deliverables)
+      // 3. Synchronous Agent Orchestrator runs in-place with live Chain of Thought (CoT) and delivers downloadable/previewable files
+      // ============================================================
+      const userPromptForSubAgent = lastSentUserInputTextRef.current || fullMessage || '';
+      const combinedSubAgentSource = `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`;
+      let parsedSubAgent = parseSubAgentFlag(combinedSubAgentSource, userPromptForSubAgent, userLanguage);
 
-        // Prevent duplicate triggers for the same message
-        if (triggeredAgentTasksRef.current.has(placeholderId)) {
-          console.log(`[ChatBot] Agent task already triggered for message ${placeholderId}, skipping duplicate execution`);
-        } else {
-          triggeredAgentTasksRef.current.add(placeholderId);
+      if (!parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent)) {
+        const cleanedOpening = stripSubAgentFlags(fullText || '').trim();
+        const shortOpening = cleanedOpening
+          ? cleanedOpening.split(/\n\n/).slice(0, 2).join('\n\n').slice(0, 420).trim()
+          : buildDefaultIntroText(userPromptForSubAgent, userLanguage);
+        parsedSubAgent = {
+          triggered: true,
+          flagTag: `[SUBAGENT_ORCHESTRATE: ${userPromptForSubAgent.slice(0, 180)}]`,
+          taskDescription: userPromptForSubAgent,
+          introText: shortOpening || buildDefaultIntroText(userPromptForSubAgent, userLanguage),
+        };
+      }
 
-          // Queue agent execution asynchronously to avoid blocking
-          setTimeout(async () => {
-            // Track background agent tasks to avoid showing premature error banners
-            backgroundAgentCountRef.current += 1;
-            try {
-              console.log(`[ChatBot] Executing agent task: ${agentTaskDescription}`);
-              const userId = user?.id || 'guest';
-              
-              // Call agent endpoint
-              const response = await fetch(`${API_BASE_URL}/api/agent/execute`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  task: agentTaskDescription,
-                  userId: userId
-                })
-              });
-              
-              if (!response.ok) {
-                console.error(`Agent execution failed: ${response.status}`);
-                return;
-              }
-              
-              const result = await response.json();
-              console.log(`[ChatBot] Agent execution completed:`, result);
-              
-              // If file was generated, add download link to message
-              if (result.success && result.fileName && result.downloadUrl) {
-                setMessages((prevMessages) => {
-                  const updatedMessages = [...prevMessages];
-                  const msgIndex = updatedMessages.findIndex(m => m.id === placeholderId);
-                  if (msgIndex !== -1) {
-                    updatedMessages[msgIndex] = {
-                      ...updatedMessages[msgIndex],
-                      downloadUrl: result.downloadUrl,
-                      fileName: result.fileName,
-                      agentResult: result
-                    };
+      if (parsedSubAgent && parsedSubAgent.triggered && !triggeredAgentTasksRef.current.has(placeholderId)) {
+        triggeredAgentTasksRef.current.add(placeholderId);
+        const introConversationalText =
+          parsedSubAgent.introText || buildDefaultIntroText(parsedSubAgent.taskDescription, userLanguage);
+
+        console.log(
+          `[ChatBot] 🤖 Synchronous Sub-Agent Orchestrator activated via flag ${parsedSubAgent.flagTag}`
+        );
+
+        const initialSubAgentData = {
+          status: 'running',
+          activeStage: 'planner',
+          flagTag: parsedSubAgent.flagTag,
+          taskDescription: parsedSubAgent.taskDescription,
+          plan: null,
+          cotSteps: [
+            {
+              id: 'init',
+              stage: 'Orchestrator',
+              text:
+                userLanguage === 'en'
+                  ? `Activating Synchronous Sub-Agent Orchestrator for: "${parsedSubAgent.taskDescription}"`
+                  : `Mengaktifkan Synchronous Sub-Agent Orchestrator untuk: "${parsedSubAgent.taskDescription}"`,
+              status: 'running',
+              timestamp: new Date().toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              }),
+            },
+          ],
+          cotRawText: '',
+          files: [],
+          activeFileWriting: null,
+          summaryText: '',
+          elapsedMs: 0,
+        };
+
+        setConvLoading(true);
+        setLoading(true);
+        setIsSendGenerating(true);
+        isSendGeneratingRef.current = true;
+
+        setMessages((prevMessages) =>
+          prevMessages.map((m) =>
+            m.id === placeholderId
+              ? {
+                  ...m,
+                  text: introConversationalText,
+                  isStreaming: true,
+                  subAgentData: initialSubAgentData,
+                }
+              : m
+          )
+        );
+
+        const subAgentController = new AbortController();
+        abortControllersMapRef.current.set(`subagent-${placeholderId}`, subAgentController);
+
+        try {
+          const finalSubAgentState = await executeSynchronousSubAgent({
+            taskDescription: parsedSubAgent.taskDescription,
+            userPrompt: userPromptForSubAgent,
+            language: userLanguage,
+            model: selectedModel || 'deepernova-2.3-pro',
+            abortSignal: subAgentController.signal,
+            onUpdate: (liveSubAgentState) => {
+              setMessages((prevMessages) =>
+                prevMessages.map((m) =>
+                  m.id === placeholderId
+                    ? {
+                        ...m,
+                        text: introConversationalText,
+                        isStreaming: liveSubAgentState.status === 'running',
+                        subAgentData: liveSubAgentState,
+                      }
+                    : m
+                )
+              );
+            },
+          });
+
+          setMessages((prevMessages) => {
+            const updatedMessages = prevMessages.map((m) =>
+              m.id === placeholderId
+                ? {
+                    ...m,
+                    text: introConversationalText,
+                    isStreaming: false,
+                    subAgentData: finalSubAgentState,
                   }
-                  return updatedMessages;
-                });
-              }
-            } catch (err) {
-              console.error('[ChatBot] Agent execution error:', err);
-            } finally {
-              backgroundAgentCountRef.current = Math.max(0, backgroundAgentCountRef.current - 1);
-            }
-          }, 500);
+                : m
+            );
+
+            setConversations((prevConvs) => {
+              const targetConvId = activeConvId || currentConversationId;
+              const updatedConvs = (prevConvs || []).map((c) =>
+                c.id === targetConvId
+                  ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
+                  : c
+              );
+              ConversationPersistenceService.saveToLocalStorage(updatedConvs);
+              ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest).catch(
+                (err) => console.warn('[ChatBot] Sub-Agent conversation save warning:', err)
+              );
+              return updatedConvs;
+            });
+
+            return updatedMessages;
+          });
+        } catch (subAgentErr) {
+          console.error('[ChatBot] Synchronous Sub-Agent Orchestrator error:', subAgentErr);
+        } finally {
+          abortControllersMapRef.current.delete(`subagent-${placeholderId}`);
         }
       }
       

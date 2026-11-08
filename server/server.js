@@ -3164,7 +3164,7 @@ app.post('/api/chat/stop', express.json(), async (req, res) => {
   return res.json({ success: true, stoppedCount, message: 'Generation halted on server' });
 });
 
-app.post('/api/chat', async (req, res) => {
+app.post(['/api/chat', '/api/subagent/orchestrate'], async (req, res) => {
   // Check IP-based token limit
   const clientIp = getClientIp(req);
   const ipStatus = checkIpTokenLimit(clientIp);
@@ -3181,6 +3181,17 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const reqModelEarly = req.body?.model || 'deepernova v1 flash 1';
+  const isSubAgentStage =
+    req.path === '/api/subagent/orchestrate' ||
+    req.body?.isSubAgentStage === true ||
+    (Array.isArray(req.body?.messages) &&
+      req.body.messages.some(
+        (m) =>
+          typeof m?.content === 'string' &&
+          (m.content.includes('[SUBAGENT_STAGE_PROMPT]') ||
+            m.content.includes('<SUBAGENT_PLAN>') ||
+            m.content.includes('<SUBAGENT_FILE'))
+      ));
 
   try {
     // Safety check for messages
@@ -3433,7 +3444,7 @@ app.post('/api/chat', async (req, res) => {
       directMemoryAnswer = `Sebelumnya kita sedang membahas tentang: "${lastTopic}". Apakah ada yang ingin diperdalam dari topik tersebut?`;
     }
 
-    if (directMemoryAnswer) {
+    if (directMemoryAnswer && !isSubAgentStage) {
       console.log('[CHATBOT MEMORY] Direct context memory match answered instantly!');
       if (shouldStream) {
         res.setHeader('Content-Type', 'text/event-stream');
@@ -3546,7 +3557,9 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Khusus DeeperNova Silicon 1.4 / Boron 1.1 / Gold 1.5: Memori konteks 1 Juta Token & penalaran mendalam
-        if (isDeepernovaModel) {
+        if (isSubAgentStage) {
+          console.log('[CHAT] 🤖 Synchronous Sub-Agent Orchestrator stage detected — preserving structured XML prompt');
+        } else if (isDeepernovaModel) {
           const nowServer = new Date();
           const yearServer = nowServer.getFullYear();
           const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
@@ -3580,6 +3593,7 @@ app.post('/api/chat', async (req, res) => {
               '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF (MUTLAK): Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. ' +
               '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
               'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian, ATAU menanyakan berita/peristiwa terbaru, harga, cuaca, jadwal/skor, tokoh/pejabat, perusahaan, produk & spesifikasi, tempat, statistik/angka, tanggal, regulasi, atau fakta spesifik dunia nyata apa pun, ATAU kamu tidak 100% yakin: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] DAN LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. LEBIH BAIK MENCARI DARIPADA MENEBAK. Jawab langsung tanpa flag HANYA untuk sapaan, matematika, coding, terjemahan, merangkum teks pengguna, dan ide kreatif. ' +
+              'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: Jawab biasa secara ramah terlebih dahulu dalam 1-2 kalimat singkat, lalu akhiri dengan flag: [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] dan LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. ' +
               'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
           }
           
@@ -3617,15 +3631,32 @@ app.post('/api/chat', async (req, res) => {
             finalSystemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK): Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh. Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna. Dilarang mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!';
           }
 
-          // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual dan WAJIBKAN pencarian web
+          // 🤖 DETEKSI TUGAS AGENTIC / SUB-AGENT DI CHATBOT
           const lastUserText = (userQuery || '').trim();
-          const isCasualOrTask = /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(lastUserText) ||
-            /\b(buatkan|buat(?:in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai)\b/i.test(lastUserText);
+          const looksAgenticSubAgentTask =
+            lastUserText.length > 0 &&
+            (/\b(sub[\s-]?agent|mode\s+agent(?:ic)?|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent)\b/i.test(lastUserText) ||
+              (/\b(buat(?:kan|in)?|bikin(?:kan|in)?|bangun(?:kan)?|kembangkan|generate|create|build|develop|rancang(?:kan)?)\b/i.test(lastUserText) &&
+                /\b(file|berkas|website|web\s*app|landing\s*page|aplikasi|dashboard|portofolio|portfolio|kalkulator|game|script|kode|project|proyek|html|css|javascript|react|python)\b/i.test(lastUserText) &&
+                !/\b(gambar|foto|ilustrasi|lukisan|logo|poster|avatar|wallpaper)\b/i.test(lastUserText)));
+
+          // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual dan WAJIBKAN pencarian web
+          const isCasualOrTask =
+            looksAgenticSubAgentTask ||
+            /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(lastUserText) ||
+            /\b(buatkan|buat(?:in)?|bikin(?:kan|in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai|sub[\s-]?agent)\b/i.test(lastUserText);
           const looksFactual = lastUserText.length > 0 && !isCasualOrTask && (
             /\b(cari(?:kan)?|search|googling|cek|info|berita|kabar terbaru|terbaru|terkini|sekarang|hari ini|kemarin|minggu ini|bulan ini|tahun ini|update|rilis|launching|harga|biaya|tarif|kurs|saham|crypto|bitcoin|cuaca|jadwal|skor|klasemen|hasil pertandingan|siapa|kapan|dimana|di mana|berapa|alamat|lokasi|presiden|menteri|gubernur|ceo|pendiri|founder|spesifikasi|spek|review|vs|versus|perbandingan|statistik|data|populasi|jumlah penduduk|undang-undang|uu|peraturan|film|lagu|album|anime|game)\b/i.test(lastUserText) ||
             /\b20(2[3-9]|3\d)\b/.test(lastUserText)
           );
-          if (!isSearchConclusion && !hasImagesInPayload && looksFactual) {
+          if (!isSearchConclusion && !hasImagesInPayload && looksAgenticSubAgentTask) {
+            finalSystemPrompt +=
+              '\n\n[DIREKTIF WAJIB SISTEM - AKTIVASI SUB-AGENT ORCHESTRATOR SINKRON]: Permintaan pengguna saat ini membutuhkan eksekusi Sub-Agent Orchestrator (pembuatan file/aplikasi/website/kode atau mode sub-agent). Kamu WAJIB:\n' +
+              '1. Menjawab biasa terlebih dahulu secara ramah dan natural dalam 1-2 kalimat singkat (menyapa/menyanggupi permintaan pengguna).\n' +
+              '2. Di akhir kalimat tersebut, WAJIB sertakan flag aktivasi: [SUBAGENT_ORCHESTRATE: <deskripsi jelas tugas dan daftar file yang akan dibuat>]\n' +
+              '3. Langsung BERHENTI setelah tanda kurung siku tutup `]`. Jangan menulis blok kode di pesan pembuka ini karena Sub-Agent Orchestrator Sinkron yang akan langsung menampilkan Chain of Thought dan mengirimkan file lengkapnya!';
+            console.log('[CHAT] 🤖 Agentic Sub-Agent task detected → instructing AI to answer normally then emit [SUBAGENT_ORCHESTRATE: ...]');
+          } else if (!isSearchConclusion && !hasImagesInPayload && looksFactual) {
             finalSystemPrompt += '\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI]: Pertanyaan pengguna saat ini menyangkut fakta dunia nyata / informasi yang bisa berubah. Kamu TIDAK BOLEH menjawab dari ingatan. Baris pertama jawabanmu WAJIB HANYA berisi: [SEARCH_REQUEST: kata kunci pencarian yang tepat] lalu BERHENTI. Jangan menulis teks lain apa pun.';
             console.log('[CHAT] 🛡️ Factual query detected → forcing web search flag');
           }
@@ -3929,14 +3960,16 @@ app.post('/api/chat', async (req, res) => {
               }
             }
 
-            // If AI decided to execute a search flag, halt upstream generation immediately after forwarding the flag
+            // If AI decided to execute a search flag or sub-agent orchestrator flag, halt upstream generation immediately after forwarding the flag
             if (
               !isSearchConclusion &&
+              !isSubAgentStage &&
               (/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*([^\]]+)\]/i.test(fullResponseText) ||
-                /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullResponseText))
+                /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullResponseText) ||
+                /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([^\]]+)\]/i.test(fullResponseText))
             ) {
               searchFlagTriggeredOnServer = true;
-              console.log('[CHAT] 🔍 AI emitted search execution flag; halting initial stream so client can execute search.');
+              console.log('[CHAT] 🔍/🤖 AI emitted execution flag; halting initial stream so client can execute orchestrator/search.');
               try {
                 if (!clientDisconnected && !res.writableEnded) {
                   res.write('data: [DONE]\n\n');

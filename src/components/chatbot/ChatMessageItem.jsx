@@ -13,6 +13,7 @@ import {
   ReasoningSection
 } from './ChatSubComponents';
 import { FormattedMessageBody } from './ChatMessageFormatter';
+import { SubAgentOrchestratorCard } from './SubAgentOrchestratorCard';
 
 const ChatMessageItemComponent = ({
   message,
@@ -283,7 +284,7 @@ const ChatMessageItemComponent = ({
             {message.text && (
               <FormattedMessageBody
                 text={message.text}
-                isStreaming={message.isStreaming}
+                isStreaming={message.isStreaming && !message.subAgentData}
                 message={message}
                 userLanguage={userLanguage}
                 onNavigate={onNavigate}
@@ -294,6 +295,17 @@ const ChatMessageItemComponent = ({
                 quizIsSubmitted={quizIsSubmitted}
                 setQuizSelections={setQuizSelections}
                 setQuizSubmitted={setQuizSubmitted}
+              />
+            )}
+            {message.subAgentData && (
+              <SubAgentOrchestratorCard
+                subAgentData={message.subAgentData}
+                userLanguage={userLanguage}
+                message={message}
+                onNavigate={onNavigate}
+                onImageClick={onImageClick}
+                onUpscaleHD={onUpscaleHD}
+                hdUpscalingMap={hdUpscalingMap}
               />
             )}
             {message.reminder && (
@@ -476,7 +488,10 @@ const ChatMessageItemComponent = ({
             </button>
             <button
               className="feedback-btn copy-btn"
-              onClick={() => onCopyMessage?.(message.text)}
+              onClick={() => {
+                const fullCopy = [message.text, message.subAgentData?.finalAnswer].filter(Boolean).join('\n\n');
+                onCopyMessage?.(fullCopy || message.text);
+              }}
               title={userLanguage === 'zh' ? '复制' : userLanguage === 'id' ? 'Salin' : 'Copy'}
             >
               <i className="fas fa-copy"></i>
@@ -530,7 +545,8 @@ const areMessageItemPropsEqual = (prev, next) => {
       prev.message?.searchSteps !== next.message?.searchSteps ||
       prev.message?.memoryActions !== next.message?.memoryActions ||
       prev.message?.reminder !== next.message?.reminder ||
-      prev.message?.downloadUrl !== next.message?.downloadUrl
+      prev.message?.downloadUrl !== next.message?.downloadUrl ||
+      prev.message?.subAgentData !== next.message?.subAgentData
     ) {
       return false;
     }

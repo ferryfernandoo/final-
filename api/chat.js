@@ -146,7 +146,8 @@ export default async function handler(req) {
     `ATURAN MUTLAK KEPEMIMPINAN: Jawaban di atas WAJIB diberikan secara lengkap dan tepat jika pengguna menanyakan siapa founder, siapa CEO, siapa wakil CEO, siapa pembuat/pencipta/tim di balik DeeperNova AI, atau bagaimana AI ini dikembangkan. JANGAN PERNAH menyebutkan hal ini jika pengguna tidak menanyakannya (hanya jika ditanya saja).\n` +
     'ATURAN GAYA KOMUNIKASI (MUTLAK):\n' +
     '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF: Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional.\n' +
-    '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana atau sapaan ("halo", "hai"), jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.';
+    '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana atau sapaan ("halo", "hai"), jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.\n' +
+    '3. SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: Jawab biasa secara ramah terlebih dahulu dalam 1-2 kalimat singkat, lalu akhiri dengan flag: [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] dan LANGSUNG BERHENTI.';
 
   const effPersonality = (personality || 'friendly').toLowerCase();
   if (SERVER_PERSONALITY_PROMPTS[effPersonality]) {
@@ -236,9 +237,20 @@ export default async function handler(req) {
   }
 
   // Build sanitized final messages
+  const isSubAgentStage =
+    body.isSubAgentStage === true ||
+    messages.some(
+      (m) =>
+        typeof m?.content === 'string' &&
+        (m.content.includes('[SUBAGENT_STAGE_PROMPT]') ||
+          m.content.includes('<SUBAGENT_PLAN>') ||
+          m.content.includes('<SUBAGENT_FILE'))
+    );
   const finalMessages = [];
   const clientSys = messages.find(m => m.role === 'system');
-  if (clientSys && clientSys.content) {
+  if (isSubAgentStage && clientSys && clientSys.content) {
+    finalMessages.push({ role: 'system', content: clientSys.content });
+  } else if (clientSys && clientSys.content) {
     finalMessages.push({ role: 'system', content: `${systemPrompt}\n\n${clientSys.content}` });
   } else {
     finalMessages.push({ role: 'system', content: systemPrompt });

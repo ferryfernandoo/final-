@@ -488,6 +488,8 @@ export const cleanResponseText = (text) => {
   let cleaned = text;
   cleaned = cleaned.replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[\s\S]*?\]/gi, '');
   cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>/gi, '');
+  cleaned = cleaned.replace(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[\s\S]*?\]/gi, '');
+  cleaned = cleaned.replace(/<subagent(?:_orchestrate)?>[\s\S]*?<\/subagent(?:_orchestrate)?>/gi, '');
   cleaned = cleaned.replace(/\[RECALL_MEMORY:[\s\S]*?\]/g, '');
   cleaned = cleaned.replace(/\[(MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|MEMORY_RECALL):[\s\S]*?\]/gi, '');
   cleaned = cleaned.replace(/<\/?reasoning>/gi, '');
@@ -609,6 +611,11 @@ export const sanitizeStreamingText = (text) => {
   cleaned = cleaned.replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[\s\S]*$/gi, '');
   cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>/gi, '');
   cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*$/gi, '');
+  cleaned = cleaned.replace(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[\s\S]*?\]/gi, '');
+  cleaned = cleaned.replace(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[\s\S]*$/gi, '');
+  cleaned = cleaned.replace(/\[(?:SUB|SUBA|SUBAG|SUBAGE|SUBAGEN|SUBAGENT|ACTIVATE_SUB|AGENT_EXEC)[A-Z_]*$/gi, '');
+  cleaned = cleaned.replace(/<subagent(?:_orchestrate)?>[\s\S]*?<\/subagent(?:_orchestrate)?>/gi, '');
+  cleaned = cleaned.replace(/<subagent(?:_orchestrate)?>[\s\S]*$/gi, '');
   cleaned = cleaned.replace(/\[RECALL_MEMORY:[\s\S]*?\]/g, '');
   cleaned = cleaned.replace(/\[RECALL_MEMORY:[\s\S]*$/g, '');
   cleaned = cleaned.replace(/\[(MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|MEMORY_RECALL):[\s\S]*?\]/gi, '');
