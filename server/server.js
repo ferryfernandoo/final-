@@ -1252,7 +1252,7 @@ app.use('/chat', (req, res, next) => {
 
 // High-Speed Search Engine API Proxies (/api/v1/search, /api/v1/search-fast, /api/v1/images, /api/v1/suggest, etc.)
 const SEARCH_ENGINE_TARGET = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000';
-const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
+const SEARCH_ENGINE_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || '';
 
 const proxyToSearchEngine = async (endpoint, req, res) => {
   const query = (req.query?.q || req.query?.query || req.body?.query || req.body?.q || '').trim();
@@ -5587,7 +5587,7 @@ app.get('/health', (req, res) => {
 // ==================== DEEPERNOVA HIGH-SPEED SEARCH ENGINE ====================
 // Sub-20ms BM25 + AI Context + Images + News with SerpApi Failover
 const DEEPERNOVA_SEARCH_API_URL = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000';
-const DEEPERNOVA_SEARCH_API_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
+const DEEPERNOVA_SEARCH_API_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || ''; // SECURITY: env only
 
 function cleanSearchText(str) {
   if (!str) return '';

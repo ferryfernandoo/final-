@@ -88,7 +88,7 @@ export class ResearchService {
    */
   async search(query, options = {}) {
     // 1. Try Deepernova High-Speed Search API first (Port 4000 & Cloudflare)
-    const dnSearchKey = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
+    const dnSearchKey = process.env.DEEPERNOVA_SEARCH_API_KEY || '';
     const searchBases = [
       'http://127.0.0.1:4000/api/v1',
       process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`,

@@ -23,12 +23,9 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
 
-export const HARDCODED_TOKENMIX_KEYS = [
-  'sk-tm-dchQ1crRbE6qPxNKCPjzHUEdgFCntueI2iE0nd1xnmDpYQGx',
-  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
-  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
-  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
-];
+// SECURITY: No hardcoded keys. All TokenMix keys MUST come from .env (gitignored)
+// via TOKENMIX_API_KEYS / TOKENMIX_API_KEY / TOKENMIX_SECONDARY_API_KEY / TOKENMIX_FALLBACK_API_KEY.
+export const HARDCODED_TOKENMIX_KEYS = [];
 
 export function getEffectiveTokenMixKeys() {
   const raw = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
@@ -103,8 +100,7 @@ class ApiProxyService {
     const validPublicKeys = [
       process.env.DEEPERNOVA_SEARCH_API_KEY,
       process.env.VITE_DEEPERNOVA_SEARCH_API_KEY,
-      process.env.VITE_DEEPERNOVA_PUBLIC_GUEST_KEY,
-      'dn_live_d69468b9c25451f3b7cd8482e96cbcf7'
+      process.env.VITE_DEEPERNOVA_PUBLIC_GUEST_KEY
     ].filter(Boolean);
 
     if (validPublicKeys.includes(cleanKey)) {

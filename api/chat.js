@@ -2,12 +2,16 @@ export const config = {
   runtime: 'edge',
 };
 
-const TOKENMIX_API_KEYS = [
-  'sk-tm-dchQ1crRbE6qPxNKCPjzHUEdgFCntueI2iE0nd1xnmDpYQGx',
-  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
-  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
-  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
-];
+// SECURITY: API keys are loaded ONLY from environment variables (Vercel Project Settings → Environment Variables).
+// Never hardcode secrets in source code.
+const TOKENMIX_API_KEYS = Array.from(new Set([
+  ...String(process.env.TOKENMIX_API_KEYS || '').split(','),
+  process.env.TOKENMIX_API_KEY,
+  process.env.TOKENMIX_SECONDARY_API_KEY,
+  process.env.TOKENMIX_FALLBACK_API_KEY
+].map(k => (k || '').trim()).filter(Boolean)));
+
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://glow-por-resume-conferencing.trycloudflare.com';
 
 const SERVER_PERSONALITY_PROMPTS = {
   casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab seperti teman karib (gunakan aku-kamu, partikel nih, yuk, dong, loh, santai aja).\n- DILARANG KERAS menggunakan bahasa baku, kaku, formal, atau seperti surat dinas!',
@@ -234,6 +238,29 @@ export default async function handler(req) {
       } else {
         const errTxt = await resp.text();
         lastErr = new Error(`Key ${i} failed: ${resp.status} ${errTxt.slice(0, 100)}`);
+      }
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  // If no env keys configured on Edge yet, proxy securely to the local backend server (which holds .env locally)
+  if (!upstreamResponse && FALLBACK_BACKEND_URL) {
+    try {
+      const proxyResp = await fetch(`${FALLBACK_BACKEND_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (proxyResp.ok) {
+        return new Response(proxyResp.body, {
+          status: 200,
+          headers: {
+            'Content-Type': proxyResp.headers.get('content-type') || (stream ? 'text/event-stream; charset=utf-8' : 'application/json'),
+            'Cache-Control': 'no-cache, no-transform',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
       }
     } catch (e) {
       lastErr = e;

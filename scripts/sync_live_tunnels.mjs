@@ -178,7 +178,7 @@ for (const ROOT_DIR of ROOT_DIRS) {
 
   // 3. Update .env.production
   const envProdPath = path.join(ROOT_DIR, '.env.production');
-  const envProd = `VITE_DEEPERNOVA_SEARCH_API_URL=/api/v1\nVITE_SEARCH_ENGINE_URL=/search\nVITE_ORDER_DTE_URL=${dteUrl}\nVITE_DEEPERNOVA_SEARCH_API_KEY=dn_live_d69468b9c25451f3b7cd8482e96cbcf7\nVITE_DEEPERNOVA_PUBLIC_GUEST_KEY=dn_live_d69468b9c25451f3b7cd8482e96cbcf7\nVITE_API_URL=${backendUrl}\n\nVITE_DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions\n`;
+  const envProd = `VITE_DEEPERNOVA_SEARCH_API_URL=/api/v1\nVITE_SEARCH_ENGINE_URL=/search\nVITE_ORDER_DTE_URL=${dteUrl}\nVITE_API_URL=${backendUrl}\n\nVITE_DEEPERNOVA_PUBLIC_API_URL=${aiUrl}/v1/chat/completions\n`;
   fs.writeFileSync(envProdPath, envProd, 'utf8');
   console.log('✅ Updated .env.production in ' + ROOT_DIR);
 }

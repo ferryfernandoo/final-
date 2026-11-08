@@ -2,7 +2,7 @@ export const config = {
   runtime: 'edge',
 };
 
-const SERPAPI_KEY = process.env.SERPAPI_KEY || '3dcea72b423f7514a9428d398e9f42cd5d7b9004928fb8212f3694342f61133a';
+const SERPAPI_KEY = process.env.SERPAPI_KEY || ''; // SECURITY: env only, never hardcode
 
 function cleanText(str) {
   if (!str) return '';
@@ -107,7 +107,7 @@ async function fetchBingNewsRSS(query, limit = 4) {
 
       const urlMatch = link.match(/url=([^&]+)/);
       if (urlMatch && urlMatch[1]) {
-        try { link = decodeURIComponent(urlMatch[1]); } catch {}
+        try { link = decodeURIComponent(urlMatch[1]); } catch { }
       }
 
       if (!title || !link) continue;

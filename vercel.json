@@ -290,103 +290,103 @@
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://8b63061f47bada.lhr.life/api/ping"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/items",
-      "destination": "https://8b63061f47bada.lhr.life/api/items"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://8b63061f47bada.lhr.life/api/items/:path*"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/api/items/:path*"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://8b63061f47bada.lhr.life/api/admin/:path*"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://8b63061f47bada.lhr.life/api/requests"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://8b63061f47bada.lhr.life/api/requests/:path*"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://8b63061f47bada.lhr.life/api/:path*"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://8b63061f47bada.lhr.life/uploads/:path*"
+      "destination": "https://mid-der-loaded-airline.trycloudflare.com/uploads/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://0cb0e44cce91b6.lhr.life/api/ai/:path*"
+      "destination": "https://glow-por-resume-conferencing.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://5f01e25791c054.lhr.life/api/news"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://5f01e25791c054.lhr.life/api/news/:path*"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://5f01e25791c054.lhr.life/api/tokoh"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://5f01e25791c054.lhr.life/api/tokoh/:path*"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://5f01e25791c054.lhr.life/api/geo"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://5f01e25791c054.lhr.life/api/geo/:path*"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://5f01e25791c054.lhr.life/api/crawl"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://5f01e25791c054.lhr.life/api/crawl/:path*"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://5f01e25791c054.lhr.life/api/economics"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://5f01e25791c054.lhr.life/api/economics/:path*"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://5f01e25791c054.lhr.life/api/proxy-image"
+      "destination": "https://wine-athletes-reveals-prisoners.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://0cb0e44cce91b6.lhr.life/api/:path*"
+      "destination": "https://glow-por-resume-conferencing.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://0cb0e44cce91b6.lhr.life/auth/:path*"
+      "destination": "https://glow-por-resume-conferencing.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://0cb0e44cce91b6.lhr.life/v1/:path*"
+      "destination": "https://glow-por-resume-conferencing.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://0cb0e44cce91b6.lhr.life/download/:path*"
+      "destination": "https://glow-por-resume-conferencing.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://0cb0e44cce91b6.lhr.life/watermarked/:path*"
+      "destination": "https://glow-por-resume-conferencing.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",

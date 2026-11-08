@@ -2,12 +2,16 @@ export const config = {
   runtime: 'edge',
 };
 
-const TOKENMIX_API_KEYS = [
-  'sk-tm-dchQ1crRbE6qPxNKCPjzHUEdgFCntueI2iE0nd1xnmDpYQGx',
-  'sk-tm-U4ztHnSkcAQPYA4P1JLjaD9gSfRSynMzgEPMoy8yQ0QbtISf',
-  'sk-tm-pxz99Fb7kULMv7YBAiJw3VsJaEbba93O2ZYdlK4EwGDjDVTK',
-  'sk-tm-DLARtQO8J2MrB8irZM0vuEV01ohUru7iZj9XyG6jueRGhzyk'
-];
+// SECURITY: API keys are loaded ONLY from environment variables (Vercel Project Settings → Environment Variables).
+// Never hardcode secrets in source code.
+const TOKENMIX_API_KEYS = Array.from(new Set([
+  ...String(process.env.TOKENMIX_API_KEYS || '').split(','),
+  process.env.TOKENMIX_API_KEY,
+  process.env.TOKENMIX_SECONDARY_API_KEY,
+  process.env.TOKENMIX_FALLBACK_API_KEY
+].map(k => (k || '').trim()).filter(Boolean)));
+
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://glow-por-resume-conferencing.trycloudflare.com';
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
@@ -121,7 +125,33 @@ export default async function handler(req) {
         upstreamResp = resp;
         break;
       }
-    } catch {}
+    } catch { }
+  }
+
+  // If no env keys configured on Edge yet, proxy securely to the local backend server (which holds .env locally)
+  if ((!upstreamResp || !upstreamResp.ok) && FALLBACK_BACKEND_URL) {
+    try {
+      const proxyResp = await fetch(`${FALLBACK_BACKEND_URL}/api/agent/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': req.headers.get('x-device-id') || 'guest_device'
+        },
+        body: JSON.stringify(body)
+      });
+      if (proxyResp.ok) {
+        return new Response(proxyResp.body, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache, no-transform',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    } catch { }
   }
 
   if (!upstreamResp || !upstreamResp.ok) {
@@ -189,7 +219,7 @@ export default async function handler(req) {
                     `event: delta\ndata: ${JSON.stringify({ content: deltaContent })}\n\n`
                   ));
                 }
-              } catch {}
+              } catch { }
             }
           }
         }
@@ -227,3 +257,4 @@ export default async function handler(req) {
     }
   });
 }
+

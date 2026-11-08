@@ -17,10 +17,10 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const SERPAPI_KEY = process.env.SERPAPI_KEY || '3dcea72b423f7514a9428d398e9f42cd5d7b9004928fb8212f3694342f61133a';
+const SERPAPI_KEY = process.env.SERPAPI_KEY || ''; // SECURITY: env only, never hardcode
 const SERPAPI_URL = 'https://serpapi.com/search.json';
 const DEEPERNOVA_SEARCH_API_URL = process.env.DEEPERNOVA_SEARCH_API_URL || 'http://127.0.0.1:4000/api/v1';
-const DEEPERNOVA_SEARCH_API_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
+const DEEPERNOVA_SEARCH_API_KEY = process.env.DEEPERNOVA_SEARCH_API_KEY || ''; // SECURITY: env only
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 

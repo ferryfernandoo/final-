@@ -40,10 +40,12 @@ export function resolveSearchApiBaseUrl() {
 
 export const API_BASE_URL = resolveSearchApiBaseUrl();
 
-export const API_KEY =
-  import.meta.env?.VITE_DEEPERNOVA_SEARCH_API_KEY ||
-  import.meta.env?.VITE_DEEPERNOVA_PUBLIC_GUEST_KEY ||
-  'dn_live_d69468b9c25451f3b7cd8482e96cbcf7';
+// SECURITY: No secret key is ever embedded in the production bundle.
+// Production requests go through the same-origin Vercel Edge proxy (/api/v1), which holds keys server-side.
+// A key is only read from env during local development (`vite dev`), where it never ships to users.
+export const API_KEY = import.meta.env.DEV
+  ? (import.meta.env.VITE_DEEPERNOVA_SEARCH_API_KEY || import.meta.env.VITE_DEEPERNOVA_PUBLIC_GUEST_KEY || '')
+  : '';
 
 const DEEPERNOVA_SEARCH_API_URL = API_BASE_URL;
 const DEEPERNOVA_PUBLIC_GUEST_KEY = API_KEY;
@@ -183,7 +185,6 @@ export async function searchWeb(query, optionsOrLimit = 5) {
 if (typeof window !== 'undefined') {
   window.searchWeb = searchWeb;
   window.API_BASE_URL = API_BASE_URL;
-  window.API_KEY = API_KEY;
 }
 
 // ⚡ High-Speed Client In-Memory LRU Cache (<1ms response)
@@ -439,7 +440,6 @@ async function performCloudDirectSearch(query, limit, timeoutMs = 3500) {
       const cloudUrl = new URL('https://www.deepernova.com/api/v1/search');
       cloudUrl.searchParams.append('q', query);
       cloudUrl.searchParams.append('limit', String(limit));
-      cloudUrl.searchParams.append('key', 'dn_live_d69468b9c25451f3b7cd8482e96cbcf7');
       if (!allowCrawl) {
         cloudUrl.searchParams.append('crawl', '0');
         cloudUrl.searchParams.append('fast', '1');
