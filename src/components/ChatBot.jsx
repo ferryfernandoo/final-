@@ -6326,7 +6326,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         };
       }
 
-      if (parsedSubAgent && parsedSubAgent.triggered && !triggeredAgentTasksRef.current.has(placeholderId)) {
+      if (
+        parsedSubAgent &&
+        (parsedSubAgent.triggered || parsedSubAgent.hasFlag) &&
+        !triggeredAgentTasksRef.current.has(placeholderId)
+      ) {
         triggeredAgentTasksRef.current.add(placeholderId);
         const introConversationalText =
           parsedSubAgent.introText || buildDefaultIntroText(parsedSubAgent.taskDescription, userLanguage);
@@ -6337,31 +6341,32 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         const initialSubAgentData = {
           status: 'running',
-          activeStage: 'planner',
+          currentStage: 1,
+          elapsedSec: '0.1',
           flagTag: parsedSubAgent.flagTag,
           taskDescription: parsedSubAgent.taskDescription,
-          plan: null,
-          cotSteps: [
+          planText: '',
+          plannedFiles: [],
+          cotText:
+            userLanguage === 'en'
+              ? `[PLANNER] Activating Synchronous Sub-Agent Orchestrator for: "${parsedSubAgent.taskDescription}"...\n`
+              : `[PLANNER] Mengaktifkan Synchronous Sub-Agent Orchestrator untuk: "${parsedSubAgent.taskDescription}"...\n`,
+          thoughtSteps: [
             {
-              id: 'init',
-              stage: 'Orchestrator',
-              text:
+              id: 'init_plan',
+              agent: 'Planner Sub-Agent',
+              badge: 'PLANNER',
+              title:
                 userLanguage === 'en'
-                  ? `Activating Synchronous Sub-Agent Orchestrator for: "${parsedSubAgent.taskDescription}"`
-                  : `Mengaktifkan Synchronous Sub-Agent Orchestrator untuk: "${parsedSubAgent.taskDescription}"`,
+                  ? 'Analyzing task specifications & file architecture...'
+                  : 'Menganalisis spesifikasi tugas & merancang arsitektur berkas...',
+              detail: parsedSubAgent.taskDescription,
               status: 'running',
-              timestamp: new Date().toLocaleTimeString('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              }),
             },
           ],
-          cotRawText: '',
           files: [],
-          activeFileWriting: null,
-          summaryText: '',
-          elapsedMs: 0,
+          activeWritingFile: null,
+          finalAnswer: '',
         };
 
         setConvLoading(true);

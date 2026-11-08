@@ -11,7 +11,7 @@ const TOKENMIX_API_KEYS = Array.from(new Set([
   process.env.TOKENMIX_FALLBACK_API_KEY
 ].map(k => (k || '').trim()).filter(Boolean)));
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://adopt-paradise-tigers-booth.trycloudflare.com';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://pool-jimmy-landscapes-relationships.trycloudflare.com';
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {

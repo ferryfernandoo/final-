@@ -44,14 +44,14 @@ export function stripSubAgentFlags(text = '') {
  * Preserves the AI's normal conversational reply ("jawab biasa") before activating Sub-Agent.
  */
 export function parseSubAgentFlag(text = '', fallbackUserPrompt = '', language = 'id') {
-  if (!text || typeof text !== 'string') return { hasFlag: false };
+  if (!text || typeof text !== 'string') return null;
 
   const bracketMatch = text.match(SUBAGENT_FLAG_REGEX);
   const xmlMatch = !bracketMatch ? text.match(SUBAGENT_XML_REGEX) : null;
   const match = bracketMatch || xmlMatch;
 
   if (!match || !match[1]) {
-    return { hasFlag: false };
+    return null;
   }
 
   const rawTask = match[1].trim().replace(/^["']|["']$/g, '');
@@ -64,6 +64,8 @@ export function parseSubAgentFlag(text = '', fallbackUserPrompt = '', language =
 
   return {
     hasFlag: true,
+    triggered: true,
+    flagTag: match[0],
     taskDescription,
     introText
   };
