@@ -11,7 +11,7 @@ const TOKENMIX_API_KEYS = Array.from(new Set([
   process.env.TOKENMIX_FALLBACK_API_KEY
 ].map(k => (k || '').trim()).filter(Boolean)));
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://desktops-drums-liver-superb.trycloudflare.com';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://adopt-paradise-tigers-booth.trycloudflare.com';
 
 const SERVER_PERSONALITY_PROMPTS = {
   casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab seperti teman karib (gunakan aku-kamu, partikel nih, yuk, dong, loh, santai aja).\n- DILARANG KERAS menggunakan bahasa baku, kaku, formal, atau seperti surat dinas!',
@@ -70,6 +70,52 @@ export default async function handler(req) {
     });
   }
 
+  // Fast-path: When keys are stored in the local server's .env (not in Vercel Edge env),
+  // forward immediately to /api/upstream/chat with automatic retry and zero Edge delay.
+  if (TOKENMIX_API_KEYS.length === 0 && FALLBACK_BACKEND_URL) {
+    const sameOriginUpstream = new URL('/api/upstream/chat', req.url).toString();
+    const payloadStr = JSON.stringify(body);
+    let lastProxyErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const proxyResp = await fetch(sameOriginUpstream, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-id': req.headers.get('x-device-id') || body.deviceId || 'guest_device',
+          },
+          body: payloadStr,
+        });
+        if (proxyResp.ok) {
+          return new Response(proxyResp.body, {
+            status: 200,
+            headers: {
+              'Content-Type': proxyResp.headers.get('content-type') || (stream ? 'text/event-stream; charset=utf-8' : 'application/json'),
+              'Cache-Control': 'no-cache, no-transform',
+              'Connection': 'keep-alive',
+              'X-Accel-Buffering': 'no',
+              'Access-Control-Allow-Origin': '*',
+            },
+          });
+        }
+        const errBody = await proxyResp.text().catch(() => '');
+        lastProxyErr = new Error(`Upstream ${proxyResp.status}: ${errBody.slice(0, 120)}`);
+      } catch (e) {
+        lastProxyErr = e;
+      }
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+      }
+    }
+    return new Response(JSON.stringify({
+      error: 'DeeperNova AI sedang sibuk memproses antrean. Silakan coba kembali dalam beberapa saat.',
+      detail: lastProxyErr ? lastProxyErr.message : 'Upstream unavailable'
+    }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+
   const nowServer = new Date();
   const yearServer = nowServer.getFullYear();
   const todayServerId = nowServer.toLocaleDateString('id-ID', {
@@ -122,7 +168,7 @@ export default async function handler(req) {
   const isSearchIntent = body.webSearch === true ||
     /\b(cari\s+(di\s+)?(internet|web|google)|tolong\s+cari|berita\s+terbaru|kabar\s+terkini|harga\s+terbaru|hari\s+ini|jadwal\s+hari\s+ini|skor\s+pertandingan|siapa\s+juara|kurs\s+dollar|cuaca)\b/i.test(userText);
 
-  if (isSearchIntent && !userText.includes('[DATA HASIL PENCARIAN') && !userText.includes('### Hasil Pencarian')) {
+  if (isSearchIntent && userText.length < 350 && !userText.includes('DATA HASIL PENCARIAN') && !userText.includes('INSTRUKSI SISTEM') && !userText.includes('### Hasil Pencarian')) {
     try {
       const qClean = userText
         .replace(/\b(coba\s+)?(tolong\s+)?(cari(?:kan)?\s+(?:di\s+(?:internet|web|google)\s+)?(?:tentang\s+|soal\s+)?|apa\s+kabar\s+|apa\s+saja\s+|berita\s+)\b/gi, '')
