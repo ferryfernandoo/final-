@@ -244,10 +244,11 @@ export default async function handler(req) {
     }
   }
 
-  // If no env keys configured on Edge yet, proxy securely to the local backend server (which holds .env locally)
+  // If no env keys configured on Edge yet, proxy securely via Vercel CDN rewrite to the local backend server (which holds .env locally)
   if (!upstreamResponse && FALLBACK_BACKEND_URL) {
     try {
-      const proxyResp = await fetch(`${FALLBACK_BACKEND_URL}/api/chat`, {
+      const sameOriginUpstream = new URL('/api/upstream/chat', req.url).toString();
+      const proxyResp = await fetch(sameOriginUpstream, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -261,6 +262,9 @@ export default async function handler(req) {
             'Access-Control-Allow-Origin': '*',
           },
         });
+      } else {
+        const errBody = await proxyResp.text().catch(() => '');
+        lastErr = new Error(`Upstream proxy ${proxyResp.status}: ${errBody.slice(0, 100)}`);
       }
     } catch (e) {
       lastErr = e;

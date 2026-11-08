@@ -369,6 +369,10 @@
       "destination": "https://a31213341b044a.lhr.life/api/proxy-image"
     },
     {
+      "source": "/api/upstream/:path*",
+      "destination": "https://fb930197ce3025.lhr.life/api/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://fb930197ce3025.lhr.life/api/:path*"
     },

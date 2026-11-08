@@ -128,10 +128,11 @@ export default async function handler(req) {
     } catch { }
   }
 
-  // If no env keys configured on Edge yet, proxy securely to the local backend server (which holds .env locally)
+  // If no env keys configured on Edge yet, proxy securely via Vercel CDN rewrite to the local backend server (which holds .env locally)
   if ((!upstreamResp || !upstreamResp.ok) && FALLBACK_BACKEND_URL) {
     try {
-      const proxyResp = await fetch(`${FALLBACK_BACKEND_URL}/api/agent/run`, {
+      const sameOriginUpstream = new URL('/api/upstream/agent/run', req.url).toString();
+      const proxyResp = await fetch(sameOriginUpstream, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
