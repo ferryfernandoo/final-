@@ -1112,6 +1112,10 @@ app.get(['/auth/me', '/api/auth/me'], (req, res) => {
 
 // Login endpoint (email & password)
 app.post(['/auth/login', '/api/auth/login'], (req, res, next) => {
+  // Forward Order DTE login requests (which use `username` instead of `email` on /api/auth/login) to the DTE proxy
+  if ((req.path.startsWith('/api/auth/') && !req.body?.email) || (req.body?.username && !req.body?.email)) {
+    return next();
+  }
   passport.authenticate('local', (err, user, info) => {
     if (err) {
       console.error('[AUTH API] Login error:', err);
@@ -1150,8 +1154,12 @@ app.post(['/auth/login', '/api/auth/login'], (req, res, next) => {
 });
 
 // Register endpoint (name, email, password)
-app.post(['/auth/register', '/api/auth/register'], async (req, res) => {
+app.post(['/auth/register', '/api/auth/register'], async (req, res, next) => {
   try {
+    // Forward Order DTE register requests (which use `username` instead of `email` on /api/auth/register) to the DTE proxy
+    if ((req.path.startsWith('/api/auth/') && !req.body?.email) || (req.body?.username && !req.body?.email)) {
+      return next();
+    }
     const { name, email, password } = req.body || {};
     if (!email || !password || !name) {
       return res.status(400).json({ success: false, error: 'Semua bidang (nama, email, password) wajib diisi.' });

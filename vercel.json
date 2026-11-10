@@ -301,8 +301,20 @@
       "destination": "/dte/index.html"
     },
     {
+      "source": "/api/ping",
+      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/ping"
+    },
+    {
       "source": "/api/dte/ping",
       "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/ping"
+    },
+    {
+      "source": "/api/auth/login",
+      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/auth/login"
+    },
+    {
+      "source": "/api/auth/register",
+      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/auth/register"
     },
     {
       "source": "/api/items",
