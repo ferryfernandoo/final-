@@ -25,7 +25,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+          "value": "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
         },
         {
           "key": "Cross-Origin-Opener-Policy",
@@ -65,7 +65,16 @@
       ]
     },
     {
-      "source": "/dte/(index.html)?",
+      "source": "/dte",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/dte/(index.html|operator|admin)?",
       "headers": [
         {
           "key": "Cache-Control",
