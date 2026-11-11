@@ -896,8 +896,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
               sessionId: conversationId || null,
               conversationId: conversationId || null,
               deviceId,
-          language: (typeof localStorage !== 'undefined' ? localStorage.getItem('deepernova_language') : null) || 'id',
-              language: language || 'id',
+              language: language || (typeof localStorage !== 'undefined' ? localStorage.getItem('deepernova_language') : null) || 'id',
               personality: personality || 'mentor',
               messages: finalMessages,
               uploadedImages: validImageUrls,
@@ -913,14 +912,18 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           TIMEOUT_CONFIG.fetchTimeoutMs
         );
         if (!response.ok) {
+          let parsedErrMsg = '';
           try {
             const errJson = await response.json();
-            if (errJson.isTokenLimitError || errJson.error) {
+            if (errJson.isTokenLimitError) {
               const limitErr = new Error(errJson.error || `API Error: ${response.status}`);
-              limitErr.isTokenLimitError = errJson.isTokenLimitError || false;
+              limitErr.isTokenLimitError = true;
               limitErr.resetTime = errJson.resetTime || null;
               limitErr.usedTokens = errJson.usedTokens || 2000000;
               throw limitErr;
+            }
+            if (errJson.error) {
+              parsedErrMsg = errJson.error;
             }
           } catch (e) {
             if (e.isTokenLimitError) throw e;
@@ -931,7 +934,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
             await new Promise(r => setTimeout(r, delay));
             continue;
           }
-          throw new Error(`API Error: ${response.status} ${response.statusText}`);
+          throw new Error(parsedErrMsg || `API Error: ${response.status} ${response.statusText}`);
         }
         break;
       } catch (err) {

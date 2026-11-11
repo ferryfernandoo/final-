@@ -187,11 +187,11 @@
     },
     {
       "source": "/api/v1/images",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/v1/images"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/v1/images"
     },
     {
       "source": "/api/images",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/v1/images"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/v1/images"
     },
     {
       "source": "/api/suggestions",
@@ -311,119 +311,119 @@
     },
     {
       "source": "/api/ping",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/ping"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/ping"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/auth/login",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/auth/login"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/auth/login"
     },
     {
       "source": "/api/auth/register",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/auth/register"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/auth/register"
     },
     {
       "source": "/api/items",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/items"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/items/:path*"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/items/:path*"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/admin/:path*"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/requests"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/requests/:path*"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/api/:path*"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://watched-echo-sponsor-explanation.trycloudflare.com/uploads/:path*"
+      "destination": "https://pick-textbooks-visitors-automated.trycloudflare.com/uploads/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://pool-jimmy-landscapes-relationships.trycloudflare.com/api/ai/:path*"
+      "destination": "https://installed-serves-eagles-hall.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/news"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/news/:path*"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/tokoh"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/geo"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/geo/:path*"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/crawl"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/crawl/:path*"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/economics"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/economics/:path*"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://modems-fiber-request-solution.trycloudflare.com/api/proxy-image"
+      "destination": "https://premiere-bare-england-provide.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/upstream/:path*",
-      "destination": "https://pool-jimmy-landscapes-relationships.trycloudflare.com/api/:path*"
+      "destination": "https://installed-serves-eagles-hall.trycloudflare.com/api/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://pool-jimmy-landscapes-relationships.trycloudflare.com/api/:path*"
+      "destination": "https://installed-serves-eagles-hall.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://pool-jimmy-landscapes-relationships.trycloudflare.com/auth/:path*"
+      "destination": "https://installed-serves-eagles-hall.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://pool-jimmy-landscapes-relationships.trycloudflare.com/v1/:path*"
+      "destination": "https://installed-serves-eagles-hall.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://pool-jimmy-landscapes-relationships.trycloudflare.com/download/:path*"
+      "destination": "https://installed-serves-eagles-hall.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://pool-jimmy-landscapes-relationships.trycloudflare.com/watermarked/:path*"
+      "destination": "https://installed-serves-eagles-hall.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
