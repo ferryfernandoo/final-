@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { PERSONALITIES } from './chatConstants';
 import memoryService from '../../services/memoryService';
-import ApiMarketplace from '../ApiMarketplace';
-import VoiceChat from '../VoiceChat';
-import SavedImagesGallery from '../SavedImagesGallery';
-import GlobalMemorySettings from '../GlobalMemorySettings';
+
+const ApiMarketplace = lazy(() => import('../ApiMarketplace'));
+const VoiceChat = lazy(() => import('../VoiceChat'));
+const SavedImagesGallery = lazy(() => import('../SavedImagesGallery'));
+const GlobalMemorySettings = lazy(() => import('../GlobalMemorySettings'));
 
 export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) {
   const {
@@ -912,7 +913,7 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
           >
             ✕
           </button>
-          <ApiMarketplace onLogout={() => setShowApiDashboard(false)} />
+          <Suspense fallback={null}><ApiMarketplace onLogout={() => setShowApiDashboard(false)} /></Suspense>
         </div>
       )}
 
@@ -1352,22 +1353,28 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
       )}
 
       {showVoiceChat && (
-        <VoiceChat
-          onClose={() => setShowVoiceChat(false)}
-          userLanguage={userLanguage}
-          isAuthenticated={isAuthenticated}
-          isGuest={isGuest}
-        />
+        <Suspense fallback={null}>
+          <VoiceChat
+            onClose={() => setShowVoiceChat(false)}
+            userLanguage={userLanguage}
+            isAuthenticated={isAuthenticated}
+            isGuest={isGuest}
+          />
+        </Suspense>
       )}
 
       {/* Saved Images Gallery */}
-      <SavedImagesGallery
-        isOpen={showSavedImagesGallery}
-        onClose={() => setShowSavedImagesGallery(false)}
-        isAuthenticated={isAuthenticated}
-        user={user}
-        userLanguage={userLanguage}
-      />
+      {showSavedImagesGallery && (
+        <Suspense fallback={null}>
+          <SavedImagesGallery
+            isOpen={showSavedImagesGallery}
+            onClose={() => setShowSavedImagesGallery(false)}
+            isAuthenticated={isAuthenticated}
+            user={user}
+            userLanguage={userLanguage}
+          />
+        </Suspense>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -1768,13 +1775,17 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
       )}
 
       {/* Global Memory Settings Modal */}
-      <GlobalMemorySettings
-        isOpen={showGlobalMemorySettings}
-        onClose={() => setShowGlobalMemorySettings(false)}
-        isAuthenticated={isAuthenticated}
-        isGuest={isGuest}
-        userLanguage={userLanguage}
-      />
+      {showGlobalMemorySettings && (
+        <Suspense fallback={null}>
+          <GlobalMemorySettings
+            isOpen={showGlobalMemorySettings}
+            onClose={() => setShowGlobalMemorySettings(false)}
+            isAuthenticated={isAuthenticated}
+            isGuest={isGuest}
+            userLanguage={userLanguage}
+          />
+        </Suspense>
+      )}
 
       {/* Connection Error Modal */}
       {showConnectionErrorModal && (

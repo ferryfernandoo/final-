@@ -8,7 +8,7 @@
 //   Stage 3: QA Verifier & Delivery Sub-Agent (Validation + Final Answer + ZIP/Files)
 // ============================================================================
 
-import JSZip from 'jszip';
+// JSZip is loaded lazily inside downloadAllSubAgentFilesAsZip() to keep initial bundle light.
 import { API_BASE_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
 
@@ -96,12 +96,12 @@ export function detectExplicitSubAgentUserIntent(userPrompt = '') {
 export function buildDefaultIntroText(taskDescription = '', language = 'id') {
   const cleanTask = (taskDescription || '').slice(0, 120);
   if (language === 'en') {
-    return `Sure! I will help you design and build **${cleanTask}**. I am now activating the **Synchronous Sub-Agent Orchestrator** to perform step-by-step Chain of Thought reasoning and deliver the complete files directly below.`;
+    return `I have prepared an execution plan for **${cleanTask}**. Click **Activate & Run** below if you would like the Sub-Agent to build and bundle the files automatically.`;
   }
   if (language === 'zh') {
-    return `好的！我将为您设计和构建 **${cleanTask}**。现在正在启动 **同步子代理编排器 (Sub-Agent Orchestrator)**，通过思维链 (Chain of Thought) 逐步推理并直接向您发送完整文件。`;
+    return `我已为您准备好 **${cleanTask}** 的执行方案。如需让子代理自动生成并打包文件，请点击下方的 **启动并运行**。`;
   }
-  return `Siap! Aku akan membantu merancang dan menyelesaikan permintaanmu untuk **${cleanTask}**. Sekarang aku aktifkan **Sub-Agent Orchestrator (Synchronous)** untuk menjalankan penalaran *Chain of Thought* bertahap sekaligus mengirimkan berkas lengkapnya langsung di bawah ini.`;
+  return `Saya siap membantu menyelesaikan **${cleanTask}**. Jika ingin Sub-Agent mengerjakan proses multi-tahap dan menyiapkan berkas siap unduh secara otomatis, silakan klik **Aktifkan Sub-Agent** di bawah ini.`;
 }
 
 /**
@@ -199,6 +199,7 @@ export function downloadSingleSubAgentFile(file) {
  */
 export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'deepernova-subagent') {
   if (!Array.isArray(files) || files.length === 0) return;
+  const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
 
   files.forEach((f, idx) => {

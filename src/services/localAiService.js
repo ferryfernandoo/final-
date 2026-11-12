@@ -4,7 +4,7 @@
  * Zero server load, zero latency overhead, offline context memory & deep reasoning container.
  */
 
-import { Wllama, CacheManager } from '@wllama/wllama';
+// @wllama/wllama is dynamically imported inside initModel() so cloud-mode users never download WebAssembly runtime upfront.
 
 // In-memory StorageBackend fallback if OPFS is unavailable in Android WebView
 class MemoryStorageBackend {
@@ -219,6 +219,8 @@ class LocalAiService {
           'single-thread/wllama.wasm': wasmUrl,
           'multi-thread/wllama.wasm': wasmUrl
         };
+
+        const { Wllama, CacheManager } = await import('@wllama/wllama');
 
         // Initialize CacheManager safely (fallback to MemoryStorageBackend if OPFS unavailable)
         let cacheManager = null;

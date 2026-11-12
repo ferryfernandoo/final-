@@ -1,19 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
-import ChatBot from './components/ChatBot'
-import AgentChat from './components/AgentChat'
-import ModelLoaderScreen from './components/ModelLoaderScreen'
-import Login from './components/Login'
-import LandingPage from './components/LandingPage'
-import DocumentEditor from './components/DocumentEditor'
-import DeepernovaUniverse from './components/DeepernovaUniverse'
-import AICalendarHub from './components/AICalendarHub'
-import AIManagerOffice from './components/AIManagerOffice'
-import HelpCenter from './components/HelpCenter'
-import DtePortal from './components/DtePortal'
-import ApiMarketplace from './components/ApiMarketplace'
-import CloudSyncModal from './components/CloudSyncModal'
-import { CookieConsent } from './components/CookieConsent'
+import { CookieConsent } from './components/CookieConsent';
+
+// Route-level code splitting so initial boot downloads only the active view
+const ChatBot = lazy(() => import('./components/ChatBot'));
+const AgentChat = lazy(() => import('./components/AgentChat'));
+const Login = lazy(() => import('./components/Login'));
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const DocumentEditor = lazy(() => import('./components/DocumentEditor'));
+const DeepernovaUniverse = lazy(() => import('./components/DeepernovaUniverse'));
+const AICalendarHub = lazy(() => import('./components/AICalendarHub'));
+const AIManagerOffice = lazy(() => import('./components/AIManagerOffice'));
+const HelpCenter = lazy(() => import('./components/HelpCenter'));
+const DtePortal = lazy(() => import('./components/DtePortal'));
+const ApiMarketplace = lazy(() => import('./components/ApiMarketplace'));
+const CloudSyncModal = lazy(() => import('./components/CloudSyncModal'));
+
+const PageLoaderFallback = () => (
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100dvh',
+    width: '100%',
+    background: '#ffffff',
+    color: '#0f172a',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    gap: '12px',
+    userSelect: 'none'
+  }}>
+    <div style={{
+      width: '28px',
+      height: '28px',
+      border: '2.5px solid #e2e8f0',
+      borderTopColor: '#ea580c',
+      borderRadius: '50%',
+      animation: 'deeperSpinLoader 0.7s linear infinite'
+    }} />
+    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+      Memuat Deepernova...
+    </span>
+    <style>{`@keyframes deeperSpinLoader { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 import { ConversationPersistenceService } from './services/conversationPersistenceService'
 import { API_BASE_URL, SEARCH_ENGINE_URL } from './apiConfig';
 import { safeSetItem, safeGetItem, safeRemoveItem } from './utils/safeStorage.js';
@@ -739,26 +769,28 @@ function App() {
   if (currentView === 'landing') {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
-        <LandingPage
-          onStartChat={() => {
-            if (!isAuthenticated && !isGuest) {
+        <Suspense fallback={<PageLoaderFallback />}>
+          <LandingPage
+            onStartChat={() => {
+              if (!isAuthenticated && !isGuest) {
+                setShowLoginView(true);
+              }
+              handleNavigate('chat');
+            }}
+            onOpenOffice={() => handleNavigate('office')}
+            onOpenUniverse={() => handleNavigate('universe')}
+            onOpenLogin={() => {
               setShowLoginView(true);
-            }
-            handleNavigate('chat');
-          }}
-          onOpenOffice={() => handleNavigate('office')}
-          onOpenUniverse={() => handleNavigate('universe')}
-          onOpenLogin={() => {
-            setShowLoginView(true);
-            handleNavigate('chat');
-          }}
-          onNavigate={handleNavigate}
-          isAuthenticated={isAuthenticated}
-          isGuest={isGuest}
-          user={user}
-          userLanguage={userLanguage}
-          onLanguageChange={saveLanguage}
-        />
+              handleNavigate('chat');
+            }}
+            onNavigate={handleNavigate}
+            isAuthenticated={isAuthenticated}
+            isGuest={isGuest}
+            user={user}
+            userLanguage={userLanguage}
+            onLanguageChange={saveLanguage}
+          />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -767,7 +799,9 @@ function App() {
   if (currentView === 'help') {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
-        <HelpCenter onNavigate={handleNavigate} />
+        <Suspense fallback={<PageLoaderFallback />}>
+          <HelpCenter onNavigate={handleNavigate} />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -776,7 +810,9 @@ function App() {
   if (currentView === 'dte') {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
-        <DtePortal onNavigate={handleNavigate} />
+        <Suspense fallback={<PageLoaderFallback />}>
+          <DtePortal onNavigate={handleNavigate} />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -785,42 +821,44 @@ function App() {
   if (currentView === 'api') {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => handleNavigate('landing')}
-            style={{
-              position: 'fixed',
-              bottom: '24px',
-              left: '24px',
-              zIndex: 9999,
-              background: '#ffffff',
-              color: '#ea580c',
-              border: '1.5px solid rgba(234, 88, 12, 0.35)',
-              padding: '10px 18px',
-              borderRadius: '999px',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: '700',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 8px 24px rgba(234, 88, 12, 0.16)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            ← Kembali ke Beranda
-          </button>
-          <ApiMarketplace 
-            onLogout={handleLogout} 
-            onNavigate={handleNavigate}
-            user={user}
-            isAuthenticated={isAuthenticated}
-            onLoginRequest={() => {
-              setPendingPostLoginRedirect('api');
-              setShowLoginView(true);
-            }}
-          />
-        </div>
+        <Suspense fallback={<PageLoaderFallback />}>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => handleNavigate('landing')}
+              style={{
+                position: 'fixed',
+                bottom: '24px',
+                left: '24px',
+                zIndex: 9999,
+                background: '#ffffff',
+                color: '#ea580c',
+                border: '1.5px solid rgba(234, 88, 12, 0.35)',
+                padding: '10px 18px',
+                borderRadius: '999px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '700',
+                backdropFilter: 'blur(12px)',
+                boxShadow: '0 8px 24px rgba(234, 88, 12, 0.16)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              ← Kembali ke Beranda
+            </button>
+            <ApiMarketplace 
+              onLogout={handleLogout} 
+              onNavigate={handleNavigate}
+              user={user}
+              isAuthenticated={isAuthenticated}
+              onLoginRequest={() => {
+                setPendingPostLoginRedirect('api');
+                setShowLoginView(true);
+              }}
+            />
+          </div>
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -829,16 +867,18 @@ function App() {
   if (currentView === 'agent') {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
-        <AgentChat
-          user={user}
-          userLanguage={userLanguage}
-          onLanguageChange={saveLanguage}
-          isAuthenticated={isAuthenticated}
-          isGuest={isGuest}
-          onLogout={handleLogout}
-          onNavigate={handleNavigate}
-          onUpdateUser={handleUpdateUser}
-        />
+        <Suspense fallback={<PageLoaderFallback />}>
+          <AgentChat
+            user={user}
+            userLanguage={userLanguage}
+            onLanguageChange={saveLanguage}
+            isAuthenticated={isAuthenticated}
+            isGuest={isGuest}
+            onLogout={handleLogout}
+            onNavigate={handleNavigate}
+            onUpdateUser={handleUpdateUser}
+          />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -875,14 +915,16 @@ function App() {
               ← Kembali ke Chat
             </button>
           )}
-          <Login
-            onLoginSuccess={handleLoginSuccess}
-            onGuestLogin={(guest) => {
-              handleGuestLogin(guest);
-              setCurrentView('chat');
-            }}
-            onSignupSuccess={handleSignupSuccess}
-          />
+          <Suspense fallback={<PageLoaderFallback />}>
+            <Login
+              onLoginSuccess={handleLoginSuccess}
+              onGuestLogin={(guest) => {
+                handleGuestLogin(guest);
+                setCurrentView('chat');
+              }}
+              onSignupSuccess={handleSignupSuccess}
+            />
+          </Suspense>
           <div style={{ textAlign: 'center', padding: '16px 0 24px' }}>
             <button
               type="button"
@@ -918,13 +960,15 @@ function App() {
   if (currentView === 'documents') {
     return (
       <ErrorBoundary onNavigate={handleNavigate}>
-        <DocumentEditor user={user} onNavigate={handleNavigate} documentType={documentType} />
+        <Suspense fallback={<PageLoaderFallback />}>
+          <DocumentEditor user={user} onNavigate={handleNavigate} documentType={documentType} />
+        </Suspense>
       </ErrorBoundary>
     );
   }
   if (currentView === 'universe') {
     return (
-      <>
+      <Suspense fallback={<PageLoaderFallback />}>
         {showSyncModal && (
           <CloudSyncModal
             onConfirmSync={handleConfirmCloudSync}
@@ -949,7 +993,7 @@ function App() {
             setShowLoginView(true);
           }}
         />
-      </>
+      </Suspense>
     );
   }
   if (currentView === 'office') {
@@ -981,27 +1025,29 @@ function App() {
             >
               ← Kembali ke Beranda
             </button>
-            <Login
-              onLoginSuccess={(userData) => {
-                setPendingPostLoginRedirect('office');
-                handleLoginSuccess(userData);
-              }}
-              onGuestLogin={(guest) => {
-                handleGuestLogin(guest);
-                setCurrentView('chat');
-              }}
-              onSignupSuccess={(userData) => {
-                setPendingPostLoginRedirect('office');
-                handleSignupSuccess(userData);
-              }}
-            />
+            <Suspense fallback={<PageLoaderFallback />}>
+              <Login
+                onLoginSuccess={(userData) => {
+                  setPendingPostLoginRedirect('office');
+                  handleLoginSuccess(userData);
+                }}
+                onGuestLogin={(guest) => {
+                  handleGuestLogin(guest);
+                  setCurrentView('chat');
+                }}
+                onSignupSuccess={(userData) => {
+                  setPendingPostLoginRedirect('office');
+                  handleSignupSuccess(userData);
+                }}
+              />
+            </Suspense>
           </div>
         </>
       );
     }
 
     return (
-      <>
+      <Suspense fallback={<PageLoaderFallback />}>
         {showSyncModal && (
           <CloudSyncModal
             onConfirmSync={handleConfirmCloudSync}
@@ -1018,17 +1064,19 @@ function App() {
             setShowLoginView(true);
           }}
         />
-      </>
+      </Suspense>
     );
   }
   if (currentView === 'calendar') {
     return (
-      <AICalendarHub onNavigate={handleNavigate} />
+      <Suspense fallback={<PageLoaderFallback />}>
+        <AICalendarHub onNavigate={handleNavigate} />
+      </Suspense>
     );
   }
   
   return (
-    <>
+    <Suspense fallback={<PageLoaderFallback />}>
       {showSyncModal && (
         <CloudSyncModal
           onConfirmSync={handleConfirmCloudSync}
@@ -1046,7 +1094,7 @@ function App() {
         onNavigate={handleNavigate}
         onUpdateUser={handleUpdateUser}
       />
-    </>
+    </Suspense>
   )
 }
 

@@ -1928,8 +1928,8 @@
 .meta-hero-input-container {
   width: 100% !important;
   background: #ffffff !important;
-  backdrop-filter: blur(28px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  backdrop-filter: blur(10px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
   border: 1px solid rgba(203, 213, 225, 0.85) !important;
   border-radius: 26px !important;
   box-shadow:
@@ -2021,8 +2021,8 @@
 .dark-mode .meta-hero-input-container,
 [data-theme='dark'] .meta-hero-input-container {
   background: rgba(24, 24, 28, 0.94) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  backdrop-filter: blur(10px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   box-shadow:
     0 26px 56px -8px rgba(0, 0, 0, 0.88),
@@ -2823,8 +2823,8 @@
     max-width: 600px !important;
     margin: 0 auto !important;
     background: #ffffff !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    backdrop-filter: blur(10px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
     border: 1px solid rgba(203, 213, 225, 0.85) !important;
     border-radius: 26px !important;
     box-shadow:

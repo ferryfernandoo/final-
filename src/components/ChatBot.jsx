@@ -2684,7 +2684,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     return () => clearTimeout(scrollTimer);
   }, [currentConversationId]);
 
-  // Preload external RAG index from public/rag_index.json when the app mounts
+  // Preload external RAG index when the browser is idle so initial UI mount stays fast
   useEffect(() => {
     const preloadRagIndex = async () => {
       try {
@@ -2694,7 +2694,12 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       }
     };
 
-    preloadRagIndex();
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(() => preloadRagIndex(), { timeout: 2500 });
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+    const timer = setTimeout(preloadRagIndex, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   // Detect user location and language according to strict country rules:
@@ -6034,7 +6039,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       const startSmoothStreamer = () => {
         if (!smoothStreamTimer) {
-          smoothStreamTimer = setInterval(flushSmoothTick, 22);
+          smoothStreamTimer = setInterval(flushSmoothTick, 40);
           smoothStreamTimerRef.current = smoothStreamTimer;
         }
       };
@@ -6351,116 +6356,53 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           parsedSubAgent.introText || buildDefaultIntroText(parsedSubAgent.taskDescription, userLanguage);
 
         console.log(
-          `[ChatBot] 🤖 Synchronous Sub-Agent Orchestrator activated via flag ${parsedSubAgent.flagTag}`
+          `[ChatBot] 🤖 Sub-Agent proposal ready — waiting for explicit user confirmation (${parsedSubAgent.flagTag})`
         );
 
-        const initialSubAgentData = {
-          status: 'running',
-          currentStage: 1,
-          elapsedSec: '0.1',
+        const awaitingSubAgentData = {
+          status: 'awaiting_confirmation',
+          currentStage: 0,
+          elapsedSec: '0.0',
           flagTag: parsedSubAgent.flagTag,
           taskDescription: parsedSubAgent.taskDescription,
+          userPrompt: userPromptForSubAgent,
+          model: selectedModel || 'deepernova-2.3-pro',
+          introText: introConversationalText,
           planText: '',
           plannedFiles: [],
-          cotText:
-            userLanguage === 'en'
-              ? `[PLANNER] Activating Synchronous Sub-Agent Orchestrator for: "${parsedSubAgent.taskDescription}"...\n`
-              : `[PLANNER] Mengaktifkan Synchronous Sub-Agent Orchestrator untuk: "${parsedSubAgent.taskDescription}"...\n`,
-          thoughtSteps: [
-            {
-              id: 'init_plan',
-              agent: 'Planner Sub-Agent',
-              badge: 'PLANNER',
-              title:
-                userLanguage === 'en'
-                  ? 'Analyzing task specifications & file architecture...'
-                  : 'Menganalisis spesifikasi tugas & merancang arsitektur berkas...',
-              detail: parsedSubAgent.taskDescription,
-              status: 'running',
-            },
-          ],
+          cotText: '',
+          thoughtSteps: [],
           files: [],
           activeWritingFile: null,
           finalAnswer: '',
         };
 
-        setConvLoading(true);
-        setLoading(true);
-        setIsSendGenerating(true);
-        isSendGeneratingRef.current = true;
-
-        setMessages((prevMessages) =>
-          prevMessages.map((m) =>
+        setMessages((prevMessages) => {
+          const updatedMessages = prevMessages.map((m) =>
             m.id === placeholderId
               ? {
                   ...m,
                   text: introConversationalText,
-                  isStreaming: true,
-                  subAgentData: initialSubAgentData,
+                  isStreaming: false,
+                  isThinking: false,
+                  subAgentData: awaitingSubAgentData,
                 }
               : m
-          )
-        );
+          );
 
-        const subAgentController = new AbortController();
-        abortControllersMapRef.current.set(`subagent-${placeholderId}`, subAgentController);
-
-        try {
-          const finalSubAgentState = await executeSynchronousSubAgent({
-            taskDescription: parsedSubAgent.taskDescription,
-            userPrompt: userPromptForSubAgent,
-            language: userLanguage,
-            model: selectedModel || 'deepernova-2.3-pro',
-            abortSignal: subAgentController.signal,
-            onUpdate: (liveSubAgentState) => {
-              setMessages((prevMessages) =>
-                prevMessages.map((m) =>
-                  m.id === placeholderId
-                    ? {
-                        ...m,
-                        text: introConversationalText,
-                        isStreaming: liveSubAgentState.status === 'running',
-                        subAgentData: liveSubAgentState,
-                      }
-                    : m
-                )
-              );
-            },
-          });
-
-          setMessages((prevMessages) => {
-            const updatedMessages = prevMessages.map((m) =>
-              m.id === placeholderId
-                ? {
-                    ...m,
-                    text: introConversationalText,
-                    isStreaming: false,
-                    subAgentData: finalSubAgentState,
-                  }
-                : m
+          setConversations((prevConvs) => {
+            const targetConvId = activeConvId || currentConversationId;
+            const updatedConvs = (prevConvs || []).map((c) =>
+              c.id === targetConvId
+                ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
+                : c
             );
-
-            setConversations((prevConvs) => {
-              const targetConvId = activeConvId || currentConversationId;
-              const updatedConvs = (prevConvs || []).map((c) =>
-                c.id === targetConvId
-                  ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
-                  : c
-              );
-              ConversationPersistenceService.saveToLocalStorage(updatedConvs);
-              ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest).catch(
-                (err) => console.warn('[ChatBot] Sub-Agent conversation save warning:', err)
-              );
-              return updatedConvs;
-            });
-
-            return updatedMessages;
+            ConversationPersistenceService.saveToLocalStorage(updatedConvs);
+            return updatedConvs;
           });
-        } catch (subAgentErr) {
-          console.error('[ChatBot] Synchronous Sub-Agent Orchestrator error:', subAgentErr);
-        } finally {
-          abortControllersMapRef.current.delete(`subagent-${placeholderId}`);
-        }
+
+          return updatedMessages;
+        });
       }
       
       // finishStreaming already called at drain completion (line ~7231) — no duplicate call needed
@@ -8642,6 +8584,198 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
   };
 
+  const latestSubAgentDepsRef = useRef({});
+  latestSubAgentDepsRef.current = {
+    currentConversationId,
+    selectedModel,
+    userLanguage,
+    isAuthenticated,
+    isGuest,
+  };
+
+  const handleSubAgentAction = useCallback(async (messageId, action, subAgentMeta) => {
+    if (!messageId || !action) return;
+    const {
+      currentConversationId: convId,
+      selectedModel: activeModel,
+      userLanguage: lang,
+      isAuthenticated: authed,
+      isGuest: guest,
+    } = latestSubAgentDepsRef.current;
+
+    if (action === 'cancel') {
+      const controller = abortControllersMapRef.current.get(`subagent-${messageId}`);
+      if (controller) {
+        try {
+          controller.abort();
+        } catch (_e) {
+          // ignore
+        }
+        abortControllersMapRef.current.delete(`subagent-${messageId}`);
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                isStreaming: false,
+                subAgentData: m.subAgentData ? { ...m.subAgentData, status: 'aborted' } : m.subAgentData,
+              }
+            : m
+        )
+      );
+      setConvLoading(false);
+      setLoading(false);
+      setIsSendGenerating(false);
+      isSendGeneratingRef.current = false;
+      return;
+    }
+
+    if (action === 'dismiss') {
+      setMessages((prev) => {
+        const updatedMessages = prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                isStreaming: false,
+                subAgentData: m.subAgentData ? { ...m.subAgentData, status: 'dismissed' } : m.subAgentData,
+              }
+            : m
+        );
+        setConversations((prevConvs) => {
+          const updatedConvs = (prevConvs || []).map((c) =>
+            c.id === convId ? { ...c, messages: updatedMessages, updatedAt: new Date().toISOString() } : c
+          );
+          ConversationPersistenceService.saveToLocalStorage(updatedConvs);
+          ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => {});
+          return updatedConvs;
+        });
+        return updatedMessages;
+      });
+      return;
+    }
+
+    if (action === 'confirm' && subAgentMeta) {
+      const taskDescription = subAgentMeta.taskDescription || subAgentMeta.userPrompt || '';
+      const userPrompt = subAgentMeta.userPrompt || taskDescription;
+      const introText = subAgentMeta.introText || '';
+
+      const runningSubAgentData = {
+        ...subAgentMeta,
+        status: 'running',
+        currentStage: 1,
+        elapsedSec: '0.1',
+        thoughtSteps: [
+          {
+            id: 'init_plan',
+            agent: 'Planner',
+            badge: 'PLANNER',
+            title:
+              lang === 'en'
+                ? 'Analyzing task specifications & file architecture...'
+                : 'Menganalisis spesifikasi tugas & merancang struktur berkas...',
+            detail: taskDescription,
+            status: 'running',
+          },
+        ],
+        files: [],
+        activeWritingFile: null,
+        finalAnswer: '',
+      };
+
+      setConvLoading(true);
+      setLoading(true);
+      setIsSendGenerating(true);
+      isSendGeneratingRef.current = true;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                ...(introText && !m.text ? { text: introText } : {}),
+                isStreaming: true,
+                subAgentData: runningSubAgentData,
+              }
+            : m
+        )
+      );
+
+      const subAgentController = new AbortController();
+      abortControllersMapRef.current.set(`subagent-${messageId}`, subAgentController);
+
+      try {
+        const finalSubAgentState = await executeSynchronousSubAgent({
+          taskDescription,
+          userPrompt,
+          language: lang || 'id',
+          model: subAgentMeta.model || activeModel || 'deepernova-2.3-pro',
+          abortSignal: subAgentController.signal,
+          onUpdate: (liveSubAgentState) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === messageId
+                  ? {
+                      ...m,
+                      isStreaming: liveSubAgentState.status === 'running',
+                      subAgentData: liveSubAgentState,
+                    }
+                  : m
+              )
+            );
+          },
+        });
+
+        setMessages((prev) => {
+          const updatedMessages = prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  isStreaming: false,
+                  subAgentData: finalSubAgentState,
+                }
+              : m
+          );
+
+          setConversations((prevConvs) => {
+            const updatedConvs = (prevConvs || []).map((c) =>
+              c.id === convId
+                ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
+                : c
+            );
+            ConversationPersistenceService.saveToLocalStorage(updatedConvs);
+            ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => {});
+            return updatedConvs;
+          });
+
+          return updatedMessages;
+        });
+      } catch (subAgentErr) {
+        console.error('[ChatBot] Confirmed Sub-Agent execution error:', subAgentErr);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  isStreaming: false,
+                  subAgentData: {
+                    ...(m.subAgentData || runningSubAgentData),
+                    status: subAgentErr?.name === 'AbortError' ? 'aborted' : 'error',
+                  },
+                }
+              : m
+          )
+        );
+      } finally {
+        abortControllersMapRef.current.delete(`subagent-${messageId}`);
+        setConvLoading(false);
+        setLoading(false);
+        setIsSendGenerating(false);
+        isSendGeneratingRef.current = false;
+      }
+    }
+  }, []);
+
   const renderEmptyHeroState = () => (
     <ChatEmptyHero
       userLanguage={userLanguage}
@@ -8734,6 +8868,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           onMessageFeedback={handleMessageFeedback}
           onCopyMessage={handleCopyMessage}
           onTtsToggle={handleTtsToggle}
+          onSubAgentAction={handleSubAgentAction}
         />
       );
     });

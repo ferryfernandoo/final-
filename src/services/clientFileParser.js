@@ -4,22 +4,8 @@
  * directly in the browser with 0ms server latency and 100% offline capability.
  */
 
-import mammoth from 'mammoth';
-import * as XLSX from 'xlsx';
-import JSZip from 'jszip';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set up pdf.js worker if needed
-if (typeof window !== 'undefined' && pdfjsLib) {
-  try {
-    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '5.6.205'}/pdf.worker.min.mjs`;
-    }
-  } catch (e) {
-    console.warn('[clientFileParser] PDF worker setup:', e.message);
-  }
-}
-
+// Heavy document parsers (mammoth, xlsx, jszip, pdfjs-dist) are dynamically imported on demand
+// so they never bloat the initial chat bundle.
 class ClientFileParser {
   /**
    * Universal Parse Method for any File object
@@ -120,7 +106,9 @@ class ClientFileParser {
     const arrayBuffer = await file.arrayBuffer();
 
     try {
-      // First attempt: Mammoth raw text extraction
+      // First attempt: Mammoth raw text extraction (lazy-loaded)
+      const mammothMod = await import('mammoth');
+      const mammoth = mammothMod.default || mammothMod;
       const result = await mammoth.extractRawText({ arrayBuffer });
       if (result && result.value && result.value.trim().length > 0) {
         return result.value.trim();
@@ -131,6 +119,7 @@ class ClientFileParser {
 
     // Second attempt: Unzip DOCX with JSZip and parse document.xml
     try {
+      const { default: JSZip } = await import('jszip');
       const zip = await JSZip.loadAsync(arrayBuffer);
       const docXmlFile = zip.file('word/document.xml');
       if (docXmlFile) {
@@ -159,6 +148,7 @@ class ClientFileParser {
    */
   static async parseSpreadsheet(file, ext) {
     const arrayBuffer = await file.arrayBuffer();
+    const XLSX = await import('xlsx');
     const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
 
     if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
@@ -180,12 +170,16 @@ class ClientFileParser {
   }
 
   /**
-   * Parse PDF Documents using pdfjs-dist
+   * Parse PDF Documents using pdfjs-dist (lazy-loaded on demand)
    */
   static async parsePdf(file) {
     const arrayBuffer = await file.arrayBuffer();
 
     try {
+      const pdfjsLib = await import('pdfjs-dist');
+      if (typeof window !== 'undefined' && pdfjsLib?.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '5.6.205'}/pdf.worker.min.mjs`;
+      }
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       const numPages = pdf.numPages;
@@ -222,6 +216,7 @@ class ClientFileParser {
    */
   static async parsePptx(file) {
     const arrayBuffer = await file.arrayBuffer();
+    const { default: JSZip } = await import('jszip');
     const zip = await JSZip.loadAsync(arrayBuffer);
     let presentationText = `[Presentasi PowerPoint: "${file.name}"]\n\n`;
     let slideIndex = 1;

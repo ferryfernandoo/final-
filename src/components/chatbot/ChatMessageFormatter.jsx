@@ -1,16 +1,19 @@
 // ============================================================
 // Deepernova AI ChatBot — Memoized Message Text & Markdown Formatter
 // ============================================================
-import React, { useMemo } from 'react';
+import React, { useMemo, lazy, Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cleanCodeBlock } from '../../utils/codeHighlight';
-import ChartGenerator from '../ChartGenerator';
 import {
   AutoRedirectCountdownCard,
   CodeBlockHolder,
-  FormulaRenderer
+  FormulaRenderer,
+  VisualGenerationSkeleton,
+  SmoothGeneratedImage
 } from './ChatSubComponents';
+
+const ChartGenerator = lazy(() => import('../ChartGenerator'));
 import {
   detectChartType,
   parseChartDataFromText,
@@ -997,12 +1000,13 @@ export const formatMessageContent = ({
       const chartData = chartBlocks[parseInt(chartMatch[1], 10)];
       if (chartData) {
         result.push(
-          <ChartGenerator
-            key={`chart-${chartMatch[1]}`}
-            data={chartData.data}
-            type={chartData.type}
-            title={chartData.title}
-          />
+          <Suspense key={`chart-${chartMatch[1]}`} fallback={<div style={{ height: '180px', borderRadius: '10px', background: '#f8fafc', margin: '10px 0' }} />}>
+            <ChartGenerator
+              data={chartData.data}
+              type={chartData.type}
+              title={chartData.title}
+            />
+          </Suspense>
         );
       }
     } else if (imageRequestMatch) {
@@ -1021,71 +1025,48 @@ export const formatMessageContent = ({
 
         if (imageUrl) {
           result.push(
-            <div key={imageIdKey} className="message-image-container inline-image-block" style={{ margin: '15px 0', position: 'relative' }}>
-              <img
-                src={imageUrl}
-                alt="Generated Image"
-                className="message-image"
-                onClick={() => handleImageClick?.(imageUrl, 'Generated Image', message.imageId)}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '400px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s ease',
-                }}
-                title={userLanguage === 'id' ? 'Klik untuk membesar' : 'Click to enlarge'}
-              />
-              <button
-                type="button"
-                className={`hd-upscale-btn ${hdUpscalingMap[imageUrl] ? 'loading' : ''}`}
-                onClick={(e) => { e.stopPropagation(); handleUpscaleHD?.(imageUrl, message.id); }}
-                disabled={!!hdUpscalingMap[imageUrl]}
-                title={userLanguage === 'id' ? 'Tingkatkan kualitas ke HD' : 'Upscale to HD'}
-              >
-                {hdUpscalingMap[imageUrl] ? (
-                  <><i className="fas fa-spinner fa-spin" style={{ marginRight: '4px' }}></i> HD...</>
-                ) : (
-                  <><span className="hd-icon">HD</span></>
-                )}
-              </button>
-            </div>
+            <SmoothGeneratedImage
+              key={imageIdKey}
+              src={imageUrl}
+              alt="Generated Image"
+              containerClassName="inline-image-block"
+              containerStyle={{ margin: '14px 0' }}
+              onClick={() => handleImageClick?.(imageUrl, 'Generated Image', message.imageId)}
+              onUpscaleHD={(e) => { e.stopPropagation(); handleUpscaleHD?.(imageUrl, message.id); }}
+              isUpscaling={!!hdUpscalingMap[imageUrl]}
+              title={userLanguage === 'id' ? 'Klik untuk membesar' : 'Click to enlarge'}
+              upscaleTitle={userLanguage === 'id' ? 'Tingkatkan kualitas ke HD' : 'Upscale to HD'}
+              imgStyle={{
+                maxWidth: '100%',
+                maxHeight: '400px',
+                borderRadius: '10px',
+                cursor: 'pointer'
+              }}
+            />
           );
         } else if (imageError) {
           result.push(
-            <div key={imageIdKey} className="inline-image-error" style={{ color: '#ef4444', padding: '10px', border: '1px solid #fca5a5', borderRadius: '6px', margin: '10px 0', backgroundColor: '#fef2f2' }}>
+            <div key={imageIdKey} className="inline-image-error" style={{ color: '#ef4444', padding: '10px', border: '1px solid #fca5a5', borderRadius: '8px', margin: '10px 0', backgroundColor: '#fef2f2' }}>
               ⚠️ {imageError}
             </div>
           );
         } else {
           result.push(
-            <div key={imageIdKey} className="image-thinking-state inline-image-loading" style={{ margin: '15px 0' }}>
-              <div className="image-loading-dots-container">
-                <div className={`image-loading-dots ${message?.imageGenPhase === 'responding' || message?.imageGenPhase === 'generating' ? 'speed-1x' : 'speed-2x'}`}>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#ea580c' }}>
-                  {userLanguage === 'id' ? 'Sedang menyusun dan merakit pixel gambar...' : 'Assembling and rendering image pixels...'}
-                </span>
-              </div>
+            <div key={imageIdKey} style={{ margin: '14px 0' }}>
+              <VisualGenerationSkeleton
+                compact
+                label={userLanguage === 'id' ? 'Menyusun visual & merender piksel...' : 'Generating visual & rendering pixels...'}
+              />
             </div>
           );
         }
       } else {
         result.push(
-          <div key={imageIdKey} className="image-thinking-state inline-image-loading" style={{ margin: '15px 0' }}>
-            <div className="image-loading-dots-container">
-              <div className="image-loading-dots speed-2x">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#ea580c' }}>
-                {userLanguage === 'id' ? 'Sedang menyusun dan merakit pixel gambar...' : 'Assembling and rendering image pixels...'}
-              </span>
-            </div>
+          <div key={imageIdKey} style={{ margin: '14px 0' }}>
+            <VisualGenerationSkeleton
+              compact
+              label={userLanguage === 'id' ? 'Menyusun visual & merender piksel...' : 'Generating visual & rendering pixels...'}
+            />
           </div>
         );
       }

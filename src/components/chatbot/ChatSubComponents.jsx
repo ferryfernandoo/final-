@@ -841,3 +841,78 @@ export const FormulaRenderer = React.memo(({ formula, isBlock }) => {
     : <span ref={ref} className="formula-inline" />;
 });
 
+export const VisualGenerationSkeleton = React.memo(({ label, compact = false }) => {
+  return (
+    <div className={`visual-gen-skeleton${compact ? ' compact' : ''}`} aria-live="polite">
+      <div className="visual-gen-shimmer" aria-hidden="true" />
+      <div className="visual-gen-center">
+        <div className="visual-gen-pulse-orb" aria-hidden="true">
+          <i className="fa-solid fa-wand-magic-sparkles" />
+        </div>
+        <span className="visual-gen-status-label">{label}</span>
+      </div>
+    </div>
+  );
+});
+
+export const SmoothGeneratedImage = React.memo(({
+  src,
+  alt = 'Generated Image',
+  onClick,
+  onUpscaleHD,
+  isUpscaling = false,
+  title = '',
+  upscaleTitle = '',
+  containerClassName = '',
+  containerStyle = {},
+  imgStyle = {}
+}) => {
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef(null);
+
+  useEffect(() => {
+    setLoaded(Boolean(imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0));
+  }, [src]);
+
+  return (
+    <div
+      className={`message-image-container smooth-image-frame${loaded ? ' is-loaded' : ' is-loading'}${containerClassName ? ` ${containerClassName}` : ''}`}
+      style={{ position: 'relative', ...containerStyle }}
+    >
+      {!loaded && (
+        <div className="visual-img-shimmer-backdrop" aria-hidden="true">
+          <div className="visual-gen-shimmer" />
+        </div>
+      )}
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className={`message-image smooth-gen-image${loaded ? ' loaded' : ''}`}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        onClick={onClick}
+        style={imgStyle}
+        title={title}
+      />
+      {onUpscaleHD && (
+        <button
+          type="button"
+          className={`hd-upscale-btn ${isUpscaling ? 'loading' : ''}`}
+          onClick={onUpscaleHD}
+          disabled={!!isUpscaling}
+          title={upscaleTitle}
+        >
+          {isUpscaling ? (
+            <><i className="fas fa-spinner fa-spin" style={{ marginRight: '4px' }}></i> HD...</>
+          ) : (
+            <><span className="hd-icon">HD</span></>
+          )}
+        </button>
+      )}
+    </div>
+  );
+});
+

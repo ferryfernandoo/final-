@@ -1,7 +1,7 @@
 // ============================================================
 // Deepernova AI ChatBot — Memoized Single Message Component
 // ============================================================
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import ReminderCard from '../ReminderCard';
 import {
   getFileBadgeInfo,
@@ -10,10 +10,13 @@ import {
 } from './chatConstants';
 import {
   SourceBubbleCarousel,
-  ReasoningSection
+  ReasoningSection,
+  VisualGenerationSkeleton,
+  SmoothGeneratedImage
 } from './ChatSubComponents';
 import { FormattedMessageBody } from './ChatMessageFormatter';
-import { SubAgentOrchestratorCard } from './SubAgentOrchestratorCard';
+
+const SubAgentOrchestratorCard = lazy(() => import('./SubAgentOrchestratorCard'));
 
 const ChatMessageItemComponent = ({
   message,
@@ -40,7 +43,8 @@ const ChatMessageItemComponent = ({
   onShowSearchSources,
   onMessageFeedback,
   onCopyMessage,
-  onTtsToggle
+  onTtsToggle,
+  onSubAgentAction
 }) => {
   const isUser = message.sender === 'user';
   const isBot = message.sender === 'bot' || message.role === 'assistant';
@@ -59,10 +63,9 @@ const ChatMessageItemComponent = ({
         {message.isImage && (
           <>
             {message.isThinking ? (
-              <div className="image-thinking-state">
-                <div className="spinner"></div>
-                <div className="thinking-text">{message.text}</div>
-              </div>
+              <VisualGenerationSkeleton
+                label={message.text || (userLanguage === 'en' ? 'Generating visual...' : 'Sedang menyusun visual...')}
+              />
             ) : (
               <>
                 {message.text && (
@@ -82,38 +85,22 @@ const ChatMessageItemComponent = ({
                   />
                 )}
                 {message.imageUrl && (
-                  <div className="message-image-container" style={{ position: 'relative' }}>
-                    <img
-                      src={message.imageUrl}
-                      alt="Generated Image"
-                      className="message-image"
-                      onClick={() => onImageClick?.(message.imageUrl, 'Generated Image', message.imageId)}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '400px',
-                        borderRadius: '8px',
-                        marginTop: '12px',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => { e.target.style.transform = 'scale(1.02)'; }}
-                      onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
-                      title={userLanguage === 'zh' ? '点击放大' : userLanguage === 'id' ? 'Klik untuk membesar' : 'Click to enlarge'}
-                    />
-                    <button
-                      type="button"
-                      className={`hd-upscale-btn ${hdUpscalingMap[message.imageUrl] ? 'loading' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); onUpscaleHD?.(message.imageUrl, message.id); }}
-                      disabled={!!hdUpscalingMap[message.imageUrl]}
-                      title={userLanguage === 'zh' ? '增强至超清 HD' : userLanguage === 'id' ? 'Tingkatkan kualitas ke HD' : 'Upscale to HD'}
-                    >
-                      {hdUpscalingMap[message.imageUrl] ? (
-                        <><i className="fas fa-spinner fa-spin" style={{ marginRight: '4px' }}></i> HD...</>
-                      ) : (
-                        <><span className="hd-icon">HD</span></>
-                      )}
-                    </button>
-                  </div>
+                  <SmoothGeneratedImage
+                    src={message.imageUrl}
+                    alt="Generated Image"
+                    onClick={() => onImageClick?.(message.imageUrl, 'Generated Image', message.imageId)}
+                    onUpscaleHD={(e) => { e.stopPropagation(); onUpscaleHD?.(message.imageUrl, message.id); }}
+                    isUpscaling={!!hdUpscalingMap[message.imageUrl]}
+                    title={userLanguage === 'zh' ? '点击放大' : userLanguage === 'id' ? 'Klik untuk membesar' : 'Click to enlarge'}
+                    upscaleTitle={userLanguage === 'zh' ? '增强至超清 HD' : userLanguage === 'id' ? 'Tingkatkan kualitas ke HD' : 'Upscale to HD'}
+                    imgStyle={{
+                      maxWidth: '100%',
+                      maxHeight: '400px',
+                      borderRadius: '10px',
+                      marginTop: '10px',
+                      cursor: 'pointer'
+                    }}
+                  />
                 )}
               </>
             )}
@@ -298,15 +285,18 @@ const ChatMessageItemComponent = ({
               />
             )}
             {message.subAgentData && (
-              <SubAgentOrchestratorCard
-                subAgentData={message.subAgentData}
-                userLanguage={userLanguage}
-                message={message}
-                onNavigate={onNavigate}
-                onImageClick={onImageClick}
-                onUpscaleHD={onUpscaleHD}
-                hdUpscalingMap={hdUpscalingMap}
-              />
+              <Suspense fallback={null}>
+                <SubAgentOrchestratorCard
+                  subAgentData={message.subAgentData}
+                  userLanguage={userLanguage}
+                  message={message}
+                  onNavigate={onNavigate}
+                  onImageClick={onImageClick}
+                  onUpscaleHD={onUpscaleHD}
+                  hdUpscalingMap={hdUpscalingMap}
+                  onSubAgentAction={onSubAgentAction}
+                />
+              </Suspense>
             )}
             {message.reminder && (
               <ReminderCard reminder={message.reminder} />

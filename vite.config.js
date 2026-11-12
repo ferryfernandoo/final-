@@ -5,14 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/',
   plugins: [react()],
-  esbuild: {
-    drop: process.env.NODE_ENV === 'development' ? [] : ['console', 'debugger'],
-    legalComments: 'none'
+  oxc: {
+    drop: process.env.NODE_ENV === 'development' ? [] : ['console', 'debugger']
   },
   build: {
     emptyOutDir: true,
     sourcemap: false,
-    minify: 'esbuild',
+    minify: 'oxc',
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       input: './index.html'
     }
