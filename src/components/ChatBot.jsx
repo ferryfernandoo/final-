@@ -839,12 +839,6 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   };
 
   const handleOpenCamera = () => {
-    if (currentModelObj?.supportsVision === false) {
-      alert(userLanguage === 'id'
-        ? `Model ${currentModelObj.name} berbasis teks dan tidak mendukung analisis gambar/kamera. Silakan pilih model lain untuk mengambil foto.`
-        : `The ${currentModelObj.name} model is text-only and does not support image/camera analysis. Please select another model.`);
-      return;
-    }
     setShowCameraModal(true);
     setCapturedPhoto(null);
     setCameraError(null);
@@ -1651,10 +1645,29 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
 
 
-  // Handle paste events - intercept text paste and add to queue instead of input
+  // Handle paste events - intercept text or image paste
   const handlePaste = (e) => {
     lastPasteTimeRef.current = Date.now();
-    const pastedText = e.clipboardData.getData('text');
+
+    // 1. Check if user pasted an image (e.g. screenshot or copied image from clipboard)
+    const clipboardItems = e.clipboardData?.items;
+    if (clipboardItems && clipboardItems.length > 0) {
+      const imageFiles = [];
+      for (let i = 0; i < clipboardItems.length; i++) {
+        const item = clipboardItems[i];
+        if (item.type && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        handleImageUpload({ files: imageFiles });
+        return;
+      }
+    }
+
+    const pastedText = e.clipboardData?.getData('text');
     
     // If there's actual pasted text, add to text queue and prevent default paste
     if (pastedText && pastedText.trim()) {
@@ -3547,11 +3560,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Handle file upload and parsing directly on client-side (supports PDF, DOCX, XLSX, XLS, PPTX, CSV, JSON, TXT, Code, etc.)
   const handleFileUpload = async (e) => {
-    const files = e.target.files;
+    const rawFiles = e?.target?.files || e?.files || (e instanceof File ? [e] : []);
+    const files = Array.from(rawFiles);
     if (!files || files.length === 0) return;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+
+      // Seamlessly route image files to vision image uploader
+      if (file.type?.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)) {
+        await handleImageUpload({ files: [file] });
+        continue;
+      }
+
       try {
         const parseResult = await ClientFileParser.parseFile(file);
         const content = parseResult.content;
@@ -3636,12 +3657,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Handle image upload from file input or camera file object
   const handleImageUpload = async (e) => {
-    if (currentModelObj?.supportsVision === false) {
-      alert(userLanguage === 'id'
-        ? `Model ${currentModelObj.name} berbasis teks dan tidak mendukung analisis gambar. Silakan pilih model lain jika ingin mengunggah gambar.`
-        : `The ${currentModelObj.name} model is text-only and does not support image analysis. Please select another model to upload images.`);
-      return;
-    }
     const rawFiles = e?.target?.files || e?.files || (e instanceof File ? [e] : []);
     const files = Array.from(rawFiles);
     if (!files.length) return;

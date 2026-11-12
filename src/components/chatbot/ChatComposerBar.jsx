@@ -298,7 +298,36 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
         </div>
       )}
 
-      <div className={`input-container claude-style ${isConvLoading ? 'generating' : ''}`}>
+      <div
+        className={`input-container claude-style ${isConvLoading ? 'generating' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const droppedFiles = e.dataTransfer?.files;
+          if (droppedFiles && droppedFiles.length > 0) {
+            const imageFiles = [];
+            const otherFiles = [];
+            for (let i = 0; i < droppedFiles.length; i++) {
+              const f = droppedFiles[i];
+              if (f.type?.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)) {
+                imageFiles.push(f);
+              } else {
+                otherFiles.push(f);
+              }
+            }
+            if (imageFiles.length > 0) {
+              handleImageUpload({ files: imageFiles });
+            }
+            if (otherFiles.length > 0) {
+              handleFileUpload({ files: otherFiles });
+            }
+          }
+        }}
+      >
         {(uploadedFiles.length + uploadedImages.length > 0) && attachmentQueueMinimized && (
           <button
             type="button"

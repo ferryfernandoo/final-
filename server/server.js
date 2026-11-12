@@ -3172,7 +3172,7 @@ app.post('/api/chat/stop', express.json(), async (req, res) => {
   return res.json({ success: true, stoppedCount, message: 'Generation halted on server' });
 });
 
-app.post(['/api/chat', '/api/subagent/orchestrate'], async (req, res) => {
+app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async (req, res) => {
   // Check IP-based token limit
   const clientIp = getClientIp(req);
   const ipStatus = checkIpTokenLimit(clientIp);
@@ -3531,7 +3531,7 @@ app.post(['/api/chat', '/api/subagent/orchestrate'], async (req, res) => {
                 contentArray.push(...currentContent);
               }
               for (const img of req.body.uploadedImages) {
-                const imgUrl = typeof img === 'string' ? img : (img.url || img.dataUrl || img.imageUrl || img.publicUrl);
+                const imgUrl = typeof img === 'string' ? img : (img.dataUrl || img.publicUrl || img.imageUrl || img.url);
                 if (imgUrl && !contentArray.some(c => c?.image_url?.url === imgUrl)) {
                   contentArray.push({ type: 'image_url', image_url: { url: imgUrl } });
                 }
@@ -3758,13 +3758,15 @@ app.post(['/api/chat', '/api/subagent/orchestrate'], async (req, res) => {
 
         // 1. Try High-Speed AI Engine with Key Rotation across all active healthy keys & model fallback
         if (TOKENMIX_API_KEYS.length > 0) {
-          const candidateModels = Array.from(new Set([
-            selectedModel,
-            process.env.TOKENMIX_CHAT_MODEL || 'gpt-4.1-mini',
-            'gpt-4.1-mini',
-            'gpt-4o-mini',
-            'qwen3.8-flash'
-          ]));
+          const candidateModels = hasImagesInPayload
+            ? ['gpt-4.1-mini', 'gpt-4o-mini', 'llama-4-maverick']
+            : Array.from(new Set([
+                selectedModel,
+                process.env.TOKENMIX_CHAT_MODEL || 'gpt-4.1-mini',
+                'gpt-4.1-mini',
+                'gpt-4o-mini',
+                'qwen3.8-flash'
+              ]));
 
           for (const modelToTry of candidateModels) {
             for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {

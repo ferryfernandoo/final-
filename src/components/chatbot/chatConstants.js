@@ -250,7 +250,7 @@ export const DEEPERNOVA_MODELS = [
     subEn: 'Deep reasoning, complex logic & code',
     desc: 'Penalaran mendalam, analisis & coding',
     descEn: 'Deep reasoning, complex logic & code',
-    supportsVision: false,
+    supportsVision: true,
     supportsReasoning: false,
     isLocalOffline: false
   },

@@ -164,10 +164,25 @@ export default async function handler(req) {
   }
 
   // Autonomous Real-Time Web Search Augmentation on Edge
+  const normalizeContentText = (content) => {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return content.map(item => (typeof item === 'string' ? item : item?.text || '')).filter(Boolean).join(' ');
+    }
+    return '';
+  };
+
   const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-  const userText = (lastUserMsg?.content || '').trim();
-  const isSearchIntent = body.webSearch === true ||
-    /\b(cari\s+(di\s+)?(internet|web|google)|tolong\s+cari|berita\s+terbaru|kabar\s+terkini|harga\s+terbaru|hari\s+ini|jadwal\s+hari\s+ini|skor\s+pertandingan|siapa\s+juara|kurs\s+dollar|cuaca)\b/i.test(userText);
+  const userText = normalizeContentText(lastUserMsg?.content).trim();
+  const hasImagesInPayload = (Array.isArray(body.uploadedImages) && body.uploadedImages.length > 0) ||
+    messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url)));
+
+  if (hasImagesInPayload && !systemPrompt.includes('KEMAMPUAN VISION')) {
+    systemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK):\n- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!';
+  }
+
+  const isSearchIntent = !hasImagesInPayload && (body.webSearch === true ||
+    /\b(cari\s+(di\s+)?(internet|web|google)|tolong\s+cari|berita\s+terbaru|kabar\s+terkini|harga\s+terbaru|hari\s+ini|jadwal\s+hari\s+ini|skor\s+pertandingan|siapa\s+juara|kurs\s+dollar|cuaca)\b/i.test(userText));
 
   if (isSearchIntent && userText.length < 350 && !userText.includes('DATA HASIL PENCARIAN') && !userText.includes('INSTRUKSI SISTEM') && !userText.includes('### Hasil Pencarian')) {
     try {
@@ -262,44 +277,76 @@ export default async function handler(req) {
     }
   }
 
+  // Ensure vision formatting if uploadedImages provided in body and not yet in the last user message
+  if (Array.isArray(body.uploadedImages) && body.uploadedImages.length > 0) {
+    for (let i = finalMessages.length - 1; i >= 0; i--) {
+      if (finalMessages[i].role === 'user') {
+        const currentContent = finalMessages[i].content;
+        const contentArray = [];
+        if (typeof currentContent === 'string') {
+          contentArray.push({ type: 'text', text: currentContent });
+        } else if (Array.isArray(currentContent)) {
+          contentArray.push(...currentContent);
+        }
+        for (const img of body.uploadedImages) {
+          const imgUrl = typeof img === 'string' ? img : (img.dataUrl || img.publicUrl || img.imageUrl || img.url);
+          if (imgUrl && !contentArray.some(c => (c?.image_url?.url === imgUrl || c?.image_url === imgUrl))) {
+            contentArray.push({ type: 'image_url', image_url: { url: imgUrl } });
+          }
+        }
+        finalMessages[i].content = contentArray;
+        break;
+      }
+    }
+  }
+
   // Model selection
-  let selectedUpstreamModel = 'gpt-4.1-mini';
-  if (enableReasoning) {
+  let selectedUpstreamModel = process.env.TOKENMIX_CHAT_MODEL || 'gpt-4.1-mini';
+  if (hasImagesInPayload) {
+    selectedUpstreamModel = 'gpt-4.1-mini'; // Always route to vision-capable model
+  } else if (enableReasoning) {
     selectedUpstreamModel = 'grok-4.1-fast-reasoning';
   }
 
-  // Rotate across TokenMix keys
+  const candidateModels = hasImagesInPayload
+    ? ['gpt-4.1-mini', 'gpt-4o-mini', 'llama-4-maverick']
+    : (enableReasoning ? ['grok-4.1-fast-reasoning', 'gpt-4.1-mini', 'gpt-4o-mini'] : ['gpt-4.1-mini', 'gpt-4o-mini', 'qwen3.8-flash']);
+
+  // Rotate across TokenMix keys with model fallback
   let upstreamResponse = null;
   let lastErr = null;
 
-  for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
-    const key = TOKENMIX_API_KEYS[i];
-    try {
-      const resp = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: selectedUpstreamModel,
-          messages: finalMessages,
-          temperature,
-          max_tokens,
-          stream: Boolean(stream),
-        }),
-      });
+  for (const modelToTry of candidateModels) {
+    for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
+      const key = TOKENMIX_API_KEYS[i];
+      try {
+        const resp = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            model: modelToTry,
+            messages: finalMessages,
+            temperature,
+            max_tokens,
+            stream: Boolean(stream),
+          }),
+        });
 
-      if (resp.ok) {
-        upstreamResponse = resp;
-        break;
-      } else {
-        const errTxt = await resp.text();
-        lastErr = new Error(`Key ${i} failed: ${resp.status} ${errTxt.slice(0, 100)}`);
+        if (resp.ok) {
+          upstreamResponse = resp;
+          break;
+        } else {
+          const errTxt = await resp.text();
+          lastErr = new Error(`Model ${modelToTry} key ${i} failed: ${resp.status} ${errTxt.slice(0, 100)}`);
+        }
+      } catch (e) {
+        lastErr = e;
       }
-    } catch (e) {
-      lastErr = e;
     }
+    if (upstreamResponse && upstreamResponse.ok) break;
   }
 
   // If no env keys configured on Edge yet, proxy securely via Vercel CDN rewrite to the local backend server (which holds .env locally)
