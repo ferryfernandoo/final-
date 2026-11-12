@@ -263,9 +263,9 @@ export default async function handler(req) {
   }
 
   // Model selection
-  let selectedUpstreamModel = 'gemini-2.5-flash';
+  let selectedUpstreamModel = 'gpt-4.1-mini';
   if (enableReasoning) {
-    selectedUpstreamModel = 'doubao-seed-2.0-lite';
+    selectedUpstreamModel = 'grok-4.1-fast-reasoning';
   }
 
   // Rotate across TokenMix keys

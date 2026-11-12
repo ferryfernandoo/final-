@@ -3739,80 +3739,92 @@ app.post(['/api/chat', '/api/subagent/orchestrate'], async (req, res) => {
         res.on('close', handleClientDisconnect);
 
         // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & IMMEDIATE FIRST-TOKEN STREAMING)
-        let selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'gemini-2.5-flash';
+        let selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'gpt-4.1-mini';
         const reqModelLower = (requestedModel || '').toLowerCase();
         const enableReasoning = req.body.enableReasoning === true || reqModelLower.includes('reason') || reqModelLower.includes('think') || reqModelLower.includes('boron');
 
         if (hasImagesInPayload) {
-          selectedModel = 'gemini-2.5-flash';
+          selectedModel = 'gpt-4.1-mini';
           console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
         } else if (reqModelLower.includes('70b')) {
           selectedModel = 'llama-3.3-70b';
         } else if (enableReasoning) {
-          selectedModel = 'doubao-seed-2.0-lite';
+          selectedModel = 'grok-4.1-fast-reasoning';
         } else {
-          // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to gemini-2.5-flash for instant sub-second response
-          selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'gemini-2.5-flash';
+          // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to gpt-4.1-mini for instant sub-second response
+          selectedModel = process.env.TOKENMIX_CHAT_MODEL || 'gpt-4.1-mini';
         }
         console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Reasoning: ${enableReasoning}, Vision: ${hasImagesInPayload})`);
 
-        // 1. Try High-Speed AI Engine with Key Rotation across all active keys
+        // 1. Try High-Speed AI Engine with Key Rotation across all active healthy keys & model fallback
         if (TOKENMIX_API_KEYS.length > 0) {
-          for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
-            const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
-            const key = TOKENMIX_API_KEYS[idx];
-            if (exhaustedTokenMixKeys.has(key)) continue;
-            let attempts = 0;
-            const maxAttempts = 2;
-            while (attempts < maxAttempts) {
-              try {
-                console.log(`[CHAT] Attempting high-speed chat request with key index ${idx}...`);
-                tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${key}`,
-                  },
-                  signal: upstreamAbortController.signal,
-                  body: JSON.stringify({
-                    model: selectedModel,
-                    messages: messages,
-                    temperature: req.body.temperature || 0.6,
-                    max_tokens: req.body.max_tokens || 4096,
-                    presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
-                    frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
-                    stream: shouldStream,
-                    ...(selectedModel.includes('doubao') && !enableReasoning ? { reasoning_effort: 'none' } : {})
-                  }),
-                });
+          const candidateModels = Array.from(new Set([
+            selectedModel,
+            process.env.TOKENMIX_CHAT_MODEL || 'gpt-4.1-mini',
+            'gpt-4.1-mini',
+            'gpt-4o-mini',
+            'qwen3.8-flash'
+          ]));
 
-                if (tokenmixResponse.ok) {
-                  console.log(`[CHAT] ✅ High-Speed AI responded successfully with key index ${idx}`);
-                  reqRecord.responseStream = tokenmixResponse;
-                  lastError = null;
-                  activeChatKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
-                  break;
-                } else {
-                  const errText = await tokenmixResponse.text().catch(() => '');
-                  const status = tokenmixResponse.status;
-                  if (status === 402 || status === 401 || status === 429) {
-                    exhaustedTokenMixKeys.add(key);
-                    console.warn(`[CHAT] ⚠️ Key index ${idx} marked exhausted (${status}). Removed from active rotation.`);
+          for (const modelToTry of candidateModels) {
+            for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
+              const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
+              const key = TOKENMIX_API_KEYS[idx];
+              if (exhaustedTokenMixKeys.has(key)) continue;
+              let attempts = 0;
+              const maxAttempts = 2;
+              while (attempts < maxAttempts) {
+                try {
+                  console.log(`[CHAT] Attempting high-speed chat request with model ${modelToTry} & key index ${idx}...`);
+                  tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${key}`,
+                    },
+                    signal: upstreamAbortController.signal,
+                    body: JSON.stringify({
+                      model: modelToTry,
+                      messages: messages,
+                      temperature: req.body.temperature || 0.6,
+                      max_tokens: req.body.max_tokens || 4096,
+                      presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
+                      frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
+                      stream: shouldStream
+                    }),
+                  });
+
+                  if (tokenmixResponse.ok) {
+                    console.log(`[CHAT] ✅ High-Speed AI responded successfully with model ${modelToTry} (key index ${idx})`);
+                    reqRecord.responseStream = tokenmixResponse;
+                    lastError = null;
+                    activeChatKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
+                    break;
+                  } else {
+                    const errText = await tokenmixResponse.text().catch(() => '');
+                    const status = tokenmixResponse.status;
+                    if (status === 402 || status === 401 || status === 429) {
+                      exhaustedTokenMixKeys.add(key);
+                      console.warn(`[CHAT] ⚠️ Key index ${idx} marked exhausted (${status}). Removed from active rotation.`);
+                    }
+                    lastError = new Error(`Model ${modelToTry} with key ${idx} failed with status ${status}: ${errText}`);
+                    console.warn(`[CHAT] Model ${modelToTry} key ${idx} status ${status}: ${errText.slice(0, 100)}`);
+                    break;
                   }
-                  lastError = new Error(`Key index ${idx} failed with status ${status}: ${errText}`);
-                  console.warn(`[CHAT] Key index ${idx} status ${status}: ${errText.slice(0, 100)}`);
+                } catch (e) {
+                  if (e?.name === 'AbortError' || clientDisconnected) {
+                    console.log('[CHAT] Stream connection aborted by user stop.');
+                    if (!res.writableEnded) {
+                      try { res.end('data: [DONE]\n\n'); } catch (_e) {}
+                    }
+                    return;
+                  }
+                  lastError = e;
+                  console.warn(`[CHAT] Key error with index ${idx}: ${e.message}`);
                   break;
                 }
-              } catch (e) {
-                if (e?.name === 'AbortError' || clientDisconnected) {
-                  console.log('[CHAT] Stream connection aborted by user stop.');
-                  if (!res.writableEnded) {
-                    try { res.end('data: [DONE]\n\n'); } catch (_e) {}
-                  }
-                  return;
-                }
-                lastError = e;
-                console.warn(`[CHAT] Key error with index ${idx}: ${e.message}`);
+              }
+              if (tokenmixResponse && tokenmixResponse.ok) {
                 break;
               }
             }

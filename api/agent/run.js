@@ -114,7 +114,7 @@ export default async function handler(req) {
           'Authorization': `Bearer ${key}`
         },
         body: JSON.stringify({
-          model: 'gemini-2.5-flash',
+          model: 'gpt-4.1-mini',
           messages: upstreamMessages,
           temperature: 0.4,
           max_tokens: 4096,
