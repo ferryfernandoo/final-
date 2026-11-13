@@ -1,4 +1,8 @@
 import { API_BASE_URL } from '../apiConfig';
+import {
+  downloadBlob as universalDownloadBlob,
+  downloadFromUrl as universalDownloadFromUrl
+} from './universalDownloadService';
 
 const LOCAL_STORAGE_KEY = 'deepernova_saved_images';
 const MAX_LOCAL_IMAGES = 50; // Prevent localStorage QuotaExceededError
@@ -156,28 +160,18 @@ export const downloadImageDirectly = async (imageUrl, defaultFilename = 'deepern
   if (imageUrl.startsWith('data:')) {
     try {
       const blob = dataURLtoBlob(imageUrl);
-      triggerBlobDownload(blob, filename);
+      await triggerBlobDownload(blob, filename);
       return true;
     } catch (e) {
-      console.warn('[ImageStorageService] dataURL conversion fallback to anchor:', e);
-      const link = document.createElement('a');
-      link.href = imageUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      console.warn('[ImageStorageService] dataURL conversion fallback to URL download:', e);
+      await universalDownloadFromUrl(imageUrl, filename);
       return true;
     }
   }
 
-  // 2. Blob URL -> Direct link download
+  // 2. Blob URL -> Universal download
   if (imageUrl.startsWith('blob:')) {
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await universalDownloadFromUrl(imageUrl, filename);
     return true;
   }
 
@@ -193,7 +187,7 @@ export const downloadImageDirectly = async (imageUrl, defaultFilename = 'deepern
   }
 
   if (downloadBlob && downloadBlob.size > 0) {
-    triggerBlobDownload(downloadBlob, filename);
+    await triggerBlobDownload(downloadBlob, filename);
     return true;
   }
 
@@ -222,22 +216,15 @@ export const downloadImageDirectly = async (imageUrl, defaultFilename = 'deepern
     });
 
     if (canvasBlob) {
-      triggerBlobDownload(canvasBlob, filename);
+      await triggerBlobDownload(canvasBlob, filename);
       return true;
     }
   } catch (canvasErr) {
     console.log('[ImageStorageService] Canvas conversion error:', canvasErr.message);
   }
 
-  // 5. Direct Anchor download fallback
-  const link = document.createElement('a');
-  link.href = imageUrl;
-  link.setAttribute('download', filename);
-  link.setAttribute('target', '_blank');
-  link.rel = 'noopener noreferrer';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // 5. Direct Anchor / Native DownloadManager fallback
+  await universalDownloadFromUrl(imageUrl, filename);
   return true;
 };
 
@@ -254,15 +241,6 @@ export const dataURLtoBlob = (dataurl) => {
 };
 
 export const triggerBlobDownload = (blob, filename) => {
-  const blobUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = blobUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => {
-    try { URL.revokeObjectURL(blobUrl); } catch (_) {}
-  }, 4000);
+  return universalDownloadBlob(blob, filename);
 };
 

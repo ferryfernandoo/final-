@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
+import { downloadText } from '../services/universalDownloadService';
 import './GlobalMemorySettings.css';
 
 /**
@@ -166,15 +167,8 @@ export default function GlobalMemorySettings({ isOpen, onClose, isAuthenticated,
     const header = `=================================================\nDEEPERNOVA AI - EXPORTED KNOWLEDGE & MEMORY BASE\n=================================================\n${userLanguage === 'zh' ? '导出日期' : userLanguage === 'id' ? 'Tanggal Export' : 'Export Date'} : ${new Date().toLocaleString(userLanguage === 'zh' ? 'zh-CN' : userLanguage === 'id' ? 'id-ID' : 'en-US')}\n${userLanguage === 'zh' ? '训练会话' : userLanguage === 'id' ? 'Sesi Terlatih' : 'Trained Sessions'}  : ${messageCount} ${userLanguage === 'zh' ? '次' : 'sesi'}\n${userLanguage === 'zh' ? '最后更新' : userLanguage === 'id' ? 'Diperbarui' : 'Updated'}     : ${formatDate(lastUpdated)}\n=================================================\n\n${userLanguage === 'zh' ? 'AI 行为指令与知识库' : userLanguage === 'id' ? 'INSTUKSI & PENGETAHUAN AI' : 'AI INSTRUCTIONS & KNOWLEDGE'}:\n\n`;
     
     const fullContent = header + memory;
-    const blob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' });
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.setAttribute('download', `Deepernova_AI_Memory_Knowledge_${new Date().toISOString().slice(0,10)}.txt`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl);
+    const filename = `Deepernova_AI_Memory_Knowledge_${new Date().toISOString().slice(0,10)}.txt`;
+    downloadText(fullContent, filename, 'text/plain;charset=utf-8');
   };
 
   const formatDate = (dateStr) => {

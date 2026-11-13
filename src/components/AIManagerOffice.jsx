@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { registerBackHandler } from '../services/mobileNavigationService';
+import { downloadFromUrl } from '../services/universalDownloadService';
 import './AIManagerOffice.css';
 
 // Helper: Real-time XMLHttpRequest upload with exact percentage tracking
@@ -192,12 +193,7 @@ const CloudMediaViewerModal = ({ file, onClose, getFileIcon }) => {
 
   const handleDownload = () => {
     if (!activeSrc) return;
-    const a = document.createElement('a');
-    a.href = activeSrc;
-    a.download = file.name || 'download';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    downloadFromUrl(activeSrc, file.name || 'download');
   };
 
   const handleToggleZoom = () => {
@@ -529,22 +525,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
   const triggerFileDownload = (file) => {
     if (!file) return;
     const url = file.dataUrl || file.fileData || `/api/cloud/files/${file.id}/raw`;
-    if (url.startsWith('data:')) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name || 'download';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      const a = document.createElement('a');
-      a.href = `/api/cloud/files/${file.id}/raw`;
-      a.download = file.name || 'download';
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    downloadFromUrl(url, file.name || 'download');
   };
 
   const [currentFolderId, setCurrentFolderId] = useState(null);

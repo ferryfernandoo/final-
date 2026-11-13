@@ -4,6 +4,7 @@
  */
 
 import { API_BASE_URL } from '../apiConfig';
+import { downloadFromUrl } from './universalDownloadService';
 
 class DocumentGenerationService {
   /**
@@ -58,12 +59,7 @@ class DocumentGenerationService {
    * Download file
    */
   static downloadFile(url, fileName) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    return downloadFromUrl(url, fileName);
   }
 
   /**

@@ -9,6 +9,7 @@ import ImageGenerationService from '../services/imageGenerationService';
 import ClientFileParser from '../services/clientFileParser';
 import { deepernovaTtsService } from '../services/deepernovaTtsService';
 import { saveImageToGallery, downloadImageDirectly } from '../services/imageStorageService';
+import { downloadText } from '../services/universalDownloadService';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch, buildGuaranteedReferenceSources, fetchImagesForQuery } from '../services/clientSearchService';
@@ -3378,15 +3379,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
     const textData = messages.map(m => `[${m.sender === 'user' ? 'Anda' : 'Deepernova AI'}]:\n${m.text || m.content || ''}\n\n`).join('---\n\n');
-    const blob = new Blob([textData], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(activeConvTitle || 'obrolan').toLowerCase().replace(/[^a-z0-9]/g, '_')}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const mdFilename = `${(activeConvTitle || 'obrolan').toLowerCase().replace(/[^a-z0-9]/g, '_')}.md`;
+    downloadText(textData, mdFilename, 'text/markdown;charset=utf-8');
     showAlert(userLanguage === 'id' ? '📥 Obrolan berhasil diekspor!' : '📥 Chat exported successfully!', 'success', 3000);
   };
 
@@ -3958,19 +3952,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         mimeType = 'text/css';
       }
       
-      const blob = new Blob([htmlContent], { type: mimeType });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = htmlFilename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      alert(userLanguage === 'id' 
-        ? `✅ File diunduh: ${htmlFilename}` 
-        : `✅ File downloaded: ${htmlFilename}`);
+      downloadText(htmlContent, htmlFilename, mimeType);
       setShowHtmlEditor(false);
     } catch (error) {
       alert(`❌ ${error.message}`);

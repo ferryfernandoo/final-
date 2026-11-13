@@ -11,6 +11,7 @@
 // JSZip is loaded lazily inside downloadAllSubAgentFilesAsZip() to keep initial bundle light.
 import { API_BASE_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
+import { downloadBlob } from './universalDownloadService.js';
 
 export const SUBAGENT_FLAG_REGEX = /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([\s\S]+?)\]/i;
 export const SUBAGENT_XML_REGEX = /<subagent(?:_orchestrate)?>\s*([\s\S]+?)\s*<\/subagent(?:_orchestrate)?>/i;
@@ -184,14 +185,8 @@ export function downloadSingleSubAgentFile(file) {
   if (!file || !file.content) return;
   const meta = getSubAgentFileMeta(file.name);
   const blob = new Blob([file.content], { type: `${meta.mime};charset=utf-8` });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = file.name.split('/').pop() || 'file.txt';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  const fileName = file.name.split('/').pop() || 'file.txt';
+  return downloadBlob(blob, fileName, { mimeType: `${meta.mime};charset=utf-8` });
 }
 
 /**
@@ -214,14 +209,7 @@ export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'dee
     .slice(0, 40) || 'deepernova-subagent';
 
   const blob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${slug}-files.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return downloadBlob(blob, `${slug}-files.zip`, { mimeType: 'application/zip' });
 }
 
 /**

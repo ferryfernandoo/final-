@@ -6131,6 +6131,119 @@ app.get('/api/documents/view/xlsx/:fileName', (req, res) => {
   }
 });
 
+// ============== UNIVERSAL TEMP DOWNLOAD RELAY (FOR MOBILE APK & BLOB HANDOFF) ==============
+const tempDownloadRelayStore = new Map();
+const TEMP_DOWNLOAD_TTL_MS = 15 * 60 * 1000;
+const TEMP_DOWNLOAD_MAX_BYTES = 25 * 1024 * 1024;
+const TEMP_DOWNLOAD_MAX_ENTRIES = 80;
+
+const sanitizeDownloadFileName = (rawName) => {
+  const base = path.basename(String(rawName || '').trim() || 'deepernova-file.txt');
+  const cleaned = base
+    .replace(/[\r\n\0"<>:|?*\\/]/g, '_')
+    .replace(/^\.+/, '')
+    .slice(0, 160);
+  return cleaned || 'deepernova-file.txt';
+};
+
+const sanitizeDownloadMimeType = (rawMime) => {
+  const base = String(rawMime || '').split(';')[0].trim().toLowerCase();
+  if (/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/.test(base)) {
+    return base;
+  }
+  return 'application/octet-stream';
+};
+
+const cleanupExpiredTempDownloads = () => {
+  const now = Date.now();
+  for (const [token, entry] of tempDownloadRelayStore.entries()) {
+    if (!entry || now - entry.createdAt > TEMP_DOWNLOAD_TTL_MS) {
+      tempDownloadRelayStore.delete(token);
+    }
+  }
+};
+
+app.post('/api/files/temp-download', (req, res) => {
+  try {
+    cleanupExpiredTempDownloads();
+    const { base64, text, fileName, mimeType } = req.body || {};
+
+    let buffer = null;
+    if (typeof base64 === 'string' && base64.length > 0) {
+      const stripped = base64.includes(',') ? base64.split(',').pop() : base64;
+      buffer = Buffer.from(stripped, 'base64');
+    } else if (typeof text === 'string') {
+      buffer = Buffer.from(text, 'utf8');
+    } else {
+      return res.status(400).json({ error: 'Payload file (base64 atau text) diperlukan.' });
+    }
+
+    if (!buffer || buffer.length === 0) {
+      return res.status(400).json({ error: 'File kosong tidak dapat diunduh.' });
+    }
+    if (buffer.length > TEMP_DOWNLOAD_MAX_BYTES) {
+      return res.status(413).json({ error: 'Ukuran file melebihi batas maksimal 25 MB.' });
+    }
+
+    while (tempDownloadRelayStore.size >= TEMP_DOWNLOAD_MAX_ENTRIES) {
+      const oldestKey = tempDownloadRelayStore.keys().next().value;
+      if (!oldestKey) break;
+      tempDownloadRelayStore.delete(oldestKey);
+    }
+
+    const token = uuidv4();
+    const safeFileName = sanitizeDownloadFileName(fileName);
+    const safeMimeType = sanitizeDownloadMimeType(mimeType);
+
+    tempDownloadRelayStore.set(token, {
+      buffer,
+      fileName: safeFileName,
+      mimeType: safeMimeType,
+      createdAt: Date.now()
+    });
+
+    const downloadPath = `/api/files/temp-download/${encodeURIComponent(token)}/${encodeURIComponent(safeFileName)}`;
+    return res.json({
+      success: true,
+      token,
+      fileName: safeFileName,
+      size: buffer.length,
+      downloadUrl: downloadPath
+    });
+  } catch (err) {
+    console.error('[TEMP_DOWNLOAD] Upload error:', err);
+    return res.status(500).json({ error: err.message || 'Gagal menyiapkan unduhan file.' });
+  }
+});
+
+app.get('/api/files/temp-download/:token/:fileName?', (req, res) => {
+  try {
+    cleanupExpiredTempDownloads();
+    const token = String(req.params.token || '').trim();
+    if (!/^[a-f0-9-]{16,64}$/i.test(token)) {
+      return res.status(400).send('Token unduhan tidak valid.');
+    }
+
+    const entry = tempDownloadRelayStore.get(token);
+    if (!entry) {
+      return res.status(404).send('Link unduhan sudah kedaluwarsa atau tidak ditemukan.');
+    }
+
+    const safeFileName = sanitizeDownloadFileName(req.params.fileName || entry.fileName);
+    const encodedName = encodeURIComponent(safeFileName);
+
+    res.setHeader('Content-Type', entry.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Length', String(entry.buffer.length));
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodedName}`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(entry.buffer);
+  } catch (err) {
+    console.error('[TEMP_DOWNLOAD] Serve error:', err);
+    return res.status(500).send('Gagal mengunduh file.');
+  }
+});
+
 // ============== IMAGE GENERATION API ==============
 const TOKENMIX_IMAGE_GENERATIONS_URL = 'https://api.tokenmix.ai/v1/images/generations';
 const TOKENMIX_IMAGE_EDITS_URL = 'https://api.tokenmix.ai/v1/images/edits';

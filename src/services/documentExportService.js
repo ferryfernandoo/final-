@@ -3,6 +3,8 @@
  * Handles DOCX, PPTX, and Excel export
  */
 
+import { downloadBlob as universalDownloadBlob } from './universalDownloadService';
+
 // Simple DOCX export (requires docx library in production)
 export const exportToDocx = (content, fileName) => {
   try {
@@ -73,15 +75,7 @@ export const exportToExcel = (rows, fileName) => {
 
 // Generic download file helper
 const downloadFile = (blob, fileName) => {
-  const url = URL.createObjectURL(blob);
-  const element = document.createElement('a');
-  element.href = url;
-  element.download = fileName;
-  element.style.display = 'none';
-  document.body.appendChild(element);
-  element.click();
-  document.body.removeChild(element);
-  URL.revokeObjectURL(url);
+  return universalDownloadBlob(blob, fileName);
 };
 
 // Convert JSON to Excel data

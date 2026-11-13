@@ -15,6 +15,7 @@ import remarkGfm from 'remark-gfm';
 import { evaluateFormula, formatRupiah, formatUSD, formatPercent, parseCleanNumber, colIdxToLetter, parseCellRef } from '../utils/excelFormulaEngine.js';
 import { BUILTIN_MACROS, runBuiltinMacro, executeCustomMacroScript } from '../utils/excelMacroEngine.js';
 import { BUSINESS_TEMPLATES, TEMPLATE_CATEGORIES } from '../utils/businessTemplates.js';
+import { downloadBlob, downloadFromUrl } from '../services/universalDownloadService';
 
 // ===== CELL FORMAT MODEL =====
 const defaultCellFormat = () => ({
@@ -3952,10 +3953,7 @@ Ingat, format '[RUN_AGENT: Topik]' ini sangat krusial agar UI bisa memunculkan t
     ctx.fillText(title, 50, 40);
     
     const dataUrl = canvas.toDataURL('image/png');
-    const el = document.createElement('a');
-    el.href = dataUrl;
-    el.download = `${title}_curve.png`;
-    el.click();
+    downloadFromUrl(dataUrl, `${title}_curve.png`, { mimeType: 'image/png' });
   };
 
   const triggerPreset = (promptText, title) => {
@@ -10119,14 +10117,7 @@ Instruksi Pengguna: ${targetPrompt}`;
   };
 
   const downloadFile = (blob, fileName) => {
-    const el = document.createElement('a');
-    el.href = URL.createObjectURL(blob);
-    el.download = fileName;
-    el.style.display = 'none';
-    document.body.appendChild(el);
-    el.click();
-    document.body.removeChild(el);
-    URL.revokeObjectURL(el.href);
+    return downloadBlob(blob, fileName);
   };
 
   // ===== PARSE TABLES FROM AI RESPONSE =====
@@ -10751,12 +10742,10 @@ Instruksi Pengguna: ${targetPrompt}`;
 
       // Download file from server
       const downloadUrl = result.downloadUrl;
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = result.filename || `${documentTitle || 'presentation'}.pptx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await downloadFromUrl(
+        downloadUrl,
+        result.filename || `${documentTitle || 'presentation'}.pptx`
+      );
 
       console.log('[PPT_EDITOR] ✅ Download complete:', result.filename);
       

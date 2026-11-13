@@ -3,6 +3,7 @@ import { registerBackHandler } from '../services/mobileNavigationService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
+import { downloadFromUrl } from '../services/universalDownloadService';
 import AgentExecutionTree, { extractExecutionStepsAndCleanContent } from './AgentExecutionTree';
 import { detectLanguageSync, saveLanguage, LANGUAGE_OPTIONS } from '../utils/languageDetector';
 import './AgentChat.css';
@@ -978,37 +979,13 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     const pathStr = typeof fileOrPath === 'string' ? fileOrPath : (fileOrPath.path || fileOrPath.name);
     const fileName = (typeof fileOrPath === 'string' ? fileOrPath.split('/').pop() : fileOrPath.name) || pathStr.split('/').pop() || 'download';
     const url = AgentService.getDownloadUrl(currentSessionId, pathStr);
-    try {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        try { document.body.removeChild(a); } catch (_) {}
-      }, 250);
-    } catch {
-      window.open(url, '_blank');
-    }
+    downloadFromUrl(url, fileName);
   };
 
   const handleDownloadAllZip = () => {
     if (!currentSessionId) return;
     const url = AgentService.getZipDownloadUrl(currentSessionId);
-    try {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `sandbox_${currentSessionId}.zip`;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        try { document.body.removeChild(a); } catch (_) {}
-      }, 250);
-    } catch {
-      window.open(url, '_blank');
-    }
+    downloadFromUrl(url, `deepernova-project-${currentSessionId.slice(-6)}.zip`, { mimeType: 'application/zip' });
   };
 
   // Open any sandbox deliverable file directly in Typernova Studio (DocumentEditor)

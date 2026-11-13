@@ -5,6 +5,7 @@
  */
 
 import { nativeBridge } from './nativeBridge';
+import { downloadText } from './universalDownloadService';
 
 const STORAGE_KEY = 'deepernova_reminders_v1';
 
@@ -289,13 +290,8 @@ class ReminderService {
    */
   downloadICS(reminder) {
     const content = this.generateICSFile(reminder);
-    const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', `${reminder.title.replace(/[^a-z0-9]/gi, '_')}.ics`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `${reminder.title.replace(/[^a-z0-9]/gi, '_')}.ics`;
+    return downloadText(content, filename, 'text/calendar;charset=utf-8');
   }
 
   /**

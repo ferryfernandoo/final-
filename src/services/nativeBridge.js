@@ -53,7 +53,14 @@ class NativeBridge {
         if (status.display !== 'granted') {
           await notifs.requestPermissions();
         }
-        this.registerNotificationActions();
+          await notifs.createChannel?.({
+            id: 'deepernova_downloads',
+            name: 'File Downloads',
+            description: 'Notifikasi unduhan file dari DeeperNova AI',
+            importance: 4,
+            visibility: 1
+          }).catch(() => {});
+          this.registerNotificationActions();
       } catch (e) {
         console.warn('[NativeBridge] Error requesting notification permissions:', e);
       }
@@ -216,6 +223,59 @@ class NativeBridge {
       return true;
     }
     return false;
+  }
+
+  async isNativeApp() {
+    if (this.isNative) return true;
+    const cap = await getCapacitor();
+    const native = !!(cap?.Capacitor?.isNativePlatform?.());
+    this.isNative = native;
+    return native;
+  }
+
+  /**
+   * Trigger a local device notification when a file finishes downloading in the APK.
+   */
+  async showDownloadCompleteNotification({ fileName, savedPath, subtitle } = {}) {
+    const isNative = await this.isNativeApp();
+    if (!isNative) return false;
+    const notifs = await getLocalNotifications();
+    if (!notifs) return false;
+
+    try {
+      const perm = await notifs.checkPermissions();
+      if (perm?.display !== 'granted') {
+        const req = await notifs.requestPermissions();
+        if (req?.display !== 'granted') return false;
+      }
+
+      await notifs.createChannel?.({
+        id: 'deepernova_downloads',
+        name: 'File Downloads',
+        description: 'Notifikasi unduhan file dari DeeperNova AI',
+        importance: 4,
+        visibility: 1
+      }).catch(() => {});
+
+      const safeName = fileName || 'file';
+      const notifId = Math.floor(Math.abs(hashCode(`dl_${safeName}_${Date.now()}`)) % 2147483647) || 1001;
+      await notifs.schedule({
+        notifications: [
+          {
+            id: notifId,
+            title: `Unduhan selesai: ${safeName}`,
+            body: subtitle || (savedPath ? `Tersimpan di ${savedPath}` : 'File berhasil diunduh ke perangkat Anda.'),
+            schedule: { at: new Date(Date.now() + 80) },
+            channelId: 'deepernova_downloads',
+            extra: { fileName: safeName, savedPath: savedPath || '' }
+          }
+        ]
+      });
+      return true;
+    } catch (e) {
+      console.warn('[NativeBridge] Download notification failed:', e);
+      return false;
+    }
   }
 }
 

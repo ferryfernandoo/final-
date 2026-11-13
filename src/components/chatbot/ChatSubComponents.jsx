@@ -6,6 +6,7 @@ import katex from 'katex';
 import { highlightCode } from '../../utils/codeHighlight';
 import { formatBubbleDomainLabel } from './chatConstants';
 import { parseCodeStructure } from './chatTextUtils';
+import { downloadText } from '../../services/universalDownloadService';
 
 export const AutoRedirectCountdownCard = React.memo(({
   target = 'documents',
@@ -720,15 +721,7 @@ export const CodeBlockHolder = React.memo(({
     e.stopPropagation();
     const ext = getFileExtension(language);
     const filename = `code_${Date.now()}.${ext}`;
-    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadText(code, filename, 'text/plain;charset=utf-8');
   };
 
   const langLabel = getLanguageLabel(language);

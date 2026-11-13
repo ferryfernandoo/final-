@@ -15,6 +15,7 @@ import {
   SmoothGeneratedImage
 } from './ChatSubComponents';
 import { FormattedMessageBody } from './ChatMessageFormatter';
+import { downloadFromUrl } from '../../services/universalDownloadService';
 
 const SubAgentOrchestratorCard = lazy(() => import('./SubAgentOrchestratorCard'));
 
@@ -372,14 +373,7 @@ const ChatMessageItemComponent = ({
             border: '1px solid rgba(100, 200, 255, 0.3)'
           }}>
             <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = message.downloadUrl;
-                link.download = message.fileName;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
+              onClick={() => downloadFromUrl(message.downloadUrl, message.fileName)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
