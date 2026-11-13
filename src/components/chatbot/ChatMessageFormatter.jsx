@@ -1,7 +1,7 @@
 // ============================================================
 // Deepernova AI ChatBot — Memoized Message Text & Markdown Formatter
 // ============================================================
-import React, { useMemo, lazy, Suspense } from 'react';
+import React, { useMemo, useState, useRef, useEffect, lazy, Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cleanCodeBlock } from '../../utils/codeHighlight';
@@ -19,7 +19,11 @@ import {
   parseChartDataFromText,
   removeExecutionLogLines,
   removeDownloadStatusLines,
-  normalizeInlineMarkdownImages
+  normalizeInlineMarkdownImages,
+  isLikelyImageUrl,
+  isImageLabelText,
+  isValidRenderableImageSrc,
+  stripAllImageMarkdownAndRawLinks
 } from './chatTextUtils';
 import { formatBubbleDomainLabel } from './chatConstants';
 
@@ -243,6 +247,72 @@ export const parseQuizText = (
   );
 };
 
+const SafeMarkdownFigure = React.memo(({
+  resolvedSrc,
+  cleanAlt,
+  hasCaption,
+  handleImageClick,
+  userLanguage
+}) => {
+  const [failed, setFailed] = useState(false);
+  const figRef = useRef(null);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [resolvedSrc]);
+
+  if (!resolvedSrc || failed) {
+    return null;
+  }
+
+  const handleError = () => {
+    try {
+      const fig = figRef.current;
+      const wrapper = fig?.closest('p.ai-paragraph, li.message-list-item');
+      if (fig && wrapper) {
+        let remainingText = '';
+        for (const node of wrapper.childNodes) {
+          if (node === fig) continue;
+          remainingText += node.textContent || '';
+        }
+        const stripped = remainingText
+          .replace(/[\s\-*•()[\]:.,;!?]+/g, '')
+          .replace(/(?:foto|gambar|image|photo|ilustrasi|visual|berikut(?:\s*(?:foto|gambar)(?:nya)?)?|lihat(?:\s*(?:foto|gambar))?)/gi, '');
+        if (!stripped) {
+          wrapper.style.display = 'none';
+        }
+      }
+    } catch (_) {}
+    setFailed(true);
+  };
+
+  const handleLoad = (e) => {
+    if (e.currentTarget && e.currentTarget.naturalWidth === 0) {
+      handleError();
+    }
+  };
+
+  return (
+    <figure ref={figRef} className="inline-markdown-figure">
+      <img
+        src={resolvedSrc}
+        alt={cleanAlt || 'Foto'}
+        className="inline-markdown-image"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onClick={() => handleImageClick?.(resolvedSrc, cleanAlt || 'Image')}
+        onLoad={handleLoad}
+        onError={handleError}
+        style={{ cursor: 'pointer' }}
+        title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
+      />
+      {hasCaption && (
+        <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
+      )}
+    </figure>
+  );
+});
+
 export const formatMessageContent = ({
   text,
   isStreaming = false,
@@ -277,6 +347,10 @@ export const formatMessageContent = ({
   }
 
   tempText = tempText.replace(/!\[Generated Image\]\([^)]+\)/g, '');
+  tempText = tempText.replace(/\[IMAGE_URL:\s*[^\]]*(?:\]|$)/gi, '');
+  if (message?.imageError || message?.isError) {
+    tempText = stripAllImageMarkdownAndRawLinks(tempText);
+  }
   tempText = tempText.replace(/\[SEARCH_REQUEST:\s*(.+?)\]/g, '');
   tempText = tempText.replace(/\[RECALL_MEMORY:\s*(.+?)\]/g, '');
   tempText = tempText.replace(/\[(MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|MEMORY_RECALL):[\s\S]*?\]/gi, '');
@@ -328,7 +402,12 @@ export const formatMessageContent = ({
   const renderMarkdownFigure = (src, alt) => {
     if (!src) return null;
     const cleanSrc = String(src || '').replace(/&amp;/g, '&').trim();
-    if (cleanSrc.includes('favicons?sz=') || cleanSrc.endsWith('.ico') || cleanSrc.startsWith('data:image/svg')) {
+    if (
+      !isValidRenderableImageSrc(cleanSrc) ||
+      cleanSrc.includes('favicons?sz=') ||
+      cleanSrc.endsWith('.ico') ||
+      cleanSrc.startsWith('data:image/svg')
+    ) {
       return null;
     }
     let rawAlt = String(alt || '').trim();
@@ -350,27 +429,14 @@ export const formatMessageContent = ({
       : cleanSrc;
 
     return (
-      <figure className="inline-markdown-figure">
-        <img
-          src={resolvedSrc}
-          alt={cleanAlt || 'Foto'}
-          className="inline-markdown-image"
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          onClick={() => handleImageClick?.(resolvedSrc, cleanAlt || 'Image')}
-          onError={(e) => {
-            const imgEl = e.currentTarget;
-            const fig = imgEl.closest('figure');
-            if (fig) fig.style.display = 'none';
-            else imgEl.style.display = 'none';
-          }}
-          style={{ cursor: 'pointer' }}
-          title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
-        />
-        {hasCaption && (
-          <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
-        )}
-      </figure>
+      <SafeMarkdownFigure
+        key={resolvedSrc}
+        resolvedSrc={resolvedSrc}
+        cleanAlt={cleanAlt}
+        hasCaption={hasCaption}
+        handleImageClick={handleImageClick}
+        userLanguage={userLanguage}
+      />
     );
   };
 
@@ -392,13 +458,15 @@ export const formatMessageContent = ({
       }
     }
 
-    // Intercept image target URLs (Google thumbnails, image extensions, gstatic)
-    // to prevent rendering them as text links or citation pills
+    const rawChildren = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
+
+    // Intercept image target URLs (Google thumbnails, image extensions, image CDNs, photo-label links)
+    // to prevent rendering them as raw text links or citation pills
     const isImageTarget =
-      /(\.(?:jpe?g|png|webp|gif|svg|avif)(?:\?.*)?$)|(?:gstatic\.com\/images)|(?:googleusercontent\.com)|(?:\/images\?q=tbn:)|(?:encrypted-tbn)/i.test(targetUrl);
+      isLikelyImageUrl(targetUrl) ||
+      (isImageLabelText(rawChildren) && isValidRenderableImageSrc(targetUrl));
 
     if (isImageTarget) {
-      const rawChildren = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
       return renderMarkdownFigure(targetUrl, rawChildren);
     }
 
@@ -421,6 +489,9 @@ export const formatMessageContent = ({
     }
 
     if (!domain && !href.startsWith('cite:')) {
+      if (isImageLabelText(rawChildren)) {
+        return null;
+      }
       return (
         <a href={href} target="_blank" rel="noopener noreferrer" className="message-link">
           {children}
@@ -428,7 +499,6 @@ export const formatMessageContent = ({
       );
     }
 
-    const rawChildren = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
     const cleanChildren = String(rawChildren || '').trim();
 
     // Check if this link should render as an inline citation pill or regular sentence link
@@ -564,7 +634,7 @@ export const formatMessageContent = ({
           p: ({ children }) => <>{children}</>,
         }}
       >
-        {cellText}
+        {normalizeInlineMarkdownImages(cellText)}
       </ReactMarkdown>
     );
   };
@@ -605,9 +675,10 @@ export const formatMessageContent = ({
     .replace(/\\t/g, ' ');
   processedText = removeExecutionLogLines(processedText);
 
-  if (isStreaming) {
-    processedText = processedText.replace(/\[IMAGE_REQUEST:\s*.*?\]?/g, '');
-  }
+  // Always strip stray/unclosed [IMAGE_REQUEST: or [IMAGE_URL: tags (whether streaming or finished)
+  processedText = processedText
+    .replace(/\[IMAGE_REQUEST:\s*[^\]]*(?:\]|$)/gi, '')
+    .replace(/\[IMAGE_URL:\s*[^\]]*(?:\]|$)/gi, '');
 
   let downloadUrl = null;
   let fileName = null;
@@ -870,7 +941,10 @@ export const formatMessageContent = ({
       .replace(/([^\n#])\n(#{1,6}\s+)/g, '$1\n\n$2')
       .replace(/([^\n])\n(\*\*(?:\d+[\.\)]|[A-Z][\.\)]|•|-|\*|[A-Za-z0-9\s]+:)[^*]+\*\*)/g, '$1\n\n$2');
 
-    let preprocessedText = normalizeInlineMarkdownImages(cleanedNormalized);
+    let preprocessedText = normalizeInlineMarkdownImages(cleanedNormalized, {
+      isStreaming,
+      stripImages: Boolean(message?.imageError || message?.isError)
+    });
     if (sources && sources.length > 0) {
       preprocessedText = preprocessedText.replace(/\[(?:Sumber|Source|Ref)\s*#?\s*(\d+)\](?!\s*\()/gi, (match, num) => {
         const idx = parseInt(num, 10);
@@ -1019,9 +1093,9 @@ export const formatMessageContent = ({
 
         const specificUrl = message.imageUrls && message.imageUrls[imageIndex];
         const specificError = message.imageErrors && message.imageErrors[imageIndex];
-
-        const imageUrl = specificUrl || (imageIndex === 0 ? (message.imageUrl || extractedUrlFromText) : null) || extractedUrlFromText;
         const imageError = specificError || (imageIndex === 0 ? message.imageError : null);
+
+        const imageUrl = specificUrl || (!imageError && imageIndex === 0 ? (message.imageUrl || extractedUrlFromText) : null);
 
         if (imageUrl) {
           result.push(

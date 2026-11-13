@@ -853,6 +853,7 @@ export const SmoothGeneratedImage = React.memo(({
   alt = 'Generated Image',
   onClick,
   onUpscaleHD,
+  onError,
   isUpscaling = false,
   title = '',
   upscaleTitle = '',
@@ -861,11 +862,17 @@ export const SmoothGeneratedImage = React.memo(({
   imgStyle = {}
 }) => {
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
   const imgRef = useRef(null);
 
   useEffect(() => {
+    setFailed(false);
     setLoaded(Boolean(imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0));
   }, [src]);
+
+  if (!src || failed) {
+    return null;
+  }
 
   return (
     <div
@@ -884,8 +891,20 @@ export const SmoothGeneratedImage = React.memo(({
         loading="lazy"
         decoding="async"
         className={`message-image smooth-gen-image${loaded ? ' loaded' : ''}`}
-        onLoad={() => setLoaded(true)}
-        onError={() => setLoaded(true)}
+        onLoad={() => {
+          if (imgRef.current && imgRef.current.naturalWidth === 0) {
+            setFailed(true);
+            setLoaded(true);
+            onError?.();
+            return;
+          }
+          setLoaded(true);
+        }}
+        onError={() => {
+          setFailed(true);
+          setLoaded(true);
+          onError?.();
+        }}
         onClick={onClick}
         style={imgStyle}
         title={title}

@@ -452,38 +452,196 @@ export const ensurePerfectTable = (text) => {
   return resultLines.join('\n');
 };
 
-export const normalizeInlineMarkdownImages = (text) => {
-  if (!text || typeof text !== 'string') return text || '';
-  let res = text;
+export const isLikelyImageUrl = (rawUrl = '') => {
+  const url = String(rawUrl || '').trim();
+  if (!url) return false;
+  if (/^data:image\//i.test(url)) return true;
+  return (
+    /(\.(?:jpe?g|png|webp|gif|svg|avif|bmp|tiff?)(?:[?#][^\s)\]]*)?$)/i.test(url) ||
+    /(?:gstatic\.com\/images|googleusercontent\.com|\/images\?q=tbn:|encrypted-tbn|\/api\/images\/|\/generated-|\/watermarked-|pollinations\.ai\/prompt|oaidalleapiprod|replicate\.delivery|fal\.media|fal-cdn|images\.unsplash\.com|images\.pexels\.com|cdn\.pixabay\.com|i\.imgur\.com|media\.giphy\.com|upload\.wikimedia\.org\/wikipedia\/[^/]+\/thumb\/|ytimg\.com\/vi\/|i\.ytimg\.com|pbs\.twimg\.com\/media\/)/i.test(url) ||
+    /[?&](?:format|fm|ext|output|type)=(?:jpe?g|png|webp|gif|avif)\b/i.test(url)
+  );
+};
 
-  // 1. Convert standard markdown links pointing to images into markdown image syntax ![]()
-  // Matches [Alt Text](URL) where URL is an image or Google thumbnail
+export const isImageLabelText = (rawLabel = '') => {
+  const label = String(rawLabel || '').trim();
+  if (!label) return false;
+  return (
+    /^\[?\s*(?:foto|gambar|image|photo|ilustrasi|visual|thumbnail|lihat\s*(?:foto|gambar)|encrypted(?:-tbn\d*)?)\s*#?\d*\s*\]?$/i.test(label) ||
+    /^https?:\/\//i.test(label)
+  );
+};
+
+export const isValidRenderableImageSrc = (rawSrc = '') => {
+  const clean = String(rawSrc || '').trim();
+  if (!clean || clean.length < 4) return false;
+  if (/^(?:javascript:|vbscript:|about:|data:image\/svg|null$|undefined$|#$|\.\.\.$|url_foto$|url$)/i.test(clean)) {
+    return false;
+  }
+  if (/^(?:https?:\/\/|\/api\/|\/generated-|\/watermarked-|blob:|data:image\/)/i.test(clean)) {
+    return !/\s/.test(clean) && clean !== 'https://' && clean !== 'http://';
+  }
+  return false;
+};
+
+const cleanImageAltText = (alt = '') => {
+  let cleanAlt = String(alt || '').trim();
+  cleanAlt = cleanAlt.replace(/^(?:foto|gambar|image)\s*#?\d*\s*[:\-]\s*/i, '').trim();
+  if (
+    /^(?:encrypted|image|foto|link|url|http|photo|ilustrasi|visual|lihat\s*(?:foto|gambar)|foto\s*#?\d*|gambar\s*#?\d*)$/i.test(cleanAlt) ||
+    /^https?:\/\//i.test(cleanAlt)
+  ) {
+    return '';
+  }
+  return cleanAlt;
+};
+
+const normalizeCandidateImageUrl = (rawUrl = '') => {
+  let url = String(rawUrl || '').replace(/&amp;/g, '&').trim();
+  url = url.replace(/^<+|>+$/g, '').trim();
+  if (/^(?:https?:\/\/|\/)/i.test(url) && /\s/.test(url)) {
+    url = url.replace(/ /g, '%20');
+  }
+  return url;
+};
+
+export const normalizeInlineMarkdownImages = (text, options = {}) => {
+  if (!text || typeof text !== 'string') return text || '';
+  const { isStreaming = false, stripImages = false } = options || {};
+
+  // Protect code fences and inline code spans even when normalizeInlineMarkdownImages is called standalone
+  const codePlaceholders = [];
+  const stashCode = (m) => {
+    const token = `__IMG_NORM_CODE_${codePlaceholders.length}__`;
+    codePlaceholders.push([token, m]);
+    return token;
+  };
+  let res = text
+    .replace(/```[\s\S]*?```|```[\s\S]*$/g, stashCode)
+    .replace(/`[^`\n]+`/g, stashCode);
+
+  // 0. Strip explicit [IMAGE_URL: ...] tags (both complete and truncated mid-stream)
+  res = res.replace(/\[IMAGE_URL:\s*[^\]]*(?:\]|$)/gi, '');
+  if (stripImages) {
+    res = res.replace(/\[IMAGE_REQUEST:[\s\S]*?(?:\]|$)/gi, '');
+  }
+
+  // 1. Normalize HTML <img ...> tags into markdown images or strip broken/incomplete <img> tags
+  res = res.replace(/<img\b([^>]*)>/gi, (match, attrs) => {
+    if (stripImages) return '';
+    const srcMatch = attrs.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    const altMatch = attrs.match(/\balt\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const cleanUrl = normalizeCandidateImageUrl(srcMatch ? (srcMatch[1] || srcMatch[2] || srcMatch[3] || '') : '');
+    if (!isValidRenderableImageSrc(cleanUrl)) return '';
+    const cleanAlt = cleanImageAltText(altMatch ? (altMatch[1] || altMatch[2] || '') : '');
+    return `![${cleanAlt}](${cleanUrl})`;
+  });
+  res = res.replace(/<img\b[^>]*$/gi, '');
+
+  // 2. Sanitize existing markdown images ![alt](url) (remove invalid/empty URLs, or strip all if stripImages)
+  res = res.replace(/!\[([^\]]*)\]\(([^)\n]*)\)/g, (match, alt, url) => {
+    if (stripImages) return '';
+    const cleanUrl = normalizeCandidateImageUrl(url);
+    if (!isValidRenderableImageSrc(cleanUrl)) return '';
+    const safeUrl = cleanUrl.replace(/\(/g, '%28').replace(/\)/g, '%29');
+    return `![${cleanImageAltText(alt)}](${safeUrl})`;
+  });
+
+  // Strip unclosed / truncated markdown image tags like ![Alt](https://...
+  res = res.replace(/!\[[^\]]*\]\([^)\n]*$/gm, '');
+  if (isStreaming) {
+    res = res.replace(/!\[[^\]]*$/g, '');
+    res = res.replace(/\[(?:IMAGE_REQUEST|IMAGE_URL):[^\]]*$/gi, '');
+    res = res.replace(/\[(?:IMA|IMAG|IMAGE|IMAGE_R|IMAGE_RE|IMAGE_REQ|IMAGE_REQU|IMAGE_REQUE|IMAGE_REQUES|IMAGE_REQUEST|IMAGE_U|IMAGE_UR|IMAGE_URL)$/gi, '');
+  }
+
+  // 3. Convert standard markdown links pointing to images or image-label anchors into markdown image syntax ![]()
   res = res.replace(
-    /(?<!!)\[([^\]]*)\]\((https?:\/\/[^\s)]*(?:gstatic\.com\/images|googleusercontent\.com|encrypted-tbn|\.(?:jpe?g|png|webp|gif|svg|avif))(?:\?[^\s)]*)?)\)/gi,
+    /(?<!!)\[([^\]]*)\]\(([^)\n]+)\)/gi,
     (match, alt, url) => {
-      let cleanAlt = (alt || '').trim();
-      cleanAlt = cleanAlt.replace(/^(?:foto|gambar|image)\s*#?\d*\s*[:\-]\s*/i, '');
-      if (/^(?:encrypted|image|foto|link|url|http|foto\s*#?\d*|gambar\s*#?\d*)$/i.test(cleanAlt)) {
-        cleanAlt = '';
-      }
-      return `![${cleanAlt}](${url})`;
+      const cleanUrl = normalizeCandidateImageUrl(url);
+      const isImgTarget = isLikelyImageUrl(cleanUrl) || isImageLabelText(alt);
+      if (!isImgTarget) return match;
+      if (stripImages || !isValidRenderableImageSrc(cleanUrl)) return '';
+      const safeUrl = cleanUrl.replace(/\(/g, '%28').replace(/\)/g, '%29');
+      return `![${cleanImageAltText(alt)}](${safeUrl})`;
     }
   );
 
-  // 2. Remove redundant raw image URLs immediately following an image tag (e.g. ![Alt](url) (url))
-  res = res.replace(/(!\[[^\]]*\]\([^\)]+\))\s*(?:\(|\[)?https?:\/\/[^\s\)]+(?:\)|\])?/gi, '$1');
+  // Strip unclosed image-label markdown links at line end (e.g. [Foto](https://...)
+  res = res.replace(/(?<!!)\[([^\]]*)\]\(([^)\n]*)$/gm, (match, alt, url) => {
+    return isImageLabelText(alt) || isLikelyImageUrl(url) ? '' : match;
+  });
 
-  // 3. Convert standalone photo lines like "Foto: https://..." or "Gambar 1: https://..." into markdown image
-  res = res.replace(/^(?:Foto|Gambar|Image)\s*(?:#?\d+)?\s*[:\-]\s*(https?:\/\/[^\s]+)$/gmi, '![]($1)');
+  // 4. Remove redundant raw image URLs immediately following an image tag (e.g. ![Alt](url) (url))
+  res = res.replace(
+    /(!\[[^\]]*\]\([^)]+\))[ \t]*(?:\n[ \t]*)?(?:\(|\[|<)?((?:https?:\/\/|\/api\/images\/)[^\s)\]>]+)(?:\)|\]|>)?/gi,
+    (match, imgTag, trailingUrl) => (isLikelyImageUrl(trailingUrl) || imgTag.includes(trailingUrl) ? imgTag : match)
+  );
 
-  // 4. Strip stray citation bubbles for encrypted-tbn or gstatic (e.g. [Encrypted](https://encrypted-tbn0...))
-  res = res.replace(/\[\s*(?:encrypted|encrypted-tbn\d*)\s*\]\((https?:\/\/[^\)]+)\)/gi, '![]($1)');
+  // 5. Convert standalone labeled photo lines like "Foto: https://..." or "- Gambar 1: (https://...)"
+  res = res.replace(
+    /^([ \t]*(?:[-*•]\s+|\d+\.\s+)?)?(?:Foto|Gambar|Image|Photo|Ilustrasi|Visual|Link\s*(?:Foto|Gambar|Image))\s*(?:#?\d+)?\s*[:\-]\s*(?:<|\()?((?:https?:\/\/|\/api\/images\/)[^\s<>)\]]+)(?:>|\))?[ \t]*$/gmi,
+    (match, prefix, url) => {
+      const cleanUrl = normalizeCandidateImageUrl(url);
+      if (stripImages || !isValidRenderableImageSrc(cleanUrl)) return '';
+      return `${prefix || ''}![](${cleanUrl})`;
+    }
+  );
+
+  // 6. Convert parenthesized or bare image URLs in text so ReactMarkdown handles them as figures (which hide on load failure)
+  res = res.replace(
+    /(?<![!\](\["'=a-zA-Z0-9_/])\(\s*(https?:\/\/[^\s()<>]+)\s*\)/gi,
+    (match, url) => {
+      const cleanUrl = normalizeCandidateImageUrl(url);
+      if (!isLikelyImageUrl(cleanUrl)) return match;
+      if (stripImages || !isValidRenderableImageSrc(cleanUrl)) return '';
+      return `![](${cleanUrl})`;
+    }
+  );
+
+  res = res.replace(
+    /(?<![!(\["'=a-zA-Z0-9_/])(?:<)?(https?:\/\/[^\s<>()\[\]"`]+)(?:>)?/gi,
+    (match, rawUrl) => {
+      let clean = rawUrl;
+      let trailingPunct = '';
+      const punctMatch = clean.match(/([.,;!?]+)$/);
+      if (punctMatch) {
+        trailingPunct = punctMatch[1];
+        clean = clean.slice(0, -trailingPunct.length);
+      }
+      const normalized = normalizeCandidateImageUrl(clean);
+      if (!isLikelyImageUrl(normalized)) return match;
+      if (stripImages || !isValidRenderableImageSrc(normalized)) return trailingPunct;
+      return `![](${normalized})${trailingPunct}`;
+    }
+  );
+
+  // 7. Strip stray citation bubbles for encrypted-tbn or gstatic
+  res = res.replace(/\[\s*(?:encrypted|encrypted-tbn\d*)\s*\]\((https?:\/\/[^\)]+)\)/gi, (m, url) =>
+    stripImages || !isValidRenderableImageSrc(url) ? '' : `![](${normalizeCandidateImageUrl(url)})`
+  );
+
+  if (stripImages) {
+    res = res
+      .replace(/^[ \t]*(?:[-*•]\s+|\d+\.\s+)?(?:Foto|Gambar|Image|Ilustrasi)\s*(?:#?\d+)?\s*[:\-]?[ \t]*$/gmi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  for (const [token, original] of codePlaceholders) {
+    res = res.replace(token, original);
+  }
 
   return res;
 };
 
-export const cleanResponseText = (text) => {
+export const stripAllImageMarkdownAndRawLinks = (text = '') =>
+  normalizeInlineMarkdownImages(text, { isStreaming: false, stripImages: true });
+
+export const cleanResponseText = (text, options = {}) => {
   if (!text || typeof text !== 'string') return text || '';
+  const { stripImages = false } = options || {};
 
   let cleaned = text;
   cleaned = cleaned.replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[\s\S]*?\]/gi, '');
@@ -546,15 +704,16 @@ export const cleanResponseText = (text) => {
   const preservedTable = preserveTableSections(preserved.text);
   let s = preservedTable.text;
 
-  s = s
-    .replace(/<br\s*\/?>/gi, '\n')
+  s = s.replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>\s*<p>/gi, '\n\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<p>/gi, '\n')
     .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
     .replace(/<b>(.*?)<\/b>/gi, '**$1**')
-    .replace(/<em>(.*?)<\/em>/gi, '*$1*')
-    .replace(/<[^>]+>/g, '');
+    .replace(/<em>(.*?)<\/em>/gi, '*$1*');
+
+  s = normalizeInlineMarkdownImages(s, { isStreaming: false, stripImages });
+  s = s.replace(/<[^>]+>/g, '');
 
   s = s
     .replace(/\\r\\n/g, '\n')
@@ -568,7 +727,7 @@ export const cleanResponseText = (text) => {
   s = s.replace(/--\*\*/g, '').replace(/\*\*--/g, '');
   s = s.replace(/\n\s*[-*_]{3,}\s*\n/g, '\n\n---\n\n');
   s = s.replace(/([^\n#])\n(#{1,6}\s+)/g, '$1\n\n$2');
-  s = normalizeInlineMarkdownImages(s);
+  s = normalizeInlineMarkdownImages(s, { isStreaming: false, stripImages });
 
   const rawLines = s.split('\n');
   const cleanedLines = [];
@@ -649,7 +808,7 @@ export const sanitizeStreamingText = (text) => {
   s = s.replace(/--\*\*/g, '');
   s = s.replace(/\*\*--/g, '');
   s = s.replace(/[\u2012\u2013\u2014\u2015]+/g, '-');
-  s = normalizeInlineMarkdownImages(s);
+  s = normalizeInlineMarkdownImages(s, { isStreaming: true });
 
   const streamingLines = s.split('\n');
   const formattedStreamingLines = [];

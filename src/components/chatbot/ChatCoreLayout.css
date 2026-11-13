@@ -3601,6 +3601,12 @@
   line-height: 1.74;
 }
 
+.message-content p:empty,
+.ai-paragraph:empty {
+  display: none;
+  margin: 0;
+}
+
 .message-content p:last-child,
 .ai-paragraph:last-child {
   margin-bottom: 0;

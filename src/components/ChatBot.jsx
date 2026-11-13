@@ -45,6 +45,7 @@ import {
   removeExecutionLogLines,
   removeDownloadStatusLines,
   humanizeClientError,
+  isLikelyImageUrl,
 } from './chatbot/chatTextUtils';
 import { formatMessageContent } from './chatbot/ChatMessageFormatter';
 import ChatMessageItem from './chatbot/ChatMessageItem';
@@ -5480,15 +5481,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         );
       } else {
         const isSafetyErr = err.message && err.message.includes('melanggar kebijakan kami');
-        const displayErrorMessage = isSafetyErr ? `❌ ${err.message}` : `❌ Gagal membuat gambar: ${err.message}`;
+        const cleanErrMsg = String(err.message || '').replace(/https?:\/\/\S+/gi, '').trim() || 'Model gambar sedang sibuk, coba lagi nanti.';
+        const displayErrorMessage = isSafetyErr ? `❌ ${cleanErrMsg}` : `❌ Gagal membuat gambar: ${cleanErrMsg}`;
 
-        // Update the thinking placeholder to show the failure clearly
+        // Update the thinking placeholder cleanly without spawning a duplicate fallback bubble
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === placeholderId
               ? {
                   ...msg,
                   text: displayErrorMessage,
+                  imageUrl: null,
+                  imageError: cleanErrMsg,
                   isThinking: false,
                   isError: true,
                 }
@@ -5496,20 +5500,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           )
         );
 
-        // Show error message in chat as a separate fallback
-        const errorId = Date.now() + '_err';
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: errorId,
-            text: displayErrorMessage,
-            sender: 'bot',
-            timestamp: new Date(),
-            isError: true,
-          },
-        ]);
-
-        showErrorBanner(isSafetyErr ? err.message : `Failed to generate image: ${err.message}`);
+        showErrorBanner(isSafetyErr ? cleanErrMsg : `Failed to generate image: ${cleanErrMsg}`);
       }
 
       setConvLoading(false);
@@ -6998,7 +6989,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           d.startsWith('encrypted') ||
           l.includes('encrypted-tbn') ||
           l.includes('/images?q=tbn:') ||
-          /\.(jpe?g|png|webp|gif|svg|avif)(\?.*)?$/i.test(l);
+          isLikelyImageUrl(l);
         return !isImage;
       });
 
@@ -7092,6 +7083,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           const idx = parseInt(numStr, 10) - 1;
           if (idx >= 0 && idx < sources.length) {
             const s = sources[idx];
+            if (!s?.link || isLikelyImageUrl(s.link)) {
+              return '';
+            }
             let domain = s.domain;
             if (!domain && s.link) {
               try {

@@ -444,6 +444,10 @@ const ChatMessageItemComponent = ({
                   onError={(e) => {
                     if (image.dataUrl && e.target.src !== image.dataUrl) {
                       e.target.src = image.dataUrl;
+                    } else {
+                      const card = e.currentTarget.closest('.user-attached-image-card');
+                      if (card) card.style.display = 'none';
+                      else e.currentTarget.style.display = 'none';
                     }
                   }}
                 />
