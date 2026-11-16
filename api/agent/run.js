@@ -102,30 +102,50 @@ export default async function handler(req) {
     content: prompt
   });
 
-  // Call upstream LLM stream
+  // Call upstream LLM stream with fast models and connect timeout
   let upstreamResp = null;
-  for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
-    const key = TOKENMIX_API_KEYS[i];
-    try {
-      const resp = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4.1-mini',
-          messages: upstreamMessages,
-          temperature: 0.4,
-          max_tokens: 4096,
-          stream: true
-        })
-      });
-      if (resp.ok) {
-        upstreamResp = resp;
-        break;
+  const agentModels = ['llama-3.3-70b', 'gpt-4o-mini', 'qwen3.8-flash'];
+  for (const agentModel of agentModels) {
+    let modelTimedOut = false;
+    for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
+      const key = TOKENMIX_API_KEYS[i];
+      const attemptAbort = new AbortController();
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        attemptAbort.abort();
+      }, 8000);
+      try {
+        const resp = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          signal: attemptAbort.signal,
+          body: JSON.stringify({
+            model: agentModel,
+            messages: upstreamMessages,
+            temperature: 0.4,
+            max_tokens: 4096,
+            stream: true
+          })
+        });
+        if (resp.ok) {
+          upstreamResp = resp;
+          break;
+        }
+      } catch {
+        if (timedOut) {
+          modelTimedOut = true;
+          break;
+        }
+      } finally {
+        clearTimeout(timer);
       }
-    } catch { }
+    }
+    if (upstreamResp && upstreamResp.ok) break;
+    if (modelTimedOut) continue;
   }
 
   // If no env keys configured on Edge yet, proxy securely via Vercel CDN rewrite to the local backend server (which holds .env locally)

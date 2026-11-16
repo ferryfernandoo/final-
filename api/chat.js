@@ -301,24 +301,33 @@ export default async function handler(req) {
   }
 
   // Model selection
-  let selectedUpstreamModel = process.env.TOKENMIX_CHAT_MODEL || 'gpt-4.1-mini';
+  const envChatModel = (process.env.TOKENMIX_CHAT_MODEL || '').trim();
+  const fastDefaultModel = (!envChatModel || envChatModel === 'gpt-4.1-mini') ? 'gpt-4o-mini' : envChatModel;
+  let selectedUpstreamModel = fastDefaultModel;
   if (hasImagesInPayload) {
-    selectedUpstreamModel = 'gpt-4.1-mini'; // Always route to vision-capable model
+    selectedUpstreamModel = 'gpt-4o-mini'; // Always route to fast vision-capable model
   } else if (enableReasoning) {
     selectedUpstreamModel = 'grok-4.1-fast-reasoning';
   }
 
   const candidateModels = hasImagesInPayload
-    ? ['gpt-4.1-mini', 'gpt-4o-mini', 'llama-4-maverick']
-    : (enableReasoning ? ['grok-4.1-fast-reasoning', 'gpt-4.1-mini', 'gpt-4o-mini'] : ['gpt-4.1-mini', 'gpt-4o-mini', 'qwen3.8-flash']);
+    ? ['gpt-4o-mini', 'llama-4-maverick', 'gpt-4.1-mini']
+    : (enableReasoning ? ['grok-4.1-fast-reasoning', 'gpt-4o-mini', 'llama-3.3-70b', 'qwen3.8-flash'] : Array.from(new Set([fastDefaultModel, 'gpt-4o-mini', 'llama-3.3-70b', 'qwen3.8-flash'])));
 
-  // Rotate across TokenMix keys with model fallback
+  // Rotate across TokenMix keys with model fallback and strict connect timeout
   let upstreamResponse = null;
   let lastErr = null;
 
   for (const modelToTry of candidateModels) {
+    let modelTimedOut = false;
     for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
       const key = TOKENMIX_API_KEYS[i];
+      const attemptAbort = new AbortController();
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        attemptAbort.abort();
+      }, modelToTry.includes('reasoning') ? 12000 : 7500);
       try {
         const resp = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
           method: 'POST',
@@ -326,6 +335,7 @@ export default async function handler(req) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${key}`,
           },
+          signal: attemptAbort.signal,
           body: JSON.stringify({
             model: modelToTry,
             messages: finalMessages,
@@ -344,9 +354,16 @@ export default async function handler(req) {
         }
       } catch (e) {
         lastErr = e;
+        if (timedOut) {
+          modelTimedOut = true;
+          break;
+        }
+      } finally {
+        clearTimeout(timer);
       }
     }
     if (upstreamResponse && upstreamResponse.ok) break;
+    if (modelTimedOut) continue;
   }
 
   // If no env keys configured on Edge yet, proxy securely via Vercel CDN rewrite to the local backend server (which holds .env locally)
