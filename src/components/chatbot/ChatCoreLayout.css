@@ -24,12 +24,38 @@
     display: block !important;
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background-color: rgba(15, 23, 42, 0.36);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 95;
     pointer-events: auto !important;
-    animation: fadeIn 0.2s ease;
+    animation: backdropReveal 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes backdropReveal {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+
+  to {
+    opacity: 1;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+}
+
+@keyframes sidebarItemSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(-16px, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -1415,20 +1441,44 @@
     width: 82vw;
     max-width: 320px;
     z-index: 1000;
-    border-radius: 0;
-    transform: translateX(0);
+    border-radius: 0 22px 22px 0;
+    transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition:
+      transform 0.46s cubic-bezier(0.34, 1.22, 0.64, 1),
+      opacity 0.3s ease,
+      border-radius 0.42s ease,
+      box-shadow 0.4s ease;
     will-change: transform, opacity;
-    box-shadow: 4px 0 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 12px 0 36px -4px rgba(15, 23, 42, 0.18);
+  }
+
+  .sidebar.open .meta-sidebar-top-bar {
+    animation: sidebarItemSlideIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+  }
+
+  .sidebar.open .meta-sidebar-nav-list {
+    animation: sidebarItemSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+  }
+
+  .sidebar.open .meta-history-section {
+    animation: sidebarItemSlideIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+  }
+
+  .sidebar.open .meta-sidebar-footer {
+    animation: sidebarItemSlideIn 0.44s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
   }
 
   .sidebar.closed {
     width: 82vw;
     max-width: 320px;
-    transform: translateX(-100%);
+    border-radius: 0 24px 24px 0;
+    transform: translate3d(-105%, 0, 0) scale(0.96);
     opacity: 0;
     pointer-events: none;
+    transition:
+      transform 0.36s cubic-bezier(0.32, 0.94, 0.42, 1),
+      opacity 0.24s ease;
   }
 
   .chatbot-container {

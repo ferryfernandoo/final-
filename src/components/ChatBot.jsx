@@ -9084,7 +9084,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             <button
               type="button"
               className="header-dock-btn"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={() => {
+                if (typeof document !== 'undefined' && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
+                  document.activeElement.blur();
+                }
+                setSidebarOpen(!sidebarOpen);
+              }}
               title={sidebarOpen ? (userLanguage === 'zh' ? '收起侧边栏' : userLanguage === 'id' ? 'Tutup sidebar' : 'Close sidebar') : (userLanguage === 'zh' ? '打开侧边栏' : userLanguage === 'id' ? 'Buka sidebar' : 'Open sidebar')}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

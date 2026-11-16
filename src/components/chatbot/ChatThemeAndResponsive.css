@@ -3009,7 +3009,7 @@
   }
 
   .claude-model-selector-btn {
-    padding: 0 10px !important;
+    padding: 0 11px !important;
     height: 34px !important;
     border-radius: 9999px !important;
     border: 1px solid rgba(15, 23, 42, 0.04) !important;
@@ -3025,18 +3025,11 @@
     flex-shrink: 1 !important;
   }
 
-  .model-btn-icon-wrap {
-    font-size: 11px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    flex-shrink: 0 !important;
-  }
-
   .model-btn-name {
     display: inline-block !important;
     font-size: 12px !important;
-    font-weight: 500 !important;
-    max-width: 72px !important;
+    font-weight: 550 !important;
+    max-width: 92px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;

@@ -1549,7 +1549,7 @@
     background-color: #f8fafc !important;
   }
 
-  /* Desktop Permanent Left Sidebar */
+  /* Desktop Permanent Left Sidebar with smooth spring dock transitions */
   .sidebar {
     position: relative !important;
     left: auto !important;
@@ -1559,7 +1559,7 @@
     min-width: 280px !important;
     max-width: 280px !important;
     z-index: 10 !important;
-    transform: none !important;
+    transform: translate3d(0, 0, 0) !important;
     opacity: 1 !important;
     visibility: visible !important;
     border-right: 1px solid #e2e8f0 !important;
@@ -1567,6 +1567,24 @@
     background: #ffffff !important;
     display: flex !important;
     flex-direction: column !important;
+    transition:
+      width 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
+      min-width 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
+      max-width 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
+      transform 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
+      opacity 0.28s ease !important;
+  }
+
+  .sidebar.open .meta-sidebar-top-bar {
+    animation: sidebarItemSlideIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
+  }
+
+  .sidebar.open .meta-sidebar-nav-list {
+    animation: sidebarItemSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+  }
+
+  .sidebar.open .meta-history-section {
+    animation: sidebarItemSlideIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
   }
 
   /* When sidebar is explicitly closed on desktop (collapse gracefully) */
@@ -1576,9 +1594,15 @@
     max-width: 0 !important;
     overflow: hidden !important;
     opacity: 0 !important;
-    transform: translateX(-100%) !important;
+    transform: translate3d(-100%, 0, 0) !important;
     border-right: none !important;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    pointer-events: none !important;
+    transition:
+      width 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
+      min-width 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
+      max-width 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
+      transform 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
+      opacity 0.22s ease !important;
   }
 
   /* No backdrop overlay on desktop widescreen */
@@ -2262,9 +2286,11 @@
   0% {
     transform: translateY(2px) scale(0.96, 0.88);
   }
+
   58% {
     transform: translateY(-3px) scale(1.016, 1.032);
   }
+
   100% {
     transform: translateY(-1px) scale(1, 1);
   }
@@ -2274,9 +2300,11 @@
   0% {
     transform: translateY(-2px) scale(1.016, 1.06);
   }
+
   55% {
     transform: translateY(1px) scale(0.975, 0.935);
   }
+
   100% {
     transform: translateY(0) scale(1, 1);
   }
@@ -3048,27 +3076,27 @@
 
 
 
-/* Model Dropdown Popup */
+/* Model Dropdown Popup - Clean Minimalist Surface */
 .claude-model-dropdown {
   position: absolute !important;
   bottom: calc(100% + 10px) !important;
   left: 12px !important;
   right: auto !important;
-  width: 320px !important;
+  width: 288px !important;
   max-width: calc(100vw - 32px) !important;
   max-height: min(335px, 44vh) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  backdrop-filter: blur(10px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
-  border: 1px solid rgba(226, 232, 240, 0.9) !important;
-  border-radius: 18px !important;
-  padding: 10px !important;
+  background: #ffffff !important;
+  backdrop-filter: blur(10px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(130%) !important;
+  border: 1px solid rgba(15, 23, 42, 0.09) !important;
+  border-radius: 16px !important;
+  padding: 8px !important;
   box-shadow:
-    0 18px 44px -6px rgba(15, 23, 42, 0.16),
-    0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+    0 14px 36px -6px rgba(15, 23, 42, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.04) !important;
   z-index: 1000 !important;
   animation: claudePopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
@@ -3167,57 +3195,35 @@
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
+  justify-content: space-between !important;
   gap: 10px !important;
-  padding: 8px 10px !important;
+  padding: 9px 11px !important;
   border-radius: 12px !important;
   border: 1px solid transparent !important;
   background: transparent !important;
   cursor: pointer !important;
   text-align: left !important;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.18s ease !important;
 }
 
 .model-option-item:hover {
-  background: #f8fafc !important;
-  border-color: rgba(226, 232, 240, 0.8) !important;
+  background: #f6f5f2 !important;
+  border-color: rgba(15, 23, 42, 0.05) !important;
 }
 
 [data-theme="dark"] .model-option-item:hover {
-  background: #27272a !important;
+  background: rgba(255, 255, 255, 0.06) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .model-option-item.active {
-  background: rgba(6, 182, 212, 0.06) !important;
-  border-color: rgba(6, 182, 212, 0.28) !important;
+  background: #f2f1ed !important;
+  border-color: rgba(15, 23, 42, 0.09) !important;
 }
 
 [data-theme="dark"] .model-option-item.active {
-  background: rgba(6, 182, 212, 0.12) !important;
-  border-color: rgba(6, 182, 212, 0.38) !important;
-}
-
-.model-option-icon-box {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
-  border-radius: 9px !important;
-  border: 1px solid transparent !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 13px !important;
-  transition: transform 0.2s ease !important;
-  flex-shrink: 0 !important;
-}
-
-.model-option-item:hover .model-option-icon-box {
-  transform: scale(1.08) !important;
-}
-
-.model-option-icon-cdn {
-  font-size: 13px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 .model-option-info {
@@ -3235,22 +3241,22 @@
 }
 
 .model-option-name {
-  font-size: 12.5px !important;
-  font-weight: 700 !important;
-  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #18181b !important;
   letter-spacing: -0.01em !important;
 }
 
 [data-theme="dark"] .model-option-name {
-  color: #f8fafc !important;
+  color: #f4f4f5 !important;
 }
 
 .model-option-pill {
-  font-size: 9.5px !important;
-  font-weight: 700 !important;
-  color: #0284c7 !important;
-  background: rgba(2, 132, 199, 0.1) !important;
-  padding: 1px 6px !important;
+  font-size: 10px !important;
+  font-weight: 550 !important;
+  color: #52525b !important;
+  background: rgba(15, 23, 42, 0.06) !important;
+  padding: 1.5px 7px !important;
   border-radius: 9999px !important;
   letter-spacing: 0.01em !important;
   line-height: 1.3 !important;
@@ -3258,30 +3264,34 @@
 }
 
 [data-theme="dark"] .model-option-pill {
-  color: #38bdf8 !important;
-  background: rgba(56, 189, 248, 0.15) !important;
+  color: #d4d4d8 !important;
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .model-option-sub {
-  font-size: 11px !important;
-  color: #64748b !important;
+  font-size: 11.5px !important;
+  color: #71717a !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  line-height: 1.3 !important;
+  line-height: 1.35 !important;
 }
 
 [data-theme="dark"] .model-option-sub {
-  color: #94a3b8 !important;
+  color: #a1a1aa !important;
 }
 
 .model-check-icon {
-  font-size: 12px !important;
-  margin-left: 4px !important;
+  color: #18181b !important;
+  margin-left: 6px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
+}
+
+[data-theme="dark"] .model-check-icon {
+  color: #ffffff !important;
 }
 
 /* Minimalist Tool Icon Buttons (Mic & Voice Mode) */

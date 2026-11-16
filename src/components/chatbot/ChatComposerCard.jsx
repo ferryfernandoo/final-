@@ -76,11 +76,7 @@ const ChatComposerCard = ({
     return () => clearTimeout(timer);
   }, [isExpanded]);
 
-  const dismissKeyboardAfterSend = () => {
-    setIsFocused(false);
-    setShowInputMenu(false);
-    setShowModelMenu(false);
-    setShowSlashMenu(false);
+  const blurComposerInputs = () => {
     const activeEl = document.activeElement;
     if (activeEl && typeof activeEl.blur === 'function' && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) {
       activeEl.blur();
@@ -97,6 +93,14 @@ const ChatComposerCard = ({
         stillFocused.blur();
       }
     });
+  };
+
+  const dismissKeyboardAfterSend = () => {
+    setIsFocused(false);
+    setShowInputMenu(false);
+    setShowModelMenu(false);
+    setShowSlashMenu(false);
+    blurComposerInputs();
   };
 
   // Keep textarea height collapsed cleanly when idle and auto-sized when expanded
@@ -336,19 +340,23 @@ const ChatComposerCard = ({
               <button
                 type="button"
                 className={`claude-model-selector-btn ${showModelMenu ? 'active' : ''}`}
-                onMouseDown={handleKeepFocusMouseDown}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsFocused(true);
-                  setShowModelMenu(!showModelMenu);
+                  const nextOpen = !showModelMenu;
                   setShowInputMenu(false);
+                  setShowSlashMenu(false);
+                  if (nextOpen) {
+                    // Drop mobile soft keyboard cleanly so user sees the model list unobstructed
+                    setIsFocused(false);
+                    blurComposerInputs();
+                    setShowModelMenu(true);
+                  } else {
+                    setShowModelMenu(false);
+                  }
                 }}
                 title={userLanguage === 'id' ? 'Pilih Model Deepernova AI' : 'Select Deepernova AI Model'}
                 tabIndex={isExpanded ? 0 : -1}
               >
-                <span className="model-btn-icon-wrap" style={{ color: currentModelObj.color || '#06b6d4' }}>
-                  <i className={`${currentModelObj.icon || 'fa-solid fa-microchip'} model-btn-cdn-icon`}></i>
-                </span>
                 <span className="model-btn-name">{currentModelObj.shortName || currentModelObj.name}</span>
                 <svg className={`model-chevron ${showModelMenu ? 'open' : ''}`} viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="6 9 12 15 18 9"></polyline>
@@ -555,7 +563,7 @@ const ChatComposerCard = ({
         <div className="claude-model-dropdown" onClick={(e) => e.stopPropagation()}>
           <div className="model-dropdown-header">
             <div className="model-dropdown-header-title">
-              <span>{userLanguage === 'id' ? 'Pilih Model AI' : 'Select AI Model'}</span>
+              <span>{userLanguage === 'id' ? 'Pilih Model AI' : 'Select Model'}</span>
             </div>
           </div>
           <div className="model-dropdown-list">
@@ -572,16 +580,6 @@ const ChatComposerCard = ({
                   setShowModelMenu(false);
                 }}
               >
-                <div
-                  className="model-option-icon-box"
-                  style={{
-                    background: m.bgColor || 'rgba(6, 182, 212, 0.12)',
-                    color: m.color || '#06b6d4',
-                    borderColor: m.color ? `${m.color}33` : 'transparent'
-                  }}
-                >
-                  <i className={`${m.icon} model-option-icon-cdn`}></i>
-                </div>
                 <div className="model-option-info">
                   <div className="model-option-name-row">
                     <span className="model-option-name">{m.name}</span>
@@ -592,8 +590,10 @@ const ChatComposerCard = ({
                   </span>
                 </div>
                 {selectedModel === m.id && (
-                  <span className="model-check-icon" style={{ color: m.color || '#06b6d4' }}>
-                    <i className="fa-solid fa-check"></i>
+                  <span className="model-check-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
                   </span>
                 )}
               </button>
