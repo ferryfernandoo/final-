@@ -51,6 +51,7 @@ const ChatComposerCard = ({
 }) => {
   const cardRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [morphPhase, setMorphPhase] = useState('');
 
   const hasText = Boolean((inputValue || '').trim().length > 0 || textQueue.length > 0);
   const hasAttachments = uploadedFiles.length > 0 || uploadedImages.length > 0;
@@ -62,9 +63,41 @@ const ChatComposerCard = ({
     showInputMenu ||
     showModelMenu ||
     showSlashMenu ||
-    isSttListening ||
-    isConvLoading
+    isSttListening
   );
+
+  // Trigger expressive bloom/shrink keyframe choreography only when state transitions
+  const prevExpandedRef = useRef(isExpanded);
+  useEffect(() => {
+    if (prevExpandedRef.current === isExpanded) return;
+    prevExpandedRef.current = isExpanded;
+    setMorphPhase(isExpanded ? 'anim-expanding' : 'anim-collapsing');
+    const timer = setTimeout(() => setMorphPhase(''), 520);
+    return () => clearTimeout(timer);
+  }, [isExpanded]);
+
+  const dismissKeyboardAfterSend = () => {
+    setIsFocused(false);
+    setShowInputMenu(false);
+    setShowModelMenu(false);
+    setShowSlashMenu(false);
+    const activeEl = document.activeElement;
+    if (activeEl && typeof activeEl.blur === 'function' && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) {
+      activeEl.blur();
+    }
+    if (textareaElementRef?.current && typeof textareaElementRef.current.blur === 'function') {
+      textareaElementRef.current.blur();
+    }
+    if (globalThis.heroTextareaRef && typeof globalThis.heroTextareaRef.blur === 'function') {
+      globalThis.heroTextareaRef.blur();
+    }
+    requestAnimationFrame(() => {
+      const stillFocused = document.activeElement;
+      if (stillFocused && typeof stillFocused.blur === 'function' && (stillFocused.tagName === 'TEXTAREA' || stillFocused.tagName === 'INPUT')) {
+        stillFocused.blur();
+      }
+    });
+  };
 
   // Keep textarea height collapsed cleanly when idle and auto-sized when expanded
   useEffect(() => {
@@ -153,7 +186,7 @@ const ChatComposerCard = ({
   return (
     <div
       ref={cardRef}
-      className={`input-container claude-style minimal-morph ${extraClassName} ${isExpanded ? 'expanded' : 'collapsed'} ${isConvLoading ? 'generating' : ''}`.trim()}
+      className={`input-container claude-style minimal-morph ${extraClassName} ${isExpanded ? 'expanded' : 'collapsed'} ${morphPhase} ${isConvLoading ? 'generating' : ''}`.trim()}
       onFocusCapture={handleFocusCapture}
       onBlurCapture={handleBlurCapture}
       onDragOver={enableDragDrop ? (e) => { e.preventDefault(); e.stopPropagation(); } : undefined}
@@ -258,6 +291,7 @@ const ChatComposerCard = ({
               if (e.nativeEvent && e.nativeEvent.isComposing) return;
               e.preventDefault();
               if (canSend) {
+                dismissKeyboardAfterSend();
                 handleSendMessage(e);
               }
             }
@@ -414,9 +448,10 @@ const ChatComposerCard = ({
               type={canSend ? 'submit' : 'button'}
               className={`claude-action-btn send-mode ${canSend ? 'has-text' : 'empty'}`}
               disabled={isTokenLimited}
-              onMouseDown={handleKeepFocusMouseDown}
+              onMouseDown={canSend ? undefined : handleKeepFocusMouseDown}
               onClick={(e) => {
                 if (canSend) {
+                  dismissKeyboardAfterSend();
                   if (syncHeroRef) {
                     handleSendMessage(e);
                   }

@@ -2441,17 +2441,15 @@
   position: absolute;
   inset: -12px -24px -85px -24px;
   border-radius: 40px;
-  background: radial-gradient(
-    ellipse 95% 55% at 42% calc(100% - 65px),
-    rgba(56, 189, 248, 0.22) 0%,
-    rgba(99, 102, 241, 0.14) 26%,
-    rgba(249, 115, 22, 0.07) 50%,
-    rgba(249, 115, 22, 0.025) 72%,
-    rgba(249, 115, 22, 0.005) 88%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 62%, rgba(0,0,0,0.55) 82%, rgba(0,0,0,0) 100%);
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 62%, rgba(0,0,0,0.55) 82%, rgba(0,0,0,0) 100%);
+  background: radial-gradient(ellipse 95% 55% at 42% calc(100% - 65px),
+      rgba(56, 189, 248, 0.22) 0%,
+      rgba(99, 102, 241, 0.14) 26%,
+      rgba(249, 115, 22, 0.07) 50%,
+      rgba(249, 115, 22, 0.025) 72%,
+      rgba(249, 115, 22, 0.005) 88%,
+      transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 62%, rgba(0, 0, 0, 0.55) 82%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 62%, rgba(0, 0, 0, 0.55) 82%, rgba(0, 0, 0, 0) 100%);
   filter: blur(28px) !important;
   pointer-events: none;
   z-index: -1;
@@ -2464,17 +2462,15 @@
 }
 
 [data-theme="dark"] .message.bot.is-streaming::before {
-  background: radial-gradient(
-    ellipse 95% 55% at 42% calc(100% - 65px),
-    rgba(56, 189, 248, 0.28) 0%,
-    rgba(139, 92, 246, 0.18) 26%,
-    rgba(244, 63, 94, 0.08) 50%,
-    rgba(244, 63, 94, 0.03) 72%,
-    rgba(244, 63, 94, 0.008) 88%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 62%, rgba(0,0,0,0.55) 82%, rgba(0,0,0,0) 100%);
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 62%, rgba(0,0,0,0.55) 82%, rgba(0,0,0,0) 100%);
+  background: radial-gradient(ellipse 95% 55% at 42% calc(100% - 65px),
+      rgba(56, 189, 248, 0.28) 0%,
+      rgba(139, 92, 246, 0.18) 26%,
+      rgba(244, 63, 94, 0.08) 50%,
+      rgba(244, 63, 94, 0.03) 72%,
+      rgba(244, 63, 94, 0.008) 88%,
+      transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 62%, rgba(0, 0, 0, 0.55) 82%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 62%, rgba(0, 0, 0, 0.55) 82%, rgba(0, 0, 0, 0) 100%);
   filter: blur(30px) !important;
 }
 
@@ -2833,30 +2829,43 @@
     padding: 7px 10px !important;
     box-sizing: border-box !important;
     transition:
-      border-radius 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-      padding 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-      min-height 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.28s ease,
+      width 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
+      max-width 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
+      border-radius 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
+      padding 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
+      min-height 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
+      box-shadow 0.3s ease,
       border-color 0.24s ease,
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      transform 0.34s cubic-bezier(0.32, 0.94, 0.42, 1) !important;
   }
 
   .input-container.claude-style.minimal-morph.collapsed {
-    max-width: 600px !important;
+    width: 90% !important;
+    max-width: 344px !important;
     border-radius: 9999px !important;
     min-height: 52px !important;
     padding: 7px 10px !important;
   }
 
   .input-container.claude-style.minimal-morph.expanded {
+    width: 100% !important;
     max-width: 600px !important;
     border-radius: 22px !important;
-    min-height: 108px !important;
+    min-height: 110px !important;
     padding: 13px 14px 54px 14px !important;
     border-color: rgba(15, 23, 42, 0.14) !important;
     box-shadow:
       0 14px 34px -6px rgba(15, 23, 42, 0.12),
       0 4px 12px -2px rgba(15, 23, 42, 0.06) !important;
+    transition:
+      width 0.46s cubic-bezier(0.34, 1.38, 0.64, 1),
+      max-width 0.46s cubic-bezier(0.34, 1.38, 0.64, 1),
+      border-radius 0.44s cubic-bezier(0.34, 1.32, 0.64, 1),
+      padding 0.44s cubic-bezier(0.34, 1.32, 0.64, 1),
+      min-height 0.44s cubic-bezier(0.34, 1.36, 0.64, 1),
+      box-shadow 0.32s ease,
+      border-color 0.24s ease,
+      transform 0.38s cubic-bezier(0.34, 1.38, 0.64, 1) !important;
   }
 
   [data-theme="dark"] .input-container.claude-style {

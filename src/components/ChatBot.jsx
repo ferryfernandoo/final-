@@ -5655,6 +5655,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
+    // Dismiss mobile soft keyboard & collapse input immediately after sending chat
+    try {
+      if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+        if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') {
+          document.activeElement.blur();
+        }
+      }
+      if (globalThis.textareaRef && typeof globalThis.textareaRef.blur === 'function') {
+        globalThis.textareaRef.blur();
+      }
+      if (globalThis.heroTextareaRef && typeof globalThis.heroTextareaRef.blur === 'function') {
+        globalThis.heroTextareaRef.blur();
+      }
+    } catch (_blurErr) {}
+
     // Instantly switch Send button into Stop Generating with zero delay!
     isUserStoppedRef.current = false;
     isSearchAbortedRef.current = false;
