@@ -1,5 +1,5 @@
 // Production Base URL (Vercel CDN + reverse proxy)
-export const CLOUDFLARE_BACKEND_URL = 'https://0cb0e44cce91b6.lhr.life';
+export const CLOUDFLARE_BACKEND_URL = 'https://avon-borough-jews-notes.trycloudflare.com';
 export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
 
 const getApiBaseUrl = () => {

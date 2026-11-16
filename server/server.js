@@ -880,8 +880,82 @@ app.get('/api/realtime/sync-stream', (req, res) => {
   });
 });
 
+// Shared streaming-capable reverse proxy helper for local backend services (Search Engine :4000, Order DTE :5000)
+const parseLocalServiceEndpoint = (rawUrl, fallbackPort) => {
+  try {
+    const parsed = new URL(String(rawUrl || '').startsWith('http') ? rawUrl : `http://127.0.0.1:${fallbackPort}`);
+    return {
+      host: parsed.hostname || '127.0.0.1',
+      port: Number(parsed.port) || fallbackPort
+    };
+  } catch {
+    return { host: '127.0.0.1', port: fallbackPort };
+  }
+};
+
+const forwardLocalBackendRequest = (req, res, port, targetPath = req.originalUrl, offlineMsg = 'Backend offline', host = '127.0.0.1') => {
+  const cleanHeaders = { ...req.headers, host: `${host}:${port}` };
+  delete cleanHeaders['content-length'];
+
+  const hasParsedBody = req.method !== 'GET' && req.method !== 'HEAD' && req.body !== undefined && req.is('application/json');
+  const bodyStr = hasParsedBody ? JSON.stringify(req.body) : null;
+  if (bodyStr !== null) {
+    cleanHeaders['content-length'] = Buffer.byteLength(bodyStr);
+  }
+
+  const proxyReq = http.request({
+    hostname: host,
+    port,
+    path: targetPath || req.originalUrl,
+    method: req.method,
+    headers: cleanHeaders
+  }, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', (err) => {
+    if (!res.headersSent) {
+      res.status(502).json({ error: offlineMsg, detail: err.message });
+    }
+  });
+
+  req.on('aborted', () => {
+    try { proxyReq.destroy(); } catch {}
+  });
+
+  if (bodyStr !== null) {
+    proxyReq.write(bodyStr);
+    proxyReq.end();
+  } else {
+    req.pipe(proxyReq, { end: true });
+  }
+};
+
 // GET & POST /api/search & /api/web-search - Ultra-fast proxy to Deepernova Hybrid Search Engine + SerpAPI Google
 app.all(['/api/search', '/api/web-search'], async (req, res) => {
+  const referer = String(req.headers.referer || '');
+  const isSearchUiQuery =
+    req.path === '/api/search' &&
+    (
+      referer.includes('/search') ||
+      req.query?.type !== undefined ||
+      req.query?.page !== undefined ||
+      req.query?.liveCrawl !== undefined ||
+      req.query?.timeFilter !== undefined
+    );
+  if (isSearchUiQuery) {
+    const searchEndpoint = parseLocalServiceEndpoint(process.env.DEEPERNOVA_SEARCH_API_URL, 4000);
+    return forwardLocalBackendRequest(
+      req,
+      res,
+      searchEndpoint.port,
+      req.originalUrl,
+      'Search Engine backend sedang tidak aktif atau reconnecting.',
+      searchEndpoint.host
+    );
+  }
+
   const query = (req.query?.q || req.query?.query || req.body?.q || req.body?.query || '').trim();
   const limit = Math.min(25, Math.max(1, parseInt(req.query?.limit || req.body?.limit || '10', 10)));
   const lang = req.query?.hl || req.query?.lang || req.body?.hl || 'id';
@@ -1342,6 +1416,36 @@ app.all('/api/v1/explain', (req, res) => proxyToSearchEngine('/explain', req, re
 app.all('/api/v1/status', (req, res) => proxyToSearchEngine('/status', req, res));
 app.all('/api/v1/crawled-results', (req, res) => proxyToSearchEngine('/crawled-results', req, res));
 app.all('/api/v1/news', (req, res) => proxyToSearchEngine('/news', req, res));
+app.use([
+  '/api/suggestions',
+  '/api/queries',
+  '/api/ai',
+  '/api/economics',
+  '/api/news/stats',
+  '/api/news/crawl',
+  '/api/geo',
+  '/api/tokoh',
+  '/api/images/recent',
+  '/api/images/stats',
+  '/api/images/crawl',
+  '/api/status',
+  '/api/telemetry',
+  '/api/crawl',
+  '/api/pagerank',
+  '/api/database/reset',
+  '/api/tunnel',
+  '/api/keys'
+], (req, res) => {
+  const searchEndpoint = parseLocalServiceEndpoint(SEARCH_ENGINE_TARGET, 4000);
+  return forwardLocalBackendRequest(
+    req,
+    res,
+    searchEndpoint.port,
+    req.originalUrl,
+    'Search Engine backend sedang tidak aktif atau reconnecting.',
+    searchEndpoint.host
+  );
+});
 app.use('/api/v1', apiProxyRoutes);
 
 
@@ -5727,6 +5831,17 @@ app.post(['/api/search', '/api/web-search'], handleUnifiedSearch);
 
 // Proxy route: News Search
 app.get('/api/news', async (req, res) => {
+  if (String(req.headers.referer || '').includes('/search') || req.query?.category !== undefined || req.query?.page !== undefined) {
+    const searchEndpoint = parseLocalServiceEndpoint(SEARCH_ENGINE_TARGET, 4000);
+    return forwardLocalBackendRequest(
+      req,
+      res,
+      searchEndpoint.port,
+      req.originalUrl,
+      'Search Engine backend sedang tidak aktif atau reconnecting.',
+      searchEndpoint.host
+    );
+  }
   try {
     const q = req.query.q;
     const limit = parseInt(req.query.limit || '5', 10);
@@ -7605,45 +7720,30 @@ app.use([
   '/uploads'
 ], (req, res, next) => {
   if (req.path.startsWith('/api/chat') || req.path.startsWith('/api/search')) return next();
-  
   const targetPath = req.originalUrl.replace(/^\/api\/dte/, '/api');
-  const options = {
-    hostname: '127.0.0.1',
-    port: DTE_BACKEND_PORT,
-    path: targetPath,
-    method: req.method,
-    headers: {
-      ...req.headers,
-      host: `127.0.0.1:${DTE_BACKEND_PORT}`
-    }
-  };
-
-  const proxyReq = http.request(options, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res, { end: true });
-  });
-
-  proxyReq.on('error', (err) => {
-    if (!res.headersSent) {
-      res.status(502).json({
-        error: 'Order DTE Backend sedang tidak aktif atau reconnecting.',
-        detail: err.message
-      });
-    }
-  });
-
-  if (req.body && Object.keys(req.body).length > 0 && req.is('application/json')) {
-    const bodyStr = JSON.stringify(req.body);
-    proxyReq.setHeader('content-length', Buffer.byteLength(bodyStr));
-    proxyReq.write(bodyStr);
-    proxyReq.end();
-  } else {
-    req.pipe(proxyReq, { end: true });
-  }
+  return forwardLocalBackendRequest(
+    req,
+    res,
+    DTE_BACKEND_PORT,
+    targetPath,
+    'Order DTE Backend sedang tidak aktif atau reconnecting.'
+  );
 });
 
 // SPA catch-all for public frontend routes
-app.get(['/', '/chat', '/chat/', '/documents', '/documents/', '/universe', '/universe/'], (req, res, next) => {
+app.get([
+  '/', '/landing', '/landing/',
+  '/chat', '/chat/',
+  '/agent', '/agent/',
+  '/codedance', '/codedance/',
+  '/documents', '/documents/',
+  '/universe', '/universe/',
+  '/office', '/office/',
+  '/cloud', '/cloud/',
+  '/help', '/help/',
+  '/api', '/api/',
+  '/calendar', '/calendar/'
+], (req, res, next) => {
   const distIndex = path.join(__dirname, '..', 'dist', 'index.html');
   if (fs.existsSync(distIndex)) {
     return res.sendFile(distIndex);
