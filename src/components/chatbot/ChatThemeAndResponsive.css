@@ -1964,7 +1964,6 @@
 
 .meta-hero-claude-input {
   width: 100% !important;
-  max-width: 100% !important;
   position: relative !important;
   z-index: 30 !important;
   cursor: text !important;
@@ -2823,129 +2822,197 @@
     max-width: 600px !important;
     margin: 0 auto !important;
     background: #ffffff !important;
-    backdrop-filter: blur(10px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
-    border: 1px solid rgba(203, 213, 225, 0.85) !important;
-    border-radius: 26px !important;
+    backdrop-filter: blur(12px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+    border: 1px solid rgba(15, 23, 42, 0.085) !important;
+    border-radius: 9999px !important;
+    min-height: 52px !important;
     box-shadow:
-      0 18px 38px -6px rgba(15, 23, 42, 0.14),
-      0 6px 14px -2px rgba(15, 23, 42, 0.07),
-      0 2px 4px 0 rgba(15, 23, 42, 0.04),
-      inset 0 1.5px 0.5px rgba(255, 255, 255, 1),
-      inset 0 -1px 1px rgba(0, 0, 0, 0.03) !important;
-    padding: 12px 16px 10px 16px !important;
+      0 6px 22px -4px rgba(15, 23, 42, 0.08),
+      0 2px 6px rgba(15, 23, 42, 0.04) !important;
+    padding: 7px 10px !important;
     box-sizing: border-box !important;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition:
+      border-radius 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      padding 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      min-height 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.28s ease,
+      border-color 0.24s ease,
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+
+  .input-container.claude-style.minimal-morph.collapsed {
+    max-width: 600px !important;
+    border-radius: 9999px !important;
+    min-height: 52px !important;
+    padding: 7px 10px !important;
+  }
+
+  .input-container.claude-style.minimal-morph.expanded {
+    max-width: 600px !important;
+    border-radius: 22px !important;
+    min-height: 108px !important;
+    padding: 13px 14px 54px 14px !important;
+    border-color: rgba(15, 23, 42, 0.14) !important;
+    box-shadow:
+      0 14px 34px -6px rgba(15, 23, 42, 0.12),
+      0 4px 12px -2px rgba(15, 23, 42, 0.06) !important;
   }
 
   [data-theme="dark"] .input-container.claude-style {
-    background: rgba(24, 24, 28, 0.95) !important;
+    background: rgba(28, 28, 32, 0.96) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     box-shadow:
-      0 22px 48px -6px rgba(0, 0, 0, 0.85),
-      0 8px 18px -2px rgba(0, 0, 0, 0.55),
-      inset 0 1.5px 0.5px rgba(255, 255, 255, 0.15),
-      inset 0 -1.5px 2px rgba(0, 0, 0, 0.45) !important;
+      0 12px 32px -6px rgba(0, 0, 0, 0.72),
+      0 4px 12px rgba(0, 0, 0, 0.45) !important;
+  }
+
+  [data-theme="dark"] .input-container.claude-style.minimal-morph.expanded {
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    box-shadow:
+      0 18px 44px -6px rgba(0, 0, 0, 0.85),
+      0 6px 16px rgba(0, 0, 0, 0.55) !important;
   }
 
   .input-container.claude-style:focus-within {
-    border-color: rgba(148, 163, 184, 0.8) !important;
     outline: none !important;
-    box-shadow:
-      0 22px 46px -6px rgba(15, 23, 42, 0.18),
-      0 10px 20px -2px rgba(15, 23, 42, 0.09),
-      inset 0 1.5px 0.5px rgba(255, 255, 255, 1),
-      inset 0 -1px 1px rgba(0, 0, 0, 0.04) !important;
-    transform: translateY(-1.5px) !important;
+    transform: translateY(-1px) !important;
   }
 
   [data-theme="dark"] .input-container.claude-style:focus-within {
-    border-color: rgba(255, 255, 255, 0.22) !important;
     outline: none !important;
-    box-shadow:
-      0 26px 56px -6px rgba(0, 0, 0, 0.92),
-      0 12px 24px -2px rgba(0, 0, 0, 0.65),
-      inset 0 1.5px 0.5px rgba(255, 255, 255, 0.2),
-      inset 0 -1.5px 2px rgba(0, 0, 0, 0.5) !important;
-    transform: translateY(-1.5px) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  .input-container.claude-style .textarea-wrapper {
+    min-height: 34px !important;
+    padding: 1px 82px 1px 42px !important;
+    align-items: center !important;
+  }
+
+  .input-container.claude-style.minimal-morph.expanded .textarea-wrapper {
+    padding: 0 2px 6px 2px !important;
+    min-height: 44px !important;
+    align-items: flex-start !important;
   }
 
   .input-container.claude-style .message-input {
-    font-size: 15.5px !important;
-    line-height: 1.55 !important;
-    min-height: 40px !important;
-    color: #0f172a !important;
+    font-size: 15px !important;
+    line-height: 22px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+    padding: 6px 0 !important;
+    color: #18181b !important;
     background: transparent !important;
-    caret-color: #ea580c !important;
+    caret-color: #18181b !important;
     letter-spacing: -0.01em !important;
+    overflow: hidden !important;
+  }
+
+  .input-container.claude-style.minimal-morph.expanded .message-input {
+    font-size: 15.5px !important;
+    line-height: 1.5 !important;
+    height: auto !important;
+    min-height: 44px !important;
+    max-height: 170px !important;
+    padding: 2px 0 !important;
+    overflow-y: auto !important;
   }
 
   .input-container.claude-style .message-input::placeholder {
-    color: #94a3b8 !important;
+    color: #8c8b85 !important;
   }
 
   .input-card-toolbar {
+    position: absolute !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 9px !important;
+    height: 34px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    width: auto !important;
+    max-width: none !important;
     box-sizing: border-box !important;
     overflow: visible !important;
-    gap: 4px !important;
-    margin-top: 6px !important;
+    gap: 6px !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .input-container.claude-style.minimal-morph.expanded .input-card-toolbar {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 10px !important;
+  }
+
+  .toolbar-left-cluster {
+    gap: 5px !important;
+  }
+
+  .toolbar-expandable-pills.visible {
+    max-width: 195px !important;
+    gap: 5px !important;
   }
 
   /* Left (+) button on mobile */
   .claude-attach-btn {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
     border-radius: 50% !important;
-    border: 1px solid rgba(226, 232, 240, 0.9) !important;
-    background: rgba(248, 250, 252, 0.9) !important;
-    color: #475569 !important;
+    border: 1px solid rgba(15, 23, 42, 0.04) !important;
+    background: #f2f1ed !important;
+    color: #3f3f46 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
     flex-shrink: 0 !important;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
+  }
+
+  .claude-attach-btn.active {
+    background: #141414 !important;
+    border-color: #141414 !important;
+    color: #ffffff !important;
   }
 
   /* Right toolbar on mobile */
   .input-toolbar-right {
     display: flex !important;
     align-items: center !important;
-    gap: 4px !important;
+    gap: 6px !important;
     flex-shrink: 0 !important;
-    max-width: calc(100% - 36px) !important;
+    max-width: none !important;
     justify-content: flex-end !important;
   }
 
   /* Model selector capsule on mobile */
   .claude-model-selector-wrapper {
-    position: relative !important;
+    position: static !important;
     flex-shrink: 1 !important;
     min-width: 0 !important;
   }
 
   .claude-model-selector-btn {
-    padding: 3px 7px !important;
-    height: 32px !important;
+    padding: 0 10px !important;
+    height: 34px !important;
     border-radius: 9999px !important;
-    border: 1px solid rgba(226, 232, 240, 0.85) !important;
-    background: rgba(248, 250, 252, 0.9) !important;
-    color: #334155 !important;
-    font-size: 11px !important;
+    border: 1px solid rgba(15, 23, 42, 0.04) !important;
+    background: #f2f1ed !important;
+    color: #18181b !important;
+    font-size: 12px !important;
     font-weight: 500 !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    box-shadow: none !important;
     display: inline-flex !important;
     align-items: center !important;
-    gap: 4px !important;
-    max-width: 95px !important;
+    gap: 5px !important;
+    max-width: 128px !important;
     flex-shrink: 1 !important;
   }
 
@@ -2958,9 +3025,9 @@
 
   .model-btn-name {
     display: inline-block !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    max-width: 50px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    max-width: 72px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
@@ -2968,10 +3035,10 @@
 
   .model-chevron {
     display: inline-block !important;
-    width: 10px !important;
-    height: 10px !important;
+    width: 11px !important;
+    height: 11px !important;
     flex-shrink: 0 !important;
-    color: #94a3b8 !important;
+    color: #71717a !important;
   }
 
   .model-btn-badge {
@@ -2980,11 +3047,11 @@
 
   /* Reasoning Mode Toggle Button on mobile (for Boron / capable models) */
   .claude-reasoning-toggle-btn {
-    padding: 3px 6px !important;
-    height: 32px !important;
+    padding: 0 8px !important;
+    height: 34px !important;
     border-radius: 9999px !important;
     gap: 3px !important;
-    font-size: 10px !important;
+    font-size: 10.5px !important;
     flex-shrink: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -3005,108 +3072,118 @@
     padding: 1px 4px !important;
   }
 
-
-
-  /* Mic button on mobile */
+  /* Mic & Auto-voice buttons on mobile */
+  .claude-tool-btn,
   .claude-tool-btn.mic-btn {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
     border-radius: 50% !important;
-    border: 1px solid rgba(226, 232, 240, 0.9) !important;
-    background: rgba(248, 250, 252, 0.9) !important;
-    color: #475569 !important;
+    border: 1px solid rgba(15, 23, 42, 0.04) !important;
+    background: #f2f1ed !important;
+    color: #3f3f46 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
     flex-shrink: 0 !important;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    box-shadow: none !important;
   }
 
-  /* Voice chat wave button - hide on mobile to keep toolbar compact */
-  .claude-tool-btn.voice-btn {
-    display: none !important;
-  }
-
-  /* Send & Stop buttons on mobile - GUARANTEED NEVER TO OVERFLOW OR SHRINK */
+  /* Send & Stop buttons on mobile - Minimalist Solid Black */
   .claude-action-btn.send-mode,
   .claude-action-btn.stop-mode {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
     border-radius: 50% !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
     flex-shrink: 0 !important;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition:
+      background-color 0.22s ease,
+      border-color 0.22s ease,
+      box-shadow 0.24s ease,
+      transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
   }
 
-  .claude-action-btn.send-mode {
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    background: rgba(255, 255, 255, 0.12) !important;
-    color: #f1f5f9 !important;
+  .claude-action-btn.send-mode,
+  .claude-action-btn.send-mode.empty {
+    background: #141414 !important;
+    border: 1px solid #141414 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16) !important;
   }
 
   .claude-action-btn.send-mode.has-text {
-    background: linear-gradient(135deg, #ea580c 0%, #f97316 55%, #fb923c 100%) !important;
+    background: #0a0a0a !important;
+    border: 1px solid #0a0a0a !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.42), 0 1px 3px rgba(234, 88, 12, 0.25) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24) !important;
+  }
+
+  [data-theme="dark"] .claude-action-btn.send-mode,
+  [data-theme="dark"] .claude-action-btn.send-mode.empty,
+  [data-theme="dark"] .claude-action-btn.send-mode.has-text {
+    background: #09090b !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
   }
 
   .claude-action-btn.stop-mode {
-    background: #ef4444 !important;
-    border: 1px solid #dc2626 !important;
+    background: #111111 !important;
+    border: 1px solid #111111 !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4) !important;
+    box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12), 0 4px 10px rgba(0, 0, 0, 0.24) !important;
   }
 
-  /* Dropdown Menus on Mobile - Strictly Viewport Bounded (NEVER OVERFLOW) */
+  /* Dropdown Menus on Mobile - Strictly Above Composer Card (NEVER COVERS TEXTAREA) */
   .claude-model-dropdown {
-    position: fixed !important;
-    left: 12px !important;
-    right: 12px !important;
-    bottom: calc(var(--keyboard-offset, 0px) + 74px) !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(100% + 10px) !important;
     top: auto !important;
     width: auto !important;
     max-width: calc(100vw - 24px) !important;
-    max-height: min(65vh, 420px) !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
+    max-height: min(325px, 44vh) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
     border-radius: 20px !important;
-    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 16px 40px -4px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
     z-index: 999999 !important;
     margin: 0 !important;
-    transform: none !important;
   }
 
   .file-menu-dropdown.claude-dropdown {
-    position: fixed !important;
-    left: 12px !important;
+    position: absolute !important;
+    left: 0 !important;
     right: auto !important;
-    bottom: calc(var(--keyboard-offset, 0px) + 74px) !important;
-    width: 280px !important;
+    bottom: calc(100% + 10px) !important;
+    width: min(280px, calc(100vw - 28px)) !important;
     max-width: calc(100vw - 24px) !important;
-    max-height: min(60vh, 380px) !important;
+    max-height: min(55vh, 340px) !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     border-radius: 18px !important;
-    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 16px 40px -4px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
     z-index: 999999 !important;
     margin: 0 !important;
-    transform: none !important;
   }
 
   [data-theme="dark"] .claude-attach-btn,
   [data-theme="dark"] .claude-model-selector-btn,
+  [data-theme="dark"] .claude-tool-btn,
   [data-theme="dark"] .claude-tool-btn.mic-btn {
-    background: rgba(39, 39, 42, 0.9) !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-    color: #e2e8f0 !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e4e4e7 !important;
   }
 
   /* 5. Clean Action Buttons Under Bot Message */

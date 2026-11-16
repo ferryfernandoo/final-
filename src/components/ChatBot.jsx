@@ -5009,14 +5009,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const handleClickOutside = (e) => {
       if (showInputMenu) {
         const fileMenuContainer = document.querySelector('.file-menu-container');
-        if (fileMenuContainer && !fileMenuContainer.contains(e.target)) {
+        if (fileMenuContainer && !fileMenuContainer.contains(e.target) && !e.target.closest('.file-menu-dropdown')) {
           setShowInputMenu(false);
         }
       }
 
       if (showModelMenu) {
         const modelSelectorWrapper = document.querySelector('.claude-model-selector-wrapper');
-        if (modelSelectorWrapper && !modelSelectorWrapper.contains(e.target)) {
+        if (modelSelectorWrapper && !modelSelectorWrapper.contains(e.target) && !e.target.closest('.claude-model-dropdown')) {
           setShowModelMenu(false);
         }
       }
@@ -8771,6 +8771,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       textQueue={textQueue}
       handleSendMessage={handleSendMessage}
       handlePaste={handlePaste}
+      handleImageUpload={handleImageUpload}
+      handleFileUpload={handleFileUpload}
       isTokenLimited={isTokenUsageLimited()}
       showInputMenu={showInputMenu}
       setShowInputMenu={setShowInputMenu}
