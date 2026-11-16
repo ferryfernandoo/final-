@@ -1549,7 +1549,7 @@
     background-color: #f8fafc !important;
   }
 
-  /* Desktop Permanent Left Sidebar with smooth spring dock transitions */
+  /* Desktop Permanent Left Sidebar - Smooth 60fps slide without internal text reflow */
   .sidebar {
     position: relative !important;
     left: auto !important;
@@ -1558,6 +1558,8 @@
     width: 280px !important;
     min-width: 280px !important;
     max-width: 280px !important;
+    margin-left: 0 !important;
+    overflow: hidden !important;
     z-index: 10 !important;
     transform: translate3d(0, 0, 0) !important;
     opacity: 1 !important;
@@ -1567,42 +1569,24 @@
     background: #ffffff !important;
     display: flex !important;
     flex-direction: column !important;
+    will-change: transform, margin-left, opacity !important;
     transition:
-      width 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
-      min-width 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
-      max-width 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
-      transform 0.42s cubic-bezier(0.34, 1.22, 0.64, 1),
-      opacity 0.28s ease !important;
+      margin-left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.24s ease !important;
   }
 
-  .sidebar.open .meta-sidebar-top-bar {
-    animation: sidebarItemSlideIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
-  }
-
-  .sidebar.open .meta-sidebar-nav-list {
-    animation: sidebarItemSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
-  }
-
-  .sidebar.open .meta-history-section {
-    animation: sidebarItemSlideIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
-  }
-
-  /* When sidebar is explicitly closed on desktop (collapse gracefully) */
+  /* When sidebar is explicitly closed on desktop (collapse cleanly off-canvas) */
   .sidebar.closed {
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+    margin-left: -280px !important;
     overflow: hidden !important;
     opacity: 0 !important;
-    transform: translate3d(-100%, 0, 0) !important;
+    transform: translate3d(-18px, 0, 0) !important;
     border-right: none !important;
     pointer-events: none !important;
-    transition:
-      width 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
-      min-width 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
-      max-width 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
-      transform 0.34s cubic-bezier(0.32, 0.94, 0.42, 1),
-      opacity 0.22s ease !important;
   }
 
   /* No backdrop overlay on desktop widescreen */
@@ -2257,8 +2241,6 @@
   justify-content: flex-start !important;
   width: 100% !important;
   background: #ffffff !important;
-  backdrop-filter: blur(12px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
   border: 1px solid rgba(15, 23, 42, 0.085) !important;
   border-radius: 28px !important;
   padding: 8px 10px !important;
@@ -2268,57 +2250,23 @@
     0 6px 24px -4px rgba(15, 23, 42, 0.07),
     0 2px 6px rgba(15, 23, 42, 0.04) !important;
   transition:
-    width 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
-    max-width 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
-    border-radius 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
-    padding 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
-    min-height 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
-    box-shadow 0.3s ease,
-    border-color 0.24s ease,
-    transform 0.34s cubic-bezier(0.32, 0.94, 0.42, 1) !important;
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    min-height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s ease,
+    border-color 0.22s ease !important;
   position: relative !important;
   box-sizing: border-box !important;
-  transform-origin: center center !important;
-  will-change: transform, max-width, min-height !important;
-}
-
-@keyframes composerBloomUp {
-  0% {
-    transform: translateY(2px) scale(0.96, 0.88);
-  }
-
-  58% {
-    transform: translateY(-3px) scale(1.016, 1.032);
-  }
-
-  100% {
-    transform: translateY(-1px) scale(1, 1);
-  }
-}
-
-@keyframes composerShrinkSettle {
-  0% {
-    transform: translateY(-2px) scale(1.016, 1.06);
-  }
-
-  55% {
-    transform: translateY(1px) scale(0.975, 0.935);
-  }
-
-  100% {
-    transform: translateY(0) scale(1, 1);
-  }
+  transform: translateZ(0) !important;
+  will-change: max-width, min-height, padding, border-radius !important;
 }
 
 .input-container.claude-style.minimal-morph.collapsed {
   max-width: 520px !important;
   margin-left: auto !important;
   margin-right: auto !important;
-}
-
-.input-container.claude-style.minimal-morph.anim-collapsing,
-.input-container.claude-style.minimal-morph.generating.anim-collapsing {
-  animation: composerShrinkSettle 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
 }
 
 .input-container.claude-style.minimal-morph.expanded {
@@ -2332,26 +2280,10 @@
   box-shadow:
     0 14px 36px -6px rgba(15, 23, 42, 0.11),
     0 4px 12px -2px rgba(15, 23, 42, 0.06) !important;
-  transition:
-    width 0.46s cubic-bezier(0.34, 1.38, 0.64, 1),
-    max-width 0.46s cubic-bezier(0.34, 1.38, 0.64, 1),
-    border-radius 0.44s cubic-bezier(0.34, 1.32, 0.64, 1),
-    padding 0.44s cubic-bezier(0.34, 1.32, 0.64, 1),
-    min-height 0.44s cubic-bezier(0.34, 1.36, 0.64, 1),
-    box-shadow 0.32s ease,
-    border-color 0.24s ease,
-    transform 0.38s cubic-bezier(0.34, 1.38, 0.64, 1) !important;
-}
-
-.input-container.claude-style.minimal-morph.anim-expanding,
-.input-container.claude-style.minimal-morph.expanded.anim-expanding {
-  animation: composerBloomUp 0.46s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
 }
 
 [data-theme="dark"] .input-container.claude-style {
-  background: rgba(28, 28, 32, 0.96) !important;
-  backdrop-filter: blur(12px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+  background: #1c1c20 !important;
   border: 1px solid rgba(255, 255, 255, 0.11) !important;
   box-shadow:
     0 10px 30px -6px rgba(0, 0, 0, 0.65),
@@ -2367,12 +2299,10 @@
 
 .input-container.claude-style:focus-within {
   outline: none !important;
-  transform: translateY(-1px) !important;
 }
 
 [data-theme="dark"] .input-container.claude-style:focus-within {
   outline: none !important;
-  transform: translateY(-1px) !important;
 }
 
 .input-container.claude-style.generating {
@@ -2423,37 +2353,33 @@
   }
 }
 
-/* Top Textarea Area (Smoothly widens horizontally & expands vertically when focused/standby) */
+/* Top Textarea Area (Smoothly widens horizontally & expands vertically with zero discrete jumps) */
 .input-container.claude-style .textarea-wrapper {
   width: 100% !important;
   flex: 1 !important;
   display: flex !important;
-  align-items: center !important;
+  align-items: flex-start !important;
   min-height: 36px !important;
-  padding: 1px 86px 1px 44px !important;
+  padding: 6px 86px 6px 44px !important;
   box-sizing: border-box !important;
   position: relative !important;
   z-index: 2 !important;
   transition:
-    padding 0.38s cubic-bezier(0.32, 0.94, 0.42, 1),
-    min-height 0.38s cubic-bezier(0.32, 0.94, 0.42, 1) !important;
+    padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    min-height 0.32s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 .input-container.claude-style.minimal-morph.expanded .textarea-wrapper {
-  padding: 0 2px 6px 2px !important;
+  padding: 2px 4px 6px 4px !important;
   min-height: 46px !important;
-  align-items: flex-start !important;
-  transition:
-    padding 0.44s cubic-bezier(0.34, 1.32, 0.64, 1),
-    min-height 0.44s cubic-bezier(0.34, 1.32, 0.64, 1) !important;
 }
 
 .input-container.claude-style .message-input,
 .input-form .input-container.claude-style .message-input {
   width: 100% !important;
-  padding: 6px 0 !important;
+  padding: 1px 0 !important;
   font-size: 15px !important;
-  line-height: 24px !important;
+  line-height: 22px !important;
   color: #18181b !important;
   background: transparent !important;
   border: none !important;
@@ -2463,24 +2389,17 @@
   font-family: var(--sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif) !important;
   letter-spacing: -0.012em !important;
   caret-color: #18181b !important;
-  height: 36px !important;
-  min-height: 36px !important;
-  max-height: 36px !important;
+  height: auto;
+  min-height: 24px !important;
+  max-height: 24px !important;
   overflow: hidden !important;
-  transition:
-    min-height 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-    padding 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-    font-size 0.25s ease !important;
+  transition: min-height 0.32s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 .input-container.claude-style.minimal-morph.expanded .message-input,
 .input-form .input-container.claude-style.minimal-morph.expanded .message-input {
-  height: auto !important;
   min-height: 46px !important;
   max-height: 200px !important;
-  line-height: 1.55 !important;
-  padding: 2px 0 !important;
-  font-size: 15.5px !important;
   overflow-y: auto !important;
 }
 
@@ -2535,9 +2454,9 @@
   pointer-events: none !important;
   z-index: 4 !important;
   transition:
-    left 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-    right 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-    bottom 0.36s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    right 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    bottom 0.32s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 .input-container.claude-style.minimal-morph.expanded .input-card-toolbar {
@@ -2561,29 +2480,29 @@
   gap: 7px !important;
   transform-origin: left center !important;
   transition:
-    max-width 0.3s cubic-bezier(0.32, 0.94, 0.42, 1),
-    opacity 0.2s ease,
-    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    max-width 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.18s ease,
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 .toolbar-expandable-pills.hidden {
   max-width: 0 !important;
   opacity: 0 !important;
-  transform: translateX(-14px) scale(0.82) !important;
+  transform: translate3d(-10px, 0, 0) scale(0.92) !important;
   pointer-events: none !important;
   overflow: hidden !important;
 }
 
 .toolbar-expandable-pills.visible {
-  max-width: 380px !important;
+  max-width: 210px !important;
   opacity: 1 !important;
-  transform: translateX(0) scale(1) !important;
+  transform: translate3d(0, 0, 0) scale(1) !important;
   pointer-events: auto !important;
   overflow: visible !important;
   transition:
-    max-width 0.44s cubic-bezier(0.34, 1.36, 0.64, 1) 0.04s,
-    opacity 0.28s ease 0.07s,
-    transform 0.44s cubic-bezier(0.34, 1.52, 0.64, 1) 0.06s !important;
+    max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1) 0.03s,
+    opacity 0.22s ease 0.05s,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) 0.03s !important;
 }
 
 .toolbar-expandable-action {
@@ -2591,29 +2510,29 @@
   align-items: center !important;
   transform-origin: center center !important;
   transition:
-    max-width 0.26s cubic-bezier(0.32, 0.94, 0.42, 1),
-    opacity 0.18s ease,
-    transform 0.24s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    max-width 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.16s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 .toolbar-expandable-action.hidden {
   max-width: 0 !important;
   opacity: 0 !important;
-  transform: translateX(10px) scale(0.68) !important;
+  transform: translate3d(6px, 0, 0) scale(0.84) !important;
   pointer-events: none !important;
   overflow: hidden !important;
 }
 
 .toolbar-expandable-action.visible {
-  max-width: 40px !important;
+  max-width: 38px !important;
   opacity: 1 !important;
-  transform: translateX(0) scale(1) !important;
+  transform: translate3d(0, 0, 0) scale(1) !important;
   pointer-events: auto !important;
   overflow: visible !important;
   transition:
-    max-width 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) 0.06s,
-    opacity 0.26s ease 0.09s,
-    transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s !important;
+    max-width 0.26s cubic-bezier(0.22, 1, 0.36, 1) 0.04s,
+    opacity 0.2s ease 0.06s,
+    transform 0.26s cubic-bezier(0.22, 1, 0.36, 1) 0.04s !important;
 }
 
 /* Left Tools (+ Button) */
@@ -3632,8 +3551,8 @@
 /* Responsive Tweaks */
 @media (max-width: 640px) {
   .input-container.claude-style.minimal-morph.collapsed {
-    width: 90% !important;
-    max-width: 344px !important;
+    width: 92% !important;
+    max-width: 600px !important;
     border-radius: 9999px !important;
     min-height: 52px !important;
     padding: 7px 10px !important;

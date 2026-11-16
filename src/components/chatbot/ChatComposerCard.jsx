@@ -51,7 +51,6 @@ const ChatComposerCard = ({
 }) => {
   const cardRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [morphPhase, setMorphPhase] = useState('');
 
   const hasText = Boolean((inputValue || '').trim().length > 0 || textQueue.length > 0);
   const hasAttachments = uploadedFiles.length > 0 || uploadedImages.length > 0;
@@ -65,16 +64,6 @@ const ChatComposerCard = ({
     showSlashMenu ||
     isSttListening
   );
-
-  // Trigger expressive bloom/shrink keyframe choreography only when state transitions
-  const prevExpandedRef = useRef(isExpanded);
-  useEffect(() => {
-    if (prevExpandedRef.current === isExpanded) return;
-    prevExpandedRef.current = isExpanded;
-    setMorphPhase(isExpanded ? 'anim-expanding' : 'anim-collapsing');
-    const timer = setTimeout(() => setMorphPhase(''), 520);
-    return () => clearTimeout(timer);
-  }, [isExpanded]);
 
   const blurComposerInputs = () => {
     const activeEl = document.activeElement;
@@ -100,6 +89,12 @@ const ChatComposerCard = ({
     setShowInputMenu(false);
     setShowModelMenu(false);
     setShowSlashMenu(false);
+    if (textareaElementRef?.current) {
+      textareaElementRef.current.style.height = '';
+    }
+    if (globalThis.heroTextareaRef) {
+      globalThis.heroTextareaRef.style.height = '';
+    }
     blurComposerInputs();
   };
 
@@ -190,7 +185,7 @@ const ChatComposerCard = ({
   return (
     <div
       ref={cardRef}
-      className={`input-container claude-style minimal-morph ${extraClassName} ${isExpanded ? 'expanded' : 'collapsed'} ${morphPhase} ${isConvLoading ? 'generating' : ''}`.trim()}
+      className={`input-container claude-style minimal-morph ${extraClassName} ${isExpanded ? 'expanded' : 'collapsed'} ${isConvLoading ? 'generating' : ''}`.trim()}
       onFocusCapture={handleFocusCapture}
       onBlurCapture={handleBlurCapture}
       onDragOver={enableDragDrop ? (e) => { e.preventDefault(); e.stopPropagation(); } : undefined}
