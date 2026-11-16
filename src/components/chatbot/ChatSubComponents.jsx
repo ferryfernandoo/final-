@@ -9,8 +9,7 @@ import { parseCodeStructure } from './chatTextUtils';
 import { downloadText } from '../../services/universalDownloadService';
 
 export const AutoRedirectCountdownCard = React.memo(({
-  target = 'documents',
-  fileType = 'docx',
+  target = 'agent',
   topic = '',
   onNavigate,
   userLanguage
@@ -18,28 +17,13 @@ export const AutoRedirectCountdownCard = React.memo(({
   const [isDismissed, setIsDismissed] = useState(false);
 
   const targetConfig = useMemo(() => {
-    if (target === 'agent') {
-      return {
-        title: 'AI Agent Autonomous Workspace',
-        badge: '🤖 AI AGENT',
-        desc: userLanguage === 'id'
-          ? 'Buka tugas ini di AI Agent Autonomous Workspace:'
-          : 'Open this task in AI Agent Autonomous Workspace:',
-        icon: '🤖',
-        gradient: 'linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(59,130,246,0.06) 100%)',
-        border: '1.2px solid #06b6d4',
-        accentColor: '#0891b2',
-        badgeBg: '#0f172a',
-        badgeColor: '#38bdf8'
-      };
-    }
     if (target === 'universe') {
       return {
         title: 'Deepernova Universe',
         badge: '🌌 CREATIVE SUITE',
         desc: userLanguage === 'id'
-          ? 'Buka platform kreatif Deepernova Universe untuk mengedit berkas:'
-          : 'Open Deepernova Universe to edit file:',
+          ? 'Buka ekosistem aplikasi Deepernova Universe:'
+          : 'Open Deepernova Universe:',
         icon: '🌌',
         gradient: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(255,107,0,0.06) 100%)',
         border: '1.2px solid #a855f7',
@@ -48,41 +32,32 @@ export const AutoRedirectCountdownCard = React.memo(({
         badgeColor: '#e9d5ff'
       };
     }
-    const docName = fileType === 'excel' ? 'Spreadsheet (Excel)' : fileType === 'pptx' ? 'Presentasi (PowerPoint)' : 'Word (.docx)';
     return {
-      title: `Typernova ${docName} Studio`,
-      badge: '📄 STUDIO DOKUMEN',
+      title: 'AI Agent Autonomous Workspace',
+      badge: '🤖 AI AGENT',
       desc: userLanguage === 'id'
-        ? 'Buka di Typernova Document Studio jika ingin mengedit atau mengunduh berkas:'
-        : 'Open in Typernova Document Studio to edit or download file:',
-      icon: fileType === 'excel' ? '📊' : fileType === 'pptx' ? '📽️' : '📝',
-      gradient: fileType === 'excel'
-        ? 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.06) 100%)'
-        : 'linear-gradient(135deg, rgba(255,107,0,0.12) 0%, rgba(234,88,12,0.06) 100%)',
-      border: fileType === 'excel' ? '1.2px solid #10b981' : '1.2px solid #ff6b00',
-      accentColor: fileType === 'excel' ? '#059669' : '#ea580c',
-      badgeBg: fileType === 'excel' ? '#064e3b' : '#431407',
-      badgeColor: fileType === 'excel' ? '#6ee7b7' : '#fdba74'
+        ? 'Buka tugas ini di AI Agent Autonomous Workspace:'
+        : 'Open this task in AI Agent Autonomous Workspace:',
+      icon: '🤖',
+      gradient: 'linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(59,130,246,0.06) 100%)',
+      border: '1.2px solid #06b6d4',
+      accentColor: '#0891b2',
+      badgeBg: '#0f172a',
+      badgeColor: '#38bdf8'
     };
-  }, [target, fileType, userLanguage]);
+  }, [target, userLanguage]);
 
   const executeRedirect = useCallback(() => {
-    if (target === 'documents') {
-      if (topic) {
-        sessionStorage.setItem('typernova_auto_draft_prompt', topic);
-        localStorage.setItem('typernova_auto_draft_prompt', topic);
-      }
-      onNavigate?.('documents', fileType || 'docx');
-    } else if (target === 'agent') {
+    if (target === 'universe') {
+      onNavigate?.('universe');
+    } else {
       if (topic) {
         sessionStorage.setItem('agent_auto_task_prompt', topic);
         localStorage.setItem('agent_auto_task_prompt', topic);
       }
       onNavigate?.('agent');
-    } else {
-      onNavigate?.('universe');
     }
-  }, [target, fileType, topic, onNavigate]);
+  }, [target, topic, onNavigate]);
 
   if (isDismissed) return null;
 

@@ -9,7 +9,6 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
   userLanguage,
   countdownFullText,
   activeFile,
-  onNavigate,
   setActiveFile,
   showAlert,
   showSlashMenu,
@@ -87,14 +86,6 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
         <div className="active-file-indicator-pill">
           <span className="active-file-icon">📄</span>
           <span className="active-file-name" title={activeFile.name}>{activeFile.name}</span>
-          <button
-            type="button"
-            className="open-in-editor-btn"
-            onClick={() => onNavigate?.('documents', activeFile.type)}
-            title={userLanguage === 'id' ? 'Buka di Editor Penuh' : 'Open in Full Editor'}
-          >
-            <i className="fas fa-external-link-alt"></i>
-          </button>
           <button
             type="button"
             className="clear-active-file-btn"

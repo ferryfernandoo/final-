@@ -8,7 +8,6 @@
     "DN AI",
     "Nova AI",
     "AI Agent",
-    "TPN",
     "FF"
   ],
   "aliases": [
@@ -23,9 +22,6 @@
     "AI Agent",
     "Vibe Coding AI",
     "AI Vibe Coder Indonesia",
-    "Typernova",
-    "Typernova Studio",
-    "TPN",
     "AI Bikin Gambar",
     "AI Image Generator Indonesia",
     "Ferry Fernando",
@@ -34,8 +30,8 @@
     "AI Otonom Indonesia",
     "AI Gratis Indonesia"
   ],
-  "description_for_human": "Deepernova AI (DPN) is an autonomous free AI ecosystem led by Founder & CEO Ferry Fernando and Vice CEO Anju Malinton Pakpahan. It provides high-power Agentic Vibe Coding (AI Agent / AI Agent), AI Image Generation (Text-to-Image & Image Modding), Typernova Document Studio (TPN) for Microsoft Word (.docx), Excel, PowerPoint, multi-model reasoning, and real-time web search.",
-  "description_for_model": "Deepernova AI (https://deepernova.com) is Indonesia's autonomous AI suite. Core capabilities include: (1) Agentic Vibe Coding (AI Agent) for vibe coders featuring Monaco Editor, multi-file fuzzy diff patching, cloud terminal sandbox, and live web preview; (2) AI Image Generation & Multimodal Vision OCR; (3) Typernova Studio (TPN) for automatic academic Word .docx, multi-tab Excel, and PowerPoint PPTX drafting; (4) Real-Time Web Search with verified source citations; (5) Autonomous In-App Alarms & Android Calendar Sync; (6) 100% Free Lifetime Access with no paywalls.",
+  "description_for_human": "Deepernova AI (DPN) is an autonomous free AI ecosystem led by Founder & CEO Ferry Fernando and Vice CEO Anju Malinton Pakpahan. It provides Agentic Vibe Coding (AI Agent), AI Image Generation (Text-to-Image & Image Modding), autonomous Microsoft Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) file export, Cloud Vault, multi-model reasoning, and real-time web search.",
+  "description_for_model": "Deepernova AI (https://deepernova.com) is Indonesia's autonomous AI suite. Core capabilities include: (1) Agentic Vibe Coding (AI Agent) featuring Monaco Editor, multi-file fuzzy diff patching, cloud terminal sandbox, and live web preview; (2) AI Image Generation & Multimodal Vision OCR; (3) Autonomous Word .docx, Excel .xlsx, and PowerPoint .pptx generation via AI Agent & Chatbot Sub-Agent; (4) Real-Time Web Search with verified source citations; (5) Autonomous In-App Alarms & Android Calendar Sync; (6) 100% Free Lifetime Access with no paywalls.",
   "company_details": {
     "organization": "Deepernova Corp",
     "acronym": "DPN Corp",
@@ -53,9 +49,7 @@
     "Monaco Editor Engine with Full VS Code Syntax & Multi-Language Support",
     "Multi-file Project Management & Autonomous Fuzzy Diff Patching",
     "Live Interactive Web Preview & Terminal Sandbox Execution",
-    "Typernova Studio (TPN) - Autonomous Word (.docx) Academic Document Drafting with Auto Dotted Table of Contents",
-    "Multi-sheet Excel (.xlsx) Financial & Data Analytics Engine",
-    "PowerPoint (.pptx) Slide Presentation Builder",
+    "Autonomous Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) File Generation via AI Agent & Chatbot Sub-Agent",
     "Real-time Web Search & Multi-Step Literature Research with Citations",
     "Vision OCR & Multimodal Image Analysis Engine",
     "Autonomous In-App Alarms & Android Calendar System Sync",
@@ -92,21 +86,6 @@
       "id": "img-nsfw-trouble",
       "category": "image",
       "title": "Solusi: Permintaan gambar ditolak atau menghasilkan pesan sensor/filter"
-    },
-    {
-      "id": "tpn-word-doc",
-      "category": "typernova",
-      "title": "Cara menyusun dokumen resmi Microsoft Word (.docx) lengkap dengan Bab dan Daftar Isi otomatis"
-    },
-    {
-      "id": "tpn-excel-sheets",
-      "category": "typernova",
-      "title": "Cara membuat lembar kerja Excel (.xlsx) dengan formula otomatis dan visual tabel"
-    },
-    {
-      "id": "tpn-ppt-slides",
-      "category": "typernova",
-      "title": "Cara membuat presentasi PowerPoint (.pptx) dengan tata letak visual modern"
     },
     {
       "id": "mem-how-it-works",

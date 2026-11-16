@@ -16,7 +16,7 @@ const HELP_DATA = [
       'DeeperNova Boron 1.1 (On-Device / Local AI): Model efisiensi tinggi yang siap berjalan di lingkungan lokal dengan latensi minimal dan privasi data mutlak.',
       'Cara Mengganti Model: Di layar obrolan ChatBot, klik menu pilihan model di bilah atas untuk beralih model secara instan tanpa kehilangan riwayat obrolan.'
     ],
-    tips: 'Untuk tugas membuat aplikasi di AI Agent atau skripsi di Typernova, gunakan DeeperNova Gold 1.5 karena memiliki kemampuan sintesis struktur berkas paling konsisten.',
+    tips: 'Untuk tugas membuat aplikasi di AI Agent atau pembuatan dokumen di AI Agent maupun Chatbot, gunakan DeeperNova Gold 1.5 karena memiliki kemampuan sintesis struktur berkas paling konsisten.',
     keywords: 'pilihan model ai, deepernova gold 1.5, gold pro, silicon 1.4, boron 1.1, ganti model chat'
   },
   {
@@ -184,52 +184,6 @@ const HELP_DATA = [
     keywords: 'multi file, tambah file baru, download zip, export project, import code, offline project'
   },
 
-  // ==================== 5. TYPERNOVA STUDIO (WORD, EXCEL, PPT) ====================
-  {
-    id: 'tpn-word-doc',
-    category: 'typernova',
-    title: 'Cara Menyusun Dokumen Microsoft Word (.docx) Lengkap dengan Bab dan Daftar Isi Otomatis',
-    summary: 'Typernova Studio menghasilkan berkas .docx standar skripsi/makalah dengan Times New Roman, margin standar, dan Daftar Isi bertitik-titik.',
-    solution: [
-      'Buka menu Typernova Studio atau buka Document Editor dari bilah navigasi.',
-      'Pilih jenis dokumen "Word Document (.docx)".',
-      'Tuliskan topik dan kebutuhan struktur makalah Anda (contoh: "Buatkan makalah ilmiah tentang Dampak Kecerdasan Buatan pada Sektor Pendidikan di Indonesia, lengkap dari Kata Pengantar, Bab I Pendahuluan, Bab II Pembahasan, Bab III Penutup, dan Daftar Pustaka").',
-      'AI Typernova akan menyusun teks per bab dengan format akademis resmi: Judul tebal di tengah, spasi 1.5, inden paragraf 1.27 cm, dan Daftar Isi bertitik-titik rapi (Contoh: BAB I PENDAHULUAN .............. 1).',
-      'Periksa draf di editor bawaan Deepernova, lakukan penyesuaian jika perlu, lalu klik tombol "Export .DOCX" di sudut kanan atas untuk mengunduh berkas Word asli.'
-    ],
-    tips: 'Hasil unduhan berformat .docx murni yang 100% kompatibel dengan Microsoft Word di laptop/PC, WPS Office di Android, dan Google Docs tanpa layout yang berantakan.',
-    keywords: 'bikin skripsi otomatis, makalah ai, typernova word docx, daftar isi titik titik otomatis, format skripsi'
-  },
-  {
-    id: 'tpn-excel-sheets',
-    category: 'typernova',
-    title: 'Cara Membuat Lembar Kerja Excel (.xlsx) dengan Formula Otomatis dan Visual Tabel',
-    summary: 'Otomatisasi pembuatan laporan keuangan, rekap inventaris, dan tabel data berkalkulasi rumus SUM, AVERAGE, IF, dan VLOOKUP.',
-    solution: [
-      'Di Typernova Document Studio, pilih tab "Excel Spreadsheet (.xlsx)".',
-      'Jelaskan tabel yang Anda butuhkan (contoh: "Buat tabel laporan arus kas bulanan UMKM selama 12 bulan, kolom pemasukan, pengeluaran, laba bersih, dan total dengan rumus kalkulasi otomatis").',
-      'AI akan memproses baris dan kolom dalam format grid spreadsheet yang dilengkapi formula perhitungan dinamis.',
-      'Anda dapat mengklik sel mana saja untuk mengedit nilai atau formula secara langsung.',
-      'Klik tombol "Export .XLSX" untuk mengunduh lembar kerja Microsoft Excel siap pakai.'
-    ],
-    tips: 'Anda bisa menyalin data teks mentah dari chat lalu minta: "Konversikan data di atas menjadi spreadsheet Excel rapi".',
-    keywords: 'excel otomatis ai, bikin tabel excel, spreadsheet formula, rumus excel ai, export xlsx'
-  },
-  {
-    id: 'tpn-ppt-slides',
-    category: 'typernova',
-    title: 'Cara Membuat Presentasi PowerPoint (.pptx) dengan Tata Letak Visual Modern',
-    summary: 'Susun slide presentasi bisnis, kuliah, atau pitch deck profesional dalam sekejap.',
-    solution: [
-      'Pilih jenis dokumen "Presentation (.pptx)" di Typernova Studio.',
-      'Tuliskan topik presentasi serta jumlah slide yang diinginkan (contoh: "Buatkan 7 slide presentasi pitch deck startup edutech dengan ringkasan masalah, solusi, market size, dan model bisnis").',
-      'AI akan menyusun judul slide, poin-poin presentasi yang padat dan persuasif, serta tata letak visual yang terstruktur.',
-      'Klik tombol "Export .PPTX" untuk mengunduh berkas presentasi resmi yang bisa diedit di Microsoft PowerPoint atau Canva.'
-    ],
-    tips: 'Presentasi yang dibuat AI Deepernova menggunakan prinsip "High Impact, Low Clutter" agar audiens Anda fokus pada poin penting.',
-    keywords: 'bikin ppt ai, presentasi otomatis, slide powerpoint, pitch deck ai, export pptx'
-  },
-
   // ==================== 6. AI GAMBAR, VISION & OCR ====================
   {
     id: 'img-create',
@@ -345,7 +299,7 @@ const HELP_DATA = [
       'Kapasitas Gratis: Pengguna terdaftar mendapatkan ruang penyimpanan gratis sebesar 3 GB yang diamankan dengan enkripsi zero-trust SHA-256.',
       'Cara Membuka: Klik menu "Drive" atau "Cloud Vault" di bilah navigasi utama.',
       'Unggah Berkas: Seret dan lepas (drag-and-drop) dokumen Word (.docx), Excel (.xlsx), presentasi PPT (.pptx), PDF, atau gambar ke dalam Cloud Vault.',
-      'Akses Terintegrasi: Semua dokumen yang dihasilkan dari Typernova Studio dapat langsung disimpan ke Cloud Vault dengan satu klik.',
+      'Akses Terintegrasi: Semua dokumen yang dihasilkan dari AI Agent dan Chatbot dapat langsung disimpan ke Cloud Vault dengan satu klik.',
       'Unduh Kapan Saja: Buka dokumen Anda dari smartphone, tablet, atau komputer lain secara tersinkronisasi.'
     ],
     tips: 'Gunakan Cloud Vault sebagai brankas cadangan untuk berkas skripsi dan makalah Anda agar tidak hilang saat perangkat Anda bermasalah.',
@@ -466,8 +420,8 @@ const HELP_DATA = [
     title: 'Perbedaan Mode Tamu (Guest Mode) dan Akun Terdaftar di Deepernova',
     summary: 'Nikmati akses langsung tanpa login atau buat akun gratis untuk sinkronisasi multi-perangkat.',
     solution: [
-      'Mode Tamu (Guest Mode): Anda bisa langsung memakai seluruh fitur Deepernova (Chat, Vibe Coding, Bikin Gambar, Typernova) tanpa perlu mendaftar atau login. Riwayat disimpan di browser lokal perangkat.',
-      'Akun Terdaftar: 100% gratis selamanya. Keunggulannya: riwayat percakapan, proyek AI Agent, dokumen Typernova, dan memori otonom tersinkronisasi otomatis di semua laptop, PC, dan smartphone Anda.',
+      'Mode Tamu (Guest Mode): Anda bisa langsung memakai seluruh fitur Deepernova (Chat, AI Agent, Bikin Gambar, Cloud Vault) tanpa perlu mendaftar atau login. Riwayat disimpan di browser lokal perangkat.',
+      'Akun Terdaftar: 100% gratis selamanya. Keunggulannya: riwayat percakapan, proyek AI Agent, berkas Cloud Vault, dan memori otonom tersinkronisasi otomatis di semua laptop, PC, dan smartphone Anda.',
       'Cara Mendaftar: Klik tombol "Masuk / Daftar" di pojok kanan atas, masukkan nama pengguna, email, dan kata sandi baru.',
       'Jika Anda beralih dari Mode Tamu ke Akun Terdaftar, sistem CloudSync Deepernova akan secara otomatis menawarkan opsi penggabungan riwayat lokal ke akun Anda.'
     ],
@@ -495,7 +449,7 @@ const HELP_DATA = [
     title: 'Siapa Pendiri dan Apa Misi Pengabdian Deepernova Corp?',
     summary: 'Mengenal Ferry Fernando (Founder & CEO) dan ikrar pengabdian untuk mencerdaskan anak bangsa dengan AI gratis selamanya.',
     solution: [
-      'Founder & Chief Executive Officer (CEO): Ferry Fernando (FF), tokoh muda visioner asal Kebumen, Jawa Tengah, Indonesia, yang memimpin perancangan arsitektur Deepernova AI, AI Agent, dan Typernova Studio.',
+      'Founder & Chief Executive Officer (CEO): Ferry Fernando (FF), tokoh muda visioner asal Kebumen, Jawa Tengah, Indonesia, yang memimpin perancangan arsitektur Deepernova AI dan AI Agent.',
       'Co-Founder & Vice CEO: Anju Malinton Pakpahan, yang berkolaborasi dalam strategi ekspansi dan ekosistem AI terapan.',
       'Ikrar Misi Pengabdian: "Deepernova adalah bentuk pengabdian kami kepada negara untuk misi membantu mencerdaskan anak bangsa, dan berupaya tetap memberikan AI gratis selamanya."',
       'Perusahaan Induk: Deepernova Corp (https://deepernova.com), berdedikasi menciptakan teknologi kecerdasan buatan otonom kelas dunia buatan Indonesia.',
@@ -512,7 +466,6 @@ const CATEGORIES = [
   { id: 'search', label: 'Pencarian Web Real-Time', icon: 'fa-globe' },
   { id: 'api', label: 'Developer API Console', icon: 'fa-bolt' },
   { id: 'aiagent', label: 'AI Agent (Autonomous)', icon: 'fa-robot' },
-  { id: 'typernova', label: 'Typernova (Word/Excel/PPT)', icon: 'fa-file-lines' },
   { id: 'image', label: 'AI Gambar, Vision & OCR', icon: 'fa-wand-magic-sparkles' },
   { id: 'memory', label: 'Memori Otonom & Alarm', icon: 'fa-clock' },
   { id: 'drive', label: 'Cloud Vault 3GB & File', icon: 'fa-cloud' },
@@ -584,7 +537,7 @@ export default function HelpCenter({ onNavigate }) {
           </h1>
 
           <p className="help-subtitle">
-            Ensiklopedia panduan resmi Deepernova AI: panduan model AI, pencarian web real-time, developer API, AI Agent, Typernova Studio, AI gambar, dan solusi kendala teknis.
+            Ensiklopedia panduan resmi Deepernova AI: panduan model AI, pencarian web real-time, developer API, AI Agent, Cloud Vault, AI gambar, dan solusi kendala teknis.
           </p>
 
           {/* Search Box */}
@@ -615,8 +568,8 @@ export default function HelpCenter({ onNavigate }) {
             <button className="quick-nav-pill" onClick={() => onNavigate?.('agent')}>
               <i className="fa-solid fa-code" /> AI Agent
             </button>
-            <button className="quick-nav-pill" onClick={() => onNavigate?.('editor', 'word')}>
-              <i className="fa-solid fa-file-word" /> Dokumen Word
+            <button className="quick-nav-pill" onClick={() => onNavigate?.('office')}>
+              <i className="fa-solid fa-cloud" /> Cloud Vault
             </button>
             <button className="quick-nav-pill highlight" onClick={() => setShowCeoModal(true)}>
               <i className="fa-solid fa-user-tie" /> Profil CEO &amp; Misi
@@ -781,7 +734,7 @@ export default function HelpCenter({ onNavigate }) {
               </p>
               <h4>Tentang Pendiri &amp; Kepemimpinan</h4>
               <p>
-                Ferry Fernando memimpin riset dan perancangan arsitektur teknologi Deepernova AI, sistem otonom Vibe Coding (AI Agent), dan otomasi dokumen Typernova Studio. Berkolaborasi erat dengan Co-Founder &amp; Vice CEO Anju Malinton Pakpahan, Deepernova Corp bertekad menghadirkan kedaulatan teknologi kecerdasan buatan kelas dunia yang dapat diakses oleh seluruh lapisan masyarakat Indonesia.
+                Ferry Fernando memimpin riset dan perancangan arsitektur teknologi Deepernova AI, serta sistem otonom Vibe Coding dan otomasi dokumen AI Agent. Berkolaborasi erat dengan Co-Founder &amp; Vice CEO Anju Malinton Pakpahan, Deepernova Corp bertekad menghadirkan kedaulatan teknologi kecerdasan buatan kelas dunia yang dapat diakses oleh seluruh lapisan masyarakat Indonesia.
               </p>
               <div className="modal-social-links">
                 <a

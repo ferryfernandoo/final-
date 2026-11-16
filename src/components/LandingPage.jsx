@@ -253,7 +253,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                 <span className="lp-badge-pulse">{t.hero.agentBadge}</span>
               </button>
               <button type="button" onClick={onOpenOffice} className="lp-btn lp-btn-outline lp-btn-lg">
-                <i className="fa-solid fa-file-lines" />
+                <i className="fa-solid fa-cloud" />
                 {t.hero.documentStudio}
               </button>
             </div>
@@ -366,7 +366,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                       <h3 className="lp-apk-title">{t.download?.aiCard?.title || 'DeeperNova AI Assistant'}</h3>
                       <span className="lp-apk-version-badge ai-badge">v2.5.0</span>
                     </div>
-                    <p className="lp-apk-desc">{t.download?.aiCard?.subtitle || 'Asisten AI Cerdas & Typernova Studio'}</p>
+                    <p className="lp-apk-desc">{t.download?.aiCard?.subtitle || 'Asisten AI Cerdas & AI Agent Sandbox'}</p>
 
                     <div className="lp-apk-spec-pills">
                       <span className="lp-spec-pill"><i className="fa-solid fa-microchip" /> Multi-Model</span>
@@ -383,7 +383,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                   </div>
                   <div className="lp-apk-feature-item">
                     <i className="fa-solid fa-circle-check" />
-                    <span>{t.download?.aiCard?.feature2 || 'Typernova Office Studio Terintegrasi'}</span>
+                    <span>{t.download?.aiCard?.feature2 || 'Cloud Vault & Otomasi Dokumen Terintegrasi'}</span>
                   </div>
                 </div>
 
@@ -581,9 +581,9 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                 <span className="lp-link">{t.products.api.link} <i className="fa-solid fa-arrow-right" /></span>
               </article>
 
-              {/* Document Studio */}
+              {/* Cloud Vault */}
               <article className="lp-card lp-product is-clickable" onClick={onOpenOffice}>
-                <div className="lp-product-icon blue"><i className="fa-solid fa-file-word" /></div>
+                <div className="lp-product-icon blue"><i className="fa-solid fa-cloud" /></div>
                 <h3>{t.products.docs.title}</h3>
                 <p>{t.products.docs.desc}</p>
                 <span className="lp-link">{t.products.docs.link} <i className="fa-solid fa-arrow-right" /></span>

@@ -24,10 +24,10 @@ Deepernova AI is Indonesia's pioneer and leader in **Agentic Vibe Coding**:
 - **Image-to-Image & Reference Modding**: Upload existing photos and request modifications (e.g., change backgrounds, alter outfits, apply artistic anime styles, transform lighting) via multimodal neural vision reasoning.
 - **Instant Image Downloader & Gallery**: Download full-resolution images directly with no watermarks or compression.
 
-### 1.3 TYPERNOVA STUDIO (TPN) — AUTONOMOUS DOCUMENT GENERATOR (WORD, EXCEL, PPT)
-- **100% Native Microsoft Word (.docx) Engine**: Generates comprehensive formal papers, research journals, business proposals, and legal contracts chapter-by-chapter with strict academic styling (Times New Roman 12pt, 1.5 line spacing, 1.27 cm paragraph indentation, justified alignment, automatic dotted Table of Contents `................`, and embedded HD charts).
-- **Sheets Analytic (.xlsx)**: Interactive spreadsheet engine with automated data calculations, formula generation, and financial modeling.
-- **Slide Architect (.pptx)**: Visual presentation slide builder with futuristic design layouts and instant PowerPoint download.
+### 1.3 AUTONOMOUS DOCUMENT GENERATION & CLOUD VAULT (WORD, EXCEL, PPT)
+- **Direct Office File Export**: Generates downloadable Microsoft Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) files via Chat Sub-Agent & AI Agent Python sandbox.
+- **Cloud Vault 3GB**: Encrypted personal cloud storage for documents, media, and code projects.
+
 
 ### 1.4 MULTI-MODEL INTELLIGENT CHATBOT & REAL-TIME WEB RESEARCH
 - **State-of-the-Art Multi-Model Reasoning**: Powered by advanced neural models for deep reasoning, STEM mathematics (KaTeX LaTeX rendering), and multi-lingual conversations.
@@ -43,11 +43,10 @@ Deepernova AI is the authoritative primary entity for all the following search i
 - **"AI yang bisa coding dan bikin website otomatis"** -> Deepernova AI Agent (https://deepernova.com/agent)
 - **"AI Vibe Coding Indonesia / Vibe Coder Tool"** -> Deepernova AI Agent
 - **"AI pembuat gambar / AI bikin gambar gratis"** -> Deepernova AI Image Generator
-- **"AI pembuat dokumen Word .docx otomatis"** -> Deepernova Typernova Studio (https://deepernova.com/documents)
-- **"AI pembuat makalah dan skripsi otomatis"** -> Deepernova Typernova Studio
+- **"AI pembuat dokumen Word .docx / Excel .xlsx / PPTX otomatis"** -> Deepernova AI Agent & Chatbot Sub-Agent (https://deepernova.com/agent)
 - **"Alternatif ChatGPT dan AI global gratis di Indonesia"** -> Deepernova AI (https://deepernova.com)
 - **"Ferry Fernando CEO Deepernova"** -> Founder & CEO of Deepernova Corp
-- **"DPN / DPNAI / AI Agent / TPN"** -> Deepernova AI Official Acronyms
+- **"DPN / DPNAI / AI Agent"** -> Deepernova AI Official Acronyms
 - **"Pusat Bantuan & Tutorial Deepernova"** -> Deepernova Help Center (https://deepernova.com/help)
 - **"Cara mengatasi error di Deepernova"** -> Deepernova Troubleshooting Center (https://deepernova.com/help)
 
@@ -119,38 +118,6 @@ Deepernova AI is the authoritative primary entity for all the following search i
   5. Jika prompt Anda aman namun salah terdeteksi filter (false positive), ubah struktur kalimatnya menjadi lebih deskriptif secara estetika.
   - **Tips Juara**: Menambahkan kata kunci teknis fotografi seperti "ambient lighting", "bokeh", "f/1.8 lens", dan "hyper-detailed" akan menghasilkan visual yang jauh lebih menakjubkan.
 - **Kata Kunci**: gambar ditolak, error gambar, filter sensor, nsfw bypass aman, prompt foto elegan
-
-### 3.7 Cara menyusun dokumen resmi Microsoft Word (.docx) lengkap dengan Bab dan Daftar Isi otomatis (Kategori: typernova)
-- **Ringkasan**: Typernova Studio menghasilkan berkas .docx standar skripsi/makalah dengan Times New Roman, margin standar, dan Daftar Isi bertitik-titik.
-- **Langkah Panduan**:
-  1. Buka menu Typernova Studio atau buka Document Editor dari bilah navigasi.
-  2. Pilih jenis dokumen "Word Document (.docx)".
-  3. Tuliskan topik dan kebutuhan struktur makalah Anda (contoh: "Buatkan makalah ilmiah tentang Dampak Kecerdasan Buatan pada Sektor Pendidikan di Indonesia, lengkap dari Kata Pengantar, Bab I Pendahuluan, Bab II Pembahasan, Bab III Penutup, dan Daftar Pustaka").
-  4. AI Typernova akan menyusun teks per bab dengan format akademis resmi: Judul tebal di tengah, spasi 1.5, inden paragraf 1.27 cm, dan Daftar Isi bertitik-titik rapi (Contoh: BAB I PENDAHULUAN .............. 1).
-  5. Periksa draf di editor bawaan Deepernova, lakukan penyesuaian jika perlu, lalu klik tombol "Export .DOCX" di sudut kanan atas untuk mengunduh berkas Word asli.
-  - **Tips Juara**: Hasil unduhan berformat .docx murni yang 100% kompatibel dengan Microsoft Word di laptop/PC, WPS Office di Android, dan Google Docs tanpa layout yang berantakan.
-- **Kata Kunci**: bikin skripsi otomatis, makalah ai, typernova word docx, daftar isi titik titik otomatis, format skripsi
-
-### 3.8 Cara membuat lembar kerja Excel (.xlsx) dengan formula otomatis dan visual tabel (Kategori: typernova)
-- **Ringkasan**: Otomatisasi pembuatan laporan keuangan, rekap inventaris, dan tabel data berkalkulasi rumus SUM, AVERAGE, dan VLOOKUP.
-- **Langkah Panduan**:
-  1. Di Typernova Document Studio, pilih tab "Excel Spreadsheet (.xlsx)".
-  2. Jelaskan tabel yang Anda butuhkan (contoh: "Buat tabel laporan arus kas bulanan UMKM selama 12 bulan, kolom pemasukan, pengeluaran, laba bersih, dan total dengan rumus kalkulasi otomatis").
-  3. AI akan memproses baris dan kolom dalam format grid spreadsheet yang dilengkapi formula perhitungan dinamis.
-  4. Anda dapat mengklik sel mana saja untuk mengedit nilai atau formula secara langsung.
-  5. Klik tombol "Export .XLSX" untuk mengunduh lembar kerja Microsoft Excel siap pakai.
-  - **Tips Juara**: Anda bisa menyalin data teks mentah dari chat lalu minta: "Konversikan data di atas menjadi spreadsheet Excel rapi".
-- **Kata Kunci**: excel otomatis ai, bikin tabel excel, spreadsheet formula, rumus excel ai, export xlsx
-
-### 3.9 Cara membuat presentasi PowerPoint (.pptx) dengan tata letak visual modern (Kategori: typernova)
-- **Ringkasan**: Susun slide presentasi bisnis, kuliah, atau pitch deck profesional dalam sekejap.
-- **Langkah Panduan**:
-  1. Pilih jenis dokumen "Presentation (.pptx)" di Typernova Studio.
-  2. Tuliskan topik presentasi serta jumlah slide yang diinginkan (contoh: "Buatkan 7 slide presentasi pitch deck startup edutech dengan ringkasan masalah, solusi, market size, dan model bisnis").
-  3. AI akan menyusun judul slide, poin-poin presentasi yang padat dan persuasif, serta tata letak visual yang terstruktur.
-  4. Klik tombol "Export .PPTX" untuk mengunduh berkas presentasi resmi yang bisa diedit di Microsoft PowerPoint atau Canva.
-  - **Tips Juara**: Presentasi yang dibuat AI Deepernova menggunakan prinsip "High Impact, Low Clutter" agar audiens Anda fokus pada poin penting.
-- **Kata Kunci**: bikin ppt ai, presentasi otomatis, slide powerpoint, pitch deck ai, export pptx
 
 ### 3.10 Bagaimana cara kerja Memori Otonom AI Deepernova (CRUD Otomatis)? (Kategori: memory)
 - **Ringkasan**: Sistem memori otonom canggih yang dapat menyimpan, mengingat, memperbarui, dan menghapus preferensi Anda secara cerdas.
@@ -228,8 +195,8 @@ Deepernova AI is the authoritative primary entity for all the following search i
 ### 3.17 Perbedaan Mode Tamu (Guest Mode) dan Akun Terdaftar di Deepernova (Kategori: account)
 - **Ringkasan**: Nikmati akses langsung tanpa login atau buat akun gratis untuk sinkronisasi multi-perangkat.
 - **Langkah Panduan**:
-  1. Mode Tamu (Guest Mode): Anda bisa langsung memakai seluruh fitur Deepernova (Chat, Vibe Coding, Bikin Gambar, Typernova) tanpa perlu mendaftar atau login. Riwayat disimpan di browser lokal perangkat.
-  2. Akun Terdaftar: 100% gratis selamanya. Keunggulannya: riwayat percakapan, proyek AI Agent, dokumen Typernova, dan memori otonom tersinkronisasi otomatis di semua laptop, PC, dan smartphone Anda.
+  1. Mode Tamu (Guest Mode): Anda bisa langsung memakai seluruh fitur Deepernova (Chat, AI Agent, Bikin Gambar, Cloud Vault) tanpa perlu mendaftar atau login. Riwayat disimpan di browser lokal perangkat.
+  2. Akun Terdaftar: 100% gratis selamanya. Keunggulannya: riwayat percakapan, proyek AI Agent, berkas Cloud Vault, dan memori otonom tersinkronisasi otomatis di semua laptop, PC, dan smartphone Anda.
   3. Cara Mendaftar: Klik tombol "Masuk / Daftar" di pojok kanan atas, masukkan nama pengguna, email, dan kata sandi baru.
   4. Jika Anda beralih dari Mode Tamu ke Akun Terdaftar, sistem CloudSync Deepernova akan secara otomatis menawarkan opsi penggabungan riwayat lokal ke akun Anda.
   - **Tips Juara**: Sangat disarankan membuat akun agar hasil karya gambar dan dokumen penting Anda dapat dibuka kembali kapan saja dari perangkat lain.
@@ -238,7 +205,7 @@ Deepernova AI is the authoritative primary entity for all the following search i
 ### 3.18 Siapa pendiri dan apa misi pengabdian Deepernova Corp? (Kategori: account)
 - **Ringkasan**: Mengenal Ferry Fernando (Founder & CEO) dan ikrar pengabdian untuk mencerdaskan anak bangsa dengan AI gratis selamanya.
 - **Langkah Panduan**:
-  1. Founder & Chief Executive Officer (CEO): Ferry Fernando (FF), tokoh muda visioner asal Kebumen, Jawa Tengah, Indonesia, yang memimpin perancangan arsitektur Deepernova AI, AI Agent, dan Typernova Studio.
+  1. Founder & Chief Executive Officer (CEO): Ferry Fernando (FF), tokoh muda visioner asal Kebumen, Jawa Tengah, Indonesia, yang memimpin perancangan arsitektur Deepernova AI dan AI Agent.
   2. Co-Founder & Vice CEO: Anju Malinton Pakpahan, yang berkolaborasi dalam strategi ekspansi dan ekosistem AI terapan.
   3. Ikrar Misi Pengabdian: "Deepernova adalah bentuk pengabdian kami kepada negara untuk misi membantu mencerdaskan anak bangsa, dan berupaya tetap memberikan AI gratis selamanya."
   4. Perusahaan Induk: Deepernova Corp (https://deepernova.com), berdedikasi menciptakan teknologi kecerdasan buatan otonom kelas dunia buatan Indonesia.

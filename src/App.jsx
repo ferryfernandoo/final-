@@ -7,7 +7,6 @@ const ChatBot = lazy(() => import('./components/ChatBot'));
 const AgentChat = lazy(() => import('./components/AgentChat'));
 const Login = lazy(() => import('./components/Login'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
-const DocumentEditor = lazy(() => import('./components/DocumentEditor'));
 const DeepernovaUniverse = lazy(() => import('./components/DeepernovaUniverse'));
 const AICalendarHub = lazy(() => import('./components/AICalendarHub'));
 const AIManagerOffice = lazy(() => import('./components/AIManagerOffice'));
@@ -212,7 +211,7 @@ function App() {
       if (path === '/agent' || hash === '#agent') return 'agent';
       if (path === '/help' || hash === '#help') return 'help';
       if (path === '/codedance' || hash === '#codedance') return 'agent';
-      if (path === '/documents' || hash === '#documents') return 'documents';
+      if (path === '/documents' || hash === '#documents') return 'chat';
       if (path === '/chat' || hash === '#chat') return 'chat';
       if (path === '/universe' || hash === '#universe') return 'universe';
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
@@ -230,20 +229,14 @@ function App() {
   // On Web: open LandingPage or direct path (e.g. /help)
   const [currentView, setCurrentView] = useState(getInitialView);
   const [showLoginView, setShowLoginView] = useState(false);
-  const [documentType, setDocumentType] = useState('docx'); // 'docx', 'xlsx', or 'ppt'
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [pendingPostLoginRedirect, setPendingPostLoginRedirect] = useState(null);
   const [localConvsToSync, setLocalConvsToSync] = useState([]);
 
-  // Enhanced navigation handler that supports document type & browser URL pushState
-  const handleNavigate = (view, fileType) => {
-    if (view === 'documents') {
-      try {
-        // Track where the user came from before entering documents editor
-        const originView = currentView === 'office' ? 'office' : (currentView === 'universe' ? 'universe' : (currentView === 'agent' ? 'agent' : 'chat'));
-        sessionStorage.setItem('editor_return_view', originView);
-      } catch (_) {}
-    } else if (view === 'office') {
+  // Enhanced navigation handler that supports browser URL pushState
+  const handleNavigate = (view) => {
+    const targetView = view === 'documents' ? 'chat' : view;
+    if (targetView === 'office') {
       if (!isAuthenticated || isGuest) {
         setPendingPostLoginRedirect('office');
         setShowLoginView(true);
@@ -255,22 +248,21 @@ function App() {
       } catch (_) {}
     }
 
-    if (view === 'search') {
+    if (targetView === 'search') {
       const searchUrl = `${SEARCH_ENGINE_URL}${SEARCH_ENGINE_URL.includes('?') ? '&' : '?'}lang=${userLanguage || 'id'}`;
       window.open(searchUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
-    if (view === 'agent' && !isAuthenticated && !isGuest) {
+    if (targetView === 'agent' && !isAuthenticated && !isGuest) {
       handleGuestLogin();
     }
 
-    setCurrentView(view);
+    setCurrentView(targetView);
     if (typeof window !== 'undefined' && window.history && window.history.pushState) {
       const routeMap = {
         agent: '/agent',
         help: '/help',
-        documents: '/documents',
         chat: '/chat',
         universe: '/universe',
         office: '/office',
@@ -278,20 +270,11 @@ function App() {
         api: '/api',
         landing: '/'
       };
-      if (routeMap[view]) {
+      if (routeMap[targetView]) {
         try {
-          window.history.pushState({ view, deepernova_active: true, timestamp: Date.now() }, '', routeMap[view]);
+          window.history.pushState({ view: targetView, deepernova_active: true, timestamp: Date.now() }, '', routeMap[targetView]);
         } catch (_) {}
       }
-    }
-    if (fileType) {
-      // Map user-friendly names to editor types
-      const typeMap = {
-        'word': 'docx',
-        'excel': 'excel',
-        'ppt': 'pptx'
-      };
-      setDocumentType(typeMap[fileType] || fileType);
     }
   };
 
@@ -395,7 +378,7 @@ function App() {
       }
       else if (path === '/help' || hash === '#help') setCurrentView('help');
       else if (path === '/codedance' || hash === '#codedance') setCurrentView('agent');
-      else if (path === '/documents' || hash === '#documents') setCurrentView('documents');
+      else if (path === '/documents' || hash === '#documents') setCurrentView('chat');
       else if (path === '/chat' || hash === '#chat') setCurrentView('chat');
       else if (path === '/universe' || hash === '#universe') setCurrentView('universe');
       else if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') setCurrentView('office');
@@ -644,7 +627,6 @@ function App() {
         'deepernova_rag_index_v1',
         'deepernova_reminders_v1',
         'deepernova_saved_images',
-        'typernova_last_edited_document',
         'research_anonymous_id',
         'guest_global_memory',
         'guest_global_memory_updated',
@@ -957,15 +939,6 @@ function App() {
 
   console.log(`[App] Rendering: ${currentView} (isNative=${isNative}, isAuthenticated=${isAuthenticated}, isGuest=${isGuest})`);
   
-  if (currentView === 'documents') {
-    return (
-      <ErrorBoundary onNavigate={handleNavigate}>
-        <Suspense fallback={<PageLoaderFallback />}>
-          <DocumentEditor user={user} onNavigate={handleNavigate} documentType={documentType} />
-        </Suspense>
-      </ErrorBoundary>
-    );
-  }
   if (currentView === 'universe') {
     return (
       <Suspense fallback={<PageLoaderFallback />}>

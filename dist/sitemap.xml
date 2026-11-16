@@ -63,14 +63,6 @@
     </image:image>
   </url>
 
-  <!-- Typernova Document Studio (Word .docx, Excel, PPTX) -->
-  <url>
-    <loc>https://deepernova.com/documents</loc>
-    <lastmod>2026-09-04</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.95</priority>
-  </url>
-
   <!-- Intelligent Multi-Model ChatBot -->
   <url>
     <loc>https://deepernova.com/chat</loc>

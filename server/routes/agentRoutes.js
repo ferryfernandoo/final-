@@ -1431,7 +1431,7 @@ PRINSIP UTAMA: EKSEKUSI SENYAP & KESIMPULAN AKHIR PADAT (ZERO-CHATTER & HEMAT TO
    - HANYA SETELAH seluruh aksi agentic selesai dan berkas terverifikasi terbentuk di disk sandbox (<check_file>):
    - Tuliskan SATU KESIMPULAN EKSEKUTIF yang padat, rapi, dan profesional:
      * 📊 Status: Konfirmasi tuntas 100%.
-     * 📁 Berkas Deliverables: Nama berkas fisik di sandbox (akan otomatis bisa dibuka di Typernova Studio).
+     * 📁 Berkas Deliverables: Nama berkas fisik di sandbox (tersedia untuk diunduh langsung dari panel berkas / tombol Unduh).
      * 📌 Intisari Hasil / Temuan: 3-4 butir poin pokok temuan atau isi dokumen.
      * 🚀 Panduan Lanjutan: Petunjuk ringkas bagi pengguna.
    - DILARANG menambahkan monolog penutup yang bertele-tele!
@@ -1843,7 +1843,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
             `     * ✅ Status: Konfirmasi pengerjaan tuntas 100%.\n` +
             `     * 📁 Berkas Jadi: Nama file dan lokasi di sandbox.\n` +
             `     * 📌 Ringkasan Intisari: 3-4 butir poin pokok penting dari materi yang dibuat atau temuan audit.\n` +
-            `     * 🚀 Panduan Akses: Petunjuk singkat untuk mengunduh / buka di Typernova Studio.\n` +
+            `     * 🚀 Panduan Akses: Petunjuk singkat untuk mengunduh berkas langsung ke perangkat.\n` +
             `   - JANGAN menambahkan tag aksi lagi jika semua berkas sudah siap.\n` +
             `3. JIKA TADI HANYA PENCARIAN DATA / MEMBACA SKILL & BELUM MEMBUAT BERKAS / MENJALANKAN AUDIT:\n` +
             `   - SEGERA LANJUTKAN dengan mengeksekusi berkas atau pemindaian audit yang diminta pengguna!\n` +

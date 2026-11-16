@@ -12,7 +12,6 @@ const NON_CRITICAL_KEYS = [
   'deepernova_rag_index_v1',
   'deepernova_saved_images',
   'deepernova_saved_images_gallery',
-  'typernova_last_edited_document',
   'brainstorm_messages_word',
   'brainstorm_messages_excel',
   'brainstorm_messages_ppt',

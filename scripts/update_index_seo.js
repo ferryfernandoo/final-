@@ -40,7 +40,6 @@ if (faqJsonMatch) {
 const CATEGORIES = [
   { id: 'vibecoding', label: '1. Agentic Vibe Coding (AI Agent)' },
   { id: 'image', label: '2. AI Gambar & Art Studio (Text-to-Image)' },
-  { id: 'typernova', label: '3. Typernova Document Studio (Word, Excel, PPT)' },
   { id: 'memory', label: '4. Autonomous Memory System (CRUD)' },
   { id: 'chatbot', label: '5. Chatbot Multi-Model & Vision OCR' },
   { id: 'troubleshooting', label: '6. Pemecahan Masalah & Troubleshooting' },

@@ -4,7 +4,6 @@ import localAiService, { extractResponseFromReasoning, generateInstantBoronRespo
 import { memoryService } from '../services/memoryService';
 import { ragService } from '../services/ragService';
 import { ConversationPersistenceService } from '../services/conversationPersistenceService';
-import DocumentGenerationService from '../services/documentGenerationService';
 import ImageGenerationService from '../services/imageGenerationService';
 import ClientFileParser from '../services/clientFileParser';
 import { deepernovaTtsService } from '../services/deepernovaTtsService';
@@ -1447,12 +1446,6 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
               console.warn('[ChatBot] finishStreaming: empty response with reasoning detected. Synthesizing verified answer...');
               textToUse = extractResponseFromReasoning(rSource);
             }
-          }
-          
-          // Detect if user explicitly asked to open Deepernova Universe / Office Studio (docx, xlsx, pptx, universe, typernova)
-          const isCreateFileQuery = /\b(buat|bikin|create|new|tulis|buka)\b.*\b(docx|excel|spreadsheet|ppt|slide|xlsx|pptx|universe|typernova)\b/i.test(lastSentPromptRef.current || '');
-          if (isCreateFileQuery && !msg.subAgentData && textToUse && !textToUse.includes('[NAVIGATE_UNIVERSE]')) {
-            textToUse += '\n\n[NAVIGATE_UNIVERSE]';
           }
           
           // Extract download metadata if present
@@ -5535,86 +5528,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    * Returns: { success, answer, searchResults, error }
    */
 
-
-  const isDocumentGenerationRequest = (promptText = '') => {
-    if (!promptText || typeof promptText !== 'string') return false;
-    const norm = promptText.trim().toLowerCase();
-    const docKeywords = [
-      'buatkan file', 'bikin file', 'buat file', 'buatkan dokumen', 'bikin dokumen', 'buat dokumen',
-      'buatkan makalah', 'bikin makalah', 'buat makalah', 'buatkan laporan', 'bikin laporan', 'buat laporan',
-      'buatkan excel', 'bikin excel', 'buat excel', 'buatkan ppt', 'bikin ppt', 'buat ppt', 'buatkan presentasi',
-      'buatkan spreadsheet', 'bikin spreadsheet', 'buat spreadsheet', 'generasi file', 'generasi dokumen'
-    ];
-    return docKeywords.some(k => norm.includes(k));
-  };
-
-  const isChatToDocumentRequest = (promptText = '') => {
-    if (!promptText || typeof promptText !== 'string') return false;
-    const norm = promptText.trim().toLowerCase();
-    const chatDocKeywords = [
-      'jadikan obrolan', 'bikin obrolan', 'ubah obrolan', 'ekspor obrolan', 'rangkum obrolan',
-      'jadikan chat', 'bikin chat', 'ubah chat', 'ekspor chat', 'rangkum chat',
-      'jadikan percakapan', 'bikin percakapan', 'ubah percakapan', 'ekspor percakapan',
-      'dari chat ini', 'dari obrolan ini', 'dari percakapan ini', 'dari diskusi ini',
-      'jadikan file', 'jadikan dokumen', 'bikin file dari diskusi', 'ubah diskusi jadi file'
-    ];
-    return chatDocKeywords.some(k => norm.includes(k));
-  };
-
-  const handleDocumentTransitionSequence = (topic, docType, userMessage, chatContext = '') => {
-    const cardMsgId = `asst_${Date.now()}`;
-    const isFromChat = !!chatContext;
-    const step1Label = isFromChat 
-      ? `📝 *Mengumpulkan seluruh riwayat obrolan & merancang dokumen...*`
-      : `📝 *Menganalisis instruksi & menyiapkan agen pembuat file...*`;
-
-    const initialText = `📝 **PERMINTAAN PEMBUATAN FILE TERDETEKSI**\n\n📌 **Topik & Obrolan:** "${topic}"\n\n\`[Step 1/3 - 0s]\` ${step1Label}`;
-
-    setMessages(prev => [
-      ...prev,
-      userMessage,
-      {
-        id: cardMsgId,
-        sender: 'assistant',
-        timestamp: new Date(),
-        text: initialText
-      }
-    ]);
-
-    // Interval 2 detik: Step 2
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === cardMsgId) {
-          return {
-            ...msg,
-            text: `📝 **PERMINTAAN PEMBUATAN FILE TERDETEKSI**\n\n📌 **Topik & Obrolan:** "${topic}"\n\n✅ \`[Step 1/3]\` ${isFromChat ? 'Riwayat obrolan terkumpul' : 'Instruksi dianalisis'}.\n\`[Step 2/3 - 2s]\` ⚙️ *Mempersiapkan Typernova Document Studio...*`
-          };
-        }
-        return msg;
-      }));
-    }, 2000);
-
-    // Interval 2 detik berikutnya: Step 3 (Total 4s) -> Switch view to Typernova!
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === cardMsgId) {
-          return {
-            ...msg,
-            text: `📝 **PERMINTAAN PEMBUATAN FILE TERDETEKSI**\n\n📌 **Topik & Obrolan:** "${topic}"\n\n✅ \`[Step 1/3]\` ${isFromChat ? 'Riwayat obrolan terkumpul' : 'Instruksi dianalisis'}.\n✅ \`[Step 2/3]\` Typernova Studio Siap.\n🚀 \`[Step 3/3 - 4s]\` *Mengalihkan rute & memicu penulisan file otomatis di Typernova!*`
-          };
-        }
-        return msg;
-      }));
-
-      setTimeout(() => {
-        localStorage.setItem('pending_agent_topic', topic);
-        if (chatContext) {
-          localStorage.setItem('pending_chat_context', chatContext);
-        }
-        onNavigate?.('documents', docType);
-      }, 600);
-    }, 4000);
-  };
 
   const handleSendMessage = async (e) => {
     if (e && typeof e.preventDefault === 'function') {

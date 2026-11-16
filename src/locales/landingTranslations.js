@@ -35,11 +35,11 @@ export const landingTranslations = {
       aiCard: {
         badge: 'AI Cloud Assistant APK',
         title: 'DeeperNova AI Assistant',
-        subtitle: 'Asisten AI Cerdas & Typernova Studio',
+        subtitle: 'Asisten AI Cerdas & AI Agent Sandbox',
         size: '13 MB',
         version: 'v2.5.0',
         feature1: 'Penalaran mendalam & Coding Agent',
-        feature2: 'Typernova Office Studio Terintegrasi',
+        feature2: 'Cloud Vault & Otomasi Dokumen Terintegrasi',
         btn: 'Unduh DeeperNova AI APK',
         btnSub: '13 MB · Cloudflare Edge'
       },
@@ -60,7 +60,7 @@ export const landingTranslations = {
       startFreeChat: 'Eksplorasi Platform',
       aiAgent: 'AI Agent',
       agentBadge: 'Sandbox',
-      documentStudio: 'Document Studio',
+      documentStudio: 'Cloud Vault',
       trust: [
         'Arsitektur Terisolasi & Aman',
         'Sandbox Eksekusi Aman',
@@ -87,9 +87,9 @@ export const landingTranslations = {
         link: 'Buka Konsol API'
       },
       docs: {
-        title: 'Document Studio',
-        desc: 'AI menyusun naskah, rumus spreadsheet, dan slide yang siap diunduh.',
-        link: 'Buka Studio'
+        title: 'Cloud Vault 3GB',
+        desc: 'Penyimpanan cloud terenkripsi untuk proyek kode, dokumen, dan aset AI Anda.',
+        link: 'Buka Cloud Vault'
       }
     },
     features: {
@@ -99,7 +99,7 @@ export const landingTranslations = {
       items: [
         { icon: 'fa-comments', title: 'Multi-Model Chat', desc: 'Penalaran mendalam, coding, dan obrolan multi-bahasa.' },
         { icon: 'fa-code', title: 'Coding Agent & IDE', desc: 'Cloud sandbox dengan live web preview otomatis.' },
-        { icon: 'fa-file-lines', title: 'Typernova Studio', desc: 'Buat Word, Excel, dan PowerPoint secara instan.' },
+        { icon: 'fa-file-lines', title: 'Otomasi Dokumen AI', desc: 'Buat Word, Excel, dan PowerPoint secara instan.' },
         { icon: 'fa-image', title: 'Vision & Gambar', desc: 'Analisis foto, OCR teks, dan generate gambar.' },
         { icon: 'fa-brain', title: 'Memory Bank', desc: 'Mengingat preferensi dan konteks penting Anda.' },
         { icon: 'fa-shield-halved', title: 'Cloud Vault 3GB', desc: 'Penyimpanan dokumen terenkripsi dan aman.' }
@@ -122,7 +122,7 @@ export const landingTranslations = {
     },
     footer: {
       chat: 'Chat',
-      documentStudio: 'Document Studio',
+      documentStudio: 'Cloud Vault',
       universe: 'Universe',
       searchEngine: 'Search Engine',
       api: 'Developer API',
@@ -165,7 +165,7 @@ export const landingTranslations = {
         size: '13 MB',
         version: 'v2.5.0',
         feature1: 'Deep reasoning & Coding Agent Sandbox',
-        feature2: 'Built-in Typernova Office Suite',
+        feature2: 'Built-in Cloud Vault & Document Automation',
         btn: 'Download DeeperNova AI APK',
         btnSub: '13 MB · Cloudflare Edge'
       },
@@ -186,7 +186,7 @@ export const landingTranslations = {
       startFreeChat: 'Explore Platform',
       aiAgent: 'AI Agent',
       agentBadge: 'Sandbox',
-      documentStudio: 'Document Studio',
+      documentStudio: 'Cloud Vault',
       trust: [
         'Isolated & Secure Architecture',
         'Secure Execution Sandbox',
@@ -213,9 +213,9 @@ export const landingTranslations = {
         link: 'Open API Console'
       },
       docs: {
-        title: 'Document Studio',
-        desc: 'AI crafts manuscripts, spreadsheet formulas, and slide decks ready to download.',
-        link: 'Open Studio'
+        title: 'Cloud Vault 3GB',
+        desc: 'Encrypted cloud storage for your code projects, documents, and AI assets.',
+        link: 'Open Cloud Vault'
       }
     },
     features: {
@@ -225,7 +225,7 @@ export const landingTranslations = {
       items: [
         { icon: 'fa-comments', title: 'Multi-Model Chat', desc: 'Deep reasoning, coding, and multilingual conversation.' },
         { icon: 'fa-code', title: 'Coding Agent & IDE', desc: 'Cloud sandbox with automatic live web previews.' },
-        { icon: 'fa-file-lines', title: 'Typernova Studio', desc: 'Generate Word, Excel, and PowerPoint documents instantly.' },
+        { icon: 'fa-file-lines', title: 'AI Document Suite', desc: 'Generate Word, Excel, and PowerPoint documents instantly.' },
         { icon: 'fa-image', title: 'Vision & Imaging', desc: 'Photo analysis, OCR text extraction, and image generation.' },
         { icon: 'fa-brain', title: 'Memory Bank', desc: 'Remembers your preferences and critical context.' },
         { icon: 'fa-shield-halved', title: 'Cloud Vault 3GB', desc: 'Encrypted, secure document and project storage.' }
@@ -248,7 +248,7 @@ export const landingTranslations = {
     },
     footer: {
       chat: 'Chat',
-      documentStudio: 'Document Studio',
+      documentStudio: 'Cloud Vault',
       universe: 'Universe',
       searchEngine: 'Search Engine',
       api: 'Developer API',
@@ -287,11 +287,11 @@ export const landingTranslations = {
       aiCard: {
         badge: 'AI 智能助手 APK',
         title: 'DeeperNova AI Assistant',
-        subtitle: '深度推理智能助手与办公套件',
+        subtitle: '深度推理智能助手与工作空间',
         size: '13 MB',
         version: 'v2.5.0',
         feature1: '深度推理大模型与编程沙箱',
-        feature2: '集成 Typernova 智能文档工作室',
+        feature2: '集成云端保险库与智能文档生成',
         btn: '下载 DeeperNova AI APK',
         btnSub: '13 MB · Cloudflare Edge'
       },
@@ -312,7 +312,7 @@ export const landingTranslations = {
       startFreeChat: '立即探索平台',
       aiAgent: 'AI 智能体',
       agentBadge: '沙箱环境',
-      documentStudio: '文档工作台',
+      documentStudio: '云端保险库',
       trust: [
         '高规格隔离安全架构',
         '高安全隔离运行沙箱',
@@ -339,9 +339,9 @@ export const landingTranslations = {
         link: '打开 API 控制台'
       },
       docs: {
-        title: '文档工作台',
-        desc: 'AI 自动生成格式化文稿、电子表格函数公式与幻灯片，即刻下载。',
-        link: '打开工作台'
+        title: '3GB 专属云端保险库',
+        desc: '高规格加密云存储空间，安全管理您的代码项目、文档与 AI 生成资产。',
+        link: '打开云端保险库'
       }
     },
     features: {
@@ -351,7 +351,7 @@ export const landingTranslations = {
       items: [
         { icon: 'fa-comments', title: '多模型对话', desc: '深度推理、专业编程与流畅多语言交流。' },
         { icon: 'fa-code', title: '编程 Agent & IDE', desc: '云端沙箱环境，支持自动实时网页预览。' },
-        { icon: 'fa-file-lines', title: 'Typernova 文档工作室', desc: '秒级即时生成 Word、Excel 和 PowerPoint 格式文档。' },
+        { icon: 'fa-file-lines', title: 'AI 智能文档生成', desc: '秒级即时生成 Word、Excel 和 PowerPoint 格式文档。' },
         { icon: 'fa-image', title: '视觉解析与图像', desc: '图像视觉解析、OCR 文本提取与 AI 图像生成。' },
         { icon: 'fa-brain', title: '智能记忆库', desc: '智能记忆您的个人偏好与关键业务上下文。' },
         { icon: 'fa-shield-halved', title: '3GB 专属云端保险库', desc: '高规格全密态加密文档与项目存储空间。' }
@@ -374,7 +374,7 @@ export const landingTranslations = {
     },
     footer: {
       chat: '在线对话',
-      documentStudio: '文档工作台',
+      documentStudio: '云端保险库',
       universe: 'Universe 广场',
       searchEngine: '搜索引擎',
       api: '开发者 API',

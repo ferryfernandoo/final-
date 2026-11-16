@@ -14,10 +14,6 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
     }, 25);
   }, [showAuthModal]);
 
-  const openEditor = (type) => {
-    if (typeof onNavigate === 'function') onNavigate('documents', type);
-  };
-
   const handleOpenOffice = () => {
     if (isAuthenticated && !isGuest) {
       onNavigate?.('office');
@@ -36,36 +32,6 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
       badgeColor: '#3b82f6',
       glow: 'rgba(59, 130, 246, 0.4)',
       action: () => handleOpenOffice()
-    },
-    {
-      id: 'word',
-      title: 'Typernova (Word)',
-      tag: 'AI Document Studio',
-      desc: 'Editor dokumen generasi baru berteknologi AI untuk penulisan esai, laporan, dan naskah profesional.',
-      icon: 'https://img.icons8.com/color/96/microsoft-word-2019.png',
-      badgeColor: '#00d2ff',
-      glow: 'rgba(0, 210, 255, 0.4)',
-      action: () => openEditor('word')
-    },
-    {
-      id: 'excel',
-      title: 'Sheets Analytic',
-      tag: 'Smart Data & Grid',
-      desc: 'Spreadsheet interaktif berkemampuan analisis otomatis, kalkulasi otomatis, dan pengelolaan tabel data.',
-      icon: 'https://img.icons8.com/color/96/microsoft-excel-2019.png',
-      badgeColor: '#10b981',
-      glow: 'rgba(16, 185, 129, 0.4)',
-      action: () => openEditor('excel')
-    },
-    {
-      id: 'ppt',
-      title: 'Presentasi Deck',
-      tag: 'AI Slide Architect',
-      desc: 'Rancang slide presentasi visual berkelas dunia dengan berbagai pilihan template futuristik.',
-      icon: 'https://img.icons8.com/color/96/microsoft-powerpoint-2019.png',
-      badgeColor: '#f97316',
-      glow: 'rgba(249, 115, 22, 0.4)',
-      action: () => openEditor('ppt')
     },
     {
       id: 'calendar',
@@ -187,7 +153,7 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
       {/* Footer Stats Bar */}
       <footer className="universe-futuristic-footer">
         <div className="stat-item">
-          <span className="stat-number">4</span>
+          <span className="stat-number">3</span>
           <span className="stat-label">Aplikasi Utama</span>
         </div>
         <div className="stat-divider"></div>

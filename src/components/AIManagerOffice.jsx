@@ -504,7 +504,6 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [isLoading, setIsLoading] = useState(false);
-  const [openingFileMessage, setOpeningFileMessage] = useState(null);
   const [isServerSyncing, setIsServerSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [showMobileActionMenu, setShowMobileActionMenu] = useState(false);
@@ -1370,11 +1369,11 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
     const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma'];
     const codeExts = ['txt', 'md', 'json', 'js', 'ts', 'jsx', 'tsx', 'py', 'html', 'css', 'cpp', 'c', 'cs', 'java', 'php', 'rb', 'sql', 'sh', 'xml', 'yaml', 'yml'];
 
-    if (imageExts.includes(ext) || videoExts.includes(ext) || audioExts.includes(ext) || codeExts.includes(ext) || 
-        ['image', 'video', 'audio', 'code', 'archive'].includes(file.category)) {
-      
+    const docExts = ['docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'pdf'];
+    const catLower = (file.category || file.type || '').toLowerCase();
+    if (imageExts.includes(ext) || videoExts.includes(ext) || audioExts.includes(ext) || codeExts.includes(ext) || docExts.includes(ext) ||
+        ['image', 'video', 'audio', 'code', 'archive', 'pdf', 'docx', 'word', 'doc', 'excel', 'xlsx', 'pptx', 'ppt'].includes(catLower)) {
       const mediaDataUrl = file.dataUrl || file.fileData || null;
-
       setSelectedMediaFile({
         ...file,
         dataUrl: mediaDataUrl,
@@ -1383,97 +1382,12 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
       return;
     }
 
-    const cat = (file.category || file.type || '').toLowerCase();
-    const isDocx = cat === 'docx' || cat === 'word' || cat === 'doc' || ext === 'docx' || ext === 'doc';
-    const isExcel = cat === 'excel' || cat === 'xlsx' || ext === 'xlsx' || ext === 'csv';
-    const isPpt = cat === 'pptx' || cat === 'ppt' || ext === 'pptx' || ext === 'ppt';
-    const isPdf = cat === 'pdf' || ext === 'pdf';
-
-    let editorCategory = 'word';
-    let docxType = 'docx';
-    if (isExcel) { editorCategory = 'excel'; docxType = 'excel'; }
-    else if (isPpt) { editorCategory = 'ppt'; docxType = 'ppt'; }
-    else { editorCategory = 'word'; docxType = 'docx'; }
-
-    // Retrieve the actual file binary data (dataUrl)
-    let fileDataUrl = file.dataUrl || file.fileData || null;
-
-    let fileContent = file.content;
-
-    // If file dataUrl & content are not available locally (or dataUrl is '[[stored]]'), fetch full file from server
-    const needsFetch = (!fileDataUrl || fileDataUrl === '[[stored]]') && !fileContent && file.id && !file.id.startsWith('folder_') && !file.category?.includes('folder');
-    if (needsFetch) {
-      setOpeningFileMessage('loading sedang meminta data dari server...');
-      try {
-        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const tid = controller ? setTimeout(() => controller.abort(), 8000) : null;
-        const fetchOpts = { credentials: 'include' };
-        if (controller) fetchOpts.signal = controller.signal;
-
-        const res = await fetch(`${API_BASE_URL}/api/cloud/files/${file.id}`, fetchOpts);
-        if (tid) clearTimeout(tid);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.file) {
-            fileDataUrl = data.file.dataUrl || data.file.fileData || null;
-            fileContent = data.file.content || null;
-          }
-        }
-      } catch (err) {
-        console.warn('[CloudStorage] Server fetch file detail error:', err);
-      } finally {
-        setOpeningFileMessage(null);
-      }
-    }
-
-    // Pass file to DocumentEditor via memory cache & sessionStorage
-    const cloudFilePayload = {
-      id: file.id,
-      name: file.name,
-      ext: ext,
-      type: docxType,
-      dataUrl: fileDataUrl,
-      content: fileContent
-    };
-
-    if (typeof window !== 'undefined') {
-      window.deepernova_active_cloud_file = cloudFilePayload;
-    }
-
-    // Ensure returning from DocumentEditor brings the user right back to Cloud Storage
-    try {
-      sessionStorage.setItem('editor_return_view', 'office');
-    } catch (_e) {}
-
-    if (fileDataUrl && fileDataUrl.startsWith('data:')) {
-      try {
-        sessionStorage.setItem('cloud_file_to_parse', JSON.stringify({
-          id: file.id,
-          name: file.name,
-          ext: ext,
-          type: docxType
-        }));
-      } catch (_e) {}
-      onNavigate?.('documents', editorCategory);
-      return;
-    }
-
-    // Fallback: use content/text if available (for AI-generated artifacts)
-    let artifactContent = fileContent;
-    if (!artifactContent || typeof artifactContent !== 'object') {
-      artifactContent = {
-        id: file.id || `doc_${Date.now()}`,
-        title: file.name ? file.name.replace(/\.[^/.]+$/, '') : 'Dokumen Cloud',
-        type: docxType,
-        content: file.text ? [{ type: 'paragraph', text: file.text }] : [{ type: 'paragraph', text: `Berkas ini tidak memiliki konten yang dapat dibaca. Silakan unggah ulang file.` }]
-      };
-    }
-
-    try {
-      sessionStorage.setItem('open_target_artifact', JSON.stringify(artifactContent));
-    } catch (_e) {}
-
-    onNavigate?.('documents', editorCategory);
+    const mediaDataUrl = file.dataUrl || file.fileData || null;
+    setSelectedMediaFile({
+      ...file,
+      dataUrl: mediaDataUrl,
+      isMediaLoading: (!mediaDataUrl || mediaDataUrl === '[[stored]]')
+    });
   };
 
   const currentEmail = (userEmail || '').toLowerCase().trim();
@@ -1653,7 +1567,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
 
   const getCategoryLabel = (cat) => {
     switch (cat) {
-      case 'docx': return 'Dokumen (Typernova)';
+      case 'docx': return 'Dokumen (Word)';
       case 'excel': return 'Spreadsheet (Sheets)';
       case 'pptx': return 'Presentasi (Slide)';
       case 'pdf': return 'PDF Vault';
@@ -1750,39 +1664,6 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
         </div>
 
         <div className="cmo-header-right">
-          {/* Quick Office Launchers */}
-          <div className="cmo-office-shortcuts">
-            <button 
-              className="cmo-tool-btn word" 
-              onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'word'); }}
-              title="Buka Typernova Word"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <img src="https://img.icons8.com/fluency/48/microsoft-word-2019.png" alt="Word" style={{ width: 16, height: 16 }} />
-              <span>Word</span>
-            </button>
-            <button 
-              className="cmo-tool-btn excel" 
-              onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'excel'); }}
-              title="Buka Sheets Excel"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <img src="https://img.icons8.com/fluency/48/microsoft-excel-2019.png" alt="Excel" style={{ width: 16, height: 16 }} />
-              <span>Excel</span>
-            </button>
-            <button 
-              className="cmo-tool-btn ppt" 
-              onClick={() => { try { sessionStorage.setItem('editor_return_view', 'office'); } catch {} onNavigate?.('documents', 'ppt'); }}
-              title="Buka Slide Deck"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <img src="https://img.icons8.com/fluency/48/microsoft-powerpoint-2019.png" alt="PPT" style={{ width: 16, height: 16 }} />
-              <span>PPT</span>
-            </button>
-          </div>
-
-          <div className="cmo-brand-divider"></div>
-
           <button 
             className="cmo-btn-secondary" 
             onClick={openNewFolderModal}
@@ -1882,7 +1763,7 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
               onClick={() => setActiveCategory('docx')}
             >
               <img src="https://img.icons8.com/fluency/48/microsoft-word-2019.png" alt="Word" style={{ width: 19, height: 19, objectFit: 'contain' }} />
-              <span className="cmo-nav-text">Typernova (Word)</span>
+              <span className="cmo-nav-text">Dokumen (Word)</span>
             </button>
 
             <button 
@@ -2728,29 +2609,6 @@ const AIManagerOffice = ({ user, onNavigate, isAuthenticated, onLoginRequest }) 
           >
             ✕
           </button>
-        </div>
-      )}
-
-      {/* Toast Notification: "loading sedang meminta data dari server" */}
-      {openingFileMessage && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          left: '24px',
-          zIndex: 999999,
-          background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
-          color: '#ffffff',
-          padding: '14px 22px',
-          borderRadius: '16px',
-          boxShadow: '0 12px 30px rgba(234, 88, 12, 0.35)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          fontSize: '14px',
-          fontWeight: 600
-        }}>
-          <div className="spinner-border spinner-border-sm" role="status" style={{ width: 18, height: 18, border: '2px solid #fff', borderRightColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
-          <span>{openingFileMessage}</span>
         </div>
       )}
     </div>

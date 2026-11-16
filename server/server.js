@@ -1334,8 +1334,15 @@ app.use('/api/agent', agentRoutes);
 // Mount Cloudflare & REST AI Gateway endpoints (/v1/chat/completions, /chat/completions, etc.)
 app.use('/v1', apiProxyRoutes);
 app.use('/chat', (req, res, next) => {
+  if (req.method === 'GET' && (req.path === '/' || req.path === '')) {
+    return next();
+  }
+  const origUrl = req.url;
   req.url = '/chat' + req.url;
-  apiProxyRoutes(req, res, next);
+  apiProxyRoutes(req, res, (err) => {
+    req.url = origUrl;
+    next(err);
+  });
 });
 
 // High-Speed Search Engine API Proxies (/api/v1/search, /api/v1/search-fast, /api/v1/images, /api/v1/suggest, etc.)
@@ -3848,123 +3855,123 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       req.on('aborted', handleClientDisconnect);
       res.on('close', handleClientDisconnect);
 
-        // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & IMMEDIATE FIRST-TOKEN STREAMING)
-        const envChatModel = (process.env.TOKENMIX_CHAT_MODEL || '').trim();
-        const fastDefaultModel = (!envChatModel || envChatModel === 'gpt-4.1-mini') ? 'gpt-4o-mini' : envChatModel;
-        let selectedModel = fastDefaultModel;
-        const reqModelLower = (requestedModel || '').toLowerCase();
-        const enableReasoning = req.body.enableReasoning === true || reqModelLower.includes('reason') || reqModelLower.includes('think') || reqModelLower.includes('boron');
+      // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & IMMEDIATE FIRST-TOKEN STREAMING)
+      const envChatModel = (process.env.TOKENMIX_CHAT_MODEL || '').trim();
+      const fastDefaultModel = (!envChatModel || envChatModel === 'gpt-4.1-mini') ? 'gpt-4o-mini' : envChatModel;
+      let selectedModel = fastDefaultModel;
+      const reqModelLower = (requestedModel || '').toLowerCase();
+      const enableReasoning = req.body.enableReasoning === true || reqModelLower.includes('reason') || reqModelLower.includes('think') || reqModelLower.includes('boron');
 
-        if (hasImagesInPayload) {
-          selectedModel = 'gpt-4o-mini';
-          console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
-        } else if (reqModelLower.includes('70b') || reqModelLower.includes('2.3') || reqModelLower.includes('giga')) {
-          selectedModel = 'llama-3.3-70b';
-        } else if (enableReasoning) {
-          selectedModel = 'grok-4.1-fast-reasoning';
-        } else {
-          // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to fast model (gpt-4o-mini) with sub-second TTFT
-          selectedModel = fastDefaultModel;
-        }
-        console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Reasoning: ${enableReasoning}, Vision: ${hasImagesInPayload})`);
+      if (hasImagesInPayload) {
+        selectedModel = 'gpt-4o-mini';
+        console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
+      } else if (reqModelLower.includes('70b') || reqModelLower.includes('2.3') || reqModelLower.includes('giga')) {
+        selectedModel = 'llama-3.3-70b';
+      } else if (enableReasoning) {
+        selectedModel = 'grok-4.1-fast-reasoning';
+      } else {
+        // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to fast model (gpt-4o-mini) with sub-second TTFT
+        selectedModel = fastDefaultModel;
+      }
+      console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Reasoning: ${enableReasoning}, Vision: ${hasImagesInPayload})`);
 
-        // 1. Try High-Speed AI Engine with Key Rotation across all active healthy keys & fast model failover
-        if (TOKENMIX_API_KEYS.length > 0) {
-          const candidateModels = hasImagesInPayload
-            ? ['gpt-4o-mini', 'llama-4-maverick', 'gpt-4.1-mini']
-            : Array.from(new Set([
-                selectedModel,
-                fastDefaultModel,
-                'gpt-4o-mini',
-                'llama-3.3-70b',
-                'qwen3.8-flash'
-              ]));
+      // 1. Try High-Speed AI Engine with Key Rotation across all active healthy keys & fast model failover
+      if (TOKENMIX_API_KEYS.length > 0) {
+        const candidateModels = hasImagesInPayload
+          ? ['gpt-4o-mini', 'llama-4-maverick', 'gpt-4.1-mini']
+          : Array.from(new Set([
+            selectedModel,
+            fastDefaultModel,
+            'gpt-4o-mini',
+            'llama-3.3-70b',
+            'qwen3.8-flash'
+          ]));
 
-          for (const modelToTry of candidateModels) {
-            let modelTimedOut = false;
-            for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
-              const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
-              const key = TOKENMIX_API_KEYS[idx];
-              if (exhaustedTokenMixKeys.has(key)) continue;
+        for (const modelToTry of candidateModels) {
+          let modelTimedOut = false;
+          for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
+            const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
+            const key = TOKENMIX_API_KEYS[idx];
+            if (exhaustedTokenMixKeys.has(key)) continue;
 
-              const attemptAbort = new AbortController();
-              let attemptTimedOut = false;
-              const onParentAbort = () => attemptAbort.abort();
-              upstreamAbortController.signal.addEventListener('abort', onParentAbort, { once: true });
-              const connectTimeoutMs = modelToTry.includes('reasoning') ? 14000 : 8000;
-              const connectTimer = setTimeout(() => {
-                attemptTimedOut = true;
-                attemptAbort.abort();
-              }, connectTimeoutMs);
+            const attemptAbort = new AbortController();
+            let attemptTimedOut = false;
+            const onParentAbort = () => attemptAbort.abort();
+            upstreamAbortController.signal.addEventListener('abort', onParentAbort, { once: true });
+            const connectTimeoutMs = modelToTry.includes('reasoning') ? 14000 : 8000;
+            const connectTimer = setTimeout(() => {
+              attemptTimedOut = true;
+              attemptAbort.abort();
+            }, connectTimeoutMs);
 
-              try {
-                console.log(`[CHAT] Attempting high-speed chat request with model ${modelToTry} & key index ${idx}...`);
-                tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${key}`,
-                  },
-                  signal: attemptAbort.signal,
-                  body: JSON.stringify({
-                    model: modelToTry,
-                    messages: messages,
-                    temperature: req.body.temperature || 0.6,
-                    max_tokens: req.body.max_tokens || 4096,
-                    presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
-                    frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
-                    stream: shouldStream
-                  }),
-                });
+            try {
+              console.log(`[CHAT] Attempting high-speed chat request with model ${modelToTry} & key index ${idx}...`);
+              tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${key}`,
+                },
+                signal: attemptAbort.signal,
+                body: JSON.stringify({
+                  model: modelToTry,
+                  messages: messages,
+                  temperature: req.body.temperature || 0.6,
+                  max_tokens: req.body.max_tokens || 4096,
+                  presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
+                  frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
+                  stream: shouldStream
+                }),
+              });
 
-                if (tokenmixResponse.ok) {
-                  console.log(`[CHAT] ✅ High-Speed AI responded successfully with model ${modelToTry} (key index ${idx})`);
-                  reqRecord.responseStream = tokenmixResponse;
-                  lastError = null;
-                  activeChatKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
-                  break;
-                } else {
-                  const errText = await tokenmixResponse.text().catch(() => '');
-                  const status = tokenmixResponse.status;
-                  if (status === 402 || status === 401 || status === 429) {
-                    exhaustedTokenMixKeys.add(key);
-                    console.warn(`[CHAT] ⚠️ Key index ${idx} marked exhausted (${status}). Removed from active rotation.`);
-                  }
-                  lastError = new Error(`Model ${modelToTry} with key ${idx} failed with status ${status}: ${errText}`);
-                  console.warn(`[CHAT] Model ${modelToTry} key ${idx} status ${status}: ${errText.slice(0, 100)}`);
+              if (tokenmixResponse.ok) {
+                console.log(`[CHAT] ✅ High-Speed AI responded successfully with model ${modelToTry} (key index ${idx})`);
+                reqRecord.responseStream = tokenmixResponse;
+                lastError = null;
+                activeChatKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
+                break;
+              } else {
+                const errText = await tokenmixResponse.text().catch(() => '');
+                const status = tokenmixResponse.status;
+                if (status === 402 || status === 401 || status === 429) {
+                  exhaustedTokenMixKeys.add(key);
+                  console.warn(`[CHAT] ⚠️ Key index ${idx} marked exhausted (${status}). Removed from active rotation.`);
                 }
-              } catch (e) {
-                if ((e?.name === 'AbortError' && upstreamAbortController.signal.aborted) || clientDisconnected) {
-                  console.log('[CHAT] Stream connection aborted by user stop.');
-                  if (!res.writableEnded) {
-                    try { res.end('data: [DONE]\n\n'); } catch (_e) {}
-                  }
-                  return;
-                }
-                lastError = e;
-                if (attemptTimedOut) {
-                  console.warn(`[CHAT] ⏱️ Model ${modelToTry} key ${idx} timed out after ${connectTimeoutMs}ms — failing over to next model.`);
-                  modelTimedOut = true;
-                  break;
-                }
-                console.warn(`[CHAT] Key error with index ${idx}: ${e.message}`);
-              } finally {
-                clearTimeout(connectTimer);
-                upstreamAbortController.signal.removeEventListener('abort', onParentAbort);
+                lastError = new Error(`Model ${modelToTry} with key ${idx} failed with status ${status}: ${errText}`);
+                console.warn(`[CHAT] Model ${modelToTry} key ${idx} status ${status}: ${errText.slice(0, 100)}`);
               }
-
-              if (tokenmixResponse && tokenmixResponse.ok) {
+            } catch (e) {
+              if ((e?.name === 'AbortError' && upstreamAbortController.signal.aborted) || clientDisconnected) {
+                console.log('[CHAT] Stream connection aborted by user stop.');
+                if (!res.writableEnded) {
+                  try { res.end('data: [DONE]\n\n'); } catch (_e) { }
+                }
+                return;
+              }
+              lastError = e;
+              if (attemptTimedOut) {
+                console.warn(`[CHAT] ⏱️ Model ${modelToTry} key ${idx} timed out after ${connectTimeoutMs}ms — failing over to next model.`);
+                modelTimedOut = true;
                 break;
               }
+              console.warn(`[CHAT] Key error with index ${idx}: ${e.message}`);
+            } finally {
+              clearTimeout(connectTimer);
+              upstreamAbortController.signal.removeEventListener('abort', onParentAbort);
             }
+
             if (tokenmixResponse && tokenmixResponse.ok) {
               break;
             }
-            if (modelTimedOut) {
-              continue;
-            }
+          }
+          if (tokenmixResponse && tokenmixResponse.ok) {
+            break;
+          }
+          if (modelTimedOut) {
+            continue;
           }
         }
+      }
 
       // 2. Seamless Fallback: Native GPU Engine if Cloud is unavailable
       if (!tokenmixResponse || !tokenmixResponse.ok) {
@@ -5189,7 +5196,7 @@ app.get('/api/conversations', (req, res) => {
                 if (parsedMeta.fileName) processedMsg.fileName = parsedMeta.fileName;
                 if (parsedMeta.downloadSummary) processedMsg.downloadSummary = parsedMeta.downloadSummary;
               }
-            } catch (_e) {}
+            } catch (_e) { }
             delete processedMsg.metadataJson;
           }
 

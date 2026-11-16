@@ -322,7 +322,6 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   // Zero-Search Skill Architecture: Active Skill State
   const [activeSkill, setActiveSkill] = useState(null);
-  const [openingFileInStudio, setOpeningFileInStudio] = useState(null);
 
   // AI Agent Effort Level ('low' | 'medium' | 'high' - Pantang Menyerah)
   const [agentEffort, setAgentEffort] = useState(() => {
@@ -991,77 +990,6 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     await downloadFromUrl(url, `deepernova-project-${currentSessionId.slice(-6)}.zip`, { mimeType: 'application/zip' });
   };
 
-  // Open any sandbox deliverable file directly in Typernova Studio (DocumentEditor)
-  const handleOpenFileInTypernova = async (file) => {
-    if (!file || !currentSessionId) return;
-    const filePath = typeof file === 'string' ? file : file.path;
-    const fileName = (typeof file === 'string' ? file.split('/').pop() : file.name) || filePath;
-    const ext = (file.ext || fileName.split('.').pop() || '').toLowerCase();
-
-    setOpeningFileInStudio(filePath);
-    try {
-      const isExcel = ['xlsx', 'xls', 'csv'].includes(ext);
-      const isPpt = ['pptx', 'ppt'].includes(ext);
-      const isWord = ['docx', 'doc', 'pdf'].includes(ext);
-
-      let editorCategory = 'word';
-      let docxType = 'docx';
-      if (isExcel) {
-        editorCategory = 'excel';
-        docxType = 'excel';
-      } else if (isPpt) {
-        editorCategory = 'ppt';
-        docxType = 'pptx';
-      } else {
-        editorCategory = 'word';
-        docxType = isWord ? 'docx' : ext;
-      }
-
-      const downloadUrl = AgentService.getDownloadUrl(currentSessionId, filePath);
-      const res = await fetch(downloadUrl, { credentials: 'include' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-
-      const reader = new FileReader();
-      const dataUrl = await new Promise((resolve, reject) => {
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-
-      const cloudFilePayload = {
-        id: `sandbox_${currentSessionId}_${Date.now()}`,
-        name: fileName,
-        ext: ext,
-        type: docxType,
-        dataUrl: dataUrl
-      };
-
-      if (typeof window !== 'undefined') {
-        window.deepernova_active_cloud_file = cloudFilePayload;
-      }
-
-      try {
-        sessionStorage.setItem('editor_return_view', 'agent');
-        const storageDataUrl = (dataUrl && dataUrl.length < 2000000) ? dataUrl : downloadUrl;
-        sessionStorage.setItem('cloud_file_to_parse', JSON.stringify({
-          id: cloudFilePayload.id,
-          name: fileName,
-          ext: ext,
-          type: docxType,
-          dataUrl: storageDataUrl
-        }));
-      } catch (_e) {}
-
-      onNavigate?.('documents', editorCategory);
-    } catch (err) {
-      console.error('[AgentChat] Gagal membuka file di Typernova Studio:', err);
-      alert(`Gagal membuka file di Typernova Studio: ${err.message}`);
-    } finally {
-      setOpeningFileInStudio(null);
-    }
-  };
-
   const handleUserFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length || !currentSessionId) return;
@@ -1680,13 +1608,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                           {filesToShow.map((file) => {
                             const ext = (file.ext || (file.name || '').split('.').pop() || '').toLowerCase();
                             const iconMeta = getFileIcon(ext);
-                            const isStudioDoc = ['docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'pdf'].includes(ext);
+                            const isOfficeOrPdfDoc = ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'pdf'].includes(ext);
                             const isHtml = ext === 'html';
-                            const isOpeningThis = openingFileInStudio === file.path;
 
                             const handlePrimaryFileClick = () => {
-                              if (isStudioDoc) {
-                                handleOpenFileInTypernova(file);
+                              if (isOfficeOrPdfDoc) {
+                                handleDownloadSingleFile(file);
                               } else if (isHtml) {
                                 setPreviewUrl(`/api/agent/preview/${currentSessionId}/${file.path}`);
                                 setActiveDrawerTab('preview');
@@ -1701,9 +1628,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                             return (
                               <div
                                 key={file.path}
-                                className={`agent-msg-file-card ${isOpeningThis ? 'is-opening' : ''}`}
+                                className="agent-msg-file-card"
                                 onClick={handlePrimaryFileClick}
-                                title={`Klik untuk membuka ${file.name}`}
+                                title={isOfficeOrPdfDoc ? `Klik untuk mengunduh ${file.name}` : `Klik untuk membuka ${file.name}`}
                               >
                                 <div className="agent-msg-file-info">
                                   <div className="agent-file-icon-box">
@@ -1719,37 +1646,29 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                   </div>
                                 </div>
                                 <div className="agent-msg-file-actions">
-                                  <button
-                                    type="button"
-                                    className="agent-file-card-btn is-primary"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handlePrimaryFileClick();
-                                    }}
-                                    title={isStudioDoc ? `Buka ${file.name} di Typernova Studio` : (isHtml ? 'Buka Live Preview' : 'Lihat isi berkas')}
-                                  >
-                                    {isOpeningThis ? (
-                                      <>
-                                        <i className="fa-solid fa-circle-notch fa-spin" />
-                                        <span>Membuka...</span>
-                                      </>
-                                    ) : isStudioDoc ? (
-                                      <>
-                                        <i className="fa-solid fa-pen-to-square" />
-                                        <span>Buka di Studio</span>
-                                      </>
-                                    ) : isHtml ? (
-                                      <>
-                                        <i className="fa-solid fa-eye" />
-                                        <span>Preview</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <i className="fa-solid fa-code" />
-                                        <span>Lihat Kode</span>
-                                      </>
-                                    )}
-                                  </button>
+                                  {!isOfficeOrPdfDoc && (
+                                    <button
+                                      type="button"
+                                      className="agent-file-card-btn is-primary"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePrimaryFileClick();
+                                      }}
+                                      title={isHtml ? 'Buka Live Preview' : 'Lihat isi berkas'}
+                                    >
+                                      {isHtml ? (
+                                        <>
+                                          <i className="fa-solid fa-eye" />
+                                          <span>Preview</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <i className="fa-solid fa-code" />
+                                          <span>Lihat Kode</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     className="agent-file-card-btn is-download"

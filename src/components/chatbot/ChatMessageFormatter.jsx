@@ -373,21 +373,6 @@ export const formatMessageContent = ({
   tempText = tempText.replace(/\[RECALL_MEMORY:\s*(.+?)\]/g, '');
   tempText = tempText.replace(/\[(MEMORY_SAVE|MEMORY_UPDATE|MEMORY_DELETE|MEMORY_RECALL):[\s\S]*?\]/gi, '');
 
-  tempText = tempText.replace(/\[(?:REQUEST_DOCUMENT|REQUEST_DOCX|EXECUTE_DOCUMENT):\s*(.+?)\]/gi, (match, topic) => {
-    redirectCards.push({ target: 'documents', fileType: 'docx', topic: topic.trim() });
-    return '';
-  });
-
-  tempText = tempText.replace(/\[REQUEST_EXCEL:\s*(.+?)\]/gi, (match, topic) => {
-    redirectCards.push({ target: 'documents', fileType: 'excel', topic: topic.trim() });
-    return '';
-  });
-
-  tempText = tempText.replace(/\[(?:REQUEST_PPT|REQUEST_PPTX):\s*(.+?)\]/gi, (match, topic) => {
-    redirectCards.push({ target: 'documents', fileType: 'pptx', topic: topic.trim() });
-    return '';
-  });
-
   tempText = tempText.replace(/\[(?:REQUEST_AGENT|REQUEST_CODE|EXECUTE_CODE|OPEN_AGENT):\s*(.+?)\]/gi, (match, task) => {
     redirectCards.push({ target: 'agent', fileType: null, topic: task.trim() });
     return '';

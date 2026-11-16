@@ -514,8 +514,8 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
               <div className="update-feature-item">
                 <span className="feature-icon">📝</span>
                 <div className="feature-content">
-                  <div className="feature-title">Typernova Word Agent</div>
-                  <div className="feature-desc">{userLanguage === 'zh' ? '自动化文档智能生成（封面、带导引线目录、正文各章节与参考文献）。' : userLanguage === 'id' ? 'Penyusun dokumen otomatis (Cover, TOC titik-titik, Bab I-V, & Daftar Pustaka).' : 'Autonomous document drafter with full TOC leader dots & chapters.'}</div>
+                  <div className="feature-title">Sub-Agent Dokumen Word, Excel &amp; PPT</div>
+                  <div className="feature-desc">{userLanguage === 'zh' ? '直接在聊天与 AI Agent 沙箱中生成并下载 .docx、.xlsx、.pptx 文档。' : userLanguage === 'id' ? 'Pembuatan & unduhan langsung berkas .docx, .xlsx, dan .pptx dari Chat & AI Agent.' : 'Direct generation & download of .docx, .xlsx, and .pptx files.'}</div>
                 </div>
               </div>
               <div className="update-feature-item">
@@ -1207,7 +1207,6 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
     setAiMode,
     showAlert,
     activeFile,
-    onNavigate,
     setActiveFile,
     fetchWorkspaceFiles,
     isAgentExecuting,
@@ -1631,14 +1630,6 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                     title={userLanguage === 'zh' ? '下载文件' : userLanguage === 'id' ? 'Unduh Berkas' : 'Download File'}
                   >
                     <i className="fas fa-download"></i>
-                  </button>
-                  <button
-                    type="button"
-                    className="workspace-btn primary"
-                    onClick={() => onNavigate?.('documents', activeFile.type)}
-                    title={userLanguage === 'zh' ? '在完整编辑器中打开' : userLanguage === 'id' ? 'Buka di Editor Penuh' : 'Open in Full Editor'}
-                  >
-                    <i className="fas fa-external-link-alt"></i>
                   </button>
                   <button
                     type="button"
