@@ -76,7 +76,8 @@ class AgentService {
   static async getMessages(sessionId) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/agent/messages?sessionId=${encodeURIComponent(sessionId)}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'x-device-id': getDeviceId() }
       });
       if (!res.ok) return [];
       const data = await res.json();
@@ -93,7 +94,8 @@ class AgentService {
   static async getFiles(sessionId) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/agent/files?sessionId=${encodeURIComponent(sessionId)}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'x-device-id': getDeviceId() }
       });
       if (!res.ok) return [];
       const data = await res.json();
@@ -112,7 +114,10 @@ class AgentService {
       const res = await fetch(`${API_BASE_URL}/api/agent/file/write`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': getDeviceId()
+        },
         body: JSON.stringify({ sessionId, path, content })
       });
       if (!res.ok) return null;
@@ -129,7 +134,8 @@ class AgentService {
   static async readFile(sessionId, path) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/agent/file/read?sessionId=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(path)}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'x-device-id': getDeviceId() }
       });
       if (!res.ok) return null;
       const data = await res.json();
@@ -148,7 +154,10 @@ class AgentService {
       const res = await fetch(`${API_BASE_URL}/api/agent/file`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': getDeviceId()
+        },
         body: JSON.stringify({ sessionId, path })
       });
       if (!res.ok) return null;
@@ -167,7 +176,10 @@ class AgentService {
       const res = await fetch(`${API_BASE_URL}/api/agent/execute`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': getDeviceId()
+        },
         body: JSON.stringify({ sessionId, language, code, command, timeoutMs })
       });
       if (!res.ok) return { success: false, stderr: 'Request failed' };
@@ -233,7 +245,10 @@ class AgentService {
       const res = await fetch(`${API_BASE_URL}/api/agent/upload`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': getDeviceId()
+        },
         body: JSON.stringify(payload)
       });
 

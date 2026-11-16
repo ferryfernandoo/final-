@@ -11,7 +11,8 @@
 // JSZip is loaded lazily inside downloadAllSubAgentFilesAsZip() to keep initial bundle light.
 import { API_BASE_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
-import { downloadBlob } from './universalDownloadService.js';
+import { downloadBlob, downloadFromUrl, showDownloadToast } from './universalDownloadService.js';
+import { buildDeliverableBlob } from '../utils/subAgentOfficeBuilder.js';
 
 export const SUBAGENT_FLAG_REGEX = /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([\s\S]+?)\]/i;
 export const SUBAGENT_XML_REGEX = /<subagent(?:_orchestrate)?>\s*([\s\S]+?)\s*<\/subagent(?:_orchestrate)?>/i;
@@ -179,28 +180,62 @@ export function buildDeliverableFileObject(name, content, description = '', inde
 }
 
 /**
- * Download a single generated file immediately in browser
+ * Download a single generated file reliably on Web, Mobile, and Android APK.
+ * Automatically upgrades .docx/.xlsx/.pptx outputs to valid OOXML binary documents.
  */
-export function downloadSingleSubAgentFile(file) {
-  if (!file || !file.content) return;
-  const meta = getSubAgentFileMeta(file.name);
-  const blob = new Blob([file.content], { type: `${meta.mime};charset=utf-8` });
-  const fileName = file.name.split('/').pop() || 'file.txt';
-  return downloadBlob(blob, fileName, { mimeType: `${meta.mime};charset=utf-8` });
+export async function downloadSingleSubAgentFile(file) {
+  const fileName = String(file?.name || 'file.txt').split(/[/\\]/).pop() || 'file.txt';
+  if (!file) {
+    showDownloadToast({ fileName, status: 'error', subtitle: 'Data berkas tidak ditemukan.' });
+    return { ok: false, error: 'Data berkas tidak ditemukan.' };
+  }
+
+  const remoteUrl = file.downloadUrl || file.url;
+  if (remoteUrl) {
+    return downloadFromUrl(remoteUrl, fileName);
+  }
+
+  if (file.content == null || String(file.content).length === 0) {
+    showDownloadToast({ fileName, status: 'error', subtitle: 'Konten berkas kosong atau belum selesai dibuat.' });
+    return { ok: false, error: 'Konten berkas kosong.' };
+  }
+
+  const meta = getSubAgentFileMeta(fileName);
+  const { blob, mimeType } = await buildDeliverableBlob(file, `${meta.mime};charset=utf-8`);
+  return downloadBlob(blob, fileName, { mimeType });
 }
 
 /**
  * Package all Sub-Agent deliverable files into a single .ZIP archive and download
  */
 export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'deepernova-subagent') {
-  if (!Array.isArray(files) || files.length === 0) return;
+  if (!Array.isArray(files) || files.length === 0) {
+    showDownloadToast({ fileName: 'archive.zip', status: 'error', subtitle: 'Belum ada berkas untuk diarsipkan.' });
+    return { ok: false, error: 'Tidak ada berkas.' };
+  }
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
 
-  files.forEach((f, idx) => {
-    const fileName = f.name || `file_${idx + 1}.txt`;
-    zip.file(fileName, f.content || '');
-  });
+  const seenPaths = new Set();
+  for (let idx = 0; idx < files.length; idx++) {
+    const f = files[idx];
+    if (!f) continue;
+    let fileName = String(f.name || `file_${idx + 1}.txt`).replace(/^[/\\]+/, '');
+    if (seenPaths.has(fileName)) {
+      const dot = fileName.lastIndexOf('.');
+      fileName = dot > 0 ? `${fileName.slice(0, dot)}_${idx + 1}${fileName.slice(dot)}` : `${fileName}_${idx + 1}`;
+    }
+    seenPaths.add(fileName);
+
+    const ext = (fileName.split('.').pop() || '').toLowerCase();
+    if (['docx', 'xlsx', 'pptx'].includes(ext) && f.content) {
+      const meta = getSubAgentFileMeta(fileName);
+      const { blob } = await buildDeliverableBlob(f, `${meta.mime};charset=utf-8`);
+      zip.file(fileName, blob);
+    } else {
+      zip.file(fileName, f.content ?? '');
+    }
+  }
 
   const slug = String(taskTitle || 'deepernova-subagent')
     .toLowerCase()

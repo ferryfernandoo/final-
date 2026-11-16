@@ -26,6 +26,24 @@ import {
   stripAllImageMarkdownAndRawLinks
 } from './chatTextUtils';
 import { formatBubbleDomainLabel } from './chatConstants';
+import { downloadFromUrl } from '../../services/universalDownloadService';
+
+const isDirectDownloadHref = (href = '') =>
+  /^(?:https?:\/\/[^/]+)?(?:\/api\/agent\/file\/download|\/api\/agent\/download\/|\/api\/agent\/download-zip|\/api\/documents\/download\/|\/api\/files\/temp-download\/|\/download\/)/i.test(
+    String(href || '').trim()
+  ) || /\.(?:docx|xlsx|pptx|zip)(?:[?#]|$)/i.test(String(href || '').trim());
+
+const inferDownloadNameFromHref = (href = '', label = '') => {
+  try {
+    const u = new URL(String(href), 'https://deepernova.com');
+    const qPath = u.searchParams.get('path');
+    if (qPath) return qPath.split('/').pop();
+    const lastSeg = u.pathname.split('/').filter(Boolean).pop();
+    if (lastSeg && lastSeg.includes('.')) return decodeURIComponent(lastSeg);
+  } catch (_) {}
+  const txt = String(label || '').trim();
+  return txt && txt.includes('.') ? txt : 'deepernova-file';
+};
 
 export const parseQuizText = (
   text,
@@ -492,6 +510,21 @@ export const formatMessageContent = ({
       if (isImageLabelText(rawChildren)) {
         return null;
       }
+      if (isDirectDownloadHref(href)) {
+        return (
+          <a
+            href={href}
+            className="message-link"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              downloadFromUrl(href, inferDownloadNameFromHref(href, rawChildren));
+            }}
+          >
+            {children}
+          </a>
+        );
+      }
       return (
         <a href={href} target="_blank" rel="noopener noreferrer" className="message-link">
           {children}
@@ -522,6 +555,21 @@ export const formatMessageContent = ({
     // IF IT'S NOT A SHORT CITATION (e.g. an informative sentence, article title, or descriptive text):
     // RENDER AS REGULAR NICE LINK so the entire article sentence/text is 100% PRESERVED!
     if (!shouldRenderAsCitationPill) {
+      if (isDirectDownloadHref(targetUrl)) {
+        return (
+          <a
+            href={targetUrl}
+            className="message-link"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              downloadFromUrl(targetUrl, inferDownloadNameFromHref(targetUrl, rawChildren));
+            }}
+          >
+            {children}
+          </a>
+        );
+      }
       return (
         <a href={targetUrl} target="_blank" rel="noopener noreferrer" className="message-link">
           {children}
@@ -1183,15 +1231,16 @@ export const formatMessageContent = ({
         gap: '10px'
       }}>
         <span style={{ fontSize: '18px' }}>📥</span>
-        <a
-          href={downloadUrl}
-          download={fileName}
+        <button
+          type="button"
+          onClick={() => downloadFromUrl(downloadUrl, fileName)}
           className="download-file-button"
           style={{
             flex: 1,
             padding: '8px 12px',
             backgroundColor: '#3b82f6',
             color: 'white',
+            border: 'none',
             borderRadius: '6px',
             textDecoration: 'none',
             fontWeight: '500',
@@ -1200,11 +1249,11 @@ export const formatMessageContent = ({
             cursor: 'pointer',
             transition: 'background-color 0.2s'
           }}
-          onMouseEnter={(e) => { e.target.style.backgroundColor = '#2563eb'; }}
-          onMouseLeave={(e) => { e.target.style.backgroundColor = '#3b82f6'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563eb'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#3b82f6'; }}
         >
           📩 Download: {fileName}
-        </a>
+        </button>
       </div>
     );
   }

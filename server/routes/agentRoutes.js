@@ -171,22 +171,71 @@ router.delete('/file', (req, res) => {
   }
 });
 
+const SANDBOX_MIME_MAP = {
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.doc': 'application/msword',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.xls': 'application/vnd.ms-excel',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.pdf': 'application/pdf',
+  '.zip': 'application/zip',
+  '.html': 'text/html; charset=utf-8',
+  '.htm': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.jsx': 'text/plain; charset=utf-8',
+  '.ts': 'text/plain; charset=utf-8',
+  '.tsx': 'text/plain; charset=utf-8',
+  '.py': 'text/x-python; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.csv': 'text/csv; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.sql': 'application/sql; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+};
+
+function sendSandboxDownloadFile(res, fullPath, requestedName) {
+  if (!fs.existsSync(fullPath)) {
+    return res.status(404).json({ success: false, error: 'File tidak ditemukan di sandbox' });
+  }
+  const stat = fs.statSync(fullPath);
+  if (!stat.isFile()) {
+    return res.status(400).json({ success: false, error: 'Target bukan berkas yang dapat diunduh' });
+  }
+  const rawBase = path.basename(requestedName || fullPath);
+  const safeName = rawBase.replace(/[\r\n\0"<>:|?*\\/]/g, '_') || 'download';
+  const ext = path.extname(safeName).toLowerCase();
+  const contentType = SANDBOX_MIME_MAP[ext] || 'application/octet-stream';
+  const encodedName = encodeURIComponent(safeName);
+
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Length', String(stat.size));
+  res.setHeader('Content-Disposition', `attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
+  return res.sendFile(path.resolve(fullPath));
+}
+
 // GET /api/agent/file/download - Direct file download for individual created files
 router.get('/file/download', (req, res) => {
   try {
     const { sessionId, path: relativePath } = req.query;
     if (!sessionId || !relativePath) {
-      return res.status(400).send('sessionId dan path diperlukan');
+      return res.status(400).json({ success: false, error: 'sessionId dan path diperlukan' });
     }
     const fullPath = agentSandboxService.safeResolvePath(sessionId, relativePath);
-    if (!fs.existsSync(fullPath)) {
-      return res.status(404).send('File tidak ditemukan di sandbox');
-    }
-    const filename = path.basename(fullPath);
-    res.download(fullPath, filename);
+    return sendSandboxDownloadFile(res, fullPath, path.basename(fullPath));
   } catch (err) {
     console.error('[AGENT_ROUTES] Download error:', err);
-    res.status(500).send(err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -215,28 +264,41 @@ router.get('/download-zip', async (req, res) => {
   try {
     const { sessionId } = req.query;
     if (!sessionId) {
-      return res.status(400).send('sessionId diperlukan');
+      return res.status(400).json({ success: false, error: 'sessionId diperlukan' });
     }
     const sandboxDir = agentSandboxService.getSandboxDir(sessionId);
-    const files = agentSandboxService.listFiles(sessionId);
+    const allFiles = agentSandboxService.listFiles(sessionId);
+    const userFiles = allFiles.filter(
+      (f) => f.name !== 'SKILL.md' && !f.name.startsWith('_runner_temp') && !f.path.includes('__pycache__') && f.ext !== 'pyc'
+    );
+    const filesToZip = userFiles.length > 0 ? userFiles : allFiles.filter((f) => !f.name.startsWith('_runner_temp'));
 
     const zip = new JSZip();
-    for (const f of files) {
-      if (f.name.startsWith('_runner_temp')) continue;
+    let addedCount = 0;
+    for (const f of filesToZip) {
       const fullPath = path.join(sandboxDir, f.path);
-      if (fs.existsSync(fullPath)) {
-        const content = fs.readFileSync(fullPath);
-        zip.file(f.path, content);
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+        zip.file(f.path, fs.readFileSync(fullPath));
+        addedCount++;
       }
     }
 
+    if (addedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Belum ada berkas di sandbox untuk diunduh' });
+    }
+
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    const zipName = `deepernova-project-${String(sessionId).slice(-6)}.zip`;
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="deepernova-project-${sessionId.slice(-6)}.zip"`);
+    res.setHeader('Content-Length', String(zipBuffer.length));
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"; filename*=UTF-8''${encodeURIComponent(zipName)}`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
     res.send(zipBuffer);
   } catch (err) {
     console.error('[AGENT_ROUTES] Download zip error:', err);
-    res.status(500).send(err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -316,22 +378,10 @@ router.get('/download/:sessionId/:fileName', (req, res) => {
   try {
     const { sessionId, fileName } = req.params;
     const filePath = agentSandboxService.safeResolvePath(sessionId, fileName);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File tidak ditemukan di sandbox' });
-    }
-    const ext = path.extname(fileName).toLowerCase();
-    let contentType = 'application/octet-stream';
-    if (ext === '.docx') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    else if (ext === '.xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    else if (ext === '.pptx') contentType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    else if (ext === '.pdf') contentType = 'application/pdf';
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.sendFile(filePath);
+    return sendSandboxDownloadFile(res, filePath, fileName);
   } catch (err) {
     console.error('[AGENT_ROUTES] Download error:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

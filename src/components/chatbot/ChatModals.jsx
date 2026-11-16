@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { PERSONALITIES } from './chatConstants';
 import memoryService from '../../services/memoryService';
+import { exportToDocx, exportToPptx, exportToExcel } from '../../services/documentExportService';
 
 const ApiMarketplace = lazy(() => import('../ApiMarketplace'));
 const VoiceChat = lazy(() => import('../VoiceChat'));
@@ -1614,6 +1615,23 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                   </div>
                 </div>
                 <div className="file-actions">
+                  <button
+                    type="button"
+                    className="workspace-btn"
+                    onClick={async () => {
+                      const baseName = (activeFile.name || 'document').replace(/\.(docx|xlsx|pptx)$/i, '');
+                      if (activeFile.type === 'excel') {
+                        await exportToExcel(activeFile.content, baseName);
+                      } else if (activeFile.type === 'pptx') {
+                        await exportToPptx(activeFile.content, baseName);
+                      } else {
+                        await exportToDocx(activeFile.content, baseName);
+                      }
+                    }}
+                    title={userLanguage === 'zh' ? '下载文件' : userLanguage === 'id' ? 'Unduh Berkas' : 'Download File'}
+                  >
+                    <i className="fas fa-download"></i>
+                  </button>
                   <button
                     type="button"
                     className="workspace-btn primary"

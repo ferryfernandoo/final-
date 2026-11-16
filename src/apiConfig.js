@@ -5,14 +5,22 @@ export const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location) {
     const hostname = window.location.hostname;
-    // Same-origin relative URLs on production domains and dev hosts
+    const isBundledCapacitorLocalhost =
+      Boolean(window.Capacitor?.isNativePlatform?.()) &&
+      (hostname === 'localhost' || hostname === '127.0.0.1') &&
+      !window.location.port;
+
+    // Same-origin relative URLs on production domains and dev hosts (excluding offline bundled Capacitor localhost)
     if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname.endsWith('.vercel.app') ||
-      hostname.endsWith('.trycloudflare.com') ||
-      hostname === 'deepernova.com' ||
-      hostname.endsWith('.deepernova.com')
+      !isBundledCapacitorLocalhost &&
+      (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.endsWith('.vercel.app') ||
+        hostname.endsWith('.trycloudflare.com') ||
+        hostname === 'deepernova.com' ||
+        hostname.endsWith('.deepernova.com')
+      )
     ) {
       return '';
     }

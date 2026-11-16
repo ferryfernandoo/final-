@@ -72,7 +72,7 @@ const applyFaststartToVideo = (filePath) => {
       ]);
 
       proc.on('error', (err) => {
-        try { if (fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput); } catch (_) {}
+        try { if (fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput); } catch (_) { }
         resolve({ success: false, error: err.message });
       });
 
@@ -86,7 +86,7 @@ const applyFaststartToVideo = (filePath) => {
             resolve({ success: false, error: copyErr.message });
           }
         } else {
-          try { if (fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput); } catch (_) {}
+          try { if (fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput); } catch (_) { }
           resolve({ success: false, error: `FFmpeg faststart exited with code ${code}` });
         }
       });
@@ -127,7 +127,7 @@ const transcodeToUniversalMP4 = (inputPath, outputPath) => {
       });
 
       proc.on('error', (err) => {
-        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch (_) {}
+        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch (_) { }
         resolve({ success: false, error: err.message });
       });
 
@@ -135,7 +135,7 @@ const transcodeToUniversalMP4 = (inputPath, outputPath) => {
         if (code === 0 && fs.existsSync(outputPath)) {
           resolve({ success: true, outputPath });
         } else {
-          try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch (_) {}
+          try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch (_) { }
           resolve({ success: false, error: `FFmpeg transcode failed (exit code ${code}): ${errorMsg.slice(-200)}` });
         }
       });
@@ -303,7 +303,7 @@ app.use((req, res, next) => {
     reqPath === '/index.html' ||
     reqPath === '/help' ||
     reqPath === '/help.html' ||
-        reqPath === '/documents' ||
+    reqPath === '/documents' ||
     reqPath === '/chat' ||
     reqPath === '/universe' ||
     reqPath === '/ceo.jpg' ||
@@ -617,27 +617,27 @@ const ALLOWED_ORIGINS = [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...envConfigure
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true; // Mobile apps, Electron, Postman, server-to-server, cURL, same-origin
-  
+
   const clean = origin.trim().replace(/\/$/, '');
-  
+
   // 1. Explicitly configured whitelist
   if (ALLOWED_ORIGINS.includes(clean)) return true;
-  
+
   // 2. Localhost & 127.0.0.1 on ANY port (Vite dev, DTE, search dashboard, tests)
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(clean)) return true;
-  
+
   // 3. Official DeeperNova subdomains
   if (/^https:\/\/([a-zA-Z0-9-_]+\.)*deepernova\.com$/i.test(clean)) return true;
-  
+
   // 4. Official Vercel deployments (deepernova project & preview branches)
   if (/^https:\/\/([a-zA-Z0-9-_]+\.)*vercel\.app$/i.test(clean)) return true;
-  
+
   // 5. Cloudflare Quick Tunnels
   if (/^https:\/\/([a-zA-Z0-9-_]+\.)*trycloudflare\.com$/i.test(clean)) return true;
-  
+
   // 6. Mobile & Hybrid app protocols (Capacitor / Ionic / Electron)
   if (/^(capacitor|ionic|electron|file):\/\//i.test(clean)) return true;
-  
+
   return false;
 };
 
@@ -645,10 +645,10 @@ const isAllowedOrigin = (origin) => {
 app.use((req, res, next) => {
   const p = (req.path || '').toLowerCase();
   if (
-    p.startsWith('/v1') || 
-    p.startsWith('/api/v1') || 
-    p.startsWith('/chat') || 
-    p.startsWith('/models') || 
+    p.startsWith('/v1') ||
+    p.startsWith('/api/v1') ||
+    p.startsWith('/chat') ||
+    p.startsWith('/models') ||
     p.startsWith('/balance') ||
     p.startsWith('/test')
   ) {
@@ -665,7 +665,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) {
       return callback(null, true);
@@ -688,8 +688,10 @@ app.use(cors({
     'Pragma',
     'Accept',
     'X-Requested-With',
+    'x-device-id',
     'Origin'
   ],
+  exposedHeaders: ['Content-Disposition', 'Content-Length'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   maxAge: 86400
 }));
@@ -703,7 +705,7 @@ app.use((req, res, next) => {
   } catch (_e) {
     normalizedPath = rawPath.toLowerCase();
   }
-  
+
   // 1. Block Path Traversal & Dotfile Scanning
   if (normalizedPath.includes('..') || normalizedPath.includes('/.') || normalizedPath.includes('\\.')) {
     return res.status(403).json({ error: 'Access Denied: Path Traversal Detected' });
@@ -712,8 +714,12 @@ app.use((req, res, next) => {
   // 2. Block direct access to source code, server files, databases, and configuration
   const SENSITIVE_EXTENSIONS = ['.env', '.git', '.db', '.sqlite', '.sqlite3', '.db-shm', '.db-wal', '.sql', '.py', '.sh', '.bat', '.ps1', '.jsx', '.tsx', '.ts', '.map', '.lock', '.log', '.config.js'];
   const SENSITIVE_DIRECTORIES = ['/src', '/server', '/electron', '/android', '/routes', '/scripts', '/.git', '/node_modules', '/data'];
+  const isDeliverableDownloadRoute =
+    normalizedPath.startsWith('/api/files/temp-download/') ||
+    normalizedPath.startsWith('/api/agent/download/') ||
+    normalizedPath.startsWith('/download/');
 
-  if (SENSITIVE_EXTENSIONS.some(ext => normalizedPath.endsWith(ext))) {
+  if (!isDeliverableDownloadRoute && SENSITIVE_EXTENSIONS.some(ext => normalizedPath.endsWith(ext))) {
     console.warn(`[SECURITY BLOCKED] Blocked source/sensitive file request: ${req.path} from IP ${req.ip}`);
     return res.status(403).json({ error: 'Access Denied: Protected System File' });
   }
@@ -740,10 +746,10 @@ app.use((req, res, next) => {
   if (origin && isAllowedOrigin(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
   }
-  
+
   // Check if it's an image request
   const isImageRequest = req.path.startsWith('/watermarked-') || req.path.startsWith('/generated-') || req.path.endsWith('.png') || req.path.endsWith('.jpg') || req.path.endsWith('.jpeg');
-  
+
   if (isImageRequest) {
     res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -751,12 +757,12 @@ app.use((req, res, next) => {
     res.header('Cache-Control', 'public, max-age=86400');
     res.header('X-Content-Type-Options', 'nosniff');
   }
-  
+
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
-  
+
   next();
 });
 
@@ -821,7 +827,7 @@ function broadcastUserSync(userId, eventType, payload, originDeviceId = null) {
   if (!userId || !userSyncClients.has(userId)) return;
   const clients = userSyncClients.get(userId);
   const data = JSON.stringify({ event: eventType, data: payload, timestamp: Date.now() });
-  
+
   for (const client of clients) {
     // Skip if client is from the same originating device
     if (originDeviceId && client.deviceId && client.deviceId === originDeviceId) {
@@ -921,7 +927,7 @@ const forwardLocalBackendRequest = (req, res, port, targetPath = req.originalUrl
   });
 
   req.on('aborted', () => {
-    try { proxyReq.destroy(); } catch {}
+    try { proxyReq.destroy(); } catch { }
   });
 
   if (bodyStr !== null) {
@@ -970,7 +976,7 @@ app.all(['/api/search', '/api/web-search'], async (req, res) => {
       const organicResults = searchRes.results.map((r, idx) => {
         let domain = r.domain || '';
         if (!domain && r.url) {
-          try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch (e) {}
+          try { domain = new URL(r.url).hostname.replace(/^www\./i, ''); } catch (e) { }
         }
         const logoUrl = r.logo_url || (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : null);
         const leadImg = r.lead_image_url || r.thumbnail || null;
@@ -1055,12 +1061,12 @@ app.get('/api/public-stats', (req, res) => {
     let userCount = 0;
     let msgCount = 0;
     let totalChars = 0;
-    
+
     try {
       userCount = db.prepare('SELECT count(*) as c FROM users').get()?.c || 0;
       msgCount = db.prepare('SELECT count(*) as c FROM chat_messages').get()?.c || 0;
       totalChars = db.prepare('SELECT SUM(LENGTH(content)) as totalLen FROM chat_messages').get()?.totalLen || 0;
-    } catch (_) {}
+    } catch (_) { }
 
     // Calculation: 1 token ~ 3.2 chars in ID/multilingual + prompt context overhead (~3.5x turns)
     const baseTokensFromChat = Math.round((totalChars / 3.2) * 3.5);
@@ -1503,7 +1509,7 @@ const upload = multer({
       'image/webp',
       'image/gif'
     ];
-    
+
     if (allowedMimes.includes(file.mimetype) || file.originalname.endsWith('.md') || file.originalname.endsWith('.txt')) {
       cb(null, true);
     } else {
@@ -1554,10 +1560,10 @@ app.use(['/download/uploads', '/api/download/uploads', '/api/cloud/download/uplo
       const userEmail = (req.user?.email || req.session?.user?.email || '').toLowerCase().trim() || null;
 
       if (!isAuth || isGuest || (!userId && !userEmail)) {
-        return res.status(401).json({ 
-          error: 'Akses Ditolak: Anda wajib login dengan akun resmi untuk mengakses berkas Cloud Vault.', 
+        return res.status(401).json({
+          error: 'Akses Ditolak: Anda wajib login dengan akun resmi untuk mengakses berkas Cloud Vault.',
           code: 'UNAUTHORIZED',
-          requireLogin: true 
+          requireLogin: true
         });
       }
 
@@ -1577,7 +1583,7 @@ app.use(['/download/uploads', '/api/download/uploads', '/api/cloud/download/uplo
             if (Array.isArray(emps) && emps.some(e => typeof e === 'string' && e.toLowerCase().trim() === userEmail)) {
               isCollaborator = true;
             }
-          } catch {}
+          } catch { }
         }
       }
 
@@ -1702,36 +1708,36 @@ app.post('/api/vision/upload', upload.single('image'), async (req, res) => {
 app.get('/api/serve-upload/:filename', (req, res) => {
   try {
     const filename = path.basename(req.params.filename || '');
-    
+
     // Security: only allow specific file types
     const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.txt', '.json', '.csv', '.html', '.md', '.pptx', '.docx'];
     const fileExt = path.extname(filename).toLowerCase();
-    
+
     if (!allowedExtensions.includes(fileExt)) {
       console.warn(`[SERVE_UPLOAD] ⚠️ Unauthorized file type: ${filename}`);
       return res.status(403).json({ error: 'File type not allowed' });
     }
-    
+
     const resolvedUploadsDir = path.resolve(uploadsDir);
     const filepath = path.resolve(resolvedUploadsDir, filename);
-    
+
     // Security: prevent directory traversal
     if (!filepath.startsWith(resolvedUploadsDir + path.sep)) {
       console.warn(`[SERVE_UPLOAD] ⚠️ Directory traversal attempt: ${filepath}`);
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // Check if file exists
     if (!fs.existsSync(filepath)) {
       console.error(`[SERVE_UPLOAD] ❌ File not found: ${filepath}`);
       return res.status(404).json({ error: 'File not found', file: filename });
     }
-    
+
     // Read file
     const fileBuffer = fs.readFileSync(filepath);
     const fileStats = fs.statSync(filepath);
     console.log(`[SERVE_UPLOAD] ✅ Serving: ${filename} (${fileBuffer.length} bytes)`);
-    
+
     // Set Content-Type based on file extension
     let contentType = 'application/octet-stream';
     if (fileExt === '.png') contentType = 'image/png';
@@ -1746,7 +1752,7 @@ app.get('/api/serve-upload/:filename', (req, res) => {
     else if (fileExt === '.md') contentType = 'text/markdown';
     else if (fileExt === '.pptx') contentType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     else if (fileExt === '.docx') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    
+
     // Set response headers
     res.set('Content-Type', contentType);
     res.set('Content-Length', fileBuffer.length);
@@ -1754,7 +1760,7 @@ app.get('/api/serve-upload/:filename', (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.set('X-Content-Type-Options', 'nosniff');
-    
+
     // For images, also set as inline (not attachment) so they display in browser
     if (fileExt.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
       res.set('Content-Disposition', 'inline');
@@ -1762,7 +1768,7 @@ app.get('/api/serve-upload/:filename', (req, res) => {
       res.set('Content-Security-Policy', 'sandbox');
       res.set('Content-Disposition', `attachment; filename="${filename}"`);
     }
-    
+
     // Send file
     res.send(fileBuffer);
   } catch (err) {
@@ -1837,7 +1843,7 @@ async function parseHTML(filePath) {
     .replace(/&amp;/g, '&')
     .replace(/\n\s*\n/g, '\n')
     .trim();
-  
+
   return {
     success: true,
     file_type: 'html',
@@ -1868,7 +1874,7 @@ async function parsePDF(filePath) {
     const textResult = await pdfParser.getText();
     const content = textResult.text || '';
     await pdfParser.destroy();
-    
+
     return {
       success: true,
       file_type: 'pdf',
@@ -1892,7 +1898,7 @@ async function parsePPTX(filePath) {
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
     const loaded = await zip.loadAsync(fileBuffer);
-    
+
     // Find all slide XML files inside ppt/slides/
     const slideFiles = [];
     loaded.forEach((relativePath, file) => {
@@ -1900,7 +1906,7 @@ async function parsePPTX(filePath) {
         slideFiles.push(file);
       }
     });
-    
+
     if (slideFiles.length === 0) {
       return {
         success: true,
@@ -1910,14 +1916,14 @@ async function parsePPTX(filePath) {
         token_estimate: 0
       };
     }
-    
+
     // Sort slides numerically (slide1.xml, slide2.xml, slide10.xml, etc.)
     slideFiles.sort((a, b) => {
       const numA = parseInt(a.name.match(/\d+/)?.[0] || '0', 10);
       const numB = parseInt(b.name.match(/\d+/)?.[0] || '0', 10);
       return numA - numB;
     });
-    
+
     let content = '';
     for (const slideFile of slideFiles) {
       const xmlText = await slideFile.async('text');
@@ -1936,13 +1942,13 @@ async function parsePPTX(filePath) {
         .filter(t => t.trim().length > 0)
         .join(' ')
         .trim();
-        
+
       const slideNum = slideFile.name.match(/\d+/)?.[0] || '';
       if (slideText) {
         content += `\n=== Slide ${slideNum} ===\n${slideText}\n`;
       }
     }
-    
+
     const finalContent = content.trim();
     return {
       success: true,
@@ -2000,7 +2006,7 @@ async function parseDOCX(filePath) {
     } catch {
       // If all fails, return error
     }
-    
+
     return {
       success: false,
       error: `DOCX parsing error: ${error.message}`
@@ -2013,17 +2019,17 @@ async function parseExcel(filePath) {
   try {
     const workbook = XLSX.readFile(filePath);
     let content = '';
-    
+
     // Extract text from all sheets
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
       content += `\n=== Sheet: ${sheetName} ===\n`;
-      
+
       // Convert sheet to CSV format
       const csv = XLSX.utils.sheet_to_csv(sheet);
       content += csv;
     }
-    
+
     return {
       success: true,
       file_type: 'excel',
@@ -2088,8 +2094,8 @@ app.get('/api/test-python', (req, res) => {
       const version = execSync('python --version', { encoding: 'utf-8', stdio: 'pipe' });
       res.json({ success: true, python: 'python', version: version.trim() });
     } catch {
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         error: 'Python not found. Please install Python 3 from https://www.python.org/downloads/'
       });
     }
@@ -2143,7 +2149,7 @@ app.post('/api/upload-file', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('[Upload error]:', error.message);
     if (filePath) {
-      fs.unlink(filePath, () => {});
+      fs.unlink(filePath, () => { });
     }
     if (!res.headersSent) {
       res.status(500).json({
@@ -2162,10 +2168,10 @@ async function buildFinanceContextPython(query) {
   return new Promise((resolve) => {
     try {
       console.log(`[Python Finance] Calling finance_service.py for: "${query}"`);
-      
+
       // Use venv Python executable path (relative to server directory)
       const pythonExecutable = path.join(__dirname, '..', '.venv', 'Scripts', 'python.exe');
-      
+
       const pyScript = path.join(__dirname, 'finance_service.py');
       if (!fs.existsSync(pyScript)) {
         console.warn('[Python Finance] Script not found at', pyScript);
@@ -2173,23 +2179,23 @@ async function buildFinanceContextPython(query) {
         resolve({ context: '', sources: [] }); // Fallback to Node service
         return;
       }
-      
+
       const process = spawn(pythonExecutable, [pyScript], {
         timeout: 10000, // 10 second timeout
         maxBuffer: 10 * 1024 * 1024 // 10MB buffer
       });
-      
+
       let stdout = '';
       let stderr = '';
-      
+
       process.stdout.on('data', (data) => {
         stdout += data.toString();
       });
-      
+
       process.stderr.on('data', (data) => {
         stderr += data.toString();
       });
-      
+
       process.on('close', (code) => {
         if (code !== 0) {
           console.warn(`[Python Finance] Process exited with code ${code}`);
@@ -2198,14 +2204,14 @@ async function buildFinanceContextPython(query) {
           resolve({ context: '', sources: [] });
           return;
         }
-        
+
         try {
           // Parse JSON output
           const result = JSON.parse(stdout);
           if (result.success && result.context) {
             console.log(`[Python Finance] ✓ Got data: ${result.context.substring(0, 100)}...`);
             console.log(`[Python Finance] ✓ Got ${result.sources ? result.sources.length : 0} sources`);
-            resolve({ 
+            resolve({
               context: result.context,
               sources: result.sources || []  // Include sources from Python
             });
@@ -2219,17 +2225,17 @@ async function buildFinanceContextPython(query) {
           resolve({ context: '', sources: [] });
         }
       });
-      
+
       process.on('error', (err) => {
         console.warn('[Python Finance] Process error:', err.message);
         console.log('[Python Finance] Falling back to Node.js service');
         resolve({ context: '', sources: [] });
       });
-      
+
       // Send query to Python via stdin
       process.stdin.write(query);
       process.stdin.end();
-      
+
     } catch (error) {
       console.warn('[Python Finance] Wrapper error:', error.message);
       resolve({ context: '', sources: [] }); // Fallback
@@ -2240,7 +2246,7 @@ async function buildFinanceContextPython(query) {
 const humanizeError = (errStr) => {
   if (!errStr) return "Terjadi kendala koneksi pada server AI. Silakan coba sesaat lagi.";
   const str = String(errStr).toLowerCase();
-  
+
   if (str.includes("invalid api key") || str.includes("401") || str.includes("unauthorized")) {
     return "Maaf, akses kunci server AI sedang diperbarui oleh sistem. Silakan coba kembali beberapa saat lagi.";
   }
@@ -2276,7 +2282,7 @@ const FREE_TIER_QUOTA_BYTES = 3 * 1024 * 1024 * 1024; // 3 GB Free Tier Cloud St
 const requireCloudAuth = (req, res, next) => {
   const isGuest = req.session?.isGuest || req.user?.guest || req.session?.user?.guest;
   const isAuth = (req.isAuthenticated && req.isAuthenticated()) || req.user || req.session?.user || req.session?.userId;
-  
+
   if (!isAuth || isGuest) {
     return res.status(401).json({
       success: false,
@@ -2330,11 +2336,11 @@ app.get('/api/cloud/files', requireCloudAuth, (req, res) => {
   try {
     const { id: userId, email: userEmail } = getAuthUser(req);
     const dbFiles = cloudDb.listByUser(userId, userEmail);
-    
+
     const formattedFiles = dbFiles.map(f => {
       let parsedContent = f.content;
       if (typeof f.content === 'string' && (f.content.startsWith('{') || f.content.startsWith('['))) {
-        try { parsedContent = JSON.parse(f.content); } catch (_e) {}
+        try { parsedContent = JSON.parse(f.content); } catch (_e) { }
       }
       return {
         id: f.id,
@@ -2386,7 +2392,7 @@ app.get('/api/cloud/files/:id', requireCloudAuth, (req, res) => {
 
     let parsedContent = file.content;
     if (typeof file.content === 'string' && (file.content.startsWith('{') || file.content.startsWith('['))) {
-      try { parsedContent = JSON.parse(file.content); } catch (_e) {}
+      try { parsedContent = JSON.parse(file.content); } catch (_e) { }
     }
 
     return res.json({
@@ -2428,11 +2434,11 @@ app.get('/api/cloud/files/:id', requireCloudAuth, (req, res) => {
 // 🛡️ DEEPERNOVA ENTERPRISE ZERO-TRUST CLOUD SHIELD
 // ==========================================
 const DANGEROUS_CLOUD_EXTENSIONS = new Set([
-  'exe', 'bat', 'cmd', 'sh', 'bash', 'vbs', 'vbe', 'php', 'phtml', 'php3', 
-  'php4', 'php5', 'php7', 'php8', 'phar', 'shtml', 'asp', 'aspx', 'cer', 'asa', 
-  'asax', 'pl', 'cgi', 'msi', 'scr', 'com', 'hta', 'ps1', 'psm1', 'jar', 
-  'jsp', 'jspx', 'war', 'ear', 'pif', 'reg', 'wsf', 'wsh', 'dll', 'sys', 
-  'bin', 'apk', 'deb', 'rpm', 'so', 'dylib', 'action', 'workflow', 'app', 
+  'exe', 'bat', 'cmd', 'sh', 'bash', 'vbs', 'vbe', 'php', 'phtml', 'php3',
+  'php4', 'php5', 'php7', 'php8', 'phar', 'shtml', 'asp', 'aspx', 'cer', 'asa',
+  'asax', 'pl', 'cgi', 'msi', 'scr', 'com', 'hta', 'ps1', 'psm1', 'jar',
+  'jsp', 'jspx', 'war', 'ear', 'pif', 'reg', 'wsf', 'wsh', 'dll', 'sys',
+  'bin', 'apk', 'deb', 'rpm', 'so', 'dylib', 'action', 'workflow', 'app',
   'iso', 'img', 'dmg', 'pkg', 'cpl', 'inf', 'ins', 'isp', 'scf', 'sct', 'chm', 'gadget'
 ]);
 
@@ -2504,11 +2510,11 @@ function validateCloudFileSafety(fileName, buffer) {
 
   // 1. Thorough Path Traversal Check (including URL decoding and null byte elimination)
   let decodedName = fileName;
-  try { decodedName = decodeURIComponent(fileName); } catch {}
+  try { decodedName = decodeURIComponent(fileName); } catch { }
   if (
-    decodedName.includes('\0') || 
-    decodedName.includes('..') || 
-    decodedName.includes('/') || 
+    decodedName.includes('\0') ||
+    decodedName.includes('..') ||
+    decodedName.includes('/') ||
     decodedName.includes('\\') ||
     fileName.includes('\0') ||
     fileName.includes('..') ||
@@ -2550,8 +2556,8 @@ function validateCloudFileSafety(fileName, buffer) {
     if (buffer.length >= 4) {
       const b0 = buffer[0], b1 = buffer[1], b2 = buffer[2], b3 = buffer[3];
       if ((b0 === 0xFE && b1 === 0xED && b2 === 0xFA && (b3 === 0xCE || b3 === 0xCF)) ||
-          (b0 === 0xCE && b1 === 0xFA && b2 === 0xED && b3 === 0xFE) ||
-          (b0 === 0xCF && b1 === 0xFA && b2 === 0xED && b3 === 0xFE)) {
+        (b0 === 0xCE && b1 === 0xFA && b2 === 0xED && b3 === 0xFE) ||
+        (b0 === 0xCF && b1 === 0xFA && b2 === 0xED && b3 === 0xFE)) {
         return { safe: false, reason: 'Header biner macOS Mach-O Executable terdeteksi di dalam berkas.' };
       }
     }
@@ -2717,7 +2723,7 @@ app.post('/api/cloud/upload-raw', requireCloudAuth, cloudMulter.single('file'), 
     // 🔒 Upload Rate Limiting Guard
     const callerKey = `${userId || 'anon'}_${req.ip || 'ip'}`;
     if (!checkCloudUploadRate(callerKey)) {
-      if (req.file) { try { fs.unlinkSync(req.file.path); } catch {} }
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch { } }
       return res.status(429).json({
         success: false,
         error: 'Batas frekuensi upload tercapai. Mohon tunggu sejenak demi keamanan server.'
@@ -2732,7 +2738,7 @@ app.post('/api/cloud/upload-raw', requireCloudAuth, cloudMulter.single('file'), 
     const fileSize = req.file.size;
 
     if (currentUsage + fileSize > FREE_TIER_QUOTA_BYTES) {
-      try { fs.unlinkSync(req.file.path); } catch (_e) {}
+      try { fs.unlinkSync(req.file.path); } catch (_e) { }
       const currentMB = (currentUsage / (1024 * 1024)).toFixed(2);
       return res.status(400).json({
         success: false,
@@ -2745,7 +2751,7 @@ app.post('/api/cloud/upload-raw', requireCloudAuth, cloudMulter.single('file'), 
     const fileBuffer = fs.readFileSync(req.file.path);
     const safetyCheck = validateCloudFileSafety(req.file.originalname, fileBuffer);
     if (!safetyCheck.safe) {
-      try { fs.unlinkSync(req.file.path); } catch {}
+      try { fs.unlinkSync(req.file.path); } catch { }
       console.warn(`[SECURITY ALERT] Blocked dangerous upload "${req.file.originalname}" from ${userEmail || userId}: ${safetyCheck.reason}`);
       return res.status(400).json({
         success: false,
@@ -2798,7 +2804,7 @@ app.post('/api/cloud/upload-raw', requireCloudAuth, cloudMulter.single('file'), 
         if (fileBuffer.length < 500000) {
           finalThumbnail = `data:image/jpeg;base64,${fileBuffer.toString('base64')}`;
         }
-      } catch (_tErr) {}
+      } catch (_tErr) { }
     }
 
     const fileUrl = `/download/uploads/${req.file.filename}`;
@@ -2810,7 +2816,7 @@ app.post('/api/cloud/upload-raw', requireCloudAuth, cloudMulter.single('file'), 
 
     let parsedEmployees = null;
     if (employeeEmails) {
-      try { parsedEmployees = typeof employeeEmails === 'string' ? JSON.parse(employeeEmails) : employeeEmails; } catch (_e) {}
+      try { parsedEmployees = typeof employeeEmails === 'string' ? JSON.parse(employeeEmails) : employeeEmails; } catch (_e) { }
     }
 
     // 🔒 Strictly enforce default folderType = 'private' to prevent accidental leaks
@@ -2962,7 +2968,7 @@ app.post('/api/cloud/upload', requireCloudAuth, express.json({ limit: '100mb' })
       const fileId = f.id || `cloud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const fileName = f.name || 'Untitled_File';
       const ext = fileName.split('.').pop()?.toLowerCase();
-      
+
       let category = f.category || 'other';
       if (['docx', 'doc'].includes(ext)) category = 'docx';
       else if (['xlsx', 'xls', 'csv'].includes(ext)) category = 'excel';
@@ -2983,7 +2989,7 @@ app.post('/api/cloud/upload', requireCloudAuth, express.json({ limit: '100mb' })
         try {
           const b64 = fileData.includes(',') ? fileData.split(',')[1] : fileData;
           fileBuf = Buffer.from(b64, 'base64');
-        } catch {}
+        } catch { }
       } else if (fileContent) {
         fileBuf = Buffer.from(typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent));
       }
@@ -3022,16 +3028,16 @@ app.post('/api/cloud/upload', requireCloudAuth, express.json({ limit: '100mb' })
         checksum: fileSha256
       });
 
-      savedFiles.push({ 
-        id: fileId, 
-        name: fileName, 
-        category, 
-        parentId, 
-        ownerEmail: effectiveOwner, 
-        folderType: finalFolderType, 
-        folderCreator: f.folderCreator, 
-        folderCreatorRole: f.folderCreatorRole, 
-        sizeBytes: fileSize, 
+      savedFiles.push({
+        id: fileId,
+        name: fileName,
+        category,
+        parentId,
+        ownerEmail: effectiveOwner,
+        folderType: finalFolderType,
+        folderCreator: f.folderCreator,
+        folderCreatorRole: f.folderCreatorRole,
+        sizeBytes: fileSize,
         thumbnail: f.thumbnail || null,
         checksum: fileSha256,
         integrityStatus: 'VERIFIED_TAMPER_FREE'
@@ -3061,16 +3067,16 @@ app.post('/api/cloud/upload', requireCloudAuth, express.json({ limit: '100mb' })
 app.post('/api/cloud/save', requireCloudAuth, express.json({ limit: '50mb' }), (req, res) => {
   try {
     const { id: userId, email: userEmail } = getAuthUser(req);
-    
+
     const { id, parentId, name, type, category, content, text, fileData, dataUrl, size, sizeBytes, folderType, thumbnail } = req.body || {};
-    
+
     if (!name) {
       return res.status(400).json({ success: false, error: 'Nama berkas tidak boleh kosong' });
     }
 
     const finalContent = content !== undefined ? content : (text || null);
     const contentBuf = Buffer.from(typeof finalContent === 'string' ? finalContent : JSON.stringify(finalContent || ''));
-    
+
     let inspectBuf = contentBuf;
     const effectiveData = fileData || dataUrl || null;
     if (effectiveData && typeof effectiveData === 'string') {
@@ -3078,7 +3084,7 @@ app.post('/api/cloud/save', requireCloudAuth, express.json({ limit: '50mb' }), (
         try {
           const b64 = effectiveData.includes(',') ? effectiveData.split(',')[1] : effectiveData;
           inspectBuf = Buffer.from(b64, 'base64');
-        } catch {}
+        } catch { }
       } else {
         inspectBuf = Buffer.from(effectiveData);
       }
@@ -3089,7 +3095,7 @@ app.post('/api/cloud/save', requireCloudAuth, express.json({ limit: '50mb' }), (
     if (!safetyCheck.safe) {
       return res.status(400).json({ success: false, error: safetyCheck.reason, securityViolation: true });
     }
-    
+
     const fileId = id || `cloud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const effectiveCategory = category || type || 'other';
     const effectiveType = type || effectiveCategory;
@@ -3267,7 +3273,7 @@ app.post('/api/chat/stop', express.json(), async (req, res) => {
           item.res.write('data: [DONE]\n\n');
           item.res.end();
         }
-      } catch (_err) {}
+      } catch (_err) { }
       activeUpstreamRequests.delete(item);
       stoppedCount++;
     }
@@ -3353,7 +3359,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       const preview = normalizeContent(messages[i].content).substring(0, 50);
       console.log(`[DEBUG] Message ${i}: role="${messages[i].role}", content="${preview}..."`);
     }
-    
+
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'user') {
         userQuery = normalizeContent(messages[i].content);
@@ -3562,7 +3568,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
-        
+
         const chunkData = {
           id: `chatcmpl-mem-${Date.now()}`,
           object: 'chat.completion.chunk',
@@ -3612,235 +3618,235 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         }
       }
     }
-    
+
     try {
-        const isSearchConclusion = (req.body.messages || messages || []).some(m => {
-          const c = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(x => x.text || '').join(' ') : '');
-          return c.includes('DATA HASIL PENCARIAN') || c.includes('HASIL PENCARIAN WEB') || c.includes('[INSTRUKSI SISTEM:');
-        });
+      const isSearchConclusion = (req.body.messages || messages || []).some(m => {
+        const c = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(x => x.text || '').join(' ') : '');
+        return c.includes('DATA HASIL PENCARIAN') || c.includes('HASIL PENCARIAN WEB') || c.includes('[INSTRUKSI SISTEM:');
+      });
 
-        // Auto-detect vision requirement in server chat route (NEVER active during search conclusions)
-        const hasImagesInPayload = !isSearchConclusion && ((req.body.uploadedImages && req.body.uploadedImages.length > 0) ||
-          messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url))));
+      // Auto-detect vision requirement in server chat route (NEVER active during search conclusions)
+      const hasImagesInPayload = !isSearchConclusion && ((req.body.uploadedImages && req.body.uploadedImages.length > 0) ||
+        messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url))));
 
-        // Ensure vision formatting matches TokenMix llama-4-maverick schema if uploadedImages provided and NOT a search conclusion
-        if (!isSearchConclusion && req.body.uploadedImages && req.body.uploadedImages.length > 0) {
-          for (let i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].role === 'user') {
-              const currentContent = messages[i].content;
-              const contentArray = [];
-              if (typeof currentContent === 'string') {
-                contentArray.push({ type: 'text', text: currentContent });
-              } else if (Array.isArray(currentContent)) {
-                contentArray.push(...currentContent);
-              }
-              for (const img of req.body.uploadedImages) {
-                const imgUrl = typeof img === 'string' ? img : (img.dataUrl || img.publicUrl || img.imageUrl || img.url);
-                if (imgUrl && !contentArray.some(c => c?.image_url?.url === imgUrl)) {
-                  contentArray.push({ type: 'image_url', image_url: { url: imgUrl } });
-                }
-              }
-              messages[i].content = contentArray;
-              break;
+      // Ensure vision formatting matches TokenMix llama-4-maverick schema if uploadedImages provided and NOT a search conclusion
+      if (!isSearchConclusion && req.body.uploadedImages && req.body.uploadedImages.length > 0) {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].role === 'user') {
+            const currentContent = messages[i].content;
+            const contentArray = [];
+            if (typeof currentContent === 'string') {
+              contentArray.push({ type: 'text', text: currentContent });
+            } else if (Array.isArray(currentContent)) {
+              contentArray.push(...currentContent);
             }
+            for (const img of req.body.uploadedImages) {
+              const imgUrl = typeof img === 'string' ? img : (img.dataUrl || img.publicUrl || img.imageUrl || img.url);
+              if (imgUrl && !contentArray.some(c => c?.image_url?.url === imgUrl)) {
+                contentArray.push({ type: 'image_url', image_url: { url: imgUrl } });
+              }
+            }
+            messages[i].content = contentArray;
+            break;
           }
         }
-        
-        const requestedModel = req.body.model || 'deepernova-silicon-1.4';
-        const isDeepernovaModel = requestedModel && (
-          requestedModel.toLowerCase().includes('deepernova') ||
-          requestedModel.toLowerCase().includes('silicon') ||
-          requestedModel.toLowerCase().includes('boron') ||
-          requestedModel.toLowerCase().includes('gold') ||
-          requestedModel.toLowerCase().includes('flash 1') ||
-          requestedModel.toLowerCase().includes('flash')
+      }
+
+      const requestedModel = req.body.model || 'deepernova-silicon-1.4';
+      const isDeepernovaModel = requestedModel && (
+        requestedModel.toLowerCase().includes('deepernova') ||
+        requestedModel.toLowerCase().includes('silicon') ||
+        requestedModel.toLowerCase().includes('boron') ||
+        requestedModel.toLowerCase().includes('gold') ||
+        requestedModel.toLowerCase().includes('flash 1') ||
+        requestedModel.toLowerCase().includes('flash')
+      );
+
+      const reqLower = (requestedModel || '').toLowerCase();
+      let currentBrandedName = 'DeeperNova Gold 1.5';
+      if (reqLower.includes('silicon')) {
+        currentBrandedName = 'DeeperNova Silicon 1.4';
+      } else if (reqLower.includes('boron')) {
+        currentBrandedName = 'DeeperNova Boron 1.1';
+      } else if (reqLower.includes('gold')) {
+        currentBrandedName = reqLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
+      } else {
+        currentBrandedName = 'DeeperNova AI';
+      }
+
+      // Khusus DeeperNova Silicon 1.4 / Boron 1.1 / Gold 1.5: Memori konteks 1 Juta Token & penalaran mendalam
+      if (isSubAgentStage) {
+        console.log('[CHAT] 🤖 Synchronous Sub-Agent Orchestrator stage detected — preserving structured XML prompt');
+      } else if (isDeepernovaModel) {
+        const nowServer = new Date();
+        const yearServer = nowServer.getFullYear();
+        const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
+
+        let DEFAULT_SYSTEM_PROMPT = '';
+        if (isSearchConclusion) {
+          DEFAULT_SYSTEM_PROMPT =
+            `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI.\n` +
+            `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}.\n` +
+            `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
+            `1. BACA & RANGKUM DATA BERITA: Pengguna melampirkan DATA HASIL PENCARIAN & BERITA TERVERIFIKASI. Bacalah secara cermat seluruh kutipan, fakta, artikel, angka, nama tokoh, dan peristiwa di dalamnya. Sajikan intisari dan penjelasan berita tersebut secara lengkap dan akurat.\n` +
+            `2. DILARANG MENGABAIKAN BERITA: Dilarang keras menjawab di luar konteks berita yang ditemukan atau mengabaikan isi kutipan berita!\n` +
+            `3. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan berita terbaru ini. DILARANG KERAS membahas atau mengaitkan topik obrolan lama yang sudah tidak relevan!\n` +
+            `4. DILARANG BERTERIMA KASIH: Jangan pernah mengucapkan "Terima kasih atas hasil pencariannya". Langsung mulai jawaban di paragraf pertama.\n` +
+            `5. SITASI LINK: Cantumkan sitasi link [Nama Sumber](URL) pada setiap fakta atau berita terkait.\n` +
+            `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
+            `7. LANGSUNG KE JAWABAN: Berikan jawaban berita final yang lengkap dan jelas tanpa basa-basi.`;
+        } else {
+          DEFAULT_SYSTEM_PROMPT =
+            `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ` +
+            `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
+            `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia. ` +
+            `[INFORMASI RESMI KEPEMIMPINAN & PENGEMBANGAN - HANYA JIKA DITANYA]: ` +
+            `- Founder: Ferry Fernando. ` +
+            `- CEO: Ferry Fernando. ` +
+            `- Wakil CEO: Anju Malinton Pakpahan. ` +
+            `- Tim Pengembang: Proyek ini dikembangkan bersama tim AI yang sangat besar di belakang DeeperNova AI. ` +
+            `- Metode Pengembangan AI: AI ini dikembangkan oleh model AI DeeperNova generasi sebelumnya, di mana seluruh proses pengembangan berjalan secara otonom penuh (full autonomous). ` +
+            `ATURAN MUTLAK KEPEMIMPINAN: Jawaban di atas WAJIB diberikan secara lengkap dan tepat jika pengguna menanyakan siapa founder, siapa CEO, siapa wakil CEO, siapa pembuat/pencipta/tim di balik DeeperNova AI, atau bagaimana AI ini dikembangkan. JANGAN PERNAH menyebutkan hal ini jika pengguna tidak menanyakannya (hanya jika ditanya saja). ` +
+            'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
+            '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF (MUTLAK): Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. ' +
+            '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
+            'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian, ATAU menanyakan berita/peristiwa terbaru, harga, cuaca, jadwal/skor, tokoh/pejabat, perusahaan, produk & spesifikasi, tempat, statistik/angka, tanggal, regulasi, atau fakta spesifik dunia nyata apa pun, ATAU kamu tidak 100% yakin: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] DAN LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. LEBIH BAIK MENCARI DARIPADA MENEBAK. Jawab langsung tanpa flag HANYA untuk sapaan, matematika, coding, terjemahan, merangkum teks pengguna, dan ide kreatif. ' +
+            'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: Jawab biasa secara ramah terlebih dahulu dalam 1-2 kalimat singkat, lalu akhiri dengan flag: [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] dan LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. ' +
+            'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
+        }
+
+        // Pertahankan sistem prompt lengkap dari Chatbot yang berisi memori aktif pengguna
+        const clientSystemMsg = messages.find(m => m.role === 'system');
+        let finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
+
+        // Inject personality style if not already present
+        const reqPersonality = (req.body.personality || '').toLowerCase();
+        const SERVER_PERSONALITY_PROMPTS = {
+          casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab seperti teman karib (gunakan aku-kamu, partikel nih, yuk, dong, loh, santai aja).\n- DILARANG KERAS menggunakan bahasa baku, kaku, formal, atau seperti surat dinas!',
+          friendly: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - FRIENDLY / RAMAH & HANGAT]:\n- Bersikap sangat ramah, hangat, manis, penuh empati, dan bersahabat. Bahasa mengalir santun dan luwes.',
+          witty: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - WITTY / CERDAS & HUMORIS]:\n- Cerdas, cerdik, humoris, sedikit usil/centil dengan analogi segar yang membuat tersenyum.',
+          cute: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CUTE / GEMAS & RAMAH]:\n- Sangat manis, imut, ceria, dan menggemaskan dengan emoji yang pas (✨, 🥰, 😊).',
+          formal: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - FORMAL / PROFESIONAL & RESMI]:\n- Profesional, rapi, santun, dan terstruktur resmi.',
+          toxic: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - TOXIC EXTREME]:\n- 100% savage, kasar, vulgar tanpa sensor.',
+          mentor: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - MENTOR / BIJAKSANA & MEMBIMBING]:\n- Sabar, bijaksana, mendidik, dan membimbing penuh kehangatan.'
+        };
+        const effectivePersonality = reqPersonality || 'friendly';
+        if (SERVER_PERSONALITY_PROMPTS[effectivePersonality] && !finalSystemPrompt.includes('ARAHAN KEPRIBADIAN MUTLAK')) {
+          finalSystemPrompt = SERVER_PERSONALITY_PROMPTS[effectivePersonality] + '\n\n' + finalSystemPrompt;
+        }
+
+        // 🌐 SINKRONISASI BAHASA AKTIF (LANDING PAGE & PENGATURAN)
+        const reqLanguage = (req.body.language || req.cookies?.deepernova_language || 'id').toLowerCase();
+        if (reqLanguage === 'en') {
+          finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT ENGLISH LANGUAGE REQUIREMENT]: You MUST communicate, reason, and answer entirely in English. All explanations, reasoning steps, code comments, and summaries must be written in fluent, natural English. Do NOT answer in Indonesian unless explicitly requested by the user.';
+        } else if (reqLanguage === 'zh') {
+          finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT CHINESE LANGUAGE REQUIREMENT]: 你必须全程使用中文进行沟通、思考与回答。所有的解释、步骤指南、代码注释和总结必须全部使用准确自然的中文。除非用户明确要求，否则不要使用其他语言。';
+        } else {
+          finalSystemPrompt += '\n\n[DIREKTIF SISTEM MUTLAK - BAHASA INDONESIA]: Berikan jawaban, penalaran, dan penjelasan selalu dalam Bahasa Indonesia yang alami, bersahabat, dan mengalir.';
+        }
+
+        if (hasImagesInPayload && !finalSystemPrompt.includes('KEMAMPUAN VISION')) {
+          finalSystemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK): Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh. Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna. Dilarang mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!';
+        }
+
+        // 🤖 DETEKSI TUGAS AGENTIC / SUB-AGENT DI CHATBOT
+        const lastUserText = (userQuery || '').trim();
+        const looksAgenticSubAgentTask =
+          lastUserText.length > 0 &&
+          (/\b(sub[\s-]?agent|mode\s+agent(?:ic)?|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent)\b/i.test(lastUserText) ||
+            (/\b(buat(?:kan|in)?|bikin(?:kan|in)?|bangun(?:kan)?|kembangkan|generate|create|build|develop|rancang(?:kan)?)\b/i.test(lastUserText) &&
+              /\b(file|berkas|website|web\s*app|landing\s*page|aplikasi|dashboard|portofolio|portfolio|kalkulator|game|script|kode|project|proyek|html|css|javascript|react|python)\b/i.test(lastUserText) &&
+              !/\b(gambar|foto|ilustrasi|lukisan|logo|poster|avatar|wallpaper)\b/i.test(lastUserText)));
+
+        // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual dan WAJIBKAN pencarian web
+        const isCasualOrTask =
+          looksAgenticSubAgentTask ||
+          /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(lastUserText) ||
+          /\b(buatkan|buat(?:in)?|bikin(?:kan|in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai|sub[\s-]?agent)\b/i.test(lastUserText);
+        const looksFactual = lastUserText.length > 0 && !isCasualOrTask && (
+          /\b(cari(?:kan)?|search|googling|cek|info|berita|kabar terbaru|terbaru|terkini|sekarang|hari ini|kemarin|minggu ini|bulan ini|tahun ini|update|rilis|launching|harga|biaya|tarif|kurs|saham|crypto|bitcoin|cuaca|jadwal|skor|klasemen|hasil pertandingan|siapa|kapan|dimana|di mana|berapa|alamat|lokasi|presiden|menteri|gubernur|ceo|pendiri|founder|spesifikasi|spek|review|vs|versus|perbandingan|statistik|data|populasi|jumlah penduduk|undang-undang|uu|peraturan|film|lagu|album|anime|game)\b/i.test(lastUserText) ||
+          /\b20(2[3-9]|3\d)\b/.test(lastUserText)
         );
-
-        const reqLower = (requestedModel || '').toLowerCase();
-        let currentBrandedName = 'DeeperNova Gold 1.5';
-        if (reqLower.includes('silicon')) {
-          currentBrandedName = 'DeeperNova Silicon 1.4';
-        } else if (reqLower.includes('boron')) {
-          currentBrandedName = 'DeeperNova Boron 1.1';
-        } else if (reqLower.includes('gold')) {
-          currentBrandedName = reqLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
-        } else {
-          currentBrandedName = 'DeeperNova AI';
+        if (!isSearchConclusion && !hasImagesInPayload && looksAgenticSubAgentTask) {
+          finalSystemPrompt +=
+            '\n\n[DIREKTIF WAJIB SISTEM - AKTIVASI SUB-AGENT ORCHESTRATOR SINKRON]: Permintaan pengguna saat ini membutuhkan eksekusi Sub-Agent Orchestrator (pembuatan file/aplikasi/website/kode atau mode sub-agent). Kamu WAJIB:\n' +
+            '1. Menjawab biasa terlebih dahulu secara ramah dan natural dalam 1-2 kalimat singkat (menyapa/menyanggupi permintaan pengguna).\n' +
+            '2. Di akhir kalimat tersebut, WAJIB sertakan flag aktivasi: [SUBAGENT_ORCHESTRATE: <deskripsi jelas tugas dan daftar file yang akan dibuat>]\n' +
+            '3. Langsung BERHENTI setelah tanda kurung siku tutup `]`. Jangan menulis blok kode di pesan pembuka ini karena Sub-Agent Orchestrator Sinkron yang akan langsung menampilkan Chain of Thought dan mengirimkan file lengkapnya!';
+          console.log('[CHAT] 🤖 Agentic Sub-Agent task detected → instructing AI to answer normally then emit [SUBAGENT_ORCHESTRATE: ...]');
+        } else if (!isSearchConclusion && !hasImagesInPayload && looksFactual) {
+          finalSystemPrompt += '\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI]: Pertanyaan pengguna saat ini menyangkut fakta dunia nyata / informasi yang bisa berubah. Kamu TIDAK BOLEH menjawab dari ingatan. Baris pertama jawabanmu WAJIB HANYA berisi: [SEARCH_REQUEST: kata kunci pencarian yang tepat] lalu BERHENTI. Jangan menulis teks lain apa pun.';
+          console.log('[CHAT] 🛡️ Factual query detected → forcing web search flag');
         }
 
-        // Khusus DeeperNova Silicon 1.4 / Boron 1.1 / Gold 1.5: Memori konteks 1 Juta Token & penalaran mendalam
-        if (isSubAgentStage) {
-          console.log('[CHAT] 🤖 Synchronous Sub-Agent Orchestrator stage detected — preserving structured XML prompt');
-        } else if (isDeepernovaModel) {
-          const nowServer = new Date();
-          const yearServer = nowServer.getFullYear();
-          const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
-
-          let DEFAULT_SYSTEM_PROMPT = '';
-          if (isSearchConclusion) {
-            DEFAULT_SYSTEM_PROMPT = 
-              `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI.\n` +
-              `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}.\n` +
-              `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
-              `1. BACA & RANGKUM DATA BERITA: Pengguna melampirkan DATA HASIL PENCARIAN & BERITA TERVERIFIKASI. Bacalah secara cermat seluruh kutipan, fakta, artikel, angka, nama tokoh, dan peristiwa di dalamnya. Sajikan intisari dan penjelasan berita tersebut secara lengkap dan akurat.\n` +
-              `2. DILARANG MENGABAIKAN BERITA: Dilarang keras menjawab di luar konteks berita yang ditemukan atau mengabaikan isi kutipan berita!\n` +
-              `3. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan berita terbaru ini. DILARANG KERAS membahas atau mengaitkan topik obrolan lama yang sudah tidak relevan!\n` +
-              `4. DILARANG BERTERIMA KASIH: Jangan pernah mengucapkan "Terima kasih atas hasil pencariannya". Langsung mulai jawaban di paragraf pertama.\n` +
-              `5. SITASI LINK: Cantumkan sitasi link [Nama Sumber](URL) pada setiap fakta atau berita terkait.\n` +
-              `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
-              `7. LANGSUNG KE JAWABAN: Berikan jawaban berita final yang lengkap dan jelas tanpa basa-basi.`;
-          } else {
-            DEFAULT_SYSTEM_PROMPT = 
-              `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ` +
-              `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
-              `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia. ` +
-              `[INFORMASI RESMI KEPEMIMPINAN & PENGEMBANGAN - HANYA JIKA DITANYA]: ` +
-              `- Founder: Ferry Fernando. ` +
-              `- CEO: Ferry Fernando. ` +
-              `- Wakil CEO: Anju Malinton Pakpahan. ` +
-              `- Tim Pengembang: Proyek ini dikembangkan bersama tim AI yang sangat besar di belakang DeeperNova AI. ` +
-              `- Metode Pengembangan AI: AI ini dikembangkan oleh model AI DeeperNova generasi sebelumnya, di mana seluruh proses pengembangan berjalan secara otonom penuh (full autonomous). ` +
-              `ATURAN MUTLAK KEPEMIMPINAN: Jawaban di atas WAJIB diberikan secara lengkap dan tepat jika pengguna menanyakan siapa founder, siapa CEO, siapa wakil CEO, siapa pembuat/pencipta/tim di balik DeeperNova AI, atau bagaimana AI ini dikembangkan. JANGAN PERNAH menyebutkan hal ini jika pengguna tidak menanyakannya (hanya jika ditanya saja). ` +
-              'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
-              '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF (MUTLAK): Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. ' +
-              '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-              'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian, ATAU menanyakan berita/peristiwa terbaru, harga, cuaca, jadwal/skor, tokoh/pejabat, perusahaan, produk & spesifikasi, tempat, statistik/angka, tanggal, regulasi, atau fakta spesifik dunia nyata apa pun, ATAU kamu tidak 100% yakin: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] DAN LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. LEBIH BAIK MENCARI DARIPADA MENEBAK. Jawab langsung tanpa flag HANYA untuk sapaan, matematika, coding, terjemahan, merangkum teks pengguna, dan ide kreatif. ' +
-              'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: Jawab biasa secara ramah terlebih dahulu dalam 1-2 kalimat singkat, lalu akhiri dengan flag: [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] dan LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. ' +
-              'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
+        // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
+        const MAX_1M_CHARS = 3000000;
+        let runningChars = 0;
+        let cleanHistory = [];
+        if (isSearchConclusion) {
+          // Isolate search conclusion: only keep the last message containing the search prompt
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m.role === 'system') continue;
+            let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
+            cleanHistory = [{ role: 'user', content: mText }];
+            break;
           }
-          
-          // Pertahankan sistem prompt lengkap dari Chatbot yang berisi memori aktif pengguna
-          const clientSystemMsg = messages.find(m => m.role === 'system');
-          let finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
-
-          // Inject personality style if not already present
-          const reqPersonality = (req.body.personality || '').toLowerCase();
-          const SERVER_PERSONALITY_PROMPTS = {
-            casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab seperti teman karib (gunakan aku-kamu, partikel nih, yuk, dong, loh, santai aja).\n- DILARANG KERAS menggunakan bahasa baku, kaku, formal, atau seperti surat dinas!',
-            friendly: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - FRIENDLY / RAMAH & HANGAT]:\n- Bersikap sangat ramah, hangat, manis, penuh empati, dan bersahabat. Bahasa mengalir santun dan luwes.',
-            witty: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - WITTY / CERDAS & HUMORIS]:\n- Cerdas, cerdik, humoris, sedikit usil/centil dengan analogi segar yang membuat tersenyum.',
-            cute: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CUTE / GEMAS & RAMAH]:\n- Sangat manis, imut, ceria, dan menggemaskan dengan emoji yang pas (✨, 🥰, 😊).',
-            formal: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - FORMAL / PROFESIONAL & RESMI]:\n- Profesional, rapi, santun, dan terstruktur resmi.',
-            toxic: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - TOXIC EXTREME]:\n- 100% savage, kasar, vulgar tanpa sensor.',
-            mentor: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - MENTOR / BIJAKSANA & MEMBIMBING]:\n- Sabar, bijaksana, mendidik, dan membimbing penuh kehangatan.'
-          };
-          const effectivePersonality = reqPersonality || 'friendly';
-          if (SERVER_PERSONALITY_PROMPTS[effectivePersonality] && !finalSystemPrompt.includes('ARAHAN KEPRIBADIAN MUTLAK')) {
-            finalSystemPrompt = SERVER_PERSONALITY_PROMPTS[effectivePersonality] + '\n\n' + finalSystemPrompt;
-          }
-
-          // 🌐 SINKRONISASI BAHASA AKTIF (LANDING PAGE & PENGATURAN)
-          const reqLanguage = (req.body.language || req.cookies?.deepernova_language || 'id').toLowerCase();
-          if (reqLanguage === 'en') {
-            finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT ENGLISH LANGUAGE REQUIREMENT]: You MUST communicate, reason, and answer entirely in English. All explanations, reasoning steps, code comments, and summaries must be written in fluent, natural English. Do NOT answer in Indonesian unless explicitly requested by the user.';
-          } else if (reqLanguage === 'zh') {
-            finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT CHINESE LANGUAGE REQUIREMENT]: 你必须全程使用中文进行沟通、思考与回答。所有的解释、步骤指南、代码注释和总结必须全部使用准确自然的中文。除非用户明确要求，否则不要使用其他语言。';
-          } else {
-            finalSystemPrompt += '\n\n[DIREKTIF SISTEM MUTLAK - BAHASA INDONESIA]: Berikan jawaban, penalaran, dan penjelasan selalu dalam Bahasa Indonesia yang alami, bersahabat, dan mengalir.';
-          }
-
-          if (hasImagesInPayload && !finalSystemPrompt.includes('KEMAMPUAN VISION')) {
-            finalSystemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK): Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh. Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna. Dilarang mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!';
-          }
-
-          // 🤖 DETEKSI TUGAS AGENTIC / SUB-AGENT DI CHATBOT
-          const lastUserText = (userQuery || '').trim();
-          const looksAgenticSubAgentTask =
-            lastUserText.length > 0 &&
-            (/\b(sub[\s-]?agent|mode\s+agent(?:ic)?|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent)\b/i.test(lastUserText) ||
-              (/\b(buat(?:kan|in)?|bikin(?:kan|in)?|bangun(?:kan)?|kembangkan|generate|create|build|develop|rancang(?:kan)?)\b/i.test(lastUserText) &&
-                /\b(file|berkas|website|web\s*app|landing\s*page|aplikasi|dashboard|portofolio|portfolio|kalkulator|game|script|kode|project|proyek|html|css|javascript|react|python)\b/i.test(lastUserText) &&
-                !/\b(gambar|foto|ilustrasi|lukisan|logo|poster|avatar|wallpaper)\b/i.test(lastUserText)));
-
-          // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual dan WAJIBKAN pencarian web
-          const isCasualOrTask =
-            looksAgenticSubAgentTask ||
-            /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(lastUserText) ||
-            /\b(buatkan|buat(?:in)?|bikin(?:kan|in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai|sub[\s-]?agent)\b/i.test(lastUserText);
-          const looksFactual = lastUserText.length > 0 && !isCasualOrTask && (
-            /\b(cari(?:kan)?|search|googling|cek|info|berita|kabar terbaru|terbaru|terkini|sekarang|hari ini|kemarin|minggu ini|bulan ini|tahun ini|update|rilis|launching|harga|biaya|tarif|kurs|saham|crypto|bitcoin|cuaca|jadwal|skor|klasemen|hasil pertandingan|siapa|kapan|dimana|di mana|berapa|alamat|lokasi|presiden|menteri|gubernur|ceo|pendiri|founder|spesifikasi|spek|review|vs|versus|perbandingan|statistik|data|populasi|jumlah penduduk|undang-undang|uu|peraturan|film|lagu|album|anime|game)\b/i.test(lastUserText) ||
-            /\b20(2[3-9]|3\d)\b/.test(lastUserText)
-          );
-          if (!isSearchConclusion && !hasImagesInPayload && looksAgenticSubAgentTask) {
-            finalSystemPrompt +=
-              '\n\n[DIREKTIF WAJIB SISTEM - AKTIVASI SUB-AGENT ORCHESTRATOR SINKRON]: Permintaan pengguna saat ini membutuhkan eksekusi Sub-Agent Orchestrator (pembuatan file/aplikasi/website/kode atau mode sub-agent). Kamu WAJIB:\n' +
-              '1. Menjawab biasa terlebih dahulu secara ramah dan natural dalam 1-2 kalimat singkat (menyapa/menyanggupi permintaan pengguna).\n' +
-              '2. Di akhir kalimat tersebut, WAJIB sertakan flag aktivasi: [SUBAGENT_ORCHESTRATE: <deskripsi jelas tugas dan daftar file yang akan dibuat>]\n' +
-              '3. Langsung BERHENTI setelah tanda kurung siku tutup `]`. Jangan menulis blok kode di pesan pembuka ini karena Sub-Agent Orchestrator Sinkron yang akan langsung menampilkan Chain of Thought dan mengirimkan file lengkapnya!';
-            console.log('[CHAT] 🤖 Agentic Sub-Agent task detected → instructing AI to answer normally then emit [SUBAGENT_ORCHESTRATE: ...]');
-          } else if (!isSearchConclusion && !hasImagesInPayload && looksFactual) {
-            finalSystemPrompt += '\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI]: Pertanyaan pengguna saat ini menyangkut fakta dunia nyata / informasi yang bisa berubah. Kamu TIDAK BOLEH menjawab dari ingatan. Baris pertama jawabanmu WAJIB HANYA berisi: [SEARCH_REQUEST: kata kunci pencarian yang tepat] lalu BERHENTI. Jangan menulis teks lain apa pun.';
-            console.log('[CHAT] 🛡️ Factual query detected → forcing web search flag');
-          }
-
-          // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
-          const MAX_1M_CHARS = 3000000;
-          let runningChars = 0;
-          let cleanHistory = [];
-          if (isSearchConclusion) {
-            // Isolate search conclusion: only keep the last message containing the search prompt
-            for (let i = messages.length - 1; i >= 0; i--) {
-              const m = messages[i];
-              if (m.role === 'system') continue;
-              let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
-              cleanHistory = [{ role: 'user', content: mText }];
+        } else {
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m.role === 'system') continue;
+            let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
+            if (runningChars + mText.length <= MAX_1M_CHARS) {
+              cleanHistory.unshift({
+                role: m.role === 'assistant' ? 'assistant' : 'user',
+                content: Array.isArray(m.content) ? m.content : mText
+              });
+              runningChars += mText.length;
+            } else {
               break;
             }
-          } else {
-            for (let i = messages.length - 1; i >= 0; i--) {
-              const m = messages[i];
-              if (m.role === 'system') continue;
-              let mText = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join(' ') : '');
-              if (runningChars + mText.length <= MAX_1M_CHARS) {
-                cleanHistory.unshift({ 
-                  role: m.role === 'assistant' ? 'assistant' : 'user', 
-                  content: Array.isArray(m.content) ? m.content : mText 
-                });
-                runningChars += mText.length;
-              } else {
-                break;
-              }
-            }
           }
-          messages = [{ role: 'system', content: finalSystemPrompt }, ...cleanHistory];
-        } else {
-          // Model lain: memori standar
-          messages = enforceChunkedContextMemory(messages, 3500);
         }
+        messages = [{ role: 'system', content: finalSystemPrompt }, ...cleanHistory];
+      } else {
+        // Model lain: memori standar
+        messages = enforceChunkedContextMemory(messages, 3500);
+      }
 
-        let tokenmixResponse = null;
-        let lastError = null;
+      let tokenmixResponse = null;
+      let lastError = null;
 
-        // Register active chat request for instant GPU cancellation
-        let upstreamAbortController = new AbortController();
-        const reqRecord = {
-          controller: upstreamAbortController,
-          responseStream: null,
-          res,
-          req,
-          userId: req.user?.id || req.session?.userId || null,
-          clientIp: getClientIp(req),
-          sessionId: req.body?.sessionId || req.body?.conversationId || null
-        };
-        activeUpstreamRequests.add(reqRecord);
+      // Register active chat request for instant GPU cancellation
+      let upstreamAbortController = new AbortController();
+      const reqRecord = {
+        controller: upstreamAbortController,
+        responseStream: null,
+        res,
+        req,
+        userId: req.user?.id || req.session?.userId || null,
+        clientIp: getClientIp(req),
+        sessionId: req.body?.sessionId || req.body?.conversationId || null
+      };
+      activeUpstreamRequests.add(reqRecord);
 
-        let clientDisconnected = false;
-        const handleClientDisconnect = () => {
-          if (res.writableEnded) return;
-          if (res.destroyed || (res.socket && res.socket.destroyed)) {
-            clientDisconnected = true;
-            activeUpstreamRequests.delete(reqRecord);
-            try {
-              if (upstreamAbortController) upstreamAbortController.abort();
-              if (reqRecord.responseStream && reqRecord.responseStream.body && typeof reqRecord.responseStream.body.destroy === 'function') {
-                reqRecord.responseStream.body.destroy();
-              }
-            } catch (_e) {}
-          }
-        };
+      let clientDisconnected = false;
+      const handleClientDisconnect = () => {
+        if (res.writableEnded) return;
+        if (res.destroyed || (res.socket && res.socket.destroyed)) {
+          clientDisconnected = true;
+          activeUpstreamRequests.delete(reqRecord);
+          try {
+            if (upstreamAbortController) upstreamAbortController.abort();
+            if (reqRecord.responseStream && reqRecord.responseStream.body && typeof reqRecord.responseStream.body.destroy === 'function') {
+              reqRecord.responseStream.body.destroy();
+            }
+          } catch (_e) { }
+        }
+      };
 
-        req.on('aborted', handleClientDisconnect);
-        res.on('close', handleClientDisconnect);
+      req.on('aborted', handleClientDisconnect);
+      res.on('close', handleClientDisconnect);
 
         // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & IMMEDIATE FIRST-TOKEN STREAMING)
         const envChatModel = (process.env.TOKENMIX_CHAT_MODEL || '').trim();
@@ -3960,278 +3966,278 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           }
         }
 
-        // 2. Seamless Fallback: Native GPU Engine if Cloud is unavailable
-        if (!tokenmixResponse || !tokenmixResponse.ok) {
-          console.warn('[CHAT] High-Speed AI unavailable. Attempting fallback to Native GPU Engine...');
-          const gpuEndpoints = [
-            process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
-            process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
-          ].filter(Boolean);
+      // 2. Seamless Fallback: Native GPU Engine if Cloud is unavailable
+      if (!tokenmixResponse || !tokenmixResponse.ok) {
+        console.warn('[CHAT] High-Speed AI unavailable. Attempting fallback to Native GPU Engine...');
+        const gpuEndpoints = [
+          process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
+          process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+        ].filter(Boolean);
 
-          for (const endpointUrl of gpuEndpoints) {
-            try {
-              console.log(`[CHAT] Attempting GPU request to ${endpointUrl}...`);
-              const gpuRes = await fetch(endpointUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                signal: upstreamAbortController.signal,
-                body: JSON.stringify({
-                  model: 'deepernova v1 flash 1',
-                  messages: messages,
-                  temperature: req.body.temperature || 0.6,
-                  max_tokens: req.body.max_tokens || 4096,
-                  stream: shouldStream
-                })
-              });
-
-              if (gpuRes.ok) {
-                console.log(`[CHAT] ✅ Native GPU Engine responded successfully from ${endpointUrl}`);
-                tokenmixResponse = gpuRes;
-                reqRecord.responseStream = gpuRes;
-                lastError = null;
-                break;
-              }
-            } catch (gpuErr) {
-              console.warn(`[CHAT] GPU fallback error: ${gpuErr.message}`);
-            }
-          }
-        }
-
-        let standbyStream = null;
-        if (lastError || !tokenmixResponse || !tokenmixResponse.ok) {
-          console.warn('[CHAT] All AI engines unavailable. Generating diagnostic message.');
-          const standbyContent = "Maaf, engine AI DeeperNova saat ini sedang sibuk. Silakan coba kirim kembali pesan Anda dalam beberapa saat.";
-          standbyStream = apiProxyService.createSyntheticSSEStream(standbyContent, selectedModel);
-        }
-
-        const activeStreamBody = (tokenmixResponse && tokenmixResponse.ok) ? tokenmixResponse.body : standbyStream;
-
-        if (shouldStream) {
-          if (!res.headersSent) {
-            // Set response headers for streaming - unblock Cloudflare edge buffer immediately
-            res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-            res.setHeader('Cache-Control', 'no-cache, no-transform');
-            res.setHeader('Connection', 'keep-alive');
-            res.setHeader('X-Accel-Buffering', 'no');
-            if (typeof res.flushHeaders === 'function') {
-              res.flushHeaders();
-            }
-            // Immediate comment chunk to flush HTTP edge buffers (Cloudflare/reverse proxies)
-            res.write(': connected\n\n');
-          }
-
-          const sessionId = req.body.sessionId || req.body.conversationId || null;
-          const userMessageId = req.body.userMessageId || null;
-          const personality = req.body.personality || 'mentor';
-          const deviceId = req.headers['x-device-id'] || req.body.deviceId || null;
-
-          // If authenticated and sessionId provided, ensure session and user message are saved immediately
-          if (req.isAuthenticated() && sessionId) {
-            try {
-              let session = sessionDb.findById(sessionId);
-              if (!session) {
-                sessionDb.create(sessionId, req.user.id, userQuery ? userQuery.slice(0, 45) : 'Obrolan AI');
-              }
-              if (userQuery) {
-                const existingMsg = userMessageId ? messageDb.findById(userMessageId) : null;
-                if (!existingMsg) {
-                  messageDb.create(
-                    userMessageId || (`user_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`),
-                    sessionId,
-                    req.user.id,
-                    'user',
-                    userQuery,
-                    personality
-                  );
-                }
-              }
-            } catch (initDbErr) {
-              console.warn('[CHAT_DB_INIT] Warning initializing session/message in DB:', initDbErr.message);
-            }
-
-            if (req.isAuthenticated() && sessionId && userQuery) {
-              broadcastUserSync(req.user.id, 'user_ask', {
-                sessionId,
-                userMessageId: userMessageId || `user_${Date.now()}`,
-                userQuery,
-                personality,
-                timestamp: new Date().toISOString()
-              }, deviceId);
-            }
-          }
-
-          let clientDisconnected = false;
-          req.on('close', () => { clientDisconnected = true; });
-          let fullResponseText = '';
-          let searchFlagTriggeredOnServer = false;
-
-          // Read stream chunks from active stream body
-          activeStreamBody.on('data', (chunk) => {
-            if (searchFlagTriggeredOnServer) return;
-            let chunkStr = chunk.toString();
-
-            // Rebrand any upstream AI identity dynamically so user always receives DeeperNova AI
-            if (chunkStr.includes('Doubao') || chunkStr.includes('ByteDance') || chunkStr.includes('TokenMix')) {
-              chunkStr = chunkStr
-                .replace(/\bDoubao\b/gi, 'DeeperNova AI')
-                .replace(/\bByteDance\b/gi, 'DeeperNova AI')
-                .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
-              chunk = Buffer.from(chunkStr);
-            }
-
-            // Forward to client if still connected
-            if (!clientDisconnected && !res.writableEnded) {
-              try {
-                res.write(chunk);
-                if (typeof res.flush === 'function') {
-                  res.flush();
-                }
-              } catch (_writeErr) {
-                clientDisconnected = true;
-              }
-            }
-
-            // Accumulate response text on server for final DB persistence & sync
-            const lines = chunkStr.split('\n');
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
-                try {
-                  const parsed = JSON.parse(trimmed.slice(6));
-                  const delta = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.text || '';
-                  if (delta) fullResponseText += delta;
-                } catch (_e) {}
-              }
-            }
-
-            // If AI decided to execute a search flag or sub-agent orchestrator flag, halt upstream generation immediately after forwarding the flag
-            if (
-              !isSearchConclusion &&
-              !isSubAgentStage &&
-              (/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*([^\]]+)\]/i.test(fullResponseText) ||
-                /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullResponseText) ||
-                /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([^\]]+)\]/i.test(fullResponseText))
-            ) {
-              searchFlagTriggeredOnServer = true;
-              console.log('[CHAT] 🔍/🤖 AI emitted execution flag; halting initial stream so client can execute orchestrator/search.');
-              try {
-                if (!clientDisconnected && !res.writableEnded) {
-                  res.write('data: [DONE]\n\n');
-                  res.end();
-                }
-                if (upstreamAbortController) upstreamAbortController.abort();
-                if (reqRecord.responseStream?.body?.destroy) reqRecord.responseStream.body.destroy();
-              } catch (_haltErr) {}
-            }
-          });
-
-          activeStreamBody.on('end', () => {
-            activeUpstreamRequests.delete(reqRecord);
-            if (!clientDisconnected && !res.writableEnded) {
-              try {
-                res.end();
-              } catch (_endErr) {}
-            }
-
-            // PERSIST TO DATABASE: Save complete AI response once finished (skip intermediate search flag turns)
-            if (fullResponseText && !searchFlagTriggeredOnServer && sessionId && req.isAuthenticated()) {
-              try {
-                const assistantMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-                messageDb.create(assistantMsgId, sessionId, req.user.id, 'assistant', fullResponseText, personality);
-                sessionDb.update(sessionId, { updatedAt: new Date().toISOString() });
-                console.log(`[SERVER_CHAT_PERSIST] ✅ AI response saved to DB (${fullResponseText.length} chars) for session ${sessionId}`);
-
-                // Broadcast completion to other active devices only once response is completely finished
-                broadcastUserSync(req.user.id, 'stream_done', {
-                  sessionId,
-                  assistantMsgId,
-                  text: fullResponseText,
-                  isGenerating: false,
-                  updatedAt: new Date().toISOString()
-                }, deviceId);
-              } catch (saveDbErr) {
-                console.error('[SERVER_CHAT_PERSIST] Error saving assistant response:', saveDbErr);
-              }
-            }
-          });
-
-          activeStreamBody.on('error', (streamErr) => {
-            if (streamErr?.name === 'AbortError' || streamErr?.type === 'aborted' || clientDisconnected) {
-              return; // Normal cancellation, suppress noise
-            }
-            console.error('[SERVER_CHAT_STREAM_ERROR]', streamErr);
-            if (!clientDisconnected && !res.writableEnded) {
-              try { res.end(); } catch (_e) {}
-            }
-          });
-        } else {
-          // Non-streaming: parse and return as JSON
-          if (tokenmixResponse && tokenmixResponse.ok) {
-            let data = await tokenmixResponse.json();
-            if (data && data.choices && data.choices[0] && data.choices[0].message) {
-              let content = data.choices[0].message.content || '';
-              content = content
-                .replace(/\bDoubao\b/gi, 'DeeperNova AI')
-                .replace(/\bByteDance\b/gi, 'DeeperNova AI')
-                .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
-              data.choices[0].message.content = content;
-            }
-            res.setHeader('Content-Type', 'application/json');
-            res.json(data);
-          } else {
-            const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel, lastError);
-            res.setHeader('Content-Type', 'application/json');
-            res.json({
-              id: `chatcmpl-dn-${uuidv4().substring(0, 12)}`,
-              object: 'chat.completion',
-              created: Math.floor(Date.now() / 1000),
-              model: selectedModel,
-              choices: [{
-                index: 0,
-                message: { role: 'assistant', content: standbyContent },
-                finish_reason: 'stop'
-              }]
+        for (const endpointUrl of gpuEndpoints) {
+          try {
+            console.log(`[CHAT] Attempting GPU request to ${endpointUrl}...`);
+            const gpuRes = await fetch(endpointUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              signal: upstreamAbortController.signal,
+              body: JSON.stringify({
+                model: 'deepernova v1 flash 1',
+                messages: messages,
+                temperature: req.body.temperature || 0.6,
+                max_tokens: req.body.max_tokens || 4096,
+                stream: shouldStream
+              })
             });
+
+            if (gpuRes.ok) {
+              console.log(`[CHAT] ✅ Native GPU Engine responded successfully from ${endpointUrl}`);
+              tokenmixResponse = gpuRes;
+              reqRecord.responseStream = gpuRes;
+              lastError = null;
+              break;
+            }
+          } catch (gpuErr) {
+            console.warn(`[CHAT] GPU fallback error: ${gpuErr.message}`);
           }
         }
-      } catch (error) {
-        if (error?.name === 'AbortError' || error?.type === 'aborted' || clientDisconnected) {
-          if (!res.writableEnded) {
-            try { res.end('data: [DONE]\n\n'); } catch (_e) {}
-          }
-          return;
-        }
-        console.error('[CHAT] Regular chat error:', error);
-        // Sanitize error message to hide API details
-        const sanitizedError = humanizeError(error.message);
-        
-        if (shouldStream) {
-          // Streaming error response
-          res.setHeader('Content-Type', 'text/event-stream');
-          res.setHeader('Cache-Control', 'no-cache');
+      }
+
+      let standbyStream = null;
+      if (lastError || !tokenmixResponse || !tokenmixResponse.ok) {
+        console.warn('[CHAT] All AI engines unavailable. Generating diagnostic message.');
+        const standbyContent = "Maaf, engine AI DeeperNova saat ini sedang sibuk. Silakan coba kirim kembali pesan Anda dalam beberapa saat.";
+        standbyStream = apiProxyService.createSyntheticSSEStream(standbyContent, selectedModel);
+      }
+
+      const activeStreamBody = (tokenmixResponse && tokenmixResponse.ok) ? tokenmixResponse.body : standbyStream;
+
+      if (shouldStream) {
+        if (!res.headersSent) {
+          // Set response headers for streaming - unblock Cloudflare edge buffer immediately
+          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache, no-transform');
           res.setHeader('Connection', 'keep-alive');
-          res.write(`data: ${JSON.stringify({ 
-            choices: [{ 
-              delta: { content: `❌ Maaf, terjadi kesalahan: ${sanitizedError}` } 
-            }] 
-          })}\n\n`);
-          res.write('data: [DONE]\n\n');
-          res.end();
+          res.setHeader('X-Accel-Buffering', 'no');
+          if (typeof res.flushHeaders === 'function') {
+            res.flushHeaders();
+          }
+          // Immediate comment chunk to flush HTTP edge buffers (Cloudflare/reverse proxies)
+          res.write(': connected\n\n');
+        }
+
+        const sessionId = req.body.sessionId || req.body.conversationId || null;
+        const userMessageId = req.body.userMessageId || null;
+        const personality = req.body.personality || 'mentor';
+        const deviceId = req.headers['x-device-id'] || req.body.deviceId || null;
+
+        // If authenticated and sessionId provided, ensure session and user message are saved immediately
+        if (req.isAuthenticated() && sessionId) {
+          try {
+            let session = sessionDb.findById(sessionId);
+            if (!session) {
+              sessionDb.create(sessionId, req.user.id, userQuery ? userQuery.slice(0, 45) : 'Obrolan AI');
+            }
+            if (userQuery) {
+              const existingMsg = userMessageId ? messageDb.findById(userMessageId) : null;
+              if (!existingMsg) {
+                messageDb.create(
+                  userMessageId || (`user_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`),
+                  sessionId,
+                  req.user.id,
+                  'user',
+                  userQuery,
+                  personality
+                );
+              }
+            }
+          } catch (initDbErr) {
+            console.warn('[CHAT_DB_INIT] Warning initializing session/message in DB:', initDbErr.message);
+          }
+
+          if (req.isAuthenticated() && sessionId && userQuery) {
+            broadcastUserSync(req.user.id, 'user_ask', {
+              sessionId,
+              userMessageId: userMessageId || `user_${Date.now()}`,
+              userQuery,
+              personality,
+              timestamp: new Date().toISOString()
+            }, deviceId);
+          }
+        }
+
+        let clientDisconnected = false;
+        req.on('close', () => { clientDisconnected = true; });
+        let fullResponseText = '';
+        let searchFlagTriggeredOnServer = false;
+
+        // Read stream chunks from active stream body
+        activeStreamBody.on('data', (chunk) => {
+          if (searchFlagTriggeredOnServer) return;
+          let chunkStr = chunk.toString();
+
+          // Rebrand any upstream AI identity dynamically so user always receives DeeperNova AI
+          if (chunkStr.includes('Doubao') || chunkStr.includes('ByteDance') || chunkStr.includes('TokenMix')) {
+            chunkStr = chunkStr
+              .replace(/\bDoubao\b/gi, 'DeeperNova AI')
+              .replace(/\bByteDance\b/gi, 'DeeperNova AI')
+              .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
+            chunk = Buffer.from(chunkStr);
+          }
+
+          // Forward to client if still connected
+          if (!clientDisconnected && !res.writableEnded) {
+            try {
+              res.write(chunk);
+              if (typeof res.flush === 'function') {
+                res.flush();
+              }
+            } catch (_writeErr) {
+              clientDisconnected = true;
+            }
+          }
+
+          // Accumulate response text on server for final DB persistence & sync
+          const lines = chunkStr.split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+              try {
+                const parsed = JSON.parse(trimmed.slice(6));
+                const delta = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.text || '';
+                if (delta) fullResponseText += delta;
+              } catch (_e) { }
+            }
+          }
+
+          // If AI decided to execute a search flag or sub-agent orchestrator flag, halt upstream generation immediately after forwarding the flag
+          if (
+            !isSearchConclusion &&
+            !isSubAgentStage &&
+            (/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*([^\]]+)\]/i.test(fullResponseText) ||
+              /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullResponseText) ||
+              /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([^\]]+)\]/i.test(fullResponseText))
+          ) {
+            searchFlagTriggeredOnServer = true;
+            console.log('[CHAT] 🔍/🤖 AI emitted execution flag; halting initial stream so client can execute orchestrator/search.');
+            try {
+              if (!clientDisconnected && !res.writableEnded) {
+                res.write('data: [DONE]\n\n');
+                res.end();
+              }
+              if (upstreamAbortController) upstreamAbortController.abort();
+              if (reqRecord.responseStream?.body?.destroy) reqRecord.responseStream.body.destroy();
+            } catch (_haltErr) { }
+          }
+        });
+
+        activeStreamBody.on('end', () => {
+          activeUpstreamRequests.delete(reqRecord);
+          if (!clientDisconnected && !res.writableEnded) {
+            try {
+              res.end();
+            } catch (_endErr) { }
+          }
+
+          // PERSIST TO DATABASE: Save complete AI response once finished (skip intermediate search flag turns)
+          if (fullResponseText && !searchFlagTriggeredOnServer && sessionId && req.isAuthenticated()) {
+            try {
+              const assistantMsgId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+              messageDb.create(assistantMsgId, sessionId, req.user.id, 'assistant', fullResponseText, personality);
+              sessionDb.update(sessionId, { updatedAt: new Date().toISOString() });
+              console.log(`[SERVER_CHAT_PERSIST] ✅ AI response saved to DB (${fullResponseText.length} chars) for session ${sessionId}`);
+
+              // Broadcast completion to other active devices only once response is completely finished
+              broadcastUserSync(req.user.id, 'stream_done', {
+                sessionId,
+                assistantMsgId,
+                text: fullResponseText,
+                isGenerating: false,
+                updatedAt: new Date().toISOString()
+              }, deviceId);
+            } catch (saveDbErr) {
+              console.error('[SERVER_CHAT_PERSIST] Error saving assistant response:', saveDbErr);
+            }
+          }
+        });
+
+        activeStreamBody.on('error', (streamErr) => {
+          if (streamErr?.name === 'AbortError' || streamErr?.type === 'aborted' || clientDisconnected) {
+            return; // Normal cancellation, suppress noise
+          }
+          console.error('[SERVER_CHAT_STREAM_ERROR]', streamErr);
+          if (!clientDisconnected && !res.writableEnded) {
+            try { res.end(); } catch (_e) { }
+          }
+        });
+      } else {
+        // Non-streaming: parse and return as JSON
+        if (tokenmixResponse && tokenmixResponse.ok) {
+          let data = await tokenmixResponse.json();
+          if (data && data.choices && data.choices[0] && data.choices[0].message) {
+            let content = data.choices[0].message.content || '';
+            content = content
+              .replace(/\bDoubao\b/gi, 'DeeperNova AI')
+              .replace(/\bByteDance\b/gi, 'DeeperNova AI')
+              .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
+            data.choices[0].message.content = content;
+          }
+          res.setHeader('Content-Type', 'application/json');
+          res.json(data);
         } else {
-          // Non-streaming JSON error response
-          res.status(500).json({
-            success: false,
-            error: `Chat error: ${sanitizedError}`,
-            choices: [{ 
-              message: { 
-                content: `❌ Maaf, terjadi kesalahan: ${sanitizedError}` 
-              } 
+          const standbyContent = apiProxyService.generateStandbyCompletion(messages, selectedModel, lastError);
+          res.setHeader('Content-Type', 'application/json');
+          res.json({
+            id: `chatcmpl-dn-${uuidv4().substring(0, 12)}`,
+            object: 'chat.completion',
+            created: Math.floor(Date.now() / 1000),
+            model: selectedModel,
+            choices: [{
+              index: 0,
+              message: { role: 'assistant', content: standbyContent },
+              finish_reason: 'stop'
             }]
           });
         }
       }
+    } catch (error) {
+      if (error?.name === 'AbortError' || error?.type === 'aborted' || clientDisconnected) {
+        if (!res.writableEnded) {
+          try { res.end('data: [DONE]\n\n'); } catch (_e) { }
+        }
+        return;
+      }
+      console.error('[CHAT] Regular chat error:', error);
+      // Sanitize error message to hide API details
+      const sanitizedError = humanizeError(error.message);
+
+      if (shouldStream) {
+        // Streaming error response
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.write(`data: ${JSON.stringify({
+          choices: [{
+            delta: { content: `❌ Maaf, terjadi kesalahan: ${sanitizedError}` }
+          }]
+        })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } else {
+        // Non-streaming JSON error response
+        res.status(500).json({
+          success: false,
+          error: `Chat error: ${sanitizedError}`,
+          choices: [{
+            message: {
+              content: `❌ Maaf, terjadi kesalahan: ${sanitizedError}`
+            }
+          }]
+        });
+      }
+    }
   } catch (outerError) {
     console.error('[CHAT] Outer error:', outerError);
     res.status(500).json({
@@ -4325,7 +4331,7 @@ app.get('/api/tts/stream', async (req, res) => {
         if (audioStream && !audioStream.destroyed) {
           audioStream.destroy();
         }
-      } catch (_) {}
+      } catch (_) { }
     });
 
     audioStream.on('error', (err) => {
@@ -4389,7 +4395,7 @@ app.post('/api/tts/stream', express.json(), async (req, res) => {
     req.on('close', () => {
       try {
         if (audioStream && !audioStream.destroyed) audioStream.destroy();
-      } catch (_) {}
+      } catch (_) { }
     });
 
     audioStream.on('error', (err) => {
@@ -4509,29 +4515,29 @@ app.post('/api/external-finance', async (req, res) => {
 app.get('/api/download/:userId/:filename', (req, res) => {
   try {
     const { userId, filename } = req.params;
-    
+
     // Security: validate userId and filename to prevent path traversal
     if (!userId || !filename || userId.includes('..') || filename.includes('..')) {
       return res.status(400).json({ error: 'Invalid userId or filename' });
     }
-    
+
     // Construct safe file path
     const sandboxDir = path.join(process.cwd(), 'server', 'sandbox', userId);
     const filePath = path.join(sandboxDir, filename);
-    
+
     // Verify file exists and is within sandbox directory
     if (!fs.existsSync(filePath)) {
       console.log(`[DOWNLOAD] File not found at: ${filePath}`);
       return res.status(404).json({ error: 'File not found' });
     }
-    
+
     // Ensure file is within the sandbox (prevent path traversal)
     const realPath = fs.realpathSync(filePath);
     const realSandboxDir = fs.realpathSync(sandboxDir);
     if (!realPath.startsWith(realSandboxDir)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // Send file
     console.log(`[DOWNLOAD] Serving file: ${filename} from: ${filePath}`);
     res.download(filePath, filename, (err) => {
@@ -4632,7 +4638,7 @@ function executePython(code, outputPath, filename, res) {
     python.on('close', (code) => {
       try {
         if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
-      } catch {}
+      } catch { }
 
       if (!res.headersSent) {
         if (code === 0) {
@@ -4666,7 +4672,7 @@ function executePython(code, outputPath, filename, res) {
     python.on('error', (error) => {
       try {
         if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
-      } catch {}
+      } catch { }
       if (!res.headersSent) {
         res.status(500).json({
           success: false,
@@ -4689,7 +4695,7 @@ function executeJavaScript(code, outputPath, filename, res) {
       }
     };
     const sandbox = {
-      console: { log: () => {}, warn: () => {}, error: () => {} },
+      console: { log: () => { }, warn: () => { }, error: () => { } },
       fs: safeFs,
       Buffer,
       outputPath,
@@ -4797,7 +4803,7 @@ app.post('/api/files/clear', (req, res) => {
         if (fs.statSync(fullPath).isFile()) {
           fs.unlinkSync(fullPath);
         }
-      } catch {}
+      } catch { }
     });
 
     res.json({
@@ -4867,7 +4873,7 @@ app.post('/auth/guest', (req, res) => {
 // Create new chat session
 app.post('/api/sessions', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const { title } = req.body;
   const sessionId = uuidv4();
   const session = sessionDb.create(sessionId, req.user.id, title);
@@ -4877,7 +4883,7 @@ app.post('/api/sessions', (req, res) => {
 // Get all sessions for user
 app.get('/api/sessions', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const sessions = sessionDb.findByUserId(req.user.id);
   res.json({ success: true, sessions });
 });
@@ -4885,12 +4891,12 @@ app.get('/api/sessions', (req, res) => {
 // Get session with messages
 app.get('/api/sessions/:sessionId', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const session = sessionDb.findById(req.params.sessionId);
   if (!session || session.userId !== req.user.id) {
     return res.status(404).json({ error: 'Session not found' });
   }
-  
+
   const messages = messageDb.findBySessionId(req.params.sessionId);
   res.json({ success: true, session, messages });
 });
@@ -4898,12 +4904,12 @@ app.get('/api/sessions/:sessionId', (req, res) => {
 // Update session (title, etc)
 app.put('/api/sessions/:sessionId', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const session = sessionDb.findById(req.params.sessionId);
   if (!session || session.userId !== req.user.id) {
     return res.status(404).json({ error: 'Session not found' });
   }
-  
+
   const updated = sessionDb.update(req.params.sessionId, req.body);
   res.json({ success: true, session: updated });
 });
@@ -4911,12 +4917,12 @@ app.put('/api/sessions/:sessionId', (req, res) => {
 // Delete session
 app.delete('/api/sessions/:sessionId', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const session = sessionDb.findById(req.params.sessionId);
   if (!session || session.userId !== req.user.id) {
     return res.status(404).json({ error: 'Session not found' });
   }
-  
+
   sessionDb.delete(req.params.sessionId);
   res.json({ success: true });
 });
@@ -4928,15 +4934,15 @@ app.delete('/api/sessions/:sessionId', (req, res) => {
 // Save chat message
 app.post('/api/messages', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const { sessionId, role, content, personality } = req.body;
-  
+
   // Verify session ownership
   const session = sessionDb.findById(sessionId);
   if (!session || session.userId !== req.user.id) {
     return res.status(404).json({ error: 'Session not found' });
   }
-  
+
   const messageId = uuidv4();
   const message = messageDb.create(messageId, sessionId, req.user.id, role, content, personality);
   res.json({ success: true, message });
@@ -4949,7 +4955,7 @@ app.post('/api/messages', (req, res) => {
 // Get all API keys for logged-in user with live 1 Million token balance
 app.get('/api/apikeys', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   let keys = apiKeyDb.findByUserId(req.user.id);
   // Auto-generate free default key if user has no keys yet
   if (!keys || keys.length === 0) {
@@ -5001,32 +5007,32 @@ app.get(['/api/apikeys/balance', '/api/user/balance'], (req, res) => {
 // Get full API key (for copying)
 app.get('/api/apikeys/:id/full', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const key = apiKeyDb.findById(req.params.id);
   if (!key || key.userId !== req.user.id) {
     return res.status(404).json({ error: 'API key not found' });
   }
-  
+
   res.json({ success: true, fullKey: key.key });
 });
 
 // Create new API key
 app.post('/api/apikeys', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const { name } = req.body;
   if (!name || name.trim().length === 0) {
     return res.status(400).json({ error: 'API key name is required' });
   }
-  
+
   // Generate unique API key
   const key = `deepernova_${req.user.id.substring(0, 8)}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   const id = uuidv4();
-  
+
   try {
     const newKey = apiKeyDb.create(id, req.user.id, name.trim(), key);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       key: {
         id: newKey.id,
         name: newKey.name,
@@ -5044,26 +5050,26 @@ app.post('/api/apikeys', (req, res) => {
 // Update API key (name, isActive)
 app.put('/api/apikeys/:id', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const key = apiKeyDb.findById(req.params.id);
   if (!key || key.userId !== req.user.id) {
     return res.status(404).json({ error: 'API key not found' });
   }
-  
+
   const { name, isActive } = req.body;
   const updates = {};
-  
+
   if (name !== undefined) updates.name = name;
   if (isActive !== undefined) updates.isActive = isActive ? 1 : 0;
-  
+
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'No updates provided' });
   }
-  
+
   try {
     const updated = apiKeyDb.update(req.params.id, updates);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       key: {
         id: updated.id,
         name: updated.name,
@@ -5082,12 +5088,12 @@ app.put('/api/apikeys/:id', (req, res) => {
 // Delete API key
 app.delete('/api/apikeys/:id', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const key = apiKeyDb.findById(req.params.id);
   if (!key || key.userId !== req.user.id) {
     return res.status(404).json({ error: 'API key not found' });
   }
-  
+
   try {
     apiKeyDb.delete(req.params.id);
     res.json({ success: true });
@@ -5118,7 +5124,8 @@ app.get('/api/conversations', (req, res) => {
               'personality', cm.personality,
               'searchQuery', cm.searchQuery,
               'searchSourcesJson', cm.searchSources,
-              'searchImagesJson', cm.searchImages
+              'searchImagesJson', cm.searchImages,
+              'metadataJson', cm.metadata
             )
           ) as messagesJson
         FROM chat_sessions cs
@@ -5130,7 +5137,7 @@ app.get('/api/conversations', (req, res) => {
         ORDER BY cs.updatedAt DESC
         LIMIT 50
       `);
-      
+
       const sessions = stmt.all(userId);
 
       // Batch query all images for this user at once (O(1) lookup instead of N+1 database queries)
@@ -5172,6 +5179,18 @@ app.get('/api/conversations', (req, res) => {
           if (msg.searchImagesJson) {
             try { processedMsg.searchImages = JSON.parse(msg.searchImagesJson); } catch (_e) { processedMsg.searchImages = []; }
             delete processedMsg.searchImagesJson;
+          }
+          if (msg.metadataJson) {
+            try {
+              const parsedMeta = JSON.parse(msg.metadataJson);
+              if (parsedMeta && typeof parsedMeta === 'object') {
+                if (parsedMeta.subAgentData) processedMsg.subAgentData = parsedMeta.subAgentData;
+                if (parsedMeta.downloadUrl) processedMsg.downloadUrl = parsedMeta.downloadUrl;
+                if (parsedMeta.fileName) processedMsg.fileName = parsedMeta.fileName;
+                if (parsedMeta.downloadSummary) processedMsg.downloadSummary = parsedMeta.downloadSummary;
+              }
+            } catch (_e) {}
+            delete processedMsg.metadataJson;
           }
 
           // Check if message contains image markdown: ![Generated Image](URL)
@@ -5219,7 +5238,7 @@ app.post('/api/conversations', async (req, res) => {
   try {
     const userId = (req.isAuthenticated && req.isAuthenticated()) ? req.user.id : (req.user?.id || req.session?.userId || null);
     console.log(`[API/CONVERSATIONS] POST request - User ID: ${userId || 'none'}`);
-    
+
     if (!userId) {
       console.warn(`[API/CONVERSATIONS] ⚠️  Unauthorized - session not loaded or user not found`);
       return res.status(401).json({ error: 'Unauthorized' });
@@ -5299,8 +5318,8 @@ app.post('/api/conversations', async (req, res) => {
 
         // Insert new messages with conflict resolution
         const insertMsg = db.prepare(`
-          INSERT OR REPLACE INTO chat_messages (id, sessionId, userId, role, content, personality, searchQuery, searchSources, searchImages, createdAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT OR REPLACE INTO chat_messages (id, sessionId, userId, role, content, personality, searchQuery, searchSources, searchImages, metadata, createdAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         // Track message IDs to detect duplicates
@@ -5310,7 +5329,7 @@ app.post('/api/conversations', async (req, res) => {
         const baseTime = Date.now();
         conv.messages.forEach((msg, idx) => {
           const msgId = msg.id || `msg_${conv.id}_${idx}_${baseTime}`;
-          
+
           if (messageIds.has(msgId)) {
             duplicateIds.push(msgId);
           }
@@ -5324,6 +5343,16 @@ app.post('/api/conversations', async (req, res) => {
             msgTimestamp = new Date(baseTime + idx * 100).toISOString();
           }
 
+          let metadataJson = null;
+          if (msg.subAgentData || msg.downloadUrl || msg.fileName) {
+            metadataJson = JSON.stringify({
+              ...(msg.subAgentData ? { subAgentData: msg.subAgentData } : {}),
+              ...(msg.downloadUrl ? { downloadUrl: msg.downloadUrl } : {}),
+              ...(msg.fileName ? { fileName: msg.fileName } : {}),
+              ...(msg.downloadSummary ? { downloadSummary: msg.downloadSummary } : {})
+            });
+          }
+
           insertMsg.run(
             msgId,
             conv.id,
@@ -5334,6 +5363,7 @@ app.post('/api/conversations', async (req, res) => {
             msg.searchQuery || null,
             msg.searchSources ? JSON.stringify(msg.searchSources) : null,
             msg.searchImages ? JSON.stringify(msg.searchImages) : null,
+            metadataJson,
             msgTimestamp
           );
         });
@@ -5346,7 +5376,7 @@ app.post('/api/conversations', async (req, res) => {
 
     try {
       saveConversations();
-      
+
       // Extract and save conclusions from conversations (asynchronously, don't block response)
       try {
         const MemoryExtractionService = (await import('./memoryExtractionService.js')).default;
@@ -5362,7 +5392,7 @@ app.post('/api/conversations', async (req, res) => {
       } catch (memErr) {
         console.error('[MEMORY] Error initializing memory extraction:', memErr);
       }
-      
+
       console.log(`[API/CONVERSATIONS] Successfully saved ${conversations.length} conversations for user ${userId}`);
 
       // Broadcast to other devices so their conversation list updates immediately
@@ -5420,7 +5450,7 @@ app.delete('/api/conversations/:conversationId', (req, res) => {
 
     // Verify user owns this conversation
     const session = db.prepare('SELECT id FROM chat_sessions WHERE id = ? AND userId = ?').get(conversationId, userId);
-    
+
     if (!session) {
       return res.status(404).json({ error: 'Conversation not found' });
     }
@@ -5452,9 +5482,9 @@ app.post('/api/account/format-database', async (req, res) => {
 
     // 1. Verifikasi teks konfirmasi keamanan ("HAPUS DATA SAYA")
     if (!confirmText || confirmText.trim().toUpperCase() !== 'HAPUS DATA SAYA') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Teks konfirmasi salah. Harap salin atau ketik tepat: "HAPUS DATA SAYA".' 
+      return res.status(400).json({
+        success: false,
+        error: 'Teks konfirmasi salah. Harap salin atau ketik tepat: "HAPUS DATA SAYA".'
       });
     }
 
@@ -5483,22 +5513,22 @@ app.post('/api/account/format-database', async (req, res) => {
     // 4. Eksekusi pembersihan database akun secara atomik dalam transaksi SQLite
     const executeFormat = db.transaction(() => {
       // Hapus pesan & sesi chat
-      try { db.prepare('DELETE FROM chat_messages WHERE userId = ?').run(userId); } catch (_e) {}
-      try { db.prepare('DELETE FROM chat_sessions WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM chat_messages WHERE userId = ?').run(userId); } catch (_e) { }
+      try { db.prepare('DELETE FROM chat_sessions WHERE userId = ?').run(userId); } catch (_e) { }
       // Hapus artefak dokumen
-      try { db.prepare('DELETE FROM doc_artifacts WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM doc_artifacts WHERE userId = ?').run(userId); } catch (_e) { }
       // Hapus gambar AI & unggahan
-      try { db.prepare('DELETE FROM generated_images WHERE userId = ?').run(userId); } catch (_e) {}
-      try { db.prepare('DELETE FROM uploaded_images WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM generated_images WHERE userId = ?').run(userId); } catch (_e) { }
+      try { db.prepare('DELETE FROM uploaded_images WHERE userId = ?').run(userId); } catch (_e) { }
       // Hapus memori jangka panjang & riset
-      try { db.prepare('DELETE FROM memory_long_term WHERE userId = ?').run(userId); } catch (_e) {}
-      try { db.prepare('DELETE FROM research_memory WHERE userId = ?').run(userId); } catch (_e) {}
-      try { db.prepare('DELETE FROM user_global_memory WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM memory_long_term WHERE userId = ?').run(userId); } catch (_e) { }
+      try { db.prepare('DELETE FROM research_memory WHERE userId = ?').run(userId); } catch (_e) { }
+      try { db.prepare('DELETE FROM user_global_memory WHERE userId = ?').run(userId); } catch (_e) { }
       // Hapus file cloud explorer milik akun
-      try { db.prepare('DELETE FROM cloud_files WHERE userId = ? OR ownerEmail = ?').run(userId, user.email); } catch (_e) {}
+      try { db.prepare('DELETE FROM cloud_files WHERE userId = ? OR ownerEmail = ?').run(userId, user.email); } catch (_e) { }
       // Hapus log penggunaan API & api keys
-      try { db.prepare('DELETE FROM api_usage_logs WHERE userId = ?').run(userId); } catch (_e) {}
-      try { db.prepare('DELETE FROM api_keys WHERE userId = ?').run(userId); } catch (_e) {}
+      try { db.prepare('DELETE FROM api_usage_logs WHERE userId = ?').run(userId); } catch (_e) { }
+      try { db.prepare('DELETE FROM api_keys WHERE userId = ?').run(userId); } catch (_e) { }
 
       // Reset kuota & status pengguna ke kondisi 100% fresh (1.000.000 token baru)
       db.prepare(`
@@ -5522,9 +5552,9 @@ app.post('/api/account/format-database', async (req, res) => {
       message: 'Database akun Anda berhasil diformat fresh.'
     }, deviceId);
 
-    return res.json({ 
-      success: true, 
-      message: 'Database akun Anda berhasil diformat bersih. Semua percakapan, dokumen, dan memori telah di-reset kembali seperti baru.' 
+    return res.json({
+      success: true,
+      message: 'Database akun Anda berhasil diformat bersih. Semua percakapan, dokumen, dan memori telah di-reset kembali seperti baru.'
     });
   } catch (error) {
     console.error('[FORMAT DATABASE] Error during account format:', error);
@@ -5545,9 +5575,9 @@ app.get('/api/memory/user', (req, res) => {
 
     const userId = req.user.id;
     const limit = req.query.limit ? parseInt(req.query.limit) : 100;
-    
+
     const memories = memoryDb.findByUser(userId, limit);
-    
+
     console.log(`[MEMORY] Retrieved ${memories.length} memories for user ${userId}`);
     res.json({ success: true, memories, count: memories.length });
   } catch (err) {
@@ -5565,9 +5595,9 @@ app.get('/api/memory/export', (req, res) => {
 
     const userId = req.user.id;
     const textContent = memoryDb.getAsText(userId);
-    
+
     console.log(`[MEMORY] Exporting memories for user ${userId}`);
-    
+
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="user_memory_${userId}.txt"`);
     res.send(textContent);
@@ -5594,7 +5624,7 @@ app.post('/api/memory', (req, res) => {
     const memoryId = uuidv4();
 
     const memory = memoryDb.create(memoryId, userId, summary.trim(), category || null, sourceSessionId || null);
-    
+
     console.log(`[MEMORY] Created memory ${memoryId} for user ${userId}, category: ${category}`);
     res.json({ success: true, memory });
   } catch (err) {
@@ -5797,7 +5827,7 @@ async function handleUnifiedSearch(req, res) {
       const organicResults = hybridRes.results.map((item, idx) => {
         let domain = item.domain || '';
         if (!domain && item.url) {
-          try { domain = new URL(item.url).hostname.replace('www.', ''); } catch (e) {}
+          try { domain = new URL(item.url).hostname.replace('www.', ''); } catch (e) { }
         }
         return {
           title: cleanSearchText(item.title) || 'Untitled',
@@ -5983,14 +6013,14 @@ app.get('/api/sources/:conversationId/:sourceId', (req, res) => {
   try {
     const { conversationId, sourceId } = req.params;
     const source = sourceTracker.getSourceDetails(conversationId, sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         success: false,
         error: 'Source not found'
       });
     }
-    
+
     res.json({
       success: true,
       source: source
@@ -6012,7 +6042,7 @@ app.delete('/api/sources/:conversationId', (req, res) => {
   try {
     const { conversationId } = req.params;
     sourceTracker.clearSources(conversationId);
-    
+
     res.json({
       success: true,
       message: 'Sources cleared for conversation',
@@ -6110,7 +6140,7 @@ app.post('/api/documents/generate/word', async (req, res) => {
     }
 
     const { content, title = 'Generated Document' } = req.body;
-    
+
     if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'Content is required' });
     }
@@ -6150,7 +6180,7 @@ app.post('/api/documents/generate/excel', async (req, res) => {
     }
 
     const { content, title = 'Generated Spreadsheet' } = req.body;
-    
+
     if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'Content is required' });
     }
@@ -6185,21 +6215,21 @@ app.post('/api/documents/generate/excel', async (req, res) => {
 app.get('/api/documents/download/:fileName', (req, res) => {
   try {
     const fileName = path.basename(req.params.fileName || '');
-    
+
     // Security: prevent directory traversal
     if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
       return res.status(400).json({ error: 'Invalid file name' });
     }
 
     const filePath = path.join('./server/temp-files/documents', fileName);
-    
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
 
     // Determine content type
     const ext = path.extname(fileName).toLowerCase();
-    const contentType = ext === '.docx' 
+    const contentType = ext === '.docx'
       ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -6219,13 +6249,13 @@ app.get('/api/documents/download/:fileName', (req, res) => {
 app.get('/api/documents/view/docx/:fileName', (req, res) => {
   try {
     const fileName = path.basename(req.params.fileName || '');
-    
+
     if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
       return res.status(400).json({ error: 'Invalid file name' });
     }
 
     const filePath = path.join('./server/temp-files/documents', fileName);
-    
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -6246,13 +6276,13 @@ app.get('/api/documents/view/docx/:fileName', (req, res) => {
 app.get('/api/documents/view/xlsx/:fileName', (req, res) => {
   try {
     const fileName = path.basename(req.params.fileName || '');
-    
+
     if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
       return res.status(400).json({ error: 'Invalid file name' });
     }
 
     const filePath = path.join('./server/temp-files/documents', fileName);
-    
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -6392,24 +6422,24 @@ const TOKENMIX_IMAGE_EDITS_URL = 'https://api.tokenmix.ai/v1/images/edits';
 async function addWatermarkToImage(imageUrl, watermarkText = 'Deepernova AI') {
   try {
     console.log(`[WATERMARK] Adding watermark to image: ${imageUrl.substring(0, 50)}...`);
-    
+
     // Fetch image from URL with timeout
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
+
     try {
       const imageResponse = await fetch(imageUrl, { signal: controller.signal });
       clearTimeout(timeout);
-      
+
       if (!imageResponse.ok) {
         throw new Error(`Failed to fetch image: ${imageResponse.status}`);
       }
-      
+
       // Convert ArrayBuffer to Buffer for node-fetch v3
       const arrayBuffer = await imageResponse.arrayBuffer();
       const imageBuffer = Buffer.from(arrayBuffer);
       console.log(`[WATERMARK] Image downloaded: ${imageBuffer.length} bytes`);
-      
+
       if (!sharp) {
         console.warn('[WATERMARK] sharp module not available, returning original image');
         return imageBuffer;
@@ -6419,13 +6449,13 @@ async function addWatermarkToImage(imageUrl, watermarkText = 'Deepernova AI') {
       const metadata = await sharp(imageBuffer).metadata();
       const { width, height } = metadata;
       console.log(`[WATERMARK] Image dimensions: ${width}x${height}`);
-      
+
       // Calculate watermark position (bottom-right, with padding)
       const padding = 20;
       const fontSize = Math.max(40, Math.floor(width / 20)); // Scale font size with image
       const x = width - padding;
       const y = height - padding;
-      
+
       // Create watermark SVG with visible stroke and opacity
       const watermarkSvg = Buffer.from(`
         <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -6444,7 +6474,7 @@ async function addWatermarkToImage(imageUrl, watermarkText = 'Deepernova AI') {
           >${watermarkText}</text>
         </svg>
       `);
-      
+
       // Composite watermark onto image
       const watermarkedImage = await sharp(imageBuffer)
         .composite([
@@ -6454,7 +6484,7 @@ async function addWatermarkToImage(imageUrl, watermarkText = 'Deepernova AI') {
           }
         ])
         .toBuffer();
-      
+
       console.log(`[WATERMARK] Watermark applied successfully: ${watermarkedImage.length} bytes`);
       return watermarkedImage;
     } catch (fetchErr) {
@@ -6482,26 +6512,26 @@ async function saveWatermarkedImage(imageBuffer, req) {
     if (!imageBuffer || imageBuffer.length === 0) {
       throw new Error('Image buffer is empty');
     }
-    
+
     console.log(`[WATERMARK] Saving image buffer: ${imageBuffer.length} bytes`);
-    
+
     const filename = `watermarked-${uuidv4()}.png`;
     const filepath = path.join(process.cwd(), 'public', filename);
-    
+
     // Ensure public directory exists
     const publicDir = path.join(process.cwd(), 'public');
     if (!fs.existsSync(publicDir)) {
       fs.mkdirSync(publicDir, { recursive: true });
       console.log(`[WATERMARK] Created public directory: ${publicDir}`);
     }
-    
+
     await fs.promises.writeFile(filepath, imageBuffer);
     console.log(`[WATERMARK] Image saved to: ${filepath}`);
-    
+
     // Verify file was actually written
     const fileStats = fs.statSync(filepath);
     console.log(`[WATERMARK] File verification: ${fileStats.size} bytes written`);
-    
+
     // Return full backend URL - always use backend VPS URL for image files
     // Frontend (Vercel) should fetch from VPS backend, not proxy through Vercel
     const vpsUrl = process.env.VPS_PUBLIC_URL || `http://localhost:${PORT}`;
@@ -6547,7 +6577,7 @@ app.post('/api/images/generate', async (req, res) => {
     const userId = req.user?.id || null;
     const { prompt, size = '1024x1024', sessionId, referenceImage, preGeneratedImageUrl } = req.body;
     let { model } = req.body;
-    
+
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Prompt is required' });
     }
@@ -6560,7 +6590,7 @@ app.post('/api/images/generate', async (req, res) => {
     // Determine mode: generation or editing
     const isEditMode = !!referenceImage && referenceImage.length > 0;
     const modeLabel = isEditMode ? '✏️ EDIT' : '🎨 GENERATE';
-    
+
     // Auto-select model based on mode if not specified or if chat model was passed
     if (!model || model === 'qwen-vl-max') {
       model = isEditMode ? 'qwen-image-edit-max' : 'image-01';
@@ -6568,7 +6598,7 @@ app.post('/api/images/generate', async (req, res) => {
     if (isEditMode && (model === 'image-01' || model === 'imagen-4-fast')) {
       model = 'qwen-image-edit-max';
     }
-    
+
     console.log(`[IMG_GEN] ${modeLabel} Image with model: ${model}, size: ${size}`);
     console.log(`[IMG_GEN] Prompt: ${prompt.substring(0, 100)}...`);
     console.log(`[IMG_GEN] User: ${userId}, SessionId: ${sessionId}`);
@@ -6597,7 +6627,7 @@ app.post('/api/images/generate', async (req, res) => {
       if (isEditMode) {
         // Handle both data URI and public URLs
         let imageForApi = referenceImage;
-        
+
         if (referenceImage.startsWith('data:')) {
           // Extract base64 part after the comma for data URIs
           const parts = referenceImage.split(',');
@@ -6617,19 +6647,19 @@ app.post('/api/images/generate', async (req, res) => {
             const filename = urlParts[urlParts.length - 1];
             const decodedFilename = path.basename(decodeURIComponent(filename));
             const filepath = path.join(__dirname, 'temp-files', 'uploads', decodedFilename);
-            
+
             console.log('[IMG_GEN] 🔍 Looking for file at:', filepath);
-            
+
             try {
               // Check if file exists first
               if (!fs.existsSync(filepath)) {
                 // Try alternative paths
                 const altPath1 = path.join(__dirname, '..', 'server', 'temp-files', 'uploads', decodedFilename);
                 const altPath2 = path.join(process.cwd(), 'server', 'temp-files', 'uploads', decodedFilename);
-                
+
                 console.log('[IMG_GEN] File not found at:', filepath);
                 console.log('[IMG_GEN] Trying alternative paths...');
-                
+
                 let foundFile = false;
                 if (fs.existsSync(altPath1)) {
                   console.log('[IMG_GEN] ✅ Found at alt path 1:', altPath1);
@@ -6644,15 +6674,15 @@ app.post('/api/images/generate', async (req, res) => {
                   console.log('[IMG_GEN] ✅ Converted localhost file to base64 for TokenMix');
                   foundFile = true;
                 }
-                
+
                 if (!foundFile) {
                   // Try to list available files
                   try {
                     const uploadsPath = path.join(__dirname, 'temp-files', 'uploads');
-                    const availableFiles = fs.existsSync(uploadsPath) 
+                    const availableFiles = fs.existsSync(uploadsPath)
                       ? fs.readdirSync(uploadsPath).slice(0, 10)
                       : ['(uploads directory does not exist)'];
-                    
+
                     console.error('[IMG_GEN] ❌ File not found at any path');
                     console.error('[IMG_GEN] Available files in uploads dir (first 10):', availableFiles);
                     throw new Error(`Image file not found: ${decodedFilename}. Available: ${availableFiles.join(', ')}`);
@@ -6681,7 +6711,7 @@ app.post('/api/images/generate', async (req, res) => {
         } else {
           console.warn('[IMG_GEN] ⚠️ Reference image format unclear, attempting to use as-is');
         }
-        
+
         apiBody.image_url = imageForApi;
         console.log('[IMG_GEN] Image editing enabled with reference (base64 length:', imageForApi.substring(0, 50).length, ')');
       }
@@ -6696,7 +6726,7 @@ app.post('/api/images/generate', async (req, res) => {
       // Call TokenMix API with 120 second timeout
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 120000); // 120 seconds
-      
+
       let tokenMixResponse;
       try {
         tokenMixResponse = await fetch(tokenMixUrl, {
@@ -6723,10 +6753,10 @@ app.post('/api/images/generate', async (req, res) => {
       if (!tokenMixResponse.ok) {
         const errorText = await tokenMixResponse.text();
         console.error('[IMG_GEN] 🔴 TokenMix API error response (first 1000 chars):', errorText.substring(0, 1000));
-        
+
         // Check for content filter / safety policy error
         if (
-          errorText.toLowerCase().includes('content_filter') || 
+          errorText.toLowerCase().includes('content_filter') ||
           errorText.toLowerCase().includes('safety policy')
         ) {
           throw new Error('maaf prompt anda memiliki potensi ke arah hal yang melanggar kebijakan kami ciba peritah lainnya');
@@ -6741,10 +6771,10 @@ app.post('/api/images/generate', async (req, res) => {
             if (match) {
               retryAfter = ` (harap tunggu ${match[1]} sebelum mencoba lagi)`;
             }
-          } catch (e) {}
+          } catch (e) { }
           throw new Error(`Batas limit pembuatan gambar tercapai${retryAfter}. Harap tunggu sebentar.`);
         }
-        
+
         throw new Error(`Gagal memproses gambar (${tokenMixResponse.status}). Silakan coba lagi.`);
       }
 
@@ -6753,10 +6783,10 @@ app.post('/api/images/generate', async (req, res) => {
       console.log('[IMG_GEN] 🔴 Raw Deepernova response:', JSON.stringify(imageData).substring(0, 500));
 
       // Try multiple formats to extract imageUrl from different API response structures
-      
+
       console.log('[IMG_GEN] 🔴 Full response keys:', Object.keys(imageData));
       console.log('[IMG_GEN] 🔴 imageData.data type:', typeof imageData.data, 'is array:', Array.isArray(imageData.data));
-      
+
       // Try format 1: { data: [{ url: '...' }] }
       if (imageData.data && Array.isArray(imageData.data) && imageData.data.length > 0) {
         console.log('[IMG_GEN] 🔴 data[0] structure:', JSON.stringify(imageData.data[0]).substring(0, 300));
@@ -6768,48 +6798,48 @@ app.post('/api/images/generate', async (req, res) => {
           console.log('[IMG_GEN] ✅ Format 2 matched: data[0] as string');
         }
       }
-      
+
       // Try format 2: { images: [{ url: '...' }] }
       if (!imageUrl && imageData.images && Array.isArray(imageData.images) && imageData.images.length > 0) {
         imageUrl = imageData.images[0]?.url;
         console.log('[IMG_GEN] ✅ Format 3 matched: images[0].url');
       }
-      
+
       // Try format 3: { url: '...' }
       if (!imageUrl && imageData.url) {
         imageUrl = imageData.url;
         console.log('[IMG_GEN] ✅ Format 4 matched: root url');
       }
-      
+
       // Try format 4: direct string URL
       if (!imageUrl && typeof imageData === 'string') {
         imageUrl = imageData;
         console.log('[IMG_GEN] ✅ Format 5 matched: direct string');
       }
-      
+
       console.log('[IMG_GEN] 🔴 Final extracted imageUrl:', imageUrl);
-      
+
       if (!imageUrl) {
         console.error('[IMG_GEN] ❌ No imageUrl found in any format!');
         console.log('[IMG_GEN] Full imageData:', JSON.stringify(imageData, null, 2).substring(0, 2000));
         throw new Error('Deepernova API returned no image URL in any expected format');
       }
     }
-    
+
     // Sanitize URL: fix common malformations
     // Fix malformed protocol (http// → https://)
     imageUrl = imageUrl.replace(/^http\/\//, 'https://');
     imageUrl = imageUrl.replace(/^https:\/\//, 'https://');
-    
+
     // Remove double slashes from path (but preserve :// in protocol)
     imageUrl = imageUrl.replace(/([^:]\/)\/+/g, '$1');
-    
+
     console.log('[IMG_GEN] 🔴 Sanitized imageUrl:', imageUrl);
-    
+
     // Save image to database - validate sessionId exists before using it
     const imageId = uuidv4();
     let validSessionId = null;
-    
+
     // Only use sessionId if it actually exists in the database
     if (sessionId && userId) {
       try {
@@ -6824,7 +6854,7 @@ app.post('/api/images/generate', async (req, res) => {
         console.warn(`[IMG_GEN] Error checking sessionId: ${err.message}`);
       }
     }
-    
+
     imageDb.create(
       imageId,
       userId,
@@ -6834,7 +6864,7 @@ app.post('/api/images/generate', async (req, res) => {
       model,
       size
     );
-    
+
     console.log(`[IMG_GEN] ✅ Image saved to database with ID: ${imageId} (${modeLabel})`);
 
     let finalImageUrl = imageUrl;
@@ -6842,16 +6872,16 @@ app.post('/api/images/generate', async (req, res) => {
     try {
       console.log('[IMG_GEN] Starting watermark process...');
       console.log(`[IMG_GEN] Source image URL: ${imageUrl}`);
-      
+
       // Add timeout for watermark process (max 30 seconds)
       const watermarkPromise = addWatermarkToImage(imageUrl, 'Deepernova AI');
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Watermark process timeout (30s)')), 30000)
       );
-      
+
       const watermarkedBuffer = await Promise.race([watermarkPromise, timeoutPromise]);
       console.log(`[IMG_GEN] Watermark buffer generated: ${watermarkedBuffer.length} bytes`);
-      
+
       finalImageUrl = await saveWatermarkedImage(watermarkedBuffer, req);
       watermarked = true;
       console.log(`[IMG_GEN] ✅ Watermarked image saved: ${finalImageUrl}`);
@@ -6871,7 +6901,7 @@ app.post('/api/images/generate', async (req, res) => {
     // Validate final URL before sending response
     if (!finalImageUrl) {
       console.error('[IMG_GEN] ❌ CRITICAL: No final image URL available');
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to save image - no valid URL generated',
         details: 'Both watermarked and original image URLs failed'
       });
@@ -6914,10 +6944,10 @@ app.get('/api/debug/images', (req, res) => {
     if (!fs.existsSync(publicDir)) {
       return res.json({ error: 'Public directory does not exist', path: publicDir });
     }
-    
+
     const files = fs.readdirSync(publicDir);
     const watermarkedFiles = files.filter(f => f.startsWith('watermarked-') || f.startsWith('generated-'));
-    
+
     const fileInfo = watermarkedFiles.map(filename => {
       const filepath = path.join(publicDir, filename);
       const stats = fs.statSync(filepath);
@@ -6931,7 +6961,7 @@ app.get('/api/debug/images', (req, res) => {
         url
       };
     });
-    
+
     res.json({
       totalFiles: files.length,
       watermarkedCount: watermarkedFiles.length,
@@ -6950,21 +6980,21 @@ app.get('/api/debug/image/:filename', (req, res) => {
   try {
     const filename = req.params.filename;
     const filepath = path.join(process.cwd(), 'public', filename);
-    
+
     // Security: prevent directory traversal
     if (!filepath.startsWith(path.join(process.cwd(), 'public'))) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     if (!fs.existsSync(filepath)) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'File not found',
         requestedFile: filename,
         fullPath: filepath,
         publicDirExists: fs.existsSync(path.join(process.cwd(), 'public'))
       });
     }
-    
+
     const stats = fs.statSync(filepath);
     res.json({
       filename,
@@ -6986,31 +7016,31 @@ app.get('/api/debug/image/:filename', (req, res) => {
 app.get('/watermarked/:filename', (req, res) => {
   try {
     const filename = req.params.filename;
-    
+
     // Security: only allow watermarked files
     if (!filename.startsWith('watermarked-') && !filename.startsWith('generated-')) {
       console.warn(`[IMAGES] ⚠️ Unauthorized file access attempt: ${filename}`);
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     const filepath = path.join(process.cwd(), 'public', filename);
-    
+
     // Security: prevent directory traversal
     if (!filepath.startsWith(path.join(process.cwd(), 'public'))) {
       console.warn(`[IMAGES] ⚠️ Directory traversal attempt: ${filepath}`);
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // Check if file exists
     if (!fs.existsSync(filepath)) {
       console.error(`[IMAGES] ❌ File not found: ${filepath}`);
       return res.status(404).json({ error: 'Image not found', file: filename });
     }
-    
+
     // Read and serve file
     const fileBuffer = fs.readFileSync(filepath);
     console.log(`[IMAGES] ✅ Serving image: ${filename} (${fileBuffer.length} bytes)`);
-    
+
     // Set proper headers
     res.set('Content-Type', 'image/png');
     res.set('Content-Length', fileBuffer.length);
@@ -7018,7 +7048,7 @@ app.get('/watermarked/:filename', (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.set('X-Content-Type-Options', 'nosniff');
-    
+
     // Send file
     res.send(fileBuffer);
   } catch (err) {
@@ -7034,31 +7064,31 @@ app.get('/watermarked/:filename', (req, res) => {
 app.get('/generated/:filename', (req, res) => {
   try {
     const filename = req.params.filename;
-    
+
     // Security: only allow generated files
     if (!filename.startsWith('generated-')) {
       console.warn(`[IMAGES] ⚠️ Unauthorized file access attempt: ${filename}`);
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     const filepath = path.join(process.cwd(), 'public', filename);
-    
+
     // Security: prevent directory traversal
     if (!filepath.startsWith(path.join(process.cwd(), 'public'))) {
       console.warn(`[IMAGES] ⚠️ Directory traversal attempt: ${filepath}`);
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // Check if file exists
     if (!fs.existsSync(filepath)) {
       console.error(`[IMAGES] ❌ File not found: ${filepath}`);
       return res.status(404).json({ error: 'Image not found', file: filename });
     }
-    
+
     // Read and serve file
     const fileBuffer = fs.readFileSync(filepath);
     console.log(`[IMAGES] ✅ Serving image: ${filename} (${fileBuffer.length} bytes)`);
-    
+
     // Set proper headers
     res.set('Content-Type', 'image/png');
     res.set('Content-Length', fileBuffer.length);
@@ -7066,7 +7096,7 @@ app.get('/generated/:filename', (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.set('X-Content-Type-Options', 'nosniff');
-    
+
     // Send file
     res.send(fileBuffer);
   } catch (err) {
@@ -7168,7 +7198,7 @@ app.post('/api/vision/analyze', async (req, res) => {
 
     // Extract analysis from response
     const analysis = visionData.choices?.[0]?.message?.content || 'Unable to analyze image';
-    
+
     res.json({
       success: true,
       analysis: analysis,
@@ -7208,16 +7238,16 @@ app.get('/api/images/session/:sessionId', (req, res) => {
 app.get('/api/images/download/:imageId', async (req, res) => {
   try {
     const { imageId } = req.params;
-    
+
     console.log(`[IMG_DOWNLOAD] Request to download image: ${imageId}`);
-    
+
     // Find image in database
     const image = imageDb.findById(imageId);
     if (!image) {
       console.error(`[IMG_DOWNLOAD] Image not found in database: ${imageId}`);
       return res.status(404).send('Image not found');
     }
-    
+
     if (!image.imageUrl || !isSafeExternalUrl(image.imageUrl)) {
       console.error(`[IMG_DOWNLOAD] Image URL is empty or restricted for ID: ${imageId}`);
       return res.status(400).send('Image URL is invalid or restricted');
@@ -7230,9 +7260,9 @@ app.get('/api/images/download/:imageId', async (req, res) => {
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Fetch timeout')), 30000)
     );
-    
+
     const imageResponse = await Promise.race([fetchPromise, timeoutPromise]);
-    
+
     if (!imageResponse.ok) {
       console.error(`[IMG_DOWNLOAD] Failed to fetch from URL: ${imageResponse.status} ${imageResponse.statusText}`);
       return res.status(502).send('Failed to fetch image from source');
@@ -7244,7 +7274,7 @@ app.get('/api/images/download/:imageId', async (req, res) => {
     // Get the image as buffer
     const arrayBuffer = await imageResponse.arrayBuffer();
     const imageBuffer = Buffer.from(arrayBuffer);
-    
+
     if (imageBuffer.length === 0) {
       console.error(`[IMG_DOWNLOAD] Empty buffer for image ${imageId}`);
       return res.status(500).send('Image buffer is empty');
@@ -7263,7 +7293,7 @@ app.get('/api/images/download/:imageId', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="deepernova-image-${imageId}${fileExtension}"`);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    
+
     console.log(`[IMG_DOWNLOAD] ✅ Sending image ${imageId}, size: ${imageBuffer.length} bytes, type: ${contentType}`);
     res.send(imageBuffer);
   } catch (err) {
@@ -7285,7 +7315,7 @@ app.post('/api/images/cache-batch', express.json({ limit: '2mb' }), async (req, 
   try {
     const urls = Array.isArray(req.body?.urls) ? req.body.urls : [];
     if (urls.length > 0) {
-      batchPreloadImages(urls).catch(() => {});
+      batchPreloadImages(urls).catch(() => { });
     }
     return res.json({ success: true, count: urls.length });
   } catch (err) {
@@ -7378,45 +7408,45 @@ app.get('/api/user/rate-limit', (req, res) => {
  */
 app.post('/api/generate-ppt', async (req, res) => {
   let pythonProcess = null;
-  
+
   try {
     const { title, subtitle, slides } = req.body;
-    
+
     // Input validation
     if (!title || typeof title !== 'string' || !title.trim()) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Judul presentasi wajib diisi' 
+      return res.status(400).json({
+        success: false,
+        error: 'Judul presentasi wajib diisi'
       });
     }
-    
+
     if (!Array.isArray(slides) || slides.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Minimal 1 slide diperlukan' 
+      return res.status(400).json({
+        success: false,
+        error: 'Minimal 1 slide diperlukan'
       });
     }
-    
+
     // Validate request data
     if (slides.length > 100) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Maksimal 100 slide (terlalu kompleks)' 
+      return res.status(400).json({
+        success: false,
+        error: 'Maksimal 100 slide (terlalu kompleks)'
       });
     }
-    
+
     // Build sanitized PPT data
     const pptData = {
       title: String(title).substring(0, 200),
       subtitle: String(subtitle || '').substring(0, 200),
       slides: slides.map((s, i) => ({
-        title: String(s.title || `Slide ${i+1}`).substring(0, 200),
+        title: String(s.title || `Slide ${i + 1}`).substring(0, 200),
         content: String(s.content || '').substring(0, 10000)
       }))
     };
-    
+
     console.log(`[PPT_GEN] Generating PPT: "${pptData.title}" with ${pptData.slides.length} slides`);
-    
+
     // Spawn Python generator dengan timeout
     const pythonScript = path.join(__dirname, 'pptxGenerator.py');
     if (!fs.existsSync(pythonScript)) {
@@ -7425,7 +7455,7 @@ app.post('/api/generate-ppt', async (req, res) => {
         error: 'PPT generator script tidak ditemukan di server'
       });
     }
-    
+
     // Detect Python executable - try multiple variants
     let pythonExe = 'python';
     const pythonCandidates = [
@@ -7434,7 +7464,7 @@ app.post('/api/generate-ppt', async (req, res) => {
       'python3',
       'python'
     ];
-    
+
     for (const candidate of pythonCandidates) {
       try {
         execSync(`"${candidate}" --version`, { stdio: 'pipe' });
@@ -7450,11 +7480,11 @@ app.post('/api/generate-ppt', async (req, res) => {
       timeout: 30000, // 30 second hard timeout
       maxBuffer: 50 * 1024 * 1024 // 50MB max output
     });
-    
+
     let stdout = '';
     let stderr = '';
     let completed = false;
-    
+
     const timeoutId = setTimeout(() => {
       if (!completed) {
         console.warn('[PPT_GEN] Timeout - killing process');
@@ -7468,24 +7498,24 @@ app.post('/api/generate-ppt', async (req, res) => {
         }
       }
     }, 30000);
-    
+
     pythonProcess.stdout.on('data', (data) => {
       stdout += data.toString();
     });
-    
+
     pythonProcess.stderr.on('data', (data) => {
       stderr += data.toString();
       console.error(`[PPT_GEN] Python stderr: ${data.toString().substring(0, 200)}`);
     });
-    
+
     pythonProcess.on('close', (code) => {
       completed = true;
       clearTimeout(timeoutId);
-      
+
       if (code !== 0) {
         console.error(`[PPT_GEN] Process exit code ${code}`);
         if (stderr) console.error(`[PPT_GEN] Error: ${stderr.substring(0, 500)}`);
-        
+
         if (!res.headersSent) {
           return res.status(500).json({
             success: false,
@@ -7493,10 +7523,10 @@ app.post('/api/generate-ppt', async (req, res) => {
           });
         }
       }
-      
+
       try {
         const result = JSON.parse(stdout);
-        
+
         if (!result.success) {
           console.error(`[PPT_GEN] Generation failed: ${result.data?.error}`);
           if (!res.headersSent) {
@@ -7506,9 +7536,9 @@ app.post('/api/generate-ppt', async (req, res) => {
             });
           }
         }
-        
+
         console.log(`[PPT_GEN] ✅ Success: ${result.data.filename} (${result.data.size_mb}MB)`);
-        
+
         if (!res.headersSent) {
           res.json({
             success: true,
@@ -7522,7 +7552,7 @@ app.post('/api/generate-ppt', async (req, res) => {
       } catch (parseErr) {
         console.error(`[PPT_GEN] Parse error: ${parseErr.message}`);
         console.error(`[PPT_GEN] Output: ${stdout.substring(0, 300)}`);
-        
+
         if (!res.headersSent) {
           res.status(500).json({
             success: false,
@@ -7531,11 +7561,11 @@ app.post('/api/generate-ppt', async (req, res) => {
         }
       }
     });
-    
+
     pythonProcess.on('error', (err) => {
       clearTimeout(timeoutId);
       console.error(`[PPT_GEN] Process error: ${err.message}`);
-      
+
       if (!res.headersSent) {
         res.status(500).json({
           success: false,
@@ -7543,18 +7573,18 @@ app.post('/api/generate-ppt', async (req, res) => {
         });
       }
     });
-    
+
     // Send PPT data to Python via stdin
     pythonProcess.stdin.write(JSON.stringify(pptData));
     pythonProcess.stdin.end();
-    
+
   } catch (error) {
     console.error('[PPT_GEN] Endpoint error:', error);
-    
+
     if (pythonProcess && !pythonProcess.killed) {
       pythonProcess.kill('SIGKILL');
     }
-    
+
     if (!res.headersSent) {
       res.status(500).json({
         success: false,
@@ -7598,7 +7628,7 @@ app.get('/api/images/user', (req, res) => {
       createdAt: img.createdAt
     }));
 
-    const combined = [...mappedGen, ...mappedUp].sort((a, b) => 
+    const combined = [...mappedGen, ...mappedUp].sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
@@ -7696,11 +7726,11 @@ app.get(['/help', '/help/', '/help.html'], (req, res) => {
   const distHelp = path.join(__dirname, '..', 'dist', 'help.html');
   const publicHelp = path.join(__dirname, '..', 'public', 'help.html');
   const serverPublicHelp = path.join(__dirname, 'public', 'help.html');
-  
+
   if (fs.existsSync(distHelp)) return res.sendFile(distHelp);
   if (fs.existsSync(publicHelp)) return res.sendFile(publicHelp);
   if (fs.existsSync(serverPublicHelp)) return res.sendFile(serverPublicHelp);
-  
+
   const distIndex = path.join(__dirname, '..', 'dist', 'index.html');
   if (fs.existsSync(distIndex)) return res.sendFile(distIndex);
   res.redirect('/');
@@ -7774,7 +7804,7 @@ app.get([
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 File Generation Server running on http://localhost:${PORT}`);
   console.log(`📁 Temp directory: ${tempDir}`);
-  
+
   // Check Python availability for file uploads
   try {
     try {

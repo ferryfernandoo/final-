@@ -3,7 +3,7 @@ import { registerBackHandler } from '../services/mobileNavigationService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
-import { downloadFromUrl } from '../services/universalDownloadService';
+import { downloadFromUrl, downloadText } from '../services/universalDownloadService';
 import AgentExecutionTree, { extractExecutionStepsAndCleanContent } from './AgentExecutionTree';
 import { detectLanguageSync, saveLanguage, LANGUAGE_OPTIONS } from '../utils/languageDetector';
 import './AgentChat.css';
@@ -974,18 +974,21 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     }
   };
 
-  const handleDownloadSingleFile = (fileOrPath) => {
+  const handleDownloadSingleFile = async (fileOrPath) => {
     if (!currentSessionId || !fileOrPath) return;
     const pathStr = typeof fileOrPath === 'string' ? fileOrPath : (fileOrPath.path || fileOrPath.name);
     const fileName = (typeof fileOrPath === 'string' ? fileOrPath.split('/').pop() : fileOrPath.name) || pathStr.split('/').pop() || 'download';
     const url = AgentService.getDownloadUrl(currentSessionId, pathStr);
-    downloadFromUrl(url, fileName);
+    const res = await downloadFromUrl(url, fileName);
+    if (!res?.ok && selectedFile === pathStr && typeof fileContent === 'string' && fileContent.length > 0) {
+      await downloadText(fileContent, fileName);
+    }
   };
 
-  const handleDownloadAllZip = () => {
+  const handleDownloadAllZip = async () => {
     if (!currentSessionId) return;
     const url = AgentService.getZipDownloadUrl(currentSessionId);
-    downloadFromUrl(url, `deepernova-project-${currentSessionId.slice(-6)}.zip`, { mimeType: 'application/zip' });
+    await downloadFromUrl(url, `deepernova-project-${currentSessionId.slice(-6)}.zip`, { mimeType: 'application/zip' });
   };
 
   // Open any sandbox deliverable file directly in Typernova Studio (DocumentEditor)
@@ -2049,7 +2052,21 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               <i className={iconData.icon} style={{ color: iconData.color, marginRight: 8, fontSize: 14 }} />
                               {file.name}
                             </span>
-                            <i className="fa-solid fa-chevron-right agent-tree-item-arrow" />
+                            <span className="agent-tree-item-right">
+                              <button
+                                type="button"
+                                className="agent-tree-download-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadSingleFile(file);
+                                }}
+                                title={`${t.downloadFile}: ${file.name}`}
+                                aria-label={`${t.downloadFile} ${file.name}`}
+                              >
+                                <i className="fa-solid fa-download" />
+                              </button>
+                              <i className="fa-solid fa-chevron-right agent-tree-item-arrow" />
+                            </span>
                           </div>
                         );
                       })}

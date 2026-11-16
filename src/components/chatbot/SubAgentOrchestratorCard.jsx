@@ -28,6 +28,7 @@ export const SubAgentOrchestratorCard = React.memo(({
   const [copiedFileId, setCopiedFileId] = useState(null);
   const [copiedCot, setCopiedCot] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState(null);
   const [previewModalFile, setPreviewModalFile] = useState(null);
   const [previewViewport, setPreviewViewport] = useState('desktop');
   const [previewKey, setPreviewKey] = useState(0);
@@ -85,6 +86,17 @@ export const SubAgentOrchestratorCard = React.memo(({
       setTimeout(() => setCopiedCot(false), 1800);
     } catch (_e) {
       // ignore clipboard errors
+    }
+  };
+
+  const handleDownloadSingleFile = async (file) => {
+    if (!file || downloadingFileId) return;
+    const key = file.id || file.name;
+    setDownloadingFileId(key);
+    try {
+      await downloadSingleSubAgentFile(file);
+    } finally {
+      setDownloadingFileId(null);
     }
   };
 
@@ -400,9 +412,12 @@ export const SubAgentOrchestratorCard = React.memo(({
                       <button
                         type="button"
                         className="subagent-file-btn dark"
-                        onClick={() => downloadSingleSubAgentFile(file)}
+                        onClick={() => handleDownloadSingleFile(file)}
+                        disabled={downloadingFileId === (file.id || file.name)}
                       >
-                        {isEn ? 'Save' : 'Unduh'}
+                        {downloadingFileId === (file.id || file.name)
+                          ? '...'
+                          : (isEn ? 'Save' : 'Unduh')}
                       </button>
                     </div>
                   </div>

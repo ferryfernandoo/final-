@@ -1,72 +1,57 @@
 /**
  * Document Export Service
- * Handles DOCX, PPTX, and Excel export
+ * Handles DOCX, PPTX, and Excel export with genuine OOXML binaries
  */
 
 import { downloadBlob as universalDownloadBlob } from './universalDownloadService';
+import { buildDocxBlob, buildPptxBlob, buildXlsxBlob } from '../utils/subAgentOfficeBuilder';
 
-// Simple DOCX export (requires docx library in production)
-export const exportToDocx = (content, fileName) => {
+const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const MIME_PPTX = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+// DOCX export (genuine OOXML binary via docx)
+export const exportToDocx = async (content, fileName) => {
   try {
-    // Convert content to rich text format
-    const docContent = Array.isArray(content)
-      ? content.map(para => typeof para === 'string' ? para : para.text || '').join('\n\n')
-      : String(content);
-
-    // Create blob with formatted text
-    const blob = new Blob([docContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    downloadFile(blob, `${fileName || 'document'}.docx`);
-    
-    return { success: true, message: 'Document exported successfully' };
+    const cleanName = `${(fileName || 'document').replace(/\.docx$/i, '')}.docx`;
+    const blob = await buildDocxBlob(content, fileName || 'Document');
+    const dlResult = await downloadFile(blob, cleanName, { mimeType: MIME_DOCX });
+    return dlResult?.ok !== false
+      ? { success: true, message: 'Document exported successfully' }
+      : { success: false, error: dlResult?.error || 'Download failed' };
   } catch (error) {
     console.error('DOCX export error:', error);
     return { success: false, error: error.message };
   }
 };
 
-// PPTX export function
-export const exportToPptx = (slides, fileName) => {
+// PPTX export function (genuine OOXML binary via pptxgenjs)
+export const exportToPptx = async (slides, fileName) => {
   try {
-    // Simple format: convert slides to XML-like structure
-    const pptxContent = slides.map((slide, idx) => {
-      return `Slide ${idx + 1}
-Title: ${slide.title || ''}
-Content: ${slide.content || ''}
-Notes: ${slide.notes || ''}
----`;
-    }).join('\n');
-
-    const blob = new Blob([pptxContent], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
-    downloadFile(blob, `${fileName || 'presentation'}.pptx`);
-
-    return { success: true, message: 'Presentation exported successfully' };
+    const cleanName = `${(fileName || 'presentation').replace(/\.pptx$/i, '')}.pptx`;
+    const blob = await buildPptxBlob(slides, fileName || 'Presentation');
+    const dlResult = await downloadFile(blob, cleanName, { mimeType: MIME_PPTX });
+    return dlResult?.ok !== false
+      ? { success: true, message: 'Presentation exported successfully' }
+      : { success: false, error: dlResult?.error || 'Download failed' };
   } catch (error) {
     console.error('PPTX export error:', error);
     return { success: false, error: error.message };
   }
 };
 
-// Excel export function
-export const exportToExcel = (rows, fileName) => {
+// Excel export function (genuine OOXML .xlsx binary via SheetJS)
+export const exportToExcel = async (rows, fileName) => {
   try {
-    // Convert to CSV (Excel can open CSV files)
-    const csvContent = rows.map(row => {
-      if (Array.isArray(row)) {
-        return row.map(cell => {
-          // Escape quotes and wrap in quotes if contains comma
-          const cellStr = String(cell || '');
-          return cellStr.includes(',') ? `"${cellStr.replace(/"/g, '""')}"` : cellStr;
-        }).join(',');
-      }
-      return String(row);
-    }).join('\n');
-
-    // Create Excel-compatible blob
-    const BOM = '\uFEFF'; // UTF-8 BOM for proper encoding
-    const blob = new Blob([BOM + csvContent], { type: 'application/vnd.ms-excel' });
-    downloadFile(blob, `${fileName || 'spreadsheet'}.xlsx`);
-
-    return { success: true, message: 'Spreadsheet exported successfully' };
+    const cleanName = `${(fileName || 'spreadsheet').replace(/\.xlsx$/i, '')}.xlsx`;
+    const sheetRows = Array.isArray(rows)
+      ? rows
+      : rows?.excelSheets?.[rows.activeSheet || 0]?.data || rows?.excelSheets?.[0]?.data || [];
+    const blob = await buildXlsxBlob(sheetRows, 'Sheet1');
+    const dlResult = await downloadFile(blob, cleanName, { mimeType: MIME_XLSX });
+    return dlResult?.ok !== false
+      ? { success: true, message: 'Spreadsheet exported successfully' }
+      : { success: false, error: dlResult?.error || 'Download failed' };
   } catch (error) {
     console.error('Excel export error:', error);
     return { success: false, error: error.message };
@@ -74,17 +59,17 @@ export const exportToExcel = (rows, fileName) => {
 };
 
 // Generic download file helper
-const downloadFile = (blob, fileName) => {
-  return universalDownloadBlob(blob, fileName);
+const downloadFile = (blob, fileName, options = {}) => {
+  return universalDownloadBlob(blob, fileName, options);
 };
 
 // Convert JSON to Excel data
 export const jsonToExcelData = (jsonData) => {
   if (!Array.isArray(jsonData) || jsonData.length === 0) return [];
-  
+
   const headers = Object.keys(jsonData[0]);
-  const rows = [headers, ...jsonData.map(item => headers.map(h => item[h] || ''))];
-  
+  const rows = [headers, ...jsonData.map((item) => headers.map((h) => item[h] || ''))];
+
   return rows;
 };
 
@@ -92,13 +77,13 @@ export const jsonToExcelData = (jsonData) => {
 export const htmlTableToExcelData = (tableElement) => {
   const rows = [];
   const tableRows = tableElement.querySelectorAll('tr');
-  
-  tableRows.forEach(tr => {
+
+  tableRows.forEach((tr) => {
     const cells = tr.querySelectorAll('td, th');
-    const row = Array.from(cells).map(cell => cell.textContent.trim());
+    const row = Array.from(cells).map((cell) => cell.textContent.trim());
     rows.push(row);
   });
-  
+
   return rows;
 };
 

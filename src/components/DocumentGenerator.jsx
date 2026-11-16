@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import Timeline from './Timeline';
+import { downloadFromUrl } from '../services/universalDownloadService';
 import './DocumentGenerator.css';
 
 const DocumentGenerator = ({ isOpen, onClose, fileType = 'word', content, title }) => {
@@ -87,7 +88,7 @@ const DocumentGenerator = ({ isOpen, onClose, fileType = 'word', content, title 
 
   const handleDownload = () => {
     if (result?.downloadUrl) {
-      window.open(result.downloadUrl, '_blank');
+      downloadFromUrl(result.downloadUrl, result?.file?.fileName || 'deepernova-document');
     }
   };
 

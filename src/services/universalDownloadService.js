@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../apiConfig';
 import { nativeBridge } from './nativeBridge';
+import { getDeviceId } from './realtimeSyncService';
 
 const listeners = new Set();
 const activeToasts = new Map();
@@ -149,11 +150,26 @@ export function blobToBase64(blob) {
   });
 }
 
+const isSyncCapacitorNative = () => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    window.Capacitor?.isNativePlatform?.() ||
+      window.DeeperNovaDownloader ||
+      nativeBridge.isNative ||
+      window.location?.protocol === 'capacitor:' ||
+      window.location?.protocol === 'ionic:'
+  );
+};
+
+const isEmbeddedWebView = () => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /\bwv\b|;\s*wv\)|Version\/\d+\.\d+.*Chrome\/\d+.*Mobile/i.test(ua);
+};
+
 const isCapacitorNative = async () => {
+  if (isSyncCapacitorNative()) return true;
   try {
-    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
-      return true;
-    }
     return await nativeBridge.isNativeApp();
   } catch (_) {
     return false;
@@ -185,7 +201,45 @@ const triggerStandardBrowserBlobDownload = (blob, safeName) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+};
+
+const triggerRelayAnchorDownload = (relayUrl, safeName) => {
+  const link = document.createElement('a');
+  link.href = relayUrl;
+  link.download = safeName;
+  link.rel = 'noopener noreferrer';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+const parseFileNameFromContentDisposition = (headerValue) => {
+  if (!headerValue) return '';
+  const utf8Match = headerValue.match(/filename\*\s*=\s*UTF-8''([^;\s]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch (_) {
+      return utf8Match[1];
+    }
+  }
+  const quotedMatch = headerValue.match(/filename\s*=\s*"([^"]+)"/i) || headerValue.match(/filename\s*=\s*([^;\s]+)/i);
+  return quotedMatch?.[1] || '';
+};
+
+const dataUrlToBlob = (dataUrl) => {
+  const [header, payload = ''] = dataUrl.split(',', 2);
+  const mimeMatch = header.match(/data:([^;]+)/i);
+  const mime = mimeMatch?.[1] || 'application/octet-stream';
+  if (/;base64/i.test(header)) {
+    const bin = atob(payload);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+  return new Blob([decodeURIComponent(payload)], { type: mime });
 };
 
 const uploadToTempDownloadRelay = async (base64, fileName, mimeType) => {
@@ -219,8 +273,39 @@ export async function downloadBlob(blob, fileName, options = {}) {
   if (!blob) return { ok: false, error: 'File kosong.' };
 
   const safeName = sanitizeFileName(fileName, 'deepernova-file.txt');
+  if (blob.size === 0) {
+    const errorMessage = 'File kosong (0 byte) tidak dapat diunduh.';
+    showDownloadToast({
+      fileName: safeName,
+      status: 'error',
+      subtitle: errorMessage
+    });
+    return { ok: false, error: errorMessage };
+  }
+
   const mimeType = options.mimeType || blob.type || 'application/octet-stream';
   const sizeLabel = formatDownloadSize(blob.size);
+  const syncNative = isSyncCapacitorNative();
+
+  // Synchronous web fast-path so browser/mobile user-gesture activation is preserved immediately
+  if (!syncNative && !isEmbeddedWebView()) {
+    try {
+      triggerStandardBrowserBlobDownload(blob, safeName);
+      const subtitle = sizeLabel ? `Berhasil diunduh (${sizeLabel})` : 'Berhasil diunduh';
+      showDownloadToast({
+        fileName: safeName,
+        status: 'success',
+        subtitle
+      });
+      showWebNotificationIfAllowed(safeName, subtitle);
+      return { ok: true, mode: 'browser-blob', fileName: safeName };
+    } catch (err) {
+      const errorMessage = err?.message || 'Gagal mengunduh file.';
+      showDownloadToast({ fileName: safeName, status: 'error', subtitle: errorMessage });
+      return { ok: false, error: errorMessage };
+    }
+  }
+
   const toastId = showDownloadToast({
     fileName: safeName,
     status: 'downloading',
@@ -229,7 +314,11 @@ export async function downloadBlob(blob, fileName, options = {}) {
 
   try {
     // 1. Native Android APK bridge (MainActivity @JavascriptInterface DeeperNovaDownloader)
-    if (typeof window !== 'undefined' && typeof window.DeeperNovaDownloader?.saveBase64File === 'function') {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.DeeperNovaDownloader?.saveBase64File === 'function' &&
+      blob.size <= 4 * 1024 * 1024
+    ) {
       const base64 = await blobToBase64(blob);
       const rawResult = window.DeeperNovaDownloader.saveBase64File(base64, safeName, mimeType);
       let parsed = {};
@@ -251,23 +340,42 @@ export async function downloadBlob(blob, fileName, options = {}) {
         });
         return { ok: true, mode: 'android-bridge', fileName: finalName, savedPath };
       }
-      console.warn('[UniversalDownload] Native saveBase64File failed, trying fallback:', parsed?.error);
+      console.warn('[UniversalDownload] Native saveBase64File failed, trying relay:', parsed?.error);
     }
 
-    // 2. Existing / Older Capacitor APK without DeeperNovaDownloader bridge
-    if (await isCapacitorNative()) {
+    // 2. Capacitor APK (older or large file) or Android/iOS embedded WebView -> Server Temp Download Relay (real HTTPS attachment)
+    const nativeApp = syncNative || (await isCapacitorNative());
+    if (nativeApp || isEmbeddedWebView()) {
       try {
         const base64 = await blobToBase64(blob);
         const relayUrl = await uploadToTempDownloadRelay(base64, safeName, mimeType);
-        const opened = window.open(relayUrl, '_system') || window.open(relayUrl, '_blank');
-        if (!opened) {
-          window.location.href = relayUrl;
+
+        if (typeof window !== 'undefined' && typeof window.DeeperNovaDownloader?.downloadUrl === 'function') {
+          const dmResRaw = window.DeeperNovaDownloader.downloadUrl(relayUrl, safeName, mimeType);
+          let dmRes = {};
+          try {
+            dmRes = typeof dmResRaw === 'string' ? JSON.parse(dmResRaw) : dmResRaw || {};
+          } catch (_) {}
+          if (dmRes?.ok) {
+            showDownloadToast({
+              id: toastId,
+              fileName: dmRes.fileName || safeName,
+              status: 'success',
+              subtitle: `Diunduh ke ${dmRes.savedPath || 'Downloads/DeeperNova'}${sizeLabel ? ` • ${sizeLabel}` : ''}`,
+              savedLocation: dmRes.savedPath || 'Download'
+            });
+            return { ok: true, mode: 'android-relay-dm', fileName: dmRes.fileName || safeName, url: relayUrl };
+          }
         }
-        await nativeBridge.showDownloadCompleteNotification({
-          fileName: safeName,
-          savedPath: 'Folder Download perangkat',
-          subtitle: `Mengunduh ${safeName}${sizeLabel ? ` (${sizeLabel})` : ''} via sistem Android.`
-        });
+
+        triggerRelayAnchorDownload(relayUrl, safeName);
+        if (nativeApp) {
+          await nativeBridge.showDownloadCompleteNotification({
+            fileName: safeName,
+            savedPath: 'Folder Download perangkat',
+            subtitle: `Mengunduh ${safeName}${sizeLabel ? ` (${sizeLabel})` : ''} via sistem Android.`
+          });
+        }
         showDownloadToast({
           id: toastId,
           fileName: safeName,
@@ -277,11 +385,11 @@ export async function downloadBlob(blob, fileName, options = {}) {
         });
         return { ok: true, mode: 'capacitor-relay', fileName: safeName, url: relayUrl };
       } catch (relayErr) {
-        console.warn('[UniversalDownload] Relay fallback failed in native mode:', relayErr);
+        console.warn('[UniversalDownload] Relay fallback failed:', relayErr);
       }
     }
 
-    // 3. Standard Web / Mobile Browser download
+    // 3. Standard Web / Mobile Browser fallback
     triggerStandardBrowserBlobDownload(blob, safeName);
     const subtitle = sizeLabel ? `Berhasil diunduh (${sizeLabel})` : 'Berhasil diunduh';
     showDownloadToast({
@@ -320,14 +428,13 @@ export async function downloadFromUrl(url, fileName, options = {}) {
   const rawUrl = String(url || '').trim();
   if (!rawUrl) return { ok: false, error: 'URL unduhan kosong.' };
 
-  const safeName = sanitizeFileName(fileName || rawUrl.split('/').pop(), 'deepernova-file');
+  let safeName = sanitizeFileName(fileName || rawUrl.split('/').pop(), 'deepernova-file');
   const resolvedUrl = resolveBackendUrl(rawUrl);
 
   // Fast-path: data: and blob: URLs must always be converted to Blob first
-  if (resolvedUrl.startsWith('blob:') || resolvedUrl.startsWith('data:')) {
+  if (resolvedUrl.startsWith('data:')) {
     try {
-      const resp = await fetch(resolvedUrl);
-      const blob = await resp.blob();
+      const blob = dataUrlToBlob(resolvedUrl);
       return downloadBlob(blob, safeName, { mimeType: options.mimeType || blob.type });
     } catch (err) {
       showDownloadToast({
@@ -339,23 +446,98 @@ export async function downloadFromUrl(url, fileName, options = {}) {
     }
   }
 
+  if (resolvedUrl.startsWith('blob:')) {
+    try {
+      const resp = await fetch(resolvedUrl);
+      const blob = await resp.blob();
+      return downloadBlob(blob, safeName, { mimeType: options.mimeType || blob.type });
+    } catch (err) {
+      showDownloadToast({
+        fileName: safeName,
+        status: 'error',
+        subtitle: err?.message || 'Gagal membaca blob unduhan.'
+      });
+      return { ok: false, error: err?.message || 'Gagal membaca blob unduhan.' };
+    }
+  }
+
   const toastId = showDownloadToast({
     fileName: safeName,
     status: 'downloading',
     subtitle: 'Mengambil file dari server...'
   });
 
-  // Prefer fetching via WebView/browser session cookies into a Blob so auth, filenames, and progress are exact
+  const isSameOrigin = (() => {
+    try {
+      if (typeof window === 'undefined') return rawUrl.startsWith('/');
+      const parsed = new URL(resolvedUrl, window.location.href);
+      return parsed.origin === window.location.origin;
+    } catch (_) {
+      return rawUrl.startsWith('/');
+    }
+  })();
+
+  let serverHttpError = null;
+
+  // Fetch file bytes first when CORS allows so auth, error detection, and native/blob handoff are exact
   try {
-    const resp = await fetch(resolvedUrl, { credentials: 'include' });
-    if (resp.ok) {
+    const fetchHeaders = isSameOrigin ? { 'x-device-id': getDeviceId() } : undefined;
+    const resp = await fetch(resolvedUrl, {
+      credentials: isSameOrigin ? 'include' : 'omit',
+      headers: fetchHeaders
+    });
+
+    if (!resp.ok) {
+      let errText = `Server menolak unduhan (HTTP ${resp.status})`;
+      try {
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await resp.json();
+          if (j?.error) errText = j.error;
+        } else {
+          const txt = (await resp.text()).trim();
+          if (txt && txt.length < 180 && !txt.startsWith('<')) errText = txt;
+        }
+      } catch (_) {}
+      serverHttpError = new Error(errText);
+    } else {
+      const dispName = parseFileNameFromContentDisposition(resp.headers.get('content-disposition'));
+      if (dispName && (!fileName || fileName === 'download')) {
+        safeName = sanitizeFileName(dispName, safeName);
+      }
+
       const blob = await resp.blob();
-      activeToasts.delete(toastId);
-      notifyListeners();
-      return downloadBlob(blob, safeName, { mimeType: options.mimeType || blob.type });
+      const ct = (resp.headers.get('content-type') || blob.type || '').toLowerCase();
+
+      if (blob.size === 0) {
+        serverHttpError = new Error('File kosong atau belum tersedia di server (0 byte).');
+      } else if (ct.includes('application/json') && !safeName.toLowerCase().endsWith('.json')) {
+        try {
+          const parsedJson = JSON.parse(await blob.text());
+          if (parsedJson && (parsedJson.error || parsedJson.success === false)) {
+            serverHttpError = new Error(parsedJson.error || 'Gagal mengambil file dari server.');
+          }
+        } catch (_) {}
+      }
+
+      if (!serverHttpError) {
+        activeToasts.delete(toastId);
+        notifyListeners();
+        return downloadBlob(blob, safeName, { mimeType: options.mimeType || blob.type });
+      }
     }
   } catch (_) {
-    // Fall through to native DownloadManager or direct link when CORS prevents fetch
+    // Network/CORS TypeError: fall through to native DownloadManager or direct link below
+  }
+
+  if (serverHttpError) {
+    showDownloadToast({
+      id: toastId,
+      fileName: safeName,
+      status: 'error',
+      subtitle: serverHttpError.message || 'Gagal mengambil file dari server.'
+    });
+    return { ok: false, error: serverHttpError.message || 'Gagal mengambil file dari server.' };
   }
 
   try {

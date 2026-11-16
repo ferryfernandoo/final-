@@ -119,6 +119,11 @@ export function initializeDatabase() {
   } catch {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE chat_messages ADD COLUMN metadata TEXT`);
+  } catch {
+    // Column already exists
+  }
 
   // API keys table
   db.exec(`

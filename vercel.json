@@ -33,7 +33,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
+          "value": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss: blob: data:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
         }
       ]
     },
@@ -206,40 +206,12 @@
       "destination": "/api/status"
     },
     {
-      "source": "/api/agent/sessions",
-      "destination": "/api/agent/sessions"
+      "source": "/api/agent",
+      "destination": "https://avon-borough-jews-notes.trycloudflare.com/api/agent"
     },
     {
-      "source": "/api/agent/sessions/:path*",
-      "destination": "/api/agent/sessions"
-    },
-    {
-      "source": "/api/agent/messages",
-      "destination": "/api/agent/messages"
-    },
-    {
-      "source": "/api/agent/files",
-      "destination": "/api/agent/files"
-    },
-    {
-      "source": "/api/agent/file",
-      "destination": "/api/agent/file"
-    },
-    {
-      "source": "/api/agent/file/:action*",
-      "destination": "/api/agent/file"
-    },
-    {
-      "source": "/api/agent/preview/:path*",
-      "destination": "/api/agent/preview"
-    },
-    {
-      "source": "/api/agent/execute",
-      "destination": "/api/agent/execute"
-    },
-    {
-      "source": "/api/agent/run",
-      "destination": "/api/agent/run"
+      "source": "/api/agent/:path*",
+      "destination": "https://avon-borough-jews-notes.trycloudflare.com/api/agent/:path*"
     },
     {
       "source": "/search",
