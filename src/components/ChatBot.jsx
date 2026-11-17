@@ -119,7 +119,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     try {
       const saved = localStorage.getItem('deepernova_selected_personality');
       if (saved && PERSONALITIES[saved]) return saved;
-    } catch (_) {}
+    } catch (_) { }
     return DEFAULT_PERSONALITY;
   });
 
@@ -128,7 +128,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     if (selectedPersonality) {
       try {
         localStorage.setItem('deepernova_selected_personality', selectedPersonality);
-      } catch (_) {}
+      } catch (_) { }
     }
   }, [selectedPersonality]);
   const [showPersonalityModal, setShowPersonalityModal] = useState(false);
@@ -305,7 +305,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     if (sttRecognitionRef.current) {
       try {
         sttRecognitionRef.current.stop();
-      } catch (e) {}
+      } catch (e) { }
       sttRecognitionRef.current = null;
     }
     setIsSttListening(false);
@@ -446,7 +446,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       const next = !prev;
       try {
         localStorage.setItem('deepernova_reasoning_enabled', String(next));
-      } catch (e) {}
+      } catch (e) { }
       return next;
     });
   }, []);
@@ -463,7 +463,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       const next = !prev;
       try {
         localStorage.setItem('deepernova_agentic_mode', String(next));
-      } catch (e) {}
+      } catch (e) { }
       return next;
     });
   }, []);
@@ -502,7 +502,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     isAutoVoiceEnabledRef.current = isAutoVoiceEnabled;
     try {
       localStorage.setItem('deepernova_auto_voice', String(isAutoVoiceEnabled));
-    } catch (_) {}
+    } catch (_) { }
   }, [isAutoVoiceEnabled]);
   const [aiGreeting, setAiGreeting] = useState(null); // AI-generated greeting
   const [aiHint, setAiHint] = useState(null); // AI-generated hint for empty chat
@@ -659,10 +659,10 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
   const generateAIWelcomeText = async () => {
     if (messages.length > 0 || greetingGenerationRef.current) return;
-    
+
     greetingGenerationRef.current = true;
     setGeneratingGreeting(true);
-    
+
     try {
       const greeting = getTimeBasedGreeting(userName);
       const randomHint = RANDOM_HINTS[Math.floor(Math.random() * RANDOM_HINTS.length)];
@@ -792,7 +792,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   };
 
   const [expandedUserMessageId, setExpandedUserMessageId] = useState(null); // Track which user message is expanded
-  
+
   // Text queue management for pasted text
   const [textQueue, setTextQueue] = useState([]); // Queue of pasted text items: [{id, content, label: "salinan teks"}]
   const [selectedTextItem, setSelectedTextItem] = useState(null); // Currently selected text item for popup preview
@@ -823,7 +823,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     if (cameraStream) {
       try {
         cameraStream.getTracks().forEach((track) => track.stop());
-      } catch (e) {}
+      } catch (e) { }
       setCameraStream(null);
     }
     setCameraTorch(false);
@@ -854,7 +854,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(() => {});
+        videoRef.current.play().catch(() => { });
       }
       setCameraLoading(false);
     } catch (err) {
@@ -864,7 +864,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         setCameraStream(simpleStream);
         if (videoRef.current) {
           videoRef.current.srcObject = simpleStream;
-          videoRef.current.play().catch(() => {});
+          videoRef.current.play().catch(() => { });
         }
         setCameraLoading(false);
       } catch (fallbackErr) {
@@ -929,7 +929,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         osc.start();
         osc.stop(ctx.currentTime + 0.09);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleCapturePhoto = () => {
@@ -1006,7 +1006,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     handleCloseCamera();
   };
 
-    const apiBaseUrl = API_BASE_URL;
+  const apiBaseUrl = API_BASE_URL;
   const retryIntervalRef = useRef(null);
   const messagesEndRef = useRef(null);
   const streamingIntervalRef = useRef(null);
@@ -1067,9 +1067,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const TOKEN_RESET_HOURS = 4;
 
   const clearTokenUsageMultiStorage = () => {
-    try { localStorage.removeItem('deepernova_token_usage_system'); } catch (e) {}
-    try { sessionStorage.removeItem('deepernova_token_usage_system'); } catch (e) {}
-    try { document.cookie = 'deepernova_token_usage=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; } catch (e) {}
+    try { localStorage.removeItem('deepernova_token_usage_system'); } catch (e) { }
+    try { sessionStorage.removeItem('deepernova_token_usage_system'); } catch (e) { }
+    try { document.cookie = 'deepernova_token_usage=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; } catch (e) { }
   };
 
   // Helper for multi-storage redundancy (localStorage + sessionStorage + Cookie) in Local AI Mode
@@ -1081,15 +1081,15 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     const jsonStr = JSON.stringify(usage);
     try {
       localStorage.setItem('deepernova_token_usage_system', jsonStr);
-    } catch (e) {}
+    } catch (e) { }
     try {
       sessionStorage.setItem('deepernova_token_usage_system', jsonStr);
-    } catch (e) {}
+    } catch (e) { }
     try {
       const expiresDays = usage.resetTime ? Math.max(0.1, (usage.resetTime - Date.now()) / (24 * 60 * 60 * 1000)) : 1;
       const expiresDate = new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000).toUTCString();
       document.cookie = `deepernova_token_usage=${encodeURIComponent(jsonStr)}; expires=${expiresDate}; path=/; SameSite=Lax`;
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const loadTokenUsageMultiStorage = () => {
@@ -1099,13 +1099,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     try {
       const ls = localStorage.getItem('deepernova_token_usage_system');
       if (ls) sources.push(JSON.parse(ls));
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. SessionStorage
     try {
       const ss = sessionStorage.getItem('deepernova_token_usage_system');
       if (ss) sources.push(JSON.parse(ss));
-    } catch (e) {}
+    } catch (e) { }
 
     // 3. Document Cookie
     try {
@@ -1113,7 +1113,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       if (cookieMatch) {
         sources.push(JSON.parse(decodeURIComponent(cookieMatch[1])));
       }
-    } catch (e) {}
+    } catch (e) { }
 
     let highestUsed = 0;
     let activeReset = null;
@@ -1177,7 +1177,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   useEffect(() => {
     try {
       localStorage.setItem('deepernova_show_token_usage', String(showTokenUsage));
-    } catch (e) {}
+    } catch (e) { }
   }, [showTokenUsage]);
 
   // Persist token usage to multi-storage and broadcast across browser tabs in real-time
@@ -1206,7 +1206,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           }
         };
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const handleStorageEvent = (e) => {
       if (e.key === 'deepernova_token_usage_system') {
@@ -1233,8 +1233,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           setCountdownText('');
           setCountdownFullText('');
           showAlert(
-            userLanguage === 'id' 
-              ? '🔄 Limit token telah di-reset! Anda dapat kembali mengobrol.' 
+            userLanguage === 'id'
+              ? '🔄 Limit token telah di-reset! Anda dapat kembali mengobrol.'
               : '🔄 Token limit has reset! You can resume chat.',
             'success',
             4000
@@ -1245,7 +1245,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           const mins = Math.floor((totalSec % 3600) / 60);
           const secs = totalSec % 60;
           const pad = (n) => String(n).padStart(2, '0');
-          
+
           setCountdownFullText(`${pad(hours)}:${pad(mins)}:${pad(secs)}`);
 
           if (hours > 0) {
@@ -1339,8 +1339,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ amount })
-      }).catch(() => {});
-    } catch (e) {}
+      }).catch(() => { });
+    } catch (e) { }
   };
 
   // Function to check if token usage limit is active (airtight multi-storage & anti-tamper fallback for local mode)
@@ -1482,13 +1482,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
               textToUse = extractResponseFromReasoning(rSource);
             }
           }
-          
+
           // Extract download metadata if present
           let downloadUrl = null;
           let fileName = null;
           let downloadSummary = null;
           let cleanText = textToUse;
-          
+
           const downloadMatch = textToUse?.match(/\[(?:FILE_DOWNLOAD_START|FILEDOWNLOADSTART):(.+):([^:]+):?([^\]]*)\]/);
           if (downloadMatch) {
             downloadUrl = downloadMatch[1];
@@ -1634,34 +1634,34 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recentMessages })
             })
-            .then(async res => {
-              const data = await res.json();
-              if (!res.ok) {
-                throw new Error(data?.error || `Status ${res.status}`);
-              }
-              console.log('[GLOBAL_MEMORY] Auto-update completed', data);
-            })
-            .catch(err => console.warn('[GLOBAL_MEMORY] Auto-update failed:', err.message));
+              .then(async res => {
+                const data = await res.json();
+                if (!res.ok) {
+                  throw new Error(data?.error || `Status ${res.status}`);
+                }
+                console.log('[GLOBAL_MEMORY] Auto-update completed', data);
+              })
+              .catch(err => console.warn('[GLOBAL_MEMORY] Auto-update failed:', err.message));
           } else if (isGuest) {
             // For guests, trigger AI auto-update using the same API proxy
             const guestMemory = localStorage.getItem('guest_global_memory') || '';
             console.log('[GLOBAL_MEMORY_LOCAL] Auto-trigger update for guest latest chat exchange', recentMessages.length);
-            
+
             fetch(`${API_BASE_URL}/api/memory/global/update`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recentMessages, currentMemory: guestMemory })
             })
-            .then(async res => {
-              const data = await res.json();
-              if (!res.ok) {
-                throw new Error(data?.error || `Status ${res.status}`);
-              }
-              localStorage.setItem('guest_global_memory', data.globalMemory || '');
-              localStorage.setItem('guest_global_memory_updated', data.lastUpdatedAt || new Date().toISOString());
-              console.log('[GLOBAL_MEMORY_LOCAL] Guest auto-update completed', data);
-            })
-            .catch(err => console.warn('[GLOBAL_MEMORY_LOCAL] Guest auto-update failed:', err.message));
+              .then(async res => {
+                const data = await res.json();
+                if (!res.ok) {
+                  throw new Error(data?.error || `Status ${res.status}`);
+                }
+                localStorage.setItem('guest_global_memory', data.globalMemory || '');
+                localStorage.setItem('guest_global_memory_updated', data.lastUpdatedAt || new Date().toISOString());
+                console.log('[GLOBAL_MEMORY_LOCAL] Guest auto-update completed', data);
+              })
+              .catch(err => console.warn('[GLOBAL_MEMORY_LOCAL] Guest auto-update failed:', err.message));
           }
         }
       }, 0);
@@ -1698,24 +1698,24 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     }
 
     const pastedText = e.clipboardData?.getData('text');
-    
+
     // If there's actual pasted text, add to text queue and prevent default paste
     if (pastedText && pastedText.trim()) {
       e.preventDefault();
-      
+
       // Add to text queue
       const newTextItem = {
         id: Date.now(),
         content: pastedText,
         label: userLanguage === 'id' ? 'salinan teks' : 'text copy',
       };
-      
+
       setTextQueue((prev) => [...prev, newTextItem]);
-      
+
       // Show brief feedback
       showAlert(
-        userLanguage === 'id' 
-          ? '📋 Teks ditambahkan ke antrian' 
+        userLanguage === 'id'
+          ? '📋 Teks ditambahkan ke antrian'
           : '📋 Text added to queue',
         'info',
         2000
@@ -1733,7 +1733,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   // Save edited text content
   const handleSaveTextEdit = () => {
     if (!selectedTextItem) return;
-    
+
     // Update text in queue
     setTextQueue((prev) =>
       prev.map((item) =>
@@ -1742,15 +1742,15 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           : item
       )
     );
-    
+
     // Close popup
     setShowTextPopup(false);
     setSelectedTextItem(null);
     setEditingTextContent('');
-    
+
     showAlert(
-      userLanguage === 'id' 
-        ? '✅ Teks diperbarui' 
+      userLanguage === 'id'
+        ? '✅ Teks diperbarui'
         : '✅ Text updated',
       'success',
       2000
@@ -1760,17 +1760,17 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   // Remove text item from queue
   const handleRemoveTextItem = (itemId) => {
     setTextQueue((prev) => prev.filter((item) => item.id !== itemId));
-    
+
     // Close popup if this item is being edited
     if (selectedTextItem?.id === itemId) {
       setShowTextPopup(false);
       setSelectedTextItem(null);
       setEditingTextContent('');
     }
-    
+
     showAlert(
-      userLanguage === 'id' 
-        ? '🗑️ Teks dihapus dari antrian' 
+      userLanguage === 'id'
+        ? '🗑️ Teks dihapus dari antrian'
         : '🗑️ Text removed from queue',
       'info',
       2000
@@ -1813,9 +1813,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
 
   // Check if last message has code (not just any message)
-  const hasCodeMessage = messages.length > 0 && 
-    messages[messages.length - 1].sender === 'bot' && 
-    messages[messages.length - 1].text && 
+  const hasCodeMessage = messages.length > 0 &&
+    messages[messages.length - 1].sender === 'bot' &&
+    messages[messages.length - 1].text &&
     messages[messages.length - 1].text.includes('```');
 
   useEffect(() => {
@@ -2055,7 +2055,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         console.error(`Failed to remove ${key}:`, e);
       }
     });
-    try { sessionStorage.clear(); } catch (_e) {}
+    try { sessionStorage.clear(); } catch (_e) { }
     console.log('[ChatBot] ALL localStorage cleared for logout — AI context reset');
   };
 
@@ -2248,13 +2248,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       setUploadedImages([]);
       setUploadedFiles([]);
       capturedRefImagesRef.current = [];
-      
+
       try {
         localStorage.removeItem('chatbot_conversations');
         localStorage.removeItem('cached_conversations');
         localStorage.removeItem('chatbot_artifacts');
         localStorage.removeItem('chatbot_last_conversation');
-      } catch (_e) {}
+      } catch (_e) { }
 
       setShowFormatDbModal(false);
       setFormatDbPassword('');
@@ -2281,7 +2281,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       try {
         console.log(`[ChatBot] Loading conversations. Auth: isAuth=${isAuthenticated}, isGuest=${isGuest}`);
         const loaded = await ConversationPersistenceService.loadConversations(isAuthenticated, isGuest);
-        
+
         let cleanedLoaded = [];
         if (loaded && Array.isArray(loaded)) {
           cleanedLoaded = loaded.filter(c => c && c.id && Array.isArray(c.messages) && c.messages.length > 0);
@@ -2291,11 +2291,11 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
         if (cleanedLoaded.length > 0) {
           console.log(`[ChatBot] ✅ Loaded ${cleanedLoaded.length} past conversations`);
-          
+
           let savedConvId = null;
           try {
             savedConvId = localStorage.getItem('chatbot_last_conversation');
-          } catch (_e) {}
+          } catch (_e) { }
 
           let targetConv = cleanedLoaded.find(c => String(c.id) === String(savedConvId));
           if (!targetConv) {
@@ -2607,7 +2607,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           if (loaded && Array.isArray(loaded)) {
             setConversations(loaded.filter((c) => c && c.id && c.messages?.length > 0));
           }
-        } catch (_e) {}
+        } catch (_e) { }
       },
 
       // 4. Format database dari HP lain
@@ -2631,7 +2631,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           localStorage.removeItem('cached_conversations');
           localStorage.removeItem('chatbot_artifacts');
           localStorage.removeItem('chatbot_last_conversation');
-        } catch (_e) {}
+        } catch (_e) { }
         showAlert(
           userLanguage === 'id'
             ? 'Database akun telah diformat fresh dari perangkat lain.'
@@ -2676,7 +2676,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
             return prev;
           });
         }
-      } catch (_e) {}
+      } catch (_e) { }
     };
 
     const handleVisibility = () => {
@@ -2819,7 +2819,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     const parts = fullCommand.split(' ');
     const command = parts[0].toLowerCase();
     const args = parts.slice(1).join(' ').trim();
-    
+
     // Add user message to display
     const userMsg = {
       id: Date.now(),
@@ -2847,7 +2847,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
     if (command === '/brainstorm') {
       setAiMode('brainstorm');
-      addBotMessage(userLanguage === 'id' 
+      addBotMessage(userLanguage === 'id'
         ? '🧠 Mode berganti ke **Brainstorming**. Mari berdiskusi bebas, mencari ide, atau riset web.'
         : '🧠 Switched to **Brainstorming Mode**. Let\'s brainstorm, discuss, or run web searches.');
       return;
@@ -2871,12 +2871,12 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
         if (data.success && data.files) {
           setWorkspaceFiles(data.files);
           setAgentLogs(prev => [...prev, `✅ Berkas berhasil di-scan.`]);
-          
+
           const fileLines = data.files.map(f => {
             const icon = f.type === 'excel' ? '📊' : f.type === 'pptx' ? '🎦' : '📄';
             return `- ${icon} **${f.name}** (Tipe: ${f.type}) - ${new Date(f.updatedAt).toLocaleString()}`;
           }).join('\n');
-          
+
           setTimeout(() => {
             addBotMessage(userLanguage === 'id'
               ? `### 📁 Daftar Berkas Workspace Cloud\n\n${fileLines || '_Belum ada berkas di workspace ini._'}`
@@ -2898,15 +2898,15 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           : '❌ Please specify the file name you want to open. Example: `/editfile report.docx`');
         return;
       }
-      
+
       setIsAgentExecuting(true);
       setAgentLogs([`🔍 Mencari berkas "${args}"...`]);
-      
+
       try {
         const response = await fetch('/api/cloud/files', { credentials: 'include' });
         const data = await response.json();
         const found = data.files?.find(f => f.name.toLowerCase() === args.toLowerCase() || f.name.toLowerCase().replace(/\.[^/.]+$/, "") === args.toLowerCase());
-        
+
         if (found) {
           setAgentLogs(prev => [...prev, `📂 Berkas ditemukan! Memuat konten berkas...`]);
           const detailRes = await fetch(`/api/cloud/files/${found.id}`, { credentials: 'include' });
@@ -2945,32 +2945,32 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           : '❌ Please specify file name and description. Example: `/buatfile Business_Plan.docx startup plans`');
         return;
       }
-      
+
       const spaceIdx = args.indexOf(' ');
       const filename = spaceIdx > 0 ? args.substring(0, spaceIdx) : args;
       const topic = spaceIdx > 0 ? args.substring(spaceIdx + 1) : (userLanguage === 'id' ? 'Dokumen kosong' : 'Empty document');
-      
+
       let fileType = 'docx';
       if (filename.endsWith('.xlsx') || filename.endsWith('.xls') || filename.toLowerCase().includes('excel') || filename.toLowerCase().includes('sheet')) {
         fileType = 'excel';
       } else if (filename.endsWith('.pptx') || filename.endsWith('.ppt') || filename.toLowerCase().includes('slide') || filename.toLowerCase().includes('presentasi')) {
         fileType = 'pptx';
       }
-      
+
       const finalFilename = filename.includes('.') ? filename : `${filename}.${fileType}`;
-      
+
       setIsAgentExecuting(true);
       setAgentLogs([
         `⚙️ Menentukan parameter untuk berkas "${finalFilename}"...`,
         `🧠 Mengirim instruksi ke Deepernova AI Agent untuk draf awal tentang "${topic}"...`
       ]);
-      
+
       try {
         const prompt = `Buat draf isi dokumen awal tentang "${topic}" untuk jenis dokumen "${fileType}". Format output harus sesuai tipe dokumen:
         - Jika "docx": Tulis konten HTML bersih (tag h1, h2, p, ul, li) dibungkus tag [CONTENT_START] dan [CONTENT_END].
         - Jika "pptx": Tulis JSON array slide [{ "id": 1, "type": "slide", "title": "...", "content": "..." }] dibungkus tag [CONTENT_START] dan [CONTENT_END].
         - Jika "excel": Tulis JSON array 2D [[ "Header1", "Header2" ], [ "Row1Col1", "Row1Col2" ]] dibungkus tag [CONTENT_START] dan [CONTENT_END].`;
-        
+
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2982,16 +2982,16 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
             max_tokens: 1024
           })
         });
-        
+
         const resData = await response.json();
         const aiResponseText = resData.choices?.[0]?.message?.content || '';
-        
+
         setAgentLogs(prev => [...prev, `📝 Menerima draf konten dari AI. Memproses parsing data...`]);
-        
+
         const contentMatch = aiResponseText.match(/\[CONTENT_START\]([\s\S]*?)\[CONTENT_END\]/);
         let parsedContent = null;
         const rawContent = contentMatch ? contentMatch[1].trim() : aiResponseText.trim();
-        
+
         if (fileType === 'docx') {
           parsedContent = [{ id: Date.now(), type: 'html', text: rawContent }];
         } else if (fileType === 'pptx') {
@@ -3017,9 +3017,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
             };
           }
         }
-        
+
         setAgentLogs(prev => [...prev, `💾 Menyimpan berkas ke database cloud...`]);
-        
+
         const saveRes = await fetch('/api/cloud/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3032,13 +3032,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           })
         });
         const saveResult = await saveRes.json();
-        
+
         if (saveResult.success && saveResult.file) {
           setAgentLogs(prev => [...prev, `✅ Berkas "${finalFilename}" berhasil dibuat!`]);
           setActiveFile(saveResult.file);
           setAiMode('agent');
           fetchWorkspaceFiles();
-          
+
           setTimeout(() => {
             addBotMessage(userLanguage === 'id'
               ? `✨ Berkas baru **${finalFilename}** berhasil dibuat tentang topik *"${topic}"*. Berkas sekarang aktif di Workspace Agent.`
@@ -3068,13 +3068,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           : '❌ Please specify editing instructions. Example: `/perbaiki add a new paragraph about conclusions`');
         return;
       }
-      
+
       setIsAgentExecuting(true);
       setAgentLogs([
         `⚙️ Membaca konten berkas "${activeFile.name}"...`,
         `🧠 Mengirim konten dan instruksi perbaikan ke Deepernova AI Agent...`
       ]);
-      
+
       try {
         const fileContentString = JSON.stringify(activeFile.content);
         const prompt = `Kamu adalah Deepernova AI Agent. Tugasmu adalah memodifikasi konten dokumen berikut sesuai dengan instruksi pengguna.
@@ -3103,19 +3103,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             max_tokens: 1024
           })
         });
-        
+
         const resData = await response.json();
         const aiResponseText = resData.choices?.[0]?.message?.content || '';
-        
+
         setAgentLogs(prev => [...prev, `📝 Menerima hasil pembaruan dari AI. Memproses parsing data...`]);
-        
+
         const contentMatch = aiResponseText.match(/\[CONTENT_START\]([\s\S]*?)\[CONTENT_END\]/);
         const rawContent = contentMatch ? contentMatch[1].trim() : aiResponseText.trim();
-        
+
         let updatedContent = JSON.parse(rawContent);
-        
+
         setAgentLogs(prev => [...prev, `💾 Menyimpan perubahan berkas ke database cloud...`]);
-        
+
         const saveRes = await fetch('/api/cloud/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3128,12 +3128,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           })
         });
         const saveResult = await saveRes.json();
-        
+
         if (saveResult.success && saveResult.file) {
           setAgentLogs(prev => [...prev, `✅ Perubahan berhasil disimpan!`]);
           setActiveFile(saveResult.file);
           fetchWorkspaceFiles();
-          
+
           setTimeout(() => {
             addBotMessage(userLanguage === 'id'
               ? `✍️ Berkas **${activeFile.name}** berhasil dimodifikasi sesuai instruksi: *"${args}"*.`
@@ -3179,9 +3179,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   // Detect scroll position untuk show/hide scroll to bottom button
   useEffect(() => {
     const messagesContainer = document.querySelector('.messages-container');
-    
+
     if (!messagesContainer) return; // Early return jika container belum ready
-    
+
     const getIsAtMessageBottom = () => {
       const allMessages = messagesContainer.querySelectorAll('.message');
       const lastMsg = allMessages.length > 0 ? allMessages[allMessages.length - 1] : null;
@@ -3191,7 +3191,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // If bottom of last message is visible above the bottom input bar (within 130px):
         return (msgRect.bottom - containerRect.bottom) <= 130;
       }
-      const distanceFromBottom = 
+      const distanceFromBottom =
         messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
       return distanceFromBottom < 120;
     };
@@ -3245,26 +3245,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     messagesContainer.addEventListener('scroll', handleScroll, { passive: true });
     messagesContainer.addEventListener('wheel', handleWheel, { passive: true });
     messagesContainer.addEventListener('touchmove', handleTouchMove, { passive: true });
-    
+
     // Triple-click to jump to bottom
     const handleTripleClick = () => {
       scrollToBottom(true);
     };
     messagesContainer.addEventListener('triple-click', handleTripleClick);
-    
+
     // Custom triple-click detection using click events (more reliable than mousedown)
     let clickCount = 0;
     let clickTimer = null;
     const handleClick = (e) => {
       clickCount++;
-      
+
       if (clickCount === 1) {
         // Start timer for triple-click window
         clickTimer = setTimeout(() => {
           clickCount = 0;
         }, 300);
       }
-      
+
       if (clickCount === 3) {
         e.preventDefault();
         clearTimeout(clickTimer);
@@ -3273,7 +3273,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     };
     messagesContainer.addEventListener('click', handleClick);
-    
+
     return () => {
       try {
         messagesContainer.removeEventListener('scroll', handleScroll);
@@ -3302,14 +3302,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         prev.map((msg) =>
           (msg.isStreaming || msg.isThinking || msg.isSearching || msg.isRecallingMemory || msg.isImageGenerating || msg.isReasoning)
             ? {
-                ...msg,
-                isStreaming: false,
-                isThinking: false,
-                isSearching: false,
-                isRecallingMemory: false,
-                isImageGenerating: false,
-                isReasoning: false
-              }
+              ...msg,
+              isStreaming: false,
+              isThinking: false,
+              isSearching: false,
+              isRecallingMemory: false,
+              isImageGenerating: false,
+              isReasoning: false
+            }
             : msg
         )
       );
@@ -3320,7 +3320,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     } else if (currentConversationId) {
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === currentConversationId 
+          c.id === currentConversationId
             ? { ...c, isLoading: true }
             : c
         )
@@ -3467,7 +3467,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const convMsgs = conv.messages || [];
       const imageCount = convMsgs.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
       console.log(`[ChatBot] Switching to conversation "${conv.title}" (${convMsgs.length} messages, ${imageCount} images)`);
-      
+
       setCurrentConversationId(convId);
       setMessages(convMsgs);
       currentConversationHistoryRef.current = convMsgs;
@@ -3483,7 +3483,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       rememberConversationId(convId);
       isLockedToUserAskRef.current = false;
       lockedUserMessageIdRef.current = null;
-      
+
       setTimeout(() => {
         switchingConvRef.current = false;
         scrollToBottom(true);
@@ -3495,7 +3495,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     switchConversation(conversationId);
     setCompactView(false);
     setSidebarOpen(false);
-    
+
     setTimeout(() => {
       const element = document.querySelector(`[data-msg-id="${messageId}"]`);
       if (element) {
@@ -3703,7 +3703,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // Validate image type
         const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
         if (!validImageTypes.includes(file.type)) {
-          alert(userLanguage === 'id' 
+          alert(userLanguage === 'id'
             ? '❌ Format gambar tidak didukung. Gunakan: JPG, PNG, WebP, GIF'
             : '❌ Image format not supported. Use: JPG, PNG, WebP, GIF');
           continue;
@@ -3711,7 +3711,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
-          alert(userLanguage === 'id' 
+          alert(userLanguage === 'id'
             ? '❌ Gambar terlalu besar (max 10MB)'
             : '❌ Image too large (max 10MB)');
           continue;
@@ -3743,7 +3743,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           });
 
           const base64Data = await compressImage(rawBase64);
-          console.log(`[ChatBot] Image compressed: ${Math.round(rawBase64.length/1024)}KB -> ${Math.round(base64Data.length/1024)}KB`);
+          console.log(`[ChatBot] Image compressed: ${Math.round(rawBase64.length / 1024)}KB -> ${Math.round(base64Data.length / 1024)}KB`);
 
           const newImage = {
             id: imageId,
@@ -3764,7 +3764,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           try {
             const uploadResult = await uploadImageToServer(file);
             uploadedUrl = uploadResult?.url || null;
-            setUploadedImages(prev => prev.map(img => 
+            setUploadedImages(prev => prev.map(img =>
               img.id === imageId
                 ? { ...img, publicUrl: uploadedUrl, status: 'analyzed' }
                 : img
@@ -3772,7 +3772,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             gotPublicUrl = Boolean(uploadedUrl);
           } catch (uploadError) {
             console.log('[ChatBot] Server upload offline — using compressed base64 dataUrl for vision:', uploadError.message);
-            setUploadedImages(prev => prev.map(img => 
+            setUploadedImages(prev => prev.map(img =>
               img.id === imageId
                 ? { ...img, status: 'analyzed', isLocal: true }
                 : img
@@ -3790,7 +3790,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           setCustomAlert({
             type: 'success',
-            message: userLanguage === 'id' 
+            message: userLanguage === 'id'
               ? `📸 Gambar "${file.name}" siap${gotPublicUrl ? '' : ' (Mode Lokal)'}`
               : `📸 Image "${file.name}" ready${gotPublicUrl ? '' : ' (Local Mode)'}`,
             duration: 2000
@@ -3822,7 +3822,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   // Save/load uploaded images from localStorage safely
   useEffect(() => {
     if (!currentConversationId) return;
-    
+
     // Save to localStorage safely without crashing UI
     const storageKey = `deepernova_images_${currentConversationId}`;
     if (uploadedImages.length > 0) {
@@ -3841,7 +3841,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     } else {
       try {
         localStorage.removeItem(storageKey);
-      } catch (_e) {}
+      } catch (_e) { }
     }
   }, [uploadedImages, currentConversationId]);
 
@@ -3858,14 +3858,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     } else {
       try {
         localStorage.removeItem(activeKey);
-      } catch (_e) {}
+      } catch (_e) { }
     }
   }, [activeImageFollowUps, currentConversationId]);
 
   // Load uploaded images from localStorage when conversation changes
   useEffect(() => {
     if (!currentConversationId) return;
-    
+
     // Always clear ref-based image state when conversation changes to prevent cross-session leaks
     capturedRefImagesRef.current = [];
 
@@ -3952,20 +3952,20 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setShowHtmlEditor(true);
       return;
     }
-    
+
     // Try to extract HTML from message
-    const htmlMatch = text.match(/<html[^>]*>[\s\S]*<\/html>/i) || 
-                     text.match(/<body[^>]*>[\s\S]*<\/body>/i) ||
-                     text.match(/<div[^>]*>[\s\S]*<\/div>/i) ||
-                     text.match(/<!DOCTYPE[^>]*>[\s\S]*<\/html>/i);
-    
+    const htmlMatch = text.match(/<html[^>]*>[\s\S]*<\/html>/i) ||
+      text.match(/<body[^>]*>[\s\S]*<\/body>/i) ||
+      text.match(/<div[^>]*>[\s\S]*<\/div>/i) ||
+      text.match(/<!DOCTYPE[^>]*>[\s\S]*<\/html>/i);
+
     if (htmlMatch) {
       setHtmlContent(htmlMatch[0]);
       setHtmlFilename(`page-${Date.now()}.html`);
       setShowHtmlEditor(true);
     } else {
-      alert(userLanguage === 'id' 
-        ? '❌ Tidak ada code/HTML ditemukan dalam pesan ini' 
+      alert(userLanguage === 'id'
+        ? '❌ Tidak ada code/HTML ditemukan dalam pesan ini'
         : '❌ No code/HTML found in this message');
     }
   };
@@ -3989,7 +3989,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       } else if (htmlFilename.endsWith('.css')) {
         mimeType = 'text/css';
       }
-      
+
       downloadText(htmlContent, htmlFilename, mimeType);
       setShowHtmlEditor(false);
     } catch (error) {
@@ -4003,7 +4003,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (manuallyNamedConversationsRef.current.has(convId)) {
       return;
     }
-    
+
     if (newMessages.length > 0 && newMessages[0].sender === 'user') {
       const firstUserMsg = newMessages[0].text;
       const title = firstUserMsg.split('\n')[0].substring(0, 50);
@@ -4141,10 +4141,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     setAnimatingMessages((prev) => ({ ...prev, [messageId]: true }));
     setIsScrolledUp(false); // Hide scroll button
-    
+
     // Don't scroll saat AI mulai menjawab - biarkan user scroll manual
     // Scroll hanya terjadi di finishStreaming setelah text selesai
-    
+
     // Store references untuk stop
     currentMessageIdRef.current = messageId;
     currentTextRef.current = text;
@@ -4152,7 +4152,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     isPausedRef.current = false;
     setIsPaused(false);
 
-    // Function untuk update text secara increment - multiple chars per tick
+    // Function untuk update text secara increment - exact AgentChat 32ms smooth cadence
     const updateStreamingText = () => {
       if (charIndexRef.current <= text.length) {
         setMessages((prev) =>
@@ -4162,21 +4162,22 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               : msg
           )
         );
-        charIndexRef.current += 3; // Show fewer chars per tick - slower
+        const remaining = Math.max(0, text.length - charIndexRef.current);
+        charIndexRef.current += Math.max(1, getSmoothTypingStep(remaining, false));
       } else {
         // Selesai streaming
         finishStreaming(messageId);
       }
     };
 
-    const interval = setInterval(updateStreamingText, 80); // Slower interval
+    const interval = setInterval(updateStreamingText, 32);
     streamingIntervalRef.current = interval;
   };
 
   // Handle long-press on message to show edit button (user messages only)
   const handleMessageLongPress = (messageId, messageText, isSenderUser) => {
     if (!isSenderUser) return; // Only allow editing user messages
-    
+
     setEditingMessageId(messageId);
     setEditingMessageText(messageText);
   };
@@ -4192,7 +4193,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   // Start long-press timer on mouse down
   const handleMessageMouseDown = (messageId, messageText, isSenderUser) => {
     if (!isSenderUser) return;
-    
+
     editLongPressTimeoutRef.current = setTimeout(() => {
       handleMessageLongPress(messageId, messageText, isSenderUser);
     }, 500); // 500ms for long press
@@ -4216,14 +4217,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     // Truncate messages to BEFORE the edited one (delete original + all after)
     const truncatedMessages = messages.slice(0, editIndex);
-    
+
     // Update messages state - remove old message and its AI response
     setMessages(truncatedMessages);
-    
+
     // Clear edit state
     setEditingMessageId(null);
     setEditingMessageText('');
-    
+
     // Immediately send the edited message as new message
     const newUserMessage = {
       id: Date.now(),
@@ -4231,15 +4232,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       sender: 'user',
       timestamp: new Date(),
     };
-    
+
     // Add to messages
     setMessages((_prev) => [...truncatedMessages, newUserMessage]);
     setCompactView(true);
-    
+
     // Store for stop-restore
     lastSentPromptRef.current = editingMessageText;
     lastSentUserMessageIdRef.current = newUserMessage.id;
-    
+
     // Create AI placeholder
     const placeholderId = Date.now() + Math.floor(Math.random() * 1000);
     const botMessage = {
@@ -4249,7 +4250,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       timestamp: new Date(),
       isStreaming: true,
     };
-    
+
     setMessages((prev) => [...prev, botMessage]);
     // Lock edited user message cleanly to top
     holdScrollRef.current = false;
@@ -4259,7 +4260,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     // Start streaming
     streamingStartTimeRef.current = Date.now();
-    
+
     // Trigger immediate save (don't wait for debounce)
     const saveNow = async () => {
       if (conversations.length > 0) {
@@ -4268,7 +4269,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     };
     setTimeout(() => saveNow(), 100); // Small delay to ensure messages state is updated
-    
+
     try {
       setConvLoading(true);
       const response = await sendMessageToGrok(
@@ -4299,7 +4300,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, fullText.length);
             displayedText += fullText.substr(displayedText.length, step);
             currentStreamingTextRef.current = displayedText;
-            
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === placeholderId
@@ -4312,9 +4313,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 22);
+        }, 32);
       };
-      
+
       const streamResult = await processStreamingResponse(
         response,
         (chunk) => {
@@ -4338,15 +4339,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       finishStreaming(placeholderId, fullText, streamUsage);
-      
+
       setConvLoading(false);
       currentMessageIdRef.current = null;
     } catch (err) {
       console.error('Error sending edited message:', err);
       setConvLoading(false);
-        showErrorBanner('Gagal mengirim pesan yang diedit');
+      showErrorBanner('Gagal mengirim pesan yang diedit');
     }
-    
+
     // Scroll to bottom
     setTimeout(() => {
       if (messagesEndRef.current) {
@@ -4494,7 +4495,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setTtsLoading(null);
       setPlayingMessageId(null);
       showAlert(
-        userLanguage === 'id' 
+        userLanguage === 'id'
           ? 'Gagal memutar audio: ' + (error?.message || 'Error audio')
           : 'Failed to play audio: ' + (error?.message || 'Audio error'),
         'error',
@@ -4515,7 +4516,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     isAutoVoiceEnabledRef.current = nextState;
     try {
       localStorage.setItem('deepernova_auto_voice', String(nextState));
-    } catch (_) {}
+    } catch (_) { }
 
     if (nextState) {
       showAlert(
@@ -4642,8 +4643,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     ];
     stopUrls.forEach(url => {
       try {
-        fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
-      } catch (_e) {}
+        fetch(url, { method: 'POST', keepalive: true }).catch(() => { });
+      } catch (_e) { }
     });
 
     if (streamingIntervalRef.current) {
@@ -4675,19 +4676,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       prev.map((msg) =>
         msg.isStreaming || msg.isThinking || msg.isSearching || msg.isRecallingMemory || msg.isImageGenerating || msg.subAgentData?.status === 'running' || (targetMsgId && msg.id === targetMsgId)
           ? {
-              ...msg,
-              isStreaming: false,
-              isThinking: false,
-              isReasoning: false,
-              isReasoningComplete: true,
-              isSearching: false,
-              isRecallingMemory: false,
-              isImageGenerating: false,
-              subAgentData:
-                msg.subAgentData?.status === 'running'
-                  ? { ...msg.subAgentData, status: 'aborted' }
-                  : msg.subAgentData,
-            }
+            ...msg,
+            isStreaming: false,
+            isThinking: false,
+            isReasoning: false,
+            isReasoningComplete: true,
+            isSearching: false,
+            isRecallingMemory: false,
+            isImageGenerating: false,
+            subAgentData:
+              msg.subAgentData?.status === 'running'
+                ? { ...msg.subAgentData, status: 'aborted' }
+                : msg.subAgentData,
+          }
           : msg
       )
     );
@@ -4699,7 +4700,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     streamingStartTimeRef.current = null;
     isPausedRef.current = false;
     setIsPaused(false);
-    
+
     // IMMEDIATELY clear ALL generation state — no flicker, no delay, no retries
     setIsSendGenerating(false);
     isSendGeneratingRef.current = false;
@@ -5062,8 +5063,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const floatingMenu = document.querySelector('.floating-menu');
         const floatingBtn = document.querySelector('.floating-add-btn');
         if (
-          floatingMenu && 
-          !floatingMenu.contains(e.target) && 
+          floatingMenu &&
+          !floatingMenu.contains(e.target) &&
           (!floatingBtn || !floatingBtn.contains(e.target))
         ) {
           setShowFloatingMenu(false);
@@ -5101,10 +5102,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const loadSourcesForConversation = async (conversationId) => {
     try {
       if (!conversationId) return;
-      
+
       const response = await fetch(`${apiBaseUrl}/api/sources/${conversationId}`);
       const data = await response.json();
-      
+
       if (data.success && data.sources) {
         setCurrentSources(data.sources);
       }
@@ -5161,8 +5162,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (!userQuery) return;
 
     // Build sources context
-    const sourcesContext = foundSources.map((s, i) => 
-      `[Sumber ${i+1}] ${s.title}\n${s.description}\nURL: ${s.url}\nSumber: ${s.source}`
+    const sourcesContext = foundSources.map((s, i) =>
+      `[Sumber ${i + 1}] ${s.title}\n${s.description}\nURL: ${s.url}\nSumber: ${s.source}`
     ).join('\n\n');
 
     const fullQuery = `Berdasarkan sumber-sumber berikut yang telah ditemukan, berikan jawaban untuk pertanyaan: "${userQuery}"\n\nSOURCES:\n${sourcesContext}`;
@@ -5219,7 +5220,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       currentStreamingTextRef.current = '';
 
       let streamUsage = null; // Will hold real API usage data
-      
+
       const startTypingAnimation = () => {
         if (typingTimerRef.current) return;
         typingTimerRef.current = setInterval(() => {
@@ -5228,7 +5229,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, fullText.length);
             displayedText += fullText.substr(displayedText.length, step);
             currentStreamingTextRef.current = displayedText;
-            
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === placeholderId
@@ -5241,9 +5242,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(placeholderId, fullText, streamUsage);
           }
-        }, 22);
+        }, 32);
       };
-      
+
       const streamResult = await processStreamingResponse(
         response,
         (chunk) => {
@@ -5312,19 +5313,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     let placeholderId = Date.now() + '_img';
     let thinkingStartTime;
     const imageAbortController = new AbortController();
-    
+
     try {
       console.log('[ChatBot] Starting inline image generation for:', imageRequest.prompt);
-      
+
       // Store abort controller so handleStopStreaming can abort it
       abortControllersMapRef.current.set('image-' + placeholderId, imageAbortController);
-      
+
       // Add user message to chat
       setMessages((prev) => [...prev, userMessage]);
       setCompactView(true);
-      
+
       thinkingStartTime = Date.now();
-      
+
       // Collect images from parameters, active follow-ups, and message history
       const historyImages = (messages || [])
         .filter(m => m.sender === 'user' && m.images && Array.isArray(m.images))
@@ -5337,11 +5338,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const lastUploadedImage = imagesToConsider && imagesToConsider.length > 0 ? imagesToConsider[imagesToConsider.length - 1] : null;
       const isEditRequest = !!lastUploadedImage && ImageGenerationService.detectImageEditRequest(imageRequest.prompt, true);
       const modeLabel = isEditRequest ? '✏️ Edit' : '🎨 Generate';
-      
+
       console.log('[ChatBot] Mode:', modeLabel);
       console.log('[ChatBot] Last uploaded image:', lastUploadedImage ? (lastUploadedImage.fileName || lastUploadedImage.name || 'image') : 'none');
       console.log('[ChatBot] Is edit request:', isEditRequest);
-      
+
       // Add thinking placeholder with 2x speed animation initially (pas awal-awal)
       const thinkingMessage = {
         id: placeholderId,
@@ -5354,12 +5355,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         isEditMode: isEditRequest,
         imageGenPhase: 'initial', // 2x speed 3-dot animation at initial start
       };
-      
+
       setMessages((prev) => [...prev, thinkingMessage]);
       setConvLoading(true);
       setError(null);
       setIsScrolledUp(false);
-      
+
       // Scroll to show thinking message
       setTimeout(() => {
         try {
@@ -5369,14 +5370,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           // ignore
         }
       }, 100);
-      
+
       // Generate image via API with an English prompt that is first refined by the chat model
       console.log('[ChatBot] Calling image generation API...');
-      
+
       console.log('[ChatBot] 🟡 Step 1: Original prompt:', imageRequest.prompt);
-      
+
       let englishPrompt = await ImageGenerationService.generateEnglishImagePrompt(imageRequest.prompt);
-      
+
       // AI responded - transition 3-dot animation speed to 1x normal speed!
       setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, imageGenPhase: 'responding' } : m));
 
@@ -5385,7 +5386,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         englishPrompt = ImageGenerationService.translateToEnglish(imageRequest.prompt);
       }
       console.log('[ChatBot] 🟡 Step 2: English prompt:', englishPrompt);
-      
+
       const refinedPrompt = ImageGenerationService.enhancePrompt(englishPrompt);
       console.log('[ChatBot] 🟡 Step 3: Refined prompt:', refinedPrompt);
 
@@ -5394,7 +5395,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // Reasoning generation removed - focus on direct image generation
       console.log(`[ChatBot] 🟡 Step 4: Calling ${isEditRequest ? 'editImage' : 'generateImage'} with prompt:`, refinedPrompt);
-      
+
       let imageData;
       if (isEditRequest && lastUploadedImage) {
         // Edit mode: use reference image (auto-selects qwen-image-edit-max)
@@ -5402,11 +5403,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         console.log('[ChatBot] Image object keys:', Object.keys(lastUploadedImage));
         console.log('[ChatBot] publicUrl:', lastUploadedImage.publicUrl?.substring?.(0, 50));
         console.log('[ChatBot] dataUrl:', lastUploadedImage.dataUrl?.substring?.(0, 50));
-        
+
         // Use publicUrl if available, otherwise fall back to dataUrl
         const referenceImageSource = lastUploadedImage.publicUrl || lastUploadedImage.dataUrl;
         console.log('[ChatBot] Using reference source:', referenceImageSource?.substring?.(0, 50));
-        
+
         // Call generateImage directly for edit mode with abort signal
         imageData = await ImageGenerationService.generateImage(
           refinedPrompt,
@@ -5427,12 +5428,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           imageAbortController.signal
         );
       }
-      
+
       console.log('[ChatBot] 🟡 Step 5: Image', isEditRequest ? 'edited' : 'generated', 'successfully');
       const generationTime = Math.round((Date.now() - thinkingStartTime) / 1000);
-      
+
       console.log(`[ChatBot] Image ${isEditRequest ? 'edited' : 'generated'} in ${generationTime}s`);
-      
+
       const assistantIntro = `${isEditRequest ? '[Edit Mode] ' : ''}I ${isEditRequest ? 'edited your image using the prompt' : 'translated your request to English and refined it for the image model'}:\n"${refinedPrompt}"\n\n`;
       const updatedMessage = {
         id: placeholderId,
@@ -5446,28 +5447,28 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         generationTime: generationTime,
         isEditMode: isEditRequest,
       };
-      
+
       console.log('[ChatBot] 🔴 updatedMessage.text length:', updatedMessage.text.length);
       console.log('[ChatBot] 🔴 updatedMessage.imageUrl:', updatedMessage.imageUrl);
       console.log('[ChatBot] 🔴 updatedMessage.imageId:', updatedMessage.imageId);
       console.log('[ChatBot] 🔴 updatedMessage.text preview:', updatedMessage.text.substring(0, 200));
-      
+
       setMessages((_prev) => {
         const updated = _prev.map((msg) =>
           msg.id === placeholderId ? updatedMessage : msg
         );
-        
+
         // Update conversations state with new messages (including imageUrl)
         setConversations((prevConvs) => {
-          const updatedConvs = prevConvs.map(conv => 
+          const updatedConvs = prevConvs.map(conv =>
             conv.id === currentConversationId
               ? { ...conv, messages: updated, updatedAt: new Date().toISOString() }
               : conv
           );
-          
+
           console.log(`[ChatBot] Updated conversation ${currentConversationId} with image message`);
           console.log(`[ChatBot] Message text length: ${updatedMessage.text.length}, has imageUrl: ${!!updatedMessage.imageUrl}`);
-          
+
           // Save conversation immediately with updated messages
           ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
             .catch(err => console.error('[ChatBot] Error saving conversation:', err));
@@ -5480,15 +5481,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             type: isEditRequest ? 'edited' : 'generated',
             model: isEditRequest ? 'qwen-image-edit-max' : 'qwen-image'
           }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Auto-save generated image error:', e));
-          
+
           return updatedConvs;
         });
-        
+
         return updated;
       });
-      
+
       setConvLoading(false);
-      
+
       // Auto-scroll to image
       setTimeout(() => {
         try {
@@ -5502,10 +5503,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // CRITICAL: Clear the processing lock flag on success
       console.log('[ChatBot] Image generation completed successfully, clearing processing lock');
       isProcessingRef.current = false;
-      
+
       // Clean up the abort controller
       abortControllersMapRef.current.delete('image-' + placeholderId);
-      
+
     } catch (err) {
       console.error('[ChatBot] Image generation error:', err);
 
@@ -5526,13 +5527,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           prev.map((msg) =>
             msg.id === placeholderId
               ? {
-                  ...msg,
-                  text: displayErrorMessage,
-                  imageUrl: null,
-                  imageError: cleanErrMsg,
-                  isThinking: false,
-                  isError: true,
-                }
+                ...msg,
+                text: displayErrorMessage,
+                imageUrl: null,
+                imageError: cleanErrMsg,
+                isThinking: false,
+                isError: true,
+              }
               : msg
           )
         );
@@ -5541,11 +5542,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       setConvLoading(false);
-      
+
       // CRITICAL: Clear the processing lock flag
       console.log('[ChatBot] Error occurred, clearing processing lock flag');
       isProcessingRef.current = false;
-      
+
       // Clean up the abort controller
       abortControllersMapRef.current.delete('image-' + placeholderId);
     }
@@ -5625,7 +5626,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (globalThis.heroTextareaRef && typeof globalThis.heroTextareaRef.blur === 'function') {
         globalThis.heroTextareaRef.blur();
       }
-    } catch (_blurErr) {}
+    } catch (_blurErr) { }
 
     // Instantly switch Send button into Stop Generating with zero delay!
     isUserStoppedRef.current = false;
@@ -5758,7 +5759,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       lastLoadedConversationIdRef.current = activeConvId;
       setCurrentConversationId(activeConvId);
       rememberConversationId(activeConvId);
-    try { memoryService.processConversation([...messages, userMessageForChat], activeConvId, userLanguage); } catch (e) {}
+      try { memoryService.processConversation([...messages, userMessageForChat], activeConvId, userLanguage); } catch (e) { }
     }
 
     // Reset internet warning banner & start progressive loading phase timers (Mengirim -> Merenungi -> Lambat)
@@ -5871,17 +5872,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       { time: 25000, msg: userLanguage === 'zh' ? '正在准备输出...' : userLanguage === 'id' ? 'menyiapkan output...' : 'preparing output...', randomDelay: (Math.random() - 0.5) * 800 },
       { time: 28000, msg: userLanguage === 'zh' ? '正在完成响应...' : userLanguage === 'id' ? 'finalisasi respons...' : 'finalizing response...', randomDelay: (Math.random() - 0.5) * 800 },
     ];
-    
+
     // Set up status update interval
     if (statusUpdateIntervalRef.current) {
       clearInterval(statusUpdateIntervalRef.current);
     }
-    
+
     statusUpdateIntervalRef.current = setInterval(() => {
       if (streamingStartTimeRef.current) {
         const elapsed = Date.now() - streamingStartTimeRef.current;
         let matchedMsg = '';
-        
+
         for (let i = statusMessages.length - 1; i >= 0; i--) {
           // Use the pre-calculated random delay for consistency
           if (elapsed > statusMessages[i].time + statusMessages[i].randomDelay) {
@@ -5889,15 +5890,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             break;
           }
         }
-        
+
         setLoadingStatusMsg(matchedMsg);
       }
     }, 500); // Check every 500ms for smooth updates
-    
+
     setConvLoading(true);
     setError(null);
     setIsScrolledUp(false); // Hide scroll button
-    
+
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     abortControllersMapRef.current.set('current', abortController);
@@ -5907,7 +5908,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (currentConversationId) {
       abortControllersMapRef.current.set(currentConversationId, abortController);
     }
-    
+
     // SCROLL PERTAMA - kunci bubble chat ask tepat di paling atas viewport
     holdScrollRef.current = false;
     isLockedToUserAskRef.current = true;
@@ -5930,7 +5931,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Use fullMessage (with file contents) instead of inputValue
       // Capture conversationId NOW so it's used in streaming callback, not currentConversationId (which can change)
       const streamingConversationId = currentConversationId;
-      
+
       const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningCapable ? isReasoningEnabled : false, true);
       let streamDone = false;
       currentStreamingTextRef.current = '';
@@ -5962,13 +5963,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           updated = true;
         }
 
-        // 2. Smoothly advance main content text
+        // 2. Smoothly advance main content text using exact AgentChat cadence
         if (displayedFullText.length < targetFullText.length) {
           const diff = targetFullText.length - displayedFullText.length;
-          // Initial token instant kickstart: reveal initial 18 chars immediately so answer appears without lag
-          const step = displayedFullText.length === 0
-            ? Math.min(diff, 18)
-            : getSmoothTypingStep(diff, streamDone, displayedFullText.length, targetFullText.length);
+          const step = getSmoothTypingStep(diff, streamDone);
           displayedFullText += targetFullText.substr(displayedFullText.length, step);
           currentStreamingTextRef.current = displayedFullText;
           updated = true;
@@ -5989,15 +5987,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             prev.map((msg) =>
               msg.id === placeholderId
                 ? {
-                    ...msg,
-                    text: displayedFullText,
-                    reasoningText: displayedReasoningText,
-                    reasoningDuration: reasoningDuration || msg.reasoningDuration,
-                    isReasoning: isReasoning,
-                    isReasoningComplete: !isReasoning && !!displayedReasoningText,
-                    isStreaming: streamingFlag,
-                    isThinking: isReasoning,
-                  }
+                  ...msg,
+                  text: displayedFullText,
+                  reasoningText: displayedReasoningText,
+                  reasoningDuration: reasoningDuration || msg.reasoningDuration,
+                  isReasoning: isReasoning,
+                  isReasoningComplete: !isReasoning && !!displayedReasoningText,
+                  isStreaming: streamingFlag,
+                  isThinking: isReasoning,
+                }
                 : msg
             )
           );
@@ -6006,7 +6004,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       const startSmoothStreamer = () => {
         if (!smoothStreamTimer) {
-          smoothStreamTimer = setInterval(flushSmoothTick, 40);
+          smoothStreamTimer = setInterval(flushSmoothTick, 32);
           smoothStreamTimerRef.current = smoothStreamTimer;
         }
       };
@@ -6050,7 +6048,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           startSmoothStreamer();
           return;
         }
-        
+
         // Handle regular text / content chunk with smooth fluid render
         const textContent = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
         if (textContent) {
@@ -6118,13 +6116,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       streamDone = true;
       startSmoothStreamer();
 
-      // Smoothly let typing animation catch up completely with capped, fluid pace
+      // Let the 32ms AgentChat-cadence timer finish draining smoothly without rushing
+      startSmoothStreamer();
       let drainSafetyLimit = 0;
-      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 300) {
+      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 1200) {
         if (abortController.signal.aborted || isUserStoppedRef.current) break;
         drainSafetyLimit++;
-        flushSmoothTick();
-        await new Promise((r) => setTimeout(r, 10));
+        await new Promise((r) => setTimeout(r, 32));
       }
 
       if (smoothStreamTimer) {
@@ -6137,12 +6135,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       displayedReasoningText = targetReasoningText;
       fullText = targetFullText;
 
-      // Pre-check if AI emitted a Sub-Agent Orchestrator flag without concatenating duplicate texts
-      const subAgentFallbackPrompt = lastSentUserInputTextRef.current || fullMessage || '';
-      const preCheckSubAgent =
-        parseSubAgentFlag(rawText, subAgentFallbackPrompt, userLanguage) ||
-        parseSubAgentFlag(fullText, subAgentFallbackPrompt, userLanguage) ||
-        parseSubAgentFlag(targetReasoningText, subAgentFallbackPrompt, userLanguage);
+      // Pre-check if AI emitted a Sub-Agent Orchestrator flag in rawText/fullText
+      const preCheckSubAgent = parseSubAgentFlag(
+        `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`,
+        lastSentUserInputTextRef.current || fullMessage || '',
+        userLanguage
+      );
       if (preCheckSubAgent && preCheckSubAgent.introText) {
         fullText = preCheckSubAgent.introText;
         displayedFullText = fullText;
@@ -6173,15 +6171,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         prev.map((msg) =>
           msg.id === placeholderId
             ? {
-                ...msg,
-                text: fullText,
-                reasoningText: targetReasoningText || msg.reasoningText,
-                reasoningDuration: reasoningDuration || msg.reasoningDuration,
-                isReasoning: false,
-                isReasoningComplete: !!(targetReasoningText || msg.reasoningText),
-                isStreaming: false,
-                isThinking: false,
-              }
+              ...msg,
+              text: fullText,
+              reasoningText: targetReasoningText || msg.reasoningText,
+              reasoningDuration: reasoningDuration || msg.reasoningDuration,
+              isReasoning: false,
+              isReasoningComplete: !!(targetReasoningText || msg.reasoningText),
+              isStreaming: false,
+              isThinking: false,
+            }
             : msg
         )
       );
@@ -6282,13 +6280,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           )
         );
       }
-      
 
-      
+
+
       // Keep view stable with user ask bubble peacefully at the top
-      
 
-      
+
+
       // ============================================================
       // 🤖 SYNCHRONOUS SUB-AGENT ORCHESTRATOR (FLAG-TRIGGERED)
       // Flow:
@@ -6297,10 +6295,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // 3. Synchronous Agent Orchestrator runs in-place with live Chain of Thought (CoT) and delivers downloadable/previewable files
       // ============================================================
       const userPromptForSubAgent = lastSentUserInputTextRef.current || fullMessage || '';
-      let parsedSubAgent =
-        parseSubAgentFlag(rawText, userPromptForSubAgent, userLanguage) ||
-        parseSubAgentFlag(fullText, userPromptForSubAgent, userLanguage) ||
-        parseSubAgentFlag(targetReasoningText, userPromptForSubAgent, userLanguage);
+      const combinedSubAgentSource = `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`;
+      let parsedSubAgent = parseSubAgentFlag(combinedSubAgentSource, userPromptForSubAgent, userLanguage);
 
       if (!parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent, attachedFilesForTurn, isAgenticMode)) {
         const cleanedOpening = stripSubAgentFlags(fullText || '').trim();
@@ -6354,19 +6350,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           prevMessages.map((m) =>
             m.id === placeholderId
               ? {
-                  ...m,
-                  text: introConversationalText,
-                  isStreaming: false,
-                  isThinking: false,
-                  subAgentData: pendingAutoSubAgent,
-                }
+                ...m,
+                text: introConversationalText,
+                isStreaming: false,
+                isThinking: false,
+                subAgentData: pendingAutoSubAgent,
+              }
               : m
           )
         );
       }
 
       // finishStreaming already called at drain completion (line ~7231) — no duplicate call needed
-      
+
       setAnimatingMessages((prev) => ({ ...prev, [placeholderId]: false }));
       setLastMessage(null);
       setLoading(false);
@@ -6424,7 +6420,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           loadSourcesForConversation(titleConvId);
         }
       }, 500);
-      
+
       // Reset auto-retry counter on success
       autoRetryCountRef.current = 0;
     } catch (err) {
@@ -6439,9 +6435,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       const isAborted = isUserStoppedRef.current ||
-                        abortController?.signal?.aborted ||
-                        err.name === 'AbortError' ||
-                        (err.message && /abort|cancel/i.test(err.message));
+        abortController?.signal?.aborted ||
+        err.name === 'AbortError' ||
+        (err.message && /abort|cancel/i.test(err.message));
 
       if (isAborted) {
         if (
@@ -6466,7 +6462,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         showErrorBanner(userLanguage === 'id' ? 'Permintaan dihentikan.' : 'Request stopped.');
         return;
       } else {
-        const isNetworkErr = !navigator.onLine || 
+        const isNetworkErr = !navigator.onLine ||
           (err.message && /failed to fetch|network|offline|load failed|timeout/i.test(err.message));
 
         const hasAnyContent = !!(fullText || rawText || displayedFullText);
@@ -6475,16 +6471,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // For local Boron model, NEVER erase the bot message on load issues! Provide immediate friendly answer
         if (!hasAnyContent && isLocalBoron) {
           const emergencyFallback = generateInstantBoronResponse(lastSentUserInputTextRef.current || '');
-          
+
           setMessages((prev) =>
             prev.map((m) =>
               m.id === placeholderId
                 ? {
-                    ...m,
-                    text: emergencyFallback,
-                    isStreaming: false,
-                    isThinking: false
-                  }
+                  ...m,
+                  text: emergencyFallback,
+                  isStreaming: false,
+                  isThinking: false
+                }
                 : m
             )
           );
@@ -6526,19 +6522,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           }
           autoRetryCountRef.current += 1;
           const delayMs = 1000 * autoRetryCountRef.current; // 1s, 2s, 3s
-          
+
           console.log(`[Auto-Retry] Attempt ${autoRetryCountRef.current}/${MAX_AUTO_RETRY} in ${delayMs}ms`);
-          
+
           // Clear any existing timeout
           if (autoRetryTimeoutRef.current) {
             clearTimeout(autoRetryTimeoutRef.current);
           }
-          
+
           autoRetryTimeoutRef.current = setTimeout(() => {
             console.log(`[Auto-Retry] Retrying now...`);
             handleRetryAuto();
           }, delayMs);
-          
+
           setConvLoading(false);
           setError(null);
           return;
@@ -6572,30 +6568,30 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   const triggerInlineImageIfNeeded = (messageId, text) => {
     if (!text) return;
-    
+
     // Find all matches globally
     const matches = [...text.matchAll(/\[IMAGE_REQUEST:\s*(.+?)\]/g)];
     if (matches.length === 0) return;
-    
+
     // Check if we already processed this messageId
     if (triggeredImageRequestsRef.current.has(messageId)) {
       return;
     }
     triggeredImageRequestsRef.current.add(messageId);
-    
+
     console.log(`[ChatBot] 🎨 IMAGE_REQUESTs detected: ${matches.length} images for message ${messageId}`);
-    
+
     // Initialize states for all detected images
     setMessages((prev) =>
       prev.map((msg) =>
         msg.id === messageId
-          ? { 
-              ...msg, 
-              isImageGenerating: true,
-              imageUrls: msg.imageUrls || [],
-              imageErrors: msg.imageErrors || [],
-              imageGeneratingStates: matches.map(() => true)
-            }
+          ? {
+            ...msg,
+            isImageGenerating: true,
+            imageUrls: msg.imageUrls || [],
+            imageErrors: msg.imageErrors || [],
+            imageGeneratingStates: matches.map(() => true)
+          }
           : msg
       )
     );
@@ -6605,13 +6601,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const imagePrompt = match[1].trim();
       setTimeout(async () => {
         try {
-          console.log(`[ChatBot] Starting in-place image #${index+1} generation for:`, imagePrompt);
+          console.log(`[ChatBot] Starting in-place image #${index + 1} generation for:`, imagePrompt);
           let englishPrompt = await ImageGenerationService.generateEnglishImagePrompt(imagePrompt);
           if (!englishPrompt) {
             englishPrompt = ImageGenerationService.translateToEnglish(imagePrompt);
           }
           const refinedPrompt = ImageGenerationService.enhancePrompt(englishPrompt);
-          
+
           const imageAbortController = new AbortController();
           abortControllersMapRef.current.set(`image-${messageId}-${index}`, imageAbortController);
 
@@ -6656,7 +6652,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           }
 
           const refImg = activeRefObj ? (activeRefObj.dataUrl || activeRefObj.url || activeRefObj.base64 || (typeof activeRefObj === 'string' ? activeRefObj : null)) : null;
-          console.log(`[ChatBot] Generating image #${index+1} with targeted reference image:`, refImg ? (typeof refImg === 'string' ? refImg.substring(0, 30) + '...' : 'present') : 'none');
+          console.log(`[ChatBot] Generating image #${index + 1} with targeted reference image:`, refImg ? (typeof refImg === 'string' ? refImg.substring(0, 30) + '...' : 'present') : 'none');
 
           const imageData = await ImageGenerationService.generateImage(
             refinedPrompt,
@@ -6667,23 +6663,23 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             imageAbortController.signal
           );
 
-          console.log(`[ChatBot] Image #${index+1} generated successfully:`, imageData.image.url);
+          console.log(`[ChatBot] Image #${index + 1} generated successfully:`, imageData.image.url);
 
           setMessages((prev) => {
             const updated = prev.map((msg) => {
               if (msg.id === messageId) {
                 const newUrls = [...(msg.imageUrls || [])];
                 newUrls[index] = imageData.image.url;
-                
+
                 const newStates = [...(msg.imageGeneratingStates || [])];
                 newStates[index] = false;
-                
+
                 // Keep legacy fields populated using the first generated image
                 const firstUrl = newUrls.find(u => u) || imageData.image.url;
 
-                return { 
-                  ...msg, 
-                  imageUrl: firstUrl, 
+                return {
+                  ...msg,
+                  imageUrl: firstUrl,
                   imageUrls: newUrls,
                   imageGeneratingStates: newStates,
                   isImage: false,
@@ -6694,7 +6690,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             });
 
             setConversations((prevConvs) => {
-              const updatedConvs = prevConvs.map(conv => 
+              const updatedConvs = prevConvs.map(conv =>
                 conv.id === currentConversationId
                   ? { ...conv, messages: updated, updatedAt: new Date().toISOString() }
                   : conv
@@ -6706,10 +6702,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
             return updated;
           });
-          
+
           abortControllersMapRef.current.delete(`image-${messageId}-${index}`);
         } catch (err) {
-          console.error(`[ChatBot] Error generating image #${index+1}:`, err);
+          console.error(`[ChatBot] Error generating image #${index + 1}:`, err);
           const isSafetyErr = err.message && (err.message.includes('melanggar kebijakan') || err.message.includes('kebijakan'));
           const displayErrorMessage = isSafetyErr ? err.message : 'Model gambar sedang sangat sibuk, coba lagi nanti.';
 
@@ -6718,12 +6714,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               if (msg.id === messageId) {
                 const newErrors = [...(msg.imageErrors || [])];
                 newErrors[index] = displayErrorMessage;
-                
+
                 const newStates = [...(msg.imageGeneratingStates || [])];
                 newStates[index] = false;
 
-                return { 
-                  ...msg, 
+                return {
+                  ...msg,
                   imageErrors: newErrors,
                   imageGeneratingStates: newStates,
                   isImageGenerating: newStates.some(state => state)
@@ -6758,26 +6754,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         userPrompt,
         language: userLanguage
       });
-      
+
       if (isUserStoppedRef.current) {
         console.log('[ChatBot] Search returned but user already clicked stop');
         return;
       }
-      
+
       console.log('[ChatBot] Search results received:', searchData);
-      
+
       let resultsList = [];
       let aiOverviewText = '';
       if (searchData && searchData.success && searchData.data) {
         resultsList = searchData.data.organic_results || [];
         aiOverviewText = searchData.data._ai_overview_text || '';
       }
-      
+
       if (!Array.isArray(resultsList) || resultsList.length === 0) {
         console.warn('[ChatBot] No organic_results from search API, injecting guaranteed reference sources');
         resultsList = buildGuaranteedReferenceSources(searchQuery);
       }
-      
+
       // Extract search images from results (inline images, organic thumbnails, and news images)
       const searchImages = [];
       if (searchData.success && searchData.data) {
@@ -6790,7 +6786,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               if (img.source) {
                 try {
                   sourceDomain = new URL(img.source).hostname.replace('www.', '');
-                } catch(e) {
+                } catch (e) {
                   sourceDomain = img.source;
                 }
               }
@@ -6810,14 +6806,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             if (!imgUrl && result.rich_snippet && result.rich_snippet.top && result.rich_snippet.top.detected_extensions) {
               imgUrl = result.rich_snippet.top.detected_extensions.thumbnail;
             }
-            
+
             if (imgUrl && typeof imgUrl === 'string' && !imgUrl.endsWith('.php') && !imgUrl.includes('.ico') && !imgUrl.includes('favicons?sz=') && !imgUrl.startsWith('data:image/svg')) {
               let sourceDomain = '';
               const url = result.link || result.url || '';
               if (url) {
                 try {
                   sourceDomain = new URL(url).hostname.replace('www.', '');
-                } catch(e) {
+                } catch (e) {
                   sourceDomain = url;
                 }
               }
@@ -6838,7 +6834,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             if (kg.source) {
               try {
                 sourceDomain = new URL(kg.source).hostname.replace('www.', '');
-              } catch(e) {
+              } catch (e) {
                 sourceDomain = kg.source;
               }
             }
@@ -6870,7 +6866,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               if (news.link) {
                 try {
                   sourceDomain = new URL(news.link).hostname.replace('www.', '');
-                } catch(e) {
+                } catch (e) {
                   sourceDomain = news.link;
                 }
               }
@@ -6924,8 +6920,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ urls: prewarmUrls })
-          }).catch(() => {});
-        } catch (_) {}
+          }).catch(() => { });
+        } catch (_) { }
       }
 
       // Map sources using uniqueImages for fallback thumbnails
@@ -6935,11 +6931,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         if (!domain && url) {
           try {
             domain = new URL(url).hostname;
-          } catch(e) {
+          } catch (e) {
             domain = url;
           }
         }
-        
+
         let thumbnail = item.thumbnail || null;
         if (!thumbnail && uniqueImages.length > 0) {
           const cleanDom = domain.replace('www.', '');
@@ -7030,13 +7026,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === messageId) {
-            return { 
-              ...msg, 
+            return {
+              ...msg,
               text: '', // Strictly empty so search result bubbles appear FIRST!
-              isSearching: false, 
-              isThinking: true, 
-              searchQuery: searchQuery, 
-              searchResults: resultsList, 
+              isSearching: false,
+              isThinking: true,
+              searchQuery: searchQuery,
+              searchResults: resultsList,
               searchSources: sources,
               searchImages: uniqueImages.slice(0, 10),
               searchSteps: updatedSteps
@@ -7065,7 +7061,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // Single search only — no multi-step
       const currentStep = searchContextHistoryRef.current[messageId].length;
-      
+
       // Helper: replace [Sumber N] with actual markdown links and clean domain badges
       const replaceCitationsWithLinks = (text) => {
         if (!sources || sources.length === 0 || !text) return text || '';
@@ -7092,11 +7088,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         });
         return res;
       };
-      
+
       const currentTurnInput = (lastSentUserInputTextRef.current || '').trim();
       const userQuery = userPrompt || currentTurnInput || lastSentPromptRef.current || searchQuery || 'the query';
       const accumulatedHistoryContext = searchContextHistoryRef.current[messageId].join('\n\n');
-      
+
       const nowTime = new Date();
       const currentYear = nowTime.getFullYear();
       const dayNameId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
@@ -7169,17 +7165,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (activePersonalityAppend) {
         conclusionPrompt += `\n\n${activePersonalityAppend}\n`;
       }
-      
+
       console.log(`[ChatBot] Sending search results to Deepernova for step ${currentStep} conclusion...`);
-      
+
       if (isUserStoppedRef.current) {
         console.log('[ChatBot] Search conclusion cancelled early by user stop');
         return;
       }
 
       // Build history with clean conversational turns (omit pending message and search request flags)
-      const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 
-        ? baseHistory 
+      const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0
+        ? baseHistory
         : ((currentConversationHistoryRef.current && currentConversationHistoryRef.current.length > 0) ? currentConversationHistoryRef.current : messages);
       const cleanHistoryForSearch = sourceHistory
         .filter(msg => msg && msg.id !== messageId)
@@ -7194,19 +7190,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (currentConversationId) {
         abortControllersMapRef.current.set(currentConversationId, newAbortController);
       }
-      
+
       const botResponse = await sendMessageToGrok(
-        conclusionPrompt, 
-        cleanHistoryForSearch, 
-        userLanguage, 
-        currentConversationId, 
-        selectedPersonality, 
-        newAbortController, 
-        selectedModel, 
-        isAuthenticated, 
-        isGuest, 
-        userName || user?.name, 
-        sessionMessageCount + 2, 
+        conclusionPrompt,
+        cleanHistoryForSearch,
+        userLanguage,
+        currentConversationId,
+        selectedPersonality,
+        newAbortController,
+        selectedModel,
+        isAuthenticated,
+        isGuest,
+        userName || user?.name,
+        sessionMessageCount + 2,
         [],
         false // enableReasoning = false (ALWAYS disabled for search conclusion so it reads & summarizes news immediately!)
       );
@@ -7226,33 +7222,33 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           if (displayedSearchText.length < finalResponseText.length) {
             const diff = finalResponseText.length - displayedSearchText.length;
             const step = getSmoothTypingStep(diff, searchStreamFinished, displayedSearchText.length, finalResponseText.length);
-            
+
             displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
-            
+
             const now = Date.now();
             if (now - lastScrollTickRef.current > 75) {
               lastScrollTickRef.current = now;
               smoothAutoScroll();
             }
-            
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === messageId
-                  ? { 
-                      ...msg, 
-                      text: sanitizeStreamingText(displayedSearchText), 
-                      isThinking: false, 
-                      isStreaming: true,
-                      isSearching: false,
-                      searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : sources,
-                      searchSteps: (msg.searchSteps && msg.searchSteps.length > 0)
-                        ? msg.searchSteps.map(s => ({ ...s, isSearching: false, sources: (s.sources && s.sources.length > 0) ? s.sources : sources }))
-                        : [{ query: searchQuery, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) }],
-                      reasoningText: searchReasoningText || msg.reasoningText,
-                      reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
-                      isReasoning: isSearchReasoning,
-                      isReasoningComplete: !isSearchReasoning && !!(searchReasoningText || msg.reasoningText)
-                    }
+                  ? {
+                    ...msg,
+                    text: sanitizeStreamingText(displayedSearchText),
+                    isThinking: false,
+                    isStreaming: true,
+                    isSearching: false,
+                    searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : sources,
+                    searchSteps: (msg.searchSteps && msg.searchSteps.length > 0)
+                      ? msg.searchSteps.map(s => ({ ...s, isSearching: false, sources: (s.sources && s.sources.length > 0) ? s.sources : sources }))
+                      : [{ query: searchQuery, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) }],
+                    reasoningText: searchReasoningText || msg.reasoningText,
+                    reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
+                    isReasoning: isSearchReasoning,
+                    isReasoningComplete: !isSearchReasoning && !!(searchReasoningText || msg.reasoningText)
+                  }
                   : msg
               )
             );
@@ -7260,7 +7256,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             clearInterval(searchTypingTimer);
             searchTypingTimer = null;
           }
-        }, 22);
+        }, 32);
       };
 
       await processStreamingResponse(botResponse, (chunk) => {
@@ -7271,17 +7267,17 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           }
           isSearchReasoning = true;
           searchReasoningText += chunk.content;
-          
+
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === messageId
                 ? {
-                    ...msg,
-                    reasoningText: searchReasoningText,
-                    isReasoning: true,
-                    isThinking: true,
-                    isStreaming: true
-                  }
+                  ...msg,
+                  reasoningText: searchReasoningText,
+                  isReasoning: true,
+                  isThinking: true,
+                  isStreaming: true
+                }
                 : msg
             )
           );
@@ -7318,7 +7314,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             finalResponseText = extracted;
           }
         }
-        
+
         if (!finalResponseText || !finalResponseText.trim()) {
           console.warn('[ChatBot] Synthesizing verified answer directly from search results...');
           if (aiOverviewText && aiOverviewText.trim()) {
@@ -7348,7 +7344,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           if (!seenLinks.has(link)) {
             seenLinks.add(link);
             let domain = '';
-            try { domain = new URL(link).hostname; } catch(e) { domain = link; }
+            try { domain = new URL(link).hostname; } catch (e) { domain = link; }
             sources.push({
               title,
               link,
@@ -7387,26 +7383,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setMessages((prev) => {
         const updated = prev.map((msg) =>
           msg.id === messageId
-            ? { 
-                ...msg, 
-                text: cleanedFinalText, 
-                reasoningText: searchReasoningText || msg.reasoningText,
-                reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
-                isStreaming: false, 
-                isThinking: false,
-                isSearching: false,
-                isRecallingMemory: false,
-                isImageGenerating: false,
-                isReasoning: false,
-                isReasoningComplete: !!(searchReasoningText || msg.reasoningText),
-                searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : finalizedSources,
-                searchSteps: (msg.searchSteps && msg.searchSteps.length > 0) ? msg.searchSteps : [{ query: searchQuery, isSearching: false, sources: finalizedSources, images: uniqueImages.slice(0, 6) }]
-              }
+            ? {
+              ...msg,
+              text: cleanedFinalText,
+              reasoningText: searchReasoningText || msg.reasoningText,
+              reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
+              isStreaming: false,
+              isThinking: false,
+              isSearching: false,
+              isRecallingMemory: false,
+              isImageGenerating: false,
+              isReasoning: false,
+              isReasoningComplete: !!(searchReasoningText || msg.reasoningText),
+              searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : finalizedSources,
+              searchSteps: (msg.searchSteps && msg.searchSteps.length > 0) ? msg.searchSteps : [{ query: searchQuery, isSearching: false, sources: finalizedSources, images: uniqueImages.slice(0, 6) }]
+            }
             : msg
         );
 
         setConversations((prevConvs) => {
-          const updatedConvs = prevConvs.map(conv => 
+          const updatedConvs = prevConvs.map(conv =>
             conv.id === currentConversationId
               ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
               : conv
@@ -7444,29 +7440,29 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     } catch (searchError) {
       console.error('[ChatBot] Error in search pathway, falling back to direct AI response with guaranteed bubbles:', searchError);
-      
+
       try {
         const fallbackSources = buildGuaranteedReferenceSources(searchQuery);
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === messageId
               ? {
-                  ...msg,
-                  isSearching: false,
-                  isThinking: true,
-                  text: '',
-                  searchQuery: searchQuery,
-                  searchSources: fallbackSources,
-                  searchSteps: [{ query: searchQuery, isSearching: false, sources: fallbackSources, images: [] }]
-                }
+                ...msg,
+                isSearching: false,
+                isThinking: true,
+                text: '',
+                searchQuery: searchQuery,
+                searchSources: fallbackSources,
+                searchSteps: [{ query: searchQuery, isSearching: false, sources: fallbackSources, images: [] }]
+              }
               : msg
           )
         );
         await new Promise(resolve => setTimeout(resolve, 30));
-        
+
         const userQuery = userPrompt || lastSentPromptRef.current || searchQuery;
         const fallbackPrompt = `[INFO SISTEM: Pencarian web gagal. Harap jawab pertanyaan pengguna berikut menggunakan pengetahuan internal Anda secara akurat dan percaya diri. Jika pertanyaan ini membahas topik baru yang berbeda, fokus penuh 100% pada topik baru ini tanpa mengaitkan ke percakapan lama sebelumnya.]\n\nPertanyaan pengguna: "${userQuery}"`;
-        
+
         const sourceHistory = Array.isArray(baseHistory) && baseHistory.length > 0 ? baseHistory : messages;
         const cleanHistoryForSearch = sourceHistory
           .filter(msg => msg && msg.id !== messageId)
@@ -7477,19 +7473,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         const newAbortController = new AbortController();
         abortControllerRef.current = newAbortController;
-        
+
         const botResponse = await sendMessageToGrok(
-          fallbackPrompt, 
-          cleanHistoryForSearch, 
-          userLanguage, 
-          currentConversationId, 
-          selectedPersonality, 
-          newAbortController, 
-          selectedModel, 
-          isAuthenticated, 
-          isGuest, 
-          userName || user?.name, 
-          sessionMessageCount + 2, 
+          fallbackPrompt,
+          cleanHistoryForSearch,
+          userLanguage,
+          currentConversationId,
+          selectedPersonality,
+          newAbortController,
+          selectedModel,
+          isAuthenticated,
+          isGuest,
+          userName || user?.name,
+          sessionMessageCount + 2,
           [],
           false // enableReasoning = false
         );
@@ -7509,22 +7505,22 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             if (displayedSearchText.length < finalResponseText.length) {
               const diff = finalResponseText.length - displayedSearchText.length;
               const step = getSmoothTypingStep(diff, searchStreamFinished, displayedSearchText.length, finalResponseText.length);
-              
+
               displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
-              
+
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === messageId
-                    ? { 
-                        ...msg, 
-                        text: sanitizeStreamingText(displayedSearchText), 
-                        isThinking: false, 
-                        isStreaming: true,
-                        reasoningText: searchReasoningText || msg.reasoningText,
-                        reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
-                        isReasoning: isSearchReasoning,
-                        isReasoningComplete: !isSearchReasoning && !!(searchReasoningText || msg.reasoningText)
-                      }
+                    ? {
+                      ...msg,
+                      text: sanitizeStreamingText(displayedSearchText),
+                      isThinking: false,
+                      isStreaming: true,
+                      reasoningText: searchReasoningText || msg.reasoningText,
+                      reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
+                      isReasoning: isSearchReasoning,
+                      isReasoningComplete: !isSearchReasoning && !!(searchReasoningText || msg.reasoningText)
+                    }
                     : msg
                 )
               );
@@ -7532,7 +7528,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               clearInterval(searchTypingTimer);
               searchTypingTimer = null;
             }
-          }, 22);
+          }, 32);
         };
 
         await processStreamingResponse(botResponse, (chunk) => {
@@ -7544,12 +7540,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               prev.map((msg) =>
                 msg.id === messageId
                   ? {
-                      ...msg,
-                      reasoningText: searchReasoningText,
-                      isReasoning: true,
-                      isThinking: true,
-                      isStreaming: true
-                    }
+                    ...msg,
+                    reasoningText: searchReasoningText,
+                    isReasoning: true,
+                    isThinking: true,
+                    isStreaming: true
+                  }
                   : msg
               )
             );
@@ -7613,23 +7609,23 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         setMessages((prev) => {
           const updated = prev.map((msg) =>
             msg.id === messageId
-              ? { 
-                  ...msg, 
-                  text: cleanResponseText(finalResponseText), 
-                  reasoningText: searchReasoningText || msg.reasoningText,
-                  reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
-                  isStreaming: false, 
-                  isThinking: false,
-                  isSearching: false,
-                  isRecallingMemory: false,
-                  isImageGenerating: false,
-                  isReasoning: false,
-                  isReasoningComplete: !!(searchReasoningText || msg.reasoningText)
-                }
+              ? {
+                ...msg,
+                text: cleanResponseText(finalResponseText),
+                reasoningText: searchReasoningText || msg.reasoningText,
+                reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
+                isStreaming: false,
+                isThinking: false,
+                isSearching: false,
+                isRecallingMemory: false,
+                isImageGenerating: false,
+                isReasoning: false,
+                isReasoningComplete: !!(searchReasoningText || msg.reasoningText)
+              }
               : msg
           );
           setConversations((prevConvs) => {
-            const updatedConvs = prevConvs.map(conv => 
+            const updatedConvs = prevConvs.map(conv =>
               conv.id === currentConversationId
                 ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
                 : conv
@@ -7659,16 +7655,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === messageId
-              ? { 
-                  ...msg, 
-                  isSearching: false, 
-                  isThinking: false, 
-                  isStreaming: false,
-                  isRecallingMemory: false,
-                  isImageGenerating: false,
-                  isReasoning: false,
-                  text: fallbackError?.message || 'Gagal memproses jawaban.'
-                }
+              ? {
+                ...msg,
+                isSearching: false,
+                isThinking: false,
+                isStreaming: false,
+                isRecallingMemory: false,
+                isImageGenerating: false,
+                isReasoning: false,
+                text: fallbackError?.message || 'Gagal memproses jawaban.'
+              }
               : msg
           )
         );
@@ -7707,7 +7703,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       triggeredSearchRequestsRef.current.add(messageId);
       isSearchAbortedRef.current = true;
-      
+
       const currentTurnText = (lastSentUserInputTextRef.current || '').trim();
       const historyPool = (currentConversationHistoryRef.current && currentConversationHistoryRef.current.length > 0)
         ? currentConversationHistoryRef.current
@@ -7717,15 +7713,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const finalSearchQuery = searchQuery.replace(/^["']|["']$/g, '').trim();
 
       console.log(`[ChatBot] 🔍 AI-determined SEARCH_REQUEST: "${finalSearchQuery}" (userPrompt: "${userPrompt}") for message ${messageId}`);
-      
+
       // 1) IMMEDIATELY WIPE any preamble or streaming text! NEVER show hallucinated text before search!
       currentStreamingTextRef.current = '';
-      
+
       // 2) Stop current stream if still active
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      
+
       // 3) Stop typing animation, smooth streamer, and status updates immediately
       if (smoothStreamTimerRef.current) {
         clearInterval(smoothStreamTimerRef.current);
@@ -7739,11 +7735,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         clearInterval(statusUpdateIntervalRef.current);
         statusUpdateIntervalRef.current = null;
       }
-      
+
       // 4) Remove prefill-space
       const scrollEl = document.querySelector('.messages-container');
       if (scrollEl) {
-        try { scrollEl.classList.remove('prefill-space'); } catch (e) {}
+        try { scrollEl.classList.remove('prefill-space'); } catch (e) { }
       }
 
       // 5) Mark the message as searching with STRICTLY EMPTY text
@@ -7759,13 +7755,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 images: []
               });
             }
-            return { 
-              ...msg, 
+            return {
+              ...msg,
               text: '', // STRICTLY EMPTY! Wipe any ngawur text!
               isStreaming: false,
-              isSearching: true, 
-              searchQuery: finalSearchQuery, 
-              searchResults: null, 
+              isSearching: true,
+              searchQuery: finalSearchQuery,
+              searchResults: null,
               searchSources: [],
               searchSteps: initialSteps
             };
@@ -7825,8 +7821,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       const actionName = rawTagType === 'MEMORY_SAVE' ? 'save' :
-                         rawTagType === 'MEMORY_UPDATE' ? 'update' :
-                         rawTagType === 'MEMORY_DELETE' ? 'delete' : 'recall';
+        rawTagType === 'MEMORY_UPDATE' ? 'update' :
+          rawTagType === 'MEMORY_DELETE' ? 'delete' : 'recall';
 
       parsedPayload.action = actionName;
 
@@ -7987,15 +7983,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           const recallConclusionPrompt = userLanguage === 'id'
             ? `[KONTEKS MEMORI (SAMPEL SEMENTARA)]:\n${accumulatedRecallContexts}\n\n` +
-              `INSTRUKSI MENJAWAB (PENTING):\n` +
-              `1. Anda baru saja melakukan penarikan memori. Gunakan data memori di atas sebagai pegangan untuk MENJAWAB PERTANYAAN PENGGUNA SECARA LANGSUNG, UTUH, DAN DETAIL.\n` +
-              `2. ${isMaxStepsReached ? 'JANGAN memicu tag [RECALL_MEMORY] lagi.' : 'Jika masih membutuhkan fakta/preferensi lain yang spesifik, Anda BOLEH memicu recall lanjutan dengan format tag: [RECALL_MEMORY: kata kunci baru]. Jika sudah cukup, LANGSUNG BERIKAN JAWABAN AKHIR LENGKAP Anda tanpa tag recall.'}\n` +
-              `3. Berikan jawaban yang terstruktur, akurat, dan sopan.`
+            `INSTRUKSI MENJAWAB (PENTING):\n` +
+            `1. Anda baru saja melakukan penarikan memori. Gunakan data memori di atas sebagai pegangan untuk MENJAWAB PERTANYAAN PENGGUNA SECARA LANGSUNG, UTUH, DAN DETAIL.\n` +
+            `2. ${isMaxStepsReached ? 'JANGAN memicu tag [RECALL_MEMORY] lagi.' : 'Jika masih membutuhkan fakta/preferensi lain yang spesifik, Anda BOLEH memicu recall lanjutan dengan format tag: [RECALL_MEMORY: kata kunci baru]. Jika sudah cukup, LANGSUNG BERIKAN JAWABAN AKHIR LENGKAP Anda tanpa tag recall.'}\n` +
+            `3. Berikan jawaban yang terstruktur, akurat, dan sopan.`
             : `[MEMORY CONTEXT (TEMPORARY SAMPLE)]:\n${accumulatedRecallContexts}\n\n` +
-              `INSTRUCTIONS (CRITICAL):\n` +
-              `1. You just recalled memory. Use the context above to ANSWER THE USER'S QUESTION DIRECTLY, FULLY, AND ACCURATELY.\n` +
-              `2. ${isMaxStepsReached ? 'DO NOT trigger [RECALL_MEMORY] anymore.' : 'If additional keywords are needed, you MAY output [RECALL_MEMORY: new keywords]. Otherwise, IMMEDIATELY PROVIDE YOUR COMPLETE FINAL ANSWER without recall tags.'}\n` +
-              `3. Provide a clear, comprehensive, and polite answer.`;
+            `INSTRUCTIONS (CRITICAL):\n` +
+            `1. You just recalled memory. Use the context above to ANSWER THE USER'S QUESTION DIRECTLY, FULLY, AND ACCURATELY.\n` +
+            `2. ${isMaxStepsReached ? 'DO NOT trigger [RECALL_MEMORY] anymore.' : 'If additional keywords are needed, you MAY output [RECALL_MEMORY: new keywords]. Otherwise, IMMEDIATELY PROVIDE YOUR COMPLETE FINAL ANSWER without recall tags.'}\n` +
+            `3. Provide a clear, comprehensive, and polite answer.`;
 
           const historyWithRecall = messages.map(msg =>
             msg.id === messageId
@@ -8055,7 +8051,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 clearInterval(recallTypingTimer);
                 recallTypingTimer = null;
               }
-            }, 22);
+            }, 32);
           };
 
           await processStreamingResponse(botResponse, (chunk) => {
@@ -8119,106 +8115,106 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           recallStreamFinished = true;
           startRecallTypingAnimation();
 
-            let recallWaitCount = 0;
-            while ((displayedRecallText.length < finalResponseText.length || recallTypingTimer !== null) && recallWaitCount < 600) {
-              recallWaitCount++;
-              if (newAbortController.signal.aborted || isUserStoppedRef.current) {
-                if (recallTypingTimer) {
-                  clearInterval(recallTypingTimer);
-                  recallTypingTimer = null;
-                }
-                return;
+          let recallWaitCount = 0;
+          while ((displayedRecallText.length < finalResponseText.length || recallTypingTimer !== null) && recallWaitCount < 600) {
+            recallWaitCount++;
+            if (newAbortController.signal.aborted || isUserStoppedRef.current) {
+              if (recallTypingTimer) {
+                clearInterval(recallTypingTimer);
+                recallTypingTimer = null;
               }
-              await new Promise(resolve => setTimeout(resolve, 14));
+              return;
             }
-
-            if (recallTypingTimer) {
-              clearInterval(recallTypingTimer);
-              recallTypingTimer = null;
-            }
-
-            const cleanedFinalText = finalResponseText
-              .replace(/\[RECALL_MEMORY:\s*(.+?)\]/g, '')
-              .replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/gi, '')
-              .replace(/\[REMINDER_REQUEST:\s*\{[\s\S]*?\}\]/g, '')
-              .trim();
-
-            setMessages((prev) => {
-              const updated = prev.map((msg) =>
-                msg.id === messageId
-                  ? {
-                      ...msg,
-                      text: cleanResponseText(cleanedFinalText),
-                      isStreaming: false,
-                      isThinking: false,
-                      isSearching: false,
-                      isRecallingMemory: false,
-                      isImageGenerating: false,
-                      isReasoning: false
-                    }
-                  : msg
-              );
-
-              setConversations((prevConvs) => {
-                const updatedConvs = prevConvs.map(conv =>
-                  conv.id === currentConversationId
-                    ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
-                    : conv
-                );
-                ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-                  .catch(err => console.error('[ChatBot] Error saving after recall memory:', err));
-                return updatedConvs;
-              });
-              return updated;
-            });
-
-            isRecallAbortedRef.current = false;
-            setIsSendGenerating(false);
-            isSendGeneratingRef.current = false;
-            setConvLoading(false);
-            setLoading(false);
-            isProcessingRef.current = false;
-            setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
-            setLastMessage(null);
-            abortControllerRef.current = null;
-            if (currentConversationId) {
-              abortControllersMapRef.current.delete(currentConversationId);
-            }
-
-          } catch (err) {
-            isRecallAbortedRef.current = false;
-            console.error('[ChatBot] Error during recall memory processing:', err);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === messageId
-                  ? { 
-                      ...msg, 
-                      isRecallingMemory: false, 
-                      isStreaming: false,
-                      isThinking: false,
-                      isSearching: false,
-                      isImageGenerating: false,
-                      isReasoning: false
-                    }
-                  : msg
-              )
-            );
-            setIsSendGenerating(false);
-            isSendGeneratingRef.current = false;
-            setConvLoading(false);
-            setLoading(false);
-            isProcessingRef.current = false;
-            abortControllerRef.current = null;
-            if (currentConversationId) {
-              abortControllersMapRef.current.delete(currentConversationId);
-            }
-          } finally {
-            setIsSendGenerating(false);
-            isSendGeneratingRef.current = false;
-            isProcessingRef.current = false;
-            setLoading(false);
-            setConvLoading(false);
+            await new Promise(resolve => setTimeout(resolve, 14));
           }
+
+          if (recallTypingTimer) {
+            clearInterval(recallTypingTimer);
+            recallTypingTimer = null;
+          }
+
+          const cleanedFinalText = finalResponseText
+            .replace(/\[RECALL_MEMORY:\s*(.+?)\]/g, '')
+            .replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/gi, '')
+            .replace(/\[REMINDER_REQUEST:\s*\{[\s\S]*?\}\]/g, '')
+            .trim();
+
+          setMessages((prev) => {
+            const updated = prev.map((msg) =>
+              msg.id === messageId
+                ? {
+                  ...msg,
+                  text: cleanResponseText(cleanedFinalText),
+                  isStreaming: false,
+                  isThinking: false,
+                  isSearching: false,
+                  isRecallingMemory: false,
+                  isImageGenerating: false,
+                  isReasoning: false
+                }
+                : msg
+            );
+
+            setConversations((prevConvs) => {
+              const updatedConvs = prevConvs.map(conv =>
+                conv.id === currentConversationId
+                  ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
+                  : conv
+              );
+              ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+                .catch(err => console.error('[ChatBot] Error saving after recall memory:', err));
+              return updatedConvs;
+            });
+            return updated;
+          });
+
+          isRecallAbortedRef.current = false;
+          setIsSendGenerating(false);
+          isSendGeneratingRef.current = false;
+          setConvLoading(false);
+          setLoading(false);
+          isProcessingRef.current = false;
+          setAnimatingMessages((prev) => ({ ...prev, [messageId]: false }));
+          setLastMessage(null);
+          abortControllerRef.current = null;
+          if (currentConversationId) {
+            abortControllersMapRef.current.delete(currentConversationId);
+          }
+
+        } catch (err) {
+          isRecallAbortedRef.current = false;
+          console.error('[ChatBot] Error during recall memory processing:', err);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === messageId
+                ? {
+                  ...msg,
+                  isRecallingMemory: false,
+                  isStreaming: false,
+                  isThinking: false,
+                  isSearching: false,
+                  isImageGenerating: false,
+                  isReasoning: false
+                }
+                : msg
+            )
+          );
+          setIsSendGenerating(false);
+          isSendGeneratingRef.current = false;
+          setConvLoading(false);
+          setLoading(false);
+          isProcessingRef.current = false;
+          abortControllerRef.current = null;
+          if (currentConversationId) {
+            abortControllersMapRef.current.delete(currentConversationId);
+          }
+        } finally {
+          setIsSendGenerating(false);
+          isSendGeneratingRef.current = false;
+          isProcessingRef.current = false;
+          setLoading(false);
+          setConvLoading(false);
+        }
       })();
     }
   };
@@ -8260,7 +8256,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, accumulatedRetryText.length);
               displayedText += accumulatedRetryText.substr(displayedText.length, step);
               currentStreamingTextRef.current = initialText + displayedText;
-              
+
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === msgId
@@ -8273,9 +8269,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(msgId, initialText + accumulatedRetryText);
             }
-          }, 22);
+          }, 32);
         };
- 
+
         await processStreamingResponse(response, (chunk) => {
           const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
           if (textChunk) {
@@ -8291,7 +8287,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         if (abortController.signal.aborted) {
           return;
         }
- 
+
         streamFinished = true;
         startTypingAnimation();
 
@@ -8310,7 +8306,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         finishStreaming(msgId, initialText + accumulatedRetryText);
         triggerInlineImageIfNeeded(msgId, initialText + accumulatedRetryText);
- 
+
         partialMessageIdRef.current = null;
         // Keep compact focus when continuing partial responses
         setCompactView(true);
@@ -8319,7 +8315,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const response = await sendMessageToGrok(lastMessage, messages, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, false);
         const placeholderId = createBotPlaceholder();
         currentMessageIdRef.current = placeholderId;
- 
+
         let accumulatedFullRetryText = '';
         let displayedText = '';
         let streamFinished = false;
@@ -8333,7 +8329,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, accumulatedFullRetryText.length);
               displayedText += accumulatedFullRetryText.substr(displayedText.length, step);
               currentStreamingTextRef.current = displayedText;
-              
+
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === placeholderId
@@ -8346,9 +8342,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(placeholderId, accumulatedFullRetryText);
             }
-          }, 22);
+          }, 32);
         };
- 
+
         await processStreamingResponse(response, (chunk) => {
           const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
           if (textChunk) {
@@ -8364,7 +8360,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         if (abortController.signal.aborted) {
           return;
         }
- 
+
         streamFinished = true;
         startTypingAnimation();
 
@@ -8416,7 +8412,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     // CRITICAL: Keep the lock held throughout the entire retry process
     // isProcessingRef.current should ALREADY be true from the initial request
     // Do NOT clear it until we're completely done
-    
+
     setConvLoading(true);
 
     const abortController = new AbortController();
@@ -8435,7 +8431,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const initialText = messages.find(m => m.id === msgId)?.text || '';
       const continuePrompt = `[Lanjutkan dari mana tadi, jangan ulangi pesan sebelumnya, hanya lanjutkan teks berikutnya]`;
       const response = await sendMessageToGrok(continuePrompt, messages, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, false);
-      
+
       let accumulatedAutoRetryText = '';
       let displayedText = '';
       let streamFinished = false;
@@ -8449,7 +8445,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             const step = getSmoothTypingStep(diff, streamFinished, displayedText.length, accumulatedAutoRetryText.length);
             displayedText += accumulatedAutoRetryText.substr(displayedText.length, step);
             currentStreamingTextRef.current = initialText + displayedText;
-            
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === msgId
@@ -8462,9 +8458,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(msgId, initialText + accumulatedAutoRetryText);
           }
-        }, 22);
+        }, 32);
       };
- 
+
       await processStreamingResponse(response, (chunk) => {
         const textChunk = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
         if (textChunk) {
@@ -8480,7 +8476,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (abortController.signal.aborted) {
         return;
       }
- 
+
       streamFinished = true;
       startTypingAnimation();
 
@@ -8507,7 +8503,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (currentConversationId) {
         abortControllersMapRef.current.delete(currentConversationId);
       }
-      
+
       // Reset auto-retry counter on success
       autoRetryCountRef.current = 0;
     } catch (err) {
@@ -8522,7 +8518,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (currentConversationId) {
         abortControllersMapRef.current.delete(currentConversationId);
       }
-      
+
       // Rollback user input and remove stuck placeholder messages
       setInputValue(lastSentUserInputTextRef.current || '');
       if (partialMessageIdRef.current || lastSentUserMessageIdRef.current) {
@@ -8584,10 +8580,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         prev.map((m) =>
           m.id === messageId
             ? {
-                ...m,
-                isStreaming: false,
-                subAgentData: m.subAgentData ? { ...m.subAgentData, status: 'aborted' } : m.subAgentData,
-              }
+              ...m,
+              isStreaming: false,
+              subAgentData: m.subAgentData ? { ...m.subAgentData, status: 'aborted' } : m.subAgentData,
+            }
             : m
         )
       );
@@ -8603,10 +8599,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const updatedMessages = prev.map((m) =>
           m.id === messageId
             ? {
-                ...m,
-                isStreaming: false,
-                subAgentData: m.subAgentData ? { ...m.subAgentData, status: 'dismissed' } : m.subAgentData,
-              }
+              ...m,
+              isStreaming: false,
+              subAgentData: m.subAgentData ? { ...m.subAgentData, status: 'dismissed' } : m.subAgentData,
+            }
             : m
         );
         setConversations((prevConvs) => {
@@ -8614,7 +8610,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             c.id === convId ? { ...c, messages: updatedMessages, updatedAt: new Date().toISOString() } : c
           );
           ConversationPersistenceService.saveToLocalStorage(updatedConvs);
-          ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => {});
+          ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => { });
           return updatedConvs;
         });
         return updatedMessages;
@@ -8666,11 +8662,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         prev.map((m) =>
           m.id === messageId
             ? {
-                ...m,
-                ...(introText && !m.text ? { text: introText } : {}),
-                isStreaming: true,
-                subAgentData: runningSubAgentData,
-              }
+              ...m,
+              ...(introText && !m.text ? { text: introText } : {}),
+              isStreaming: true,
+              subAgentData: runningSubAgentData,
+            }
             : m
         )
       );
@@ -8694,10 +8690,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               prev.map((m) =>
                 m.id === messageId
                   ? {
-                      ...m,
-                      isStreaming: liveSubAgentState.status === 'running',
-                      subAgentData: liveSubAgentState,
-                    }
+                    ...m,
+                    isStreaming: liveSubAgentState.status === 'running',
+                    subAgentData: liveSubAgentState,
+                  }
                   : m
               )
             );
@@ -8708,10 +8704,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           const updatedMessages = prev.map((m) =>
             m.id === messageId
               ? {
-                  ...m,
-                  isStreaming: false,
-                  subAgentData: finalSubAgentState,
-                }
+                ...m,
+                isStreaming: false,
+                subAgentData: finalSubAgentState,
+              }
               : m
           );
 
@@ -8722,7 +8718,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 : c
             );
             ConversationPersistenceService.saveToLocalStorage(updatedConvs);
-            ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => {});
+            ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => { });
             return updatedConvs;
           });
 
@@ -8734,13 +8730,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           prev.map((m) =>
             m.id === messageId
               ? {
-                  ...m,
-                  isStreaming: false,
-                  subAgentData: {
-                    ...(m.subAgentData || runningSubAgentData),
-                    status: subAgentErr?.name === 'AbortError' ? 'aborted' : 'error',
-                  },
-                }
+                ...m,
+                isStreaming: false,
+                subAgentData: {
+                  ...(m.subAgentData || runningSubAgentData),
+                  status: subAgentErr?.name === 'AbortError' ? 'aborted' : 'error',
+                },
+              }
               : m
           )
         );
@@ -8856,7 +8852,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         />
       );
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     messages,
     compactView,
@@ -9093,8 +9089,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           {messages.length > 0 && (
             <div className="header-center-title">
-              <div 
-                className="header-title-pill" 
+              <div
+                className="header-title-pill"
                 onClick={() => setShowConvMenu(!showConvMenu)}
                 title={userLanguage === 'zh' ? '会话选项' : userLanguage === 'id' ? 'Opsi percakapan' : 'Conversation options'}
               >
@@ -9104,8 +9100,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
               {showConvMenu && (
                 <div className="header-conv-dropdown" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="dropdown-menu-item"
                     onClick={handleExportConv}
                   >
@@ -9113,8 +9109,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                     <span>{userLanguage === 'zh' ? '导出对话 (.md)' : userLanguage === 'id' ? 'Ekspor Obrolan (.md)' : 'Export Chat'}</span>
                   </button>
                   <div className="dropdown-divider"></div>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="dropdown-menu-item delete"
                     onClick={handleDeleteActiveConv}
                   >
@@ -9134,18 +9130,22 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 onClick={() => onNavigate?.('universe')}
                 title={userLanguage === 'zh' ? '打开 Deepernova Universe' : userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
               >
-                <img
-                  src="https://cdn-icons-png.flaticon.com/512/3212/3212608.png"
-                  alt="Universe"
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   className="header-universe-icon"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = "https://img.icons8.com/?size=512&id=YibKslCBYqNN&format=png";
-                  }}
-                />
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="4.6" />
+                  <ellipse cx="12" cy="12" rx="10" ry="3.7" transform="rotate(-24 12 12)" />
+                </svg>
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className={`header-agentic-btn ${showAgenticPanel ? 'active' : ''}`}
                 onClick={() => {
                   setShowAgenticPanel(!showAgenticPanel);
@@ -9170,15 +9170,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 onClick={() => onNavigate?.('universe')}
                 title={userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
               >
-                <img
-                  src="https://cdn-icons-png.flaticon.com/512/3212/3212608.png"
-                  alt="Universe"
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   className="header-universe-icon"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = "https://img.icons8.com/?size=512&id=YibKslCBYqNN&format=png";
-                  }}
-                />
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="4.6" />
+                  <ellipse cx="12" cy="12" rx="10" ry="3.7" transform="rotate(-24 12 12)" />
+                </svg>
               </button>
               <button
                 type="button"
@@ -9198,7 +9202,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           <div className={`custom-alert alert-${customAlert.type}${dismissingAlert ? ' dismissing' : ''}`}>
             <div className="alert-content">
               <span className="alert-message">{customAlert.message}</span>
-              <button 
+              <button
                 className="alert-close"
                 onClick={() => {
                   setDismissingAlert(true);
@@ -9215,235 +9219,235 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         )}
 
         <div className={`messages-container ${isGenerating ? 'generating-active prefill-space' : ''}${messages.length === 0 ? ' empty-hero-active' : ''}`}>
-        {compactView && messages.length > 1 && !inputValue.trim() && (
-          <div className="show-previous-wrapper">
-            <button 
-              type="button"
-              className="show-previous-btn-modern"
-              onClick={handleShowPreviousMessages}
-              title={userLanguage === 'zh' ? '查看历史消息' : userLanguage === 'id' ? 'Lihat pesan sebelumnya' : 'View previous messages'}
-            >
-              <svg className="show-previous-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="18 15 12 9 6 15"></polyline>
-              </svg>
-              <span>{userLanguage === 'zh' ? '查看更早消息' : userLanguage === 'id' ? 'Lihat Pesan Sebelumnya' : 'View Previous Messages'}</span>
-            </button>
-          </div>
-        )}
-        
-        {foundSources.length > 0 && messages.length > 0 && (
-          <div className="source-strip sources-above-output" onClick={() => setShowFoundSourcesPanel(true)}>
-            <div className="source-strip-header">
-              <div className="source-strip-text">
-                <span>{userLanguage === 'zh' ? '网络参考来源' : userLanguage === 'id' ? 'Sumber internet' : 'Internet sources'}</span>
-                <span className="source-strip-count">{foundSources.length} {userLanguage === 'zh' ? '个来源' : userLanguage === 'id' ? 'sumber' : 'sources'}</span>
-              </div>
-              <div className="source-strip-label">{userLanguage === 'zh' ? '点击查看详情' : userLanguage === 'id' ? 'Klik untuk lihat detail' : 'Tap to view details'}</div>
+          {compactView && messages.length > 1 && !inputValue.trim() && (
+            <div className="show-previous-wrapper">
+              <button
+                type="button"
+                className="show-previous-btn-modern"
+                onClick={handleShowPreviousMessages}
+                title={userLanguage === 'zh' ? '查看历史消息' : userLanguage === 'id' ? 'Lihat pesan sebelumnya' : 'View previous messages'}
+              >
+                <svg className="show-previous-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+                <span>{userLanguage === 'zh' ? '查看更早消息' : userLanguage === 'id' ? 'Lihat Pesan Sebelumnya' : 'View Previous Messages'}</span>
+              </button>
             </div>
-            <div className="source-logo-row small-logos">
-              {foundSources.slice(0, 4).map((source, idx) => {
-                const logo = getSourceLogo(source);
-                return (
-                  <button
-                    key={source.id || idx}
-                    type="button"
-                    className="source-logo-chip"
-                    aria-label={source.source || source.title || `Source ${idx + 1}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowFoundSourcesPanel(true);
-                    }}
-                  >
-                    {logo.type === 'image' ? (
-                      <img src={logo.value} alt={logo.label} />
-                    ) : (
-                      <span>{logo.value}</span>
-                    )}
-                  </button>
-                );
-              })}
-              {foundSources.length > 4 && (
-                <div className="source-logo-more">+{foundSources.length - 4}</div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
 
-        {messages.length === 0 ? renderEmptyHeroState() : memoizedMessageList}
-
-        {loading && (isGenerating || getConvLoading()) && loadingPhase && !messages.some(msg => msg.sender === 'bot' && (msg.isStreaming || msg.isThinking || msg.isRecallingMemory || msg.isSearching)) && (
-          <div className="message bot loading">
-            <div className="message-content">
-              <div className="typing-indicator-row">
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
+          {foundSources.length > 0 && messages.length > 0 && (
+            <div className="source-strip sources-above-output" onClick={() => setShowFoundSourcesPanel(true)}>
+              <div className="source-strip-header">
+                <div className="source-strip-text">
+                  <span>{userLanguage === 'zh' ? '网络参考来源' : userLanguage === 'id' ? 'Sumber internet' : 'Internet sources'}</span>
+                  <span className="source-strip-count">{foundSources.length} {userLanguage === 'zh' ? '个来源' : userLanguage === 'id' ? 'sumber' : 'sources'}</span>
                 </div>
-                <span className="slow-processing-text">
-                  {localModelProgress.isLoading ? (
-                    <span style={{ color: '#ea580c', fontWeight: 600 }}>
-                      ⚡ {localModelProgress.statusText || `Memuat AI Boron 1.1 (${localModelProgress.pct}%)...`}
-                    </span>
-                  ) : (
-                    <>
-                      {loadingPhase === 'sending' && (userLanguage === 'zh' ? '正在发送...' : userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
-                      {loadingPhase === 'thinking' && (userLanguage === 'zh' ? '正在深度思考...' : userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
-                      {loadingPhase === 'slow' && (userLanguage === 'zh' ? '响应时间略长于平时，请稍候...' : userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
-                    </>
-                  )}
-                </span>
+                <div className="source-strip-label">{userLanguage === 'zh' ? '点击查看详情' : userLanguage === 'id' ? 'Klik untuk lihat detail' : 'Tap to view details'}</div>
+              </div>
+              <div className="source-logo-row small-logos">
+                {foundSources.slice(0, 4).map((source, idx) => {
+                  const logo = getSourceLogo(source);
+                  return (
+                    <button
+                      key={source.id || idx}
+                      type="button"
+                      className="source-logo-chip"
+                      aria-label={source.source || source.title || `Source ${idx + 1}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowFoundSourcesPanel(true);
+                      }}
+                    >
+                      {logo.type === 'image' ? (
+                        <img src={logo.value} alt={logo.label} />
+                      ) : (
+                        <span>{logo.value}</span>
+                      )}
+                    </button>
+                  );
+                })}
+                {foundSources.length > 4 && (
+                  <div className="source-logo-more">+{foundSources.length - 4}</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {messages.length === 0 ? renderEmptyHeroState() : memoizedMessageList}
+
+          {loading && (isGenerating || getConvLoading()) && loadingPhase && !messages.some(msg => msg.sender === 'bot' && (msg.isStreaming || msg.isThinking || msg.isRecallingMemory || msg.isSearching)) && (
+            <div className="message bot loading">
+              <div className="message-content">
+                <div className="typing-indicator-row">
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <span className="slow-processing-text">
+                    {localModelProgress.isLoading ? (
+                      <span style={{ color: '#ea580c', fontWeight: 600 }}>
+                        ⚡ {localModelProgress.statusText || `Memuat AI Boron 1.1 (${localModelProgress.pct}%)...`}
+                      </span>
+                    ) : (
+                      <>
+                        {loadingPhase === 'sending' && (userLanguage === 'zh' ? '正在发送...' : userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
+                        {loadingPhase === 'thinking' && (userLanguage === 'zh' ? '正在深度思考...' : userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
+                        {loadingPhase === 'slow' && (userLanguage === 'zh' ? '响应时间略长于平时，请稍候...' : userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modern AI Chat spacer: maintains ample room below prompt & AI response so the user bubble stays anchored at the top without collapsing */}
+          {messages.length > 0 && (
+            <div className="chat-generating-spacer" aria-hidden="true" />
+          )}
+
+          <div ref={messagesEndRef} />
+
+          {isScrolledUp && (
+            <button
+              className={`scroll-to-bottom-btn ${isGenerating ? 'generating' : ''}`}
+              onClick={handleScrollToBottomClick}
+              title="Scroll ke bawah"
+              aria-label="Scroll ke bawah"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ display: 'block' }}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <div className="error-banner">
+            <div className="error-content">
+              <div className="error-message">
+                <p>Sorry, Pesan kamu tidak berhasil dikirim</p>
+              </div>
+              <div className="error-actions">
+                <button
+                  className="retry-button"
+                  onClick={handleRetry}
+                  disabled={loading}
+                >
+                  {userLanguage === 'zh' ? '继续' : userLanguage === 'id' ? 'Lanjutkan' : 'Continue'}
+                </button>
+                <button
+                  className="error-close"
+                  onClick={() => {
+                    if (retryIntervalRef.current) {
+                      clearInterval(retryIntervalRef.current);
+                    }
+                    setError(null);
+                    setLastMessage(null);
+                    partialMessageIdRef.current = null;
+                  }}
+                >
+                  ×
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Modern AI Chat spacer: maintains ample room below prompt & AI response so the user bubble stays anchored at the top without collapsing */}
-        {messages.length > 0 && (
-          <div className="chat-generating-spacer" aria-hidden="true" />
-        )}
+        <ChatComposerBar
+          hasMessages={messages.length > 0}
+          handleSendMessage={handleSendMessage}
+          isTokenUsageLimited={isTokenUsageLimited}
+          userLanguage={userLanguage}
+          countdownFullText={countdownFullText}
+          activeFile={activeFile}
+          onNavigate={onNavigate}
+          onViewActiveFile={openActiveFileViewer}
+          setActiveFile={setActiveFile}
+          showAlert={showAlert}
+          showSlashMenu={showSlashMenu}
+          setShowSlashMenu={setShowSlashMenu}
+          SLASH_COMMANDS={SLASH_COMMANDS}
+          inputValue={inputValue}
+          setInputValue={setInputValue}
+          slashSelectedIndex={slashSelectedIndex}
+          setSlashSelectedIndex={setSlashSelectedIndex}
+          textareaElementRef={textareaElementRef}
+          uploadedFiles={uploadedFiles}
+          uploadedImages={uploadedImages}
+          setUploadedImages={setUploadedImages}
+          attachmentQueueMinimized={attachmentQueueMinimized}
+          setAttachmentQueueMinimized={setAttachmentQueueMinimized}
+          clearAllAttachments={clearAllAttachments}
+          removeUploadedFile={removeUploadedFile}
+          removeUploadedImage={removeUploadedImage}
+          hdUpscalingMap={hdUpscalingMap}
+          setHdUpscalingMap={setHdUpscalingMap}
+          textQueue={textQueue}
+          setTextQueue={setTextQueue}
+          handleTextQueueItemClick={handleTextQueueItemClick}
+          handleRemoveTextItem={handleRemoveTextItem}
+          getConvLoading={getConvLoading}
+          handleImageUpload={handleImageUpload}
+          handleFileUpload={handleFileUpload}
+          scheduleTextareaResize={scheduleTextareaResize}
+          handlePaste={handlePaste}
+          showInputMenu={showInputMenu}
+          setShowInputMenu={setShowInputMenu}
+          showModelMenu={showModelMenu}
+          setShowModelMenu={setShowModelMenu}
+          loading={loading}
+          currentModelObj={currentModelObj}
+          handleOpenCamera={handleOpenCamera}
+          setShowGlobalMemorySettings={setShowGlobalMemorySettings}
+          selectedModel={selectedModel}
+          setSelectedModel={setSelectedModel}
+          isReasoningCapable={isReasoningCapable}
+          isReasoningEnabled={isReasoningEnabled}
+          toggleReasoning={toggleReasoning}
+          isAgenticMode={isAgenticMode}
+          toggleAgenticMode={toggleAgenticMode}
+          isSttListening={isSttListening}
+          toggleSpeechToText={toggleSpeechToText}
+          isAutoVoiceEnabled={isAutoVoiceEnabled}
+          handleToggleAutoVoice={handleToggleAutoVoice}
+          handleStopStreaming={handleStopStreaming}
+        />
 
-        <div ref={messagesEndRef} />
+        <ChatSecondaryModals ctx={modalCtx} />
 
-        {isScrolledUp && (
-          <button
-            className={`scroll-to-bottom-btn ${isGenerating ? 'generating' : ''}`}
-            onClick={handleScrollToBottomClick}
-            title="Scroll ke bawah"
-            aria-label="Scroll ke bawah"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ display: 'block' }}
-            >
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </button>
+        {viewerFile && (
+          <FileViewer
+            mode="modal"
+            file={viewerFile}
+            onClose={() => setViewerFile(null)}
+            userLanguage={userLanguage}
+          />
         )}
       </div>
 
-      {error && (
-        <div className="error-banner">
-          <div className="error-content">
-            <div className="error-message">
-              <p>Sorry, Pesan kamu tidak berhasil dikirim</p>
-            </div>
-            <div className="error-actions">
-              <button
-                className="retry-button"
-                onClick={handleRetry}
-                disabled={loading}
-              >
-                {userLanguage === 'zh' ? '继续' : userLanguage === 'id' ? 'Lanjutkan' : 'Continue'}
-              </button>
-              <button
-                className="error-close"
-                onClick={() => {
-                  if (retryIntervalRef.current) {
-                    clearInterval(retryIntervalRef.current);
-                  }
-                  setError(null);
-                  setLastMessage(null);
-                  partialMessageIdRef.current = null;
-                }}
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ChatComposerBar
-        hasMessages={messages.length > 0}
-        handleSendMessage={handleSendMessage}
-        isTokenUsageLimited={isTokenUsageLimited}
+      <ChatAgenticRightPanel
+        showAgenticPanel={showAgenticPanel}
+        setShowAgenticPanel={setShowAgenticPanel}
+        agenticActiveTab={agenticActiveTab}
+        setAgenticActiveTab={setAgenticActiveTab}
+        agenticSteps={agenticSteps}
+        activeSources={activeSources}
         userLanguage={userLanguage}
-        countdownFullText={countdownFullText}
-        activeFile={activeFile}
-        onNavigate={onNavigate}
-        onViewActiveFile={openActiveFileViewer}
-        setActiveFile={setActiveFile}
-        showAlert={showAlert}
-        showSlashMenu={showSlashMenu}
-        setShowSlashMenu={setShowSlashMenu}
-        SLASH_COMMANDS={SLASH_COMMANDS}
-        inputValue={inputValue}
-        setInputValue={setInputValue}
-        slashSelectedIndex={slashSelectedIndex}
-        setSlashSelectedIndex={setSlashSelectedIndex}
-        textareaElementRef={textareaElementRef}
-        uploadedFiles={uploadedFiles}
-        uploadedImages={uploadedImages}
-        setUploadedImages={setUploadedImages}
-        attachmentQueueMinimized={attachmentQueueMinimized}
-        setAttachmentQueueMinimized={setAttachmentQueueMinimized}
-        clearAllAttachments={clearAllAttachments}
-        removeUploadedFile={removeUploadedFile}
-        removeUploadedImage={removeUploadedImage}
-        hdUpscalingMap={hdUpscalingMap}
-        setHdUpscalingMap={setHdUpscalingMap}
-        textQueue={textQueue}
-        setTextQueue={setTextQueue}
-        handleTextQueueItemClick={handleTextQueueItemClick}
-        handleRemoveTextItem={handleRemoveTextItem}
-        getConvLoading={getConvLoading}
-        handleImageUpload={handleImageUpload}
-        handleFileUpload={handleFileUpload}
-        scheduleTextareaResize={scheduleTextareaResize}
-        handlePaste={handlePaste}
-        showInputMenu={showInputMenu}
-        setShowInputMenu={setShowInputMenu}
-        showModelMenu={showModelMenu}
-        setShowModelMenu={setShowModelMenu}
-        loading={loading}
-        currentModelObj={currentModelObj}
-        handleOpenCamera={handleOpenCamera}
-        setShowGlobalMemorySettings={setShowGlobalMemorySettings}
-        selectedModel={selectedModel}
-        setSelectedModel={setSelectedModel}
-        isReasoningCapable={isReasoningCapable}
-        isReasoningEnabled={isReasoningEnabled}
-        toggleReasoning={toggleReasoning}
-        isAgenticMode={isAgenticMode}
-        toggleAgenticMode={toggleAgenticMode}
-        isSttListening={isSttListening}
-        toggleSpeechToText={toggleSpeechToText}
-        isAutoVoiceEnabled={isAutoVoiceEnabled}
-        handleToggleAutoVoice={handleToggleAutoVoice}
-        handleStopStreaming={handleStopStreaming}
       />
-
-      <ChatSecondaryModals ctx={modalCtx} />
-
-      {viewerFile && (
-        <FileViewer
-          mode="modal"
-          file={viewerFile}
-          onClose={() => setViewerFile(null)}
-          userLanguage={userLanguage}
-        />
-      )}
     </div>
-
-    <ChatAgenticRightPanel
-      showAgenticPanel={showAgenticPanel}
-      setShowAgenticPanel={setShowAgenticPanel}
-      agenticActiveTab={agenticActiveTab}
-      setAgenticActiveTab={setAgenticActiveTab}
-      agenticSteps={agenticSteps}
-      activeSources={activeSources}
-      userLanguage={userLanguage}
-    />
-  </div>
   );
 };
 

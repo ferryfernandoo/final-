@@ -817,18 +817,21 @@ export const getMessageAttachedFiles = (message) => {
  * Delivers responses at an ergonomic, readable cadence (~40-50 chars/sec)
  * with silky-smooth progressive pacing, never rushing like a blur and never popping chunky blocks.
  */
+/**
+ * Match AI Agent's smooth character pacing (calm 1-3 chars per 32ms tick while streaming, up to 4 chars on drain)
+ */
 export const getSmoothTypingStep = (diff, isFinished = false) => {
   if (diff <= 0) return 0;
 
+  let step = 1;
+  if (diff <= 80) step = 1;
+  else if (diff <= 220) step = 2;
+  else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
+
   if (isFinished) {
-    if (diff <= 20) return 4;
-    if (diff <= 60) return 8;
-    return Math.min(diff, Math.max(10, Math.ceil(diff / 3)));
+    step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
   }
 
-  if (diff <= 15) return 4;
-  if (diff <= 45) return 6;
-  if (diff <= 100) return 9;
-  return Math.min(diff, Math.max(12, Math.ceil(diff / 8)));
+  return Math.min(diff, step);
 };
 
