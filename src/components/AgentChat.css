@@ -3711,12 +3711,24 @@
 }
 
 /* Minimalist Action Buttons at Bot Footer */
+@keyframes agentActionsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .agent-minimal-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 10px;
   padding-top: 8px;
+  animation: agentActionsFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .agent-minimal-btn {
@@ -3757,9 +3769,9 @@
   bottom: 120px;
   left: 50%;
   transform: translateX(-50%);
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #cbd5e1;
+  background: #111827;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 7px 16px;
   font-size: 12px;
@@ -3768,17 +3780,17 @@
   align-items: center;
   gap: 7px;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
   z-index: 30;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   animation: fadeIn 0.2s ease-out;
 }
 
 .agent-floating-scroll-bottom:hover {
-  background: #fff7ed;
-  border-color: #ea580c;
-  color: #ea580c;
-  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.2);
+  background: #1f2937;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
   transform: translateX(-50%) translateY(-2px);
 }
 

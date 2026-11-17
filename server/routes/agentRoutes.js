@@ -1754,8 +1754,11 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       const streamParser = createStreamActionParser({
         onText: async (plainText) => {
           if (isAborted) return;
-          // Clean any accidental (do) notation
-          const clean = plainText.replace(/\((?:do|do_search)\)\s*/gi, '');
+          // Strip accidental (do) markers or any raw <action_pill> XML emitted by model
+          const clean = plainText
+            .replace(/\((?:do|do_search)\)\s*/gi, '')
+            .replace(/<action_pill\b[^>]*>[\s\S]*?<\/action_pill>/gi, '')
+            .replace(/<\/?action_pill\b[^>]*>/gi, '');
           if (clean) {
             accumulatedAnswer += clean;
             emitEvent('delta', { content: clean });
@@ -1774,13 +1777,8 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           if (isAborted) return;
           const parsedAction = extractSequentialActions(fullTag)[0];
           if (parsedAction) {
-            // Action executed directly without artificial verbose intro
-
-            const { pillXml, observation } = await executeActionItem(parsedAction, sessionId, addStep, updateLastStep, emitEvent);
-            if (pillXml) {
-              accumulatedAnswer += `\n\n${pillXml}\n\n`;
-              emitEvent('delta', { content: `\n\n${pillXml}\n\n` });
-            }
+            // Structured steps are streamed via step/step_update events cleanly without polluting delta text with raw <action_pill> XML
+            const { observation } = await executeActionItem(parsedAction, sessionId, addStep, updateLastStep, emitEvent);
 
             if (observation) {
               turnObservations.push({ type: parsedAction.type, observation });
@@ -1997,10 +1995,13 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       return;
     }
 
-    // Clean accumulated answer: strip any leftover reasoning tags so visible text is pristine
+    // Clean accumulated answer: strip any leftover reasoning or <action_pill> tags so visible text is pristine
     accumulatedAnswer = accumulatedAnswer
       .replace(/<(?:think|thought|thinking|reasoning)[^>]*>[\s\S]*?<\/(?:think|thought|thinking|reasoning)>/gi, '')
       .replace(/<(?:think|thought|thinking|reasoning)[^>]*>[\s\S]*/gi, '')
+      .replace(/<action_pill\b[^>]*>[\s\S]*?<\/action_pill>/gi, '')
+      .replace(/<\/?action_pill\b[^>]*>/gi, '')
+      .replace(/<action_pill[\s\S]*$/i, '')
       .replace(/\((?:do|do_search)\)\s*/gi, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();

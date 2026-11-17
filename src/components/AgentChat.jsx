@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AgentService from '../services/agentService';
 import { downloadFromUrl, downloadText } from '../services/universalDownloadService';
-import AgentExecutionTree, { extractExecutionStepsAndCleanContent } from './AgentExecutionTree';
+import AgentExecutionTree, { extractExecutionStepsAndCleanContent, stripActionPillTags } from './AgentExecutionTree';
 import { detectLanguageSync, saveLanguage, LANGUAGE_OPTIONS } from '../utils/languageDetector';
 import FileViewer from './FileViewer';
 import './AgentChat.css';
@@ -657,12 +657,13 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
         if (m.id === botMsgId) {
           const durSec = m.startTime ? Math.max(1, Math.round((Date.now() - m.startTime) / 1000)) : null;
           const durFormatted = durSec ? (durSec < 60 ? `${durSec}s` : `${Math.floor(durSec / 60)}m ${durSec % 60}s`) : null;
+          const cleanPayloadContent = stripActionPillTags(payload?.content || targetContent || m.content || '');
           return {
             ...m,
             id: payload?.messageId || m.id,
             isStreaming: false,
             duration: m.duration || durFormatted,
-            content: payload?.content || targetContent || m.content,
+            content: displayedContent || cleanPayloadContent,
             reasoning: payload?.reasoning || targetReasoning || m.reasoning || '',
             activeSkill: payload?.activeSkill || m.activeSkill,
             chainOfWork: payload?.chainOfWork || m.chainOfWork,
@@ -718,39 +719,22 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
         updated = true;
       }
 
-      // 2. Smooth Main Content Stream (Santai, Halus, Tidak Kalap Token)
+      // 2. Smooth Main Content Stream (Santai, Halus, Tanpa Bocor Tag XML)
       if (displayedContent.length < targetContent.length) {
-        const remainingTarget = targetContent.slice(displayedContent.length);
+        const cleanFullTarget = stripActionPillTags(targetContent);
+        if (displayedContent.length < cleanFullTarget.length) {
+          const diff = cleanFullTarget.length - displayedContent.length;
+          let step = 1;
+          if (diff <= 80) step = 1;
+          else if (diff <= 220) step = 2;
+          else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
 
-        // Instant reveal for completed <action_pill> tags to prevent raw broken XML rendering
-        if (remainingTarget.startsWith('<action_pill')) {
-          const closePillIdx = remainingTarget.indexOf('</action_pill>');
-          if (closePillIdx !== -1) {
-            const pillLength = closePillIdx + '</action_pill>'.length;
-            displayedContent += remainingTarget.slice(0, pillLength);
-            updated = true;
+          if (isStreamDone) {
+            step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
           }
-        } else {
-          // Regular text content: santai & smooth character pacing
-          const nextPillIdx = remainingTarget.indexOf('<action_pill');
-          const maxAllowed = nextPillIdx !== -1 ? nextPillIdx : remainingTarget.length;
 
-          if (maxAllowed > 0) {
-            const diff = maxAllowed;
-            // Kecepatan santai terkontrol agar nyaman dibaca dan tidak membanjiri teks
-            let step = 1;
-            if (diff <= 80) step = 1;
-            else if (diff <= 220) step = 2;
-            else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
-
-            if (isStreamDone) {
-              step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
-            }
-
-            step = Math.min(step, maxAllowed);
-            displayedContent += remainingTarget.substr(0, step);
-            updated = true;
-          }
+          displayedContent += cleanFullTarget.substr(displayedContent.length, step);
+          updated = true;
         }
       }
 
@@ -778,7 +762,8 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
       }
 
       // 3. Finalization when upstream stream is done AND visual text has fully caught up
-      if (isStreamDone && displayedContent.length >= targetContent.length && displayedReasoning.length >= targetReasoning.length) {
+      const sanitizedTargetLen = stripActionPillTags(targetContent).length;
+      if (isStreamDone && displayedContent.length >= sanitizedTargetLen && displayedReasoning.length >= targetReasoning.length) {
         finalizeDone(pendingDonePayload);
       }
     };
@@ -800,7 +785,7 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
         language: userLanguage,
         signal: abortController.signal,
         onDelta: (chunk) => {
-          targetContent += chunk;
+          targetContent = stripActionPillTags(targetContent + (chunk || ''));
           startSmoothTimer();
         },
         onReasoning: (chunk) => {
@@ -866,11 +851,15 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
           if (payload.activeSkill) {
             setActiveSkill(payload.activeSkill);
           }
-          if (payload.content) targetContent = payload.content;
+          const cleanDoneContent = stripActionPillTags(payload?.content || '');
+          if (cleanDoneContent && (!targetContent || cleanDoneContent.length > targetContent.length)) {
+            targetContent = cleanDoneContent;
+          }
           if (payload.reasoning) targetReasoning = payload.reasoning;
           startSmoothTimer();
           // If visual text is already fully rendered, finalize immediately
-          if (displayedContent.length >= targetContent.length && displayedReasoning.length >= targetReasoning.length) {
+          const sanitizedTargetLen = stripActionPillTags(targetContent).length;
+          if (displayedContent.length >= sanitizedTargetLen && displayedReasoning.length >= targetReasoning.length) {
             finalizeDone(payload);
           }
         },

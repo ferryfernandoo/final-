@@ -4641,6 +4641,17 @@
 }
 
 /* Message Footer Styles */
+@keyframes actionsFadeUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .message-footer {
   display: flex;
   flex-direction: column;
@@ -4648,6 +4659,7 @@
   margin-top: 6px;
   margin-right: 40px;
   margin-left: 40px;
+  animation: actionsFadeUpIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .message-actions {

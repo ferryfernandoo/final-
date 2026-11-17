@@ -218,6 +218,21 @@ export function extractSearchResults(step) {
   return items;
 }
 
+export function stripActionPillTags(rawText = '') {
+  if (!rawText) return '';
+  return String(rawText)
+    .replace(/<action_pill\b[^>]*>[\s\S]*?<\/action_pill>/gi, '')
+    .replace(/<\/?action_pill\b[^>]*>/gi, '')
+    .replace(/<action_pill[\s\S]*$/i, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function readPillAttr(attrs = '', name = '') {
+  const m = String(attrs || '').match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'));
+  return (m && (m[1] ?? m[2])) || '';
+}
+
 /**
  * Clean & Extract action pills and thoughts into discrete steps,
  * including stripping any <think>/<thought> or partial streaming <action_pill> tags
@@ -279,28 +294,25 @@ export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '',
     });
   }
 
-  // 3. Extract completed <action_pill> tags from streamed content
-  const pillRegex = /<action_pill\s+id="([^"]*)"\s+type="([^"]*)"\s+title="([^"]*)"(?:\s+meta="([^"]*)")?(?:\s+status="([^"]*)")?>([\s\S]*?)<\/action_pill>/gi;
+  // 3. Extract any legacy <action_pill ...>...</action_pill> tags regardless of attribute order
+  const pillRegex = /<action_pill\b([^>]*)>([\s\S]*?)<\/action_pill>/gi;
   let match;
   while ((match = pillRegex.exec(content)) !== null) {
-    const pillId = match[1];
-    if (!steps.some(s => s.id === pillId)) {
+    const attrs = match[1] || '';
+    const pillId = readPillAttr(attrs, 'id');
+    if (pillId && !steps.some(s => s.id === pillId)) {
       steps.push({
         id: pillId,
-        type: match[2],
-        title: match[3],
-        meta: match[4] || '',
-        status: match[5] || 'completed',
-        detail: unescapeXml(match[6])
+        type: readPillAttr(attrs, 'type') || 'command',
+        title: readPillAttr(attrs, 'title') || 'Langkah eksekusi',
+        meta: readPillAttr(attrs, 'meta') || '',
+        status: readPillAttr(attrs, 'status') || 'completed',
+        detail: unescapeXml(match[2] || '')
       });
     }
   }
 
-  // Remove completed action pills and any trailing unclosed <action_pill... during streaming
-  const cleanContent = content
-    .replace(pillRegex, '')
-    .replace(/<action_pill[\s\S]*$/i, '')
-    .trim();
+  const cleanContent = stripActionPillTags(content);
 
   return { cleanContent, steps };
 }

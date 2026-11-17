@@ -13,6 +13,18 @@ import { API_BASE_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
 import { downloadBlob, downloadFromUrl, showDownloadToast } from './universalDownloadService.js';
 import { buildDeliverableBlob } from '../utils/subAgentOfficeBuilder.js';
+import { getSmoothTypingStep } from '../components/chatbot/chatConstants.js';
+import { stripActionPillTags } from '../components/AgentExecutionTree.jsx';
+
+function sanitizeAgenticAnswerText(raw = '') {
+  if (!raw) return '';
+  return stripActionPillTags(raw)
+    .replace(/<(?:think|thought|thinking|reasoning|plan)[^>]*>[\s\S]*?<\/(?:think|thought|thinking|reasoning|plan)>/gi, '')
+    .replace(/<(?:think|thought|thinking|reasoning|plan)[^>]*>[\s\S]*$/i, '')
+    .replace(/<\/?(?:SUBAGENT_PLAN|SUBAGENT_COT|SUBAGENT_FILE|SUBAGENT_SUMMARY)\b[^>]*>/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 export const SUBAGENT_FLAG_REGEX = /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([\s\S]+?)\]/i;
 export const SUBAGENT_XML_REGEX = /<subagent(?:_orchestrate)?>\s*([\s\S]+?)\s*<\/subagent(?:_orchestrate)?>/i;
@@ -938,11 +950,18 @@ export async function executeSynchronousSubAgent({
   let sseBuffer = '';
   let rawOrchestratorText = '';
 
-  // Real Autonomous Sandbox tracking state
+  // Real Autonomous Sandbox + XML Fallback Smooth Sequential Controller
   let sawSandboxEvents = false;
-  let sandboxSteps = [];
+  let visibleSteps = [];
+  let stepQueue = [];
+  let latestFallbackSteps = [];
   let sandboxCotLog = '';
-  let sandboxAnswer = '';
+  let sandboxPlanText = '';
+  let sandboxPlannedFiles = [];
+  let rawSandboxAnswer = '';
+  let targetAnswer = '';
+  let displayedAnswer = '';
+  let upstreamDone = false;
   let sandboxFiles = [];
   let sandboxActiveSkill = null;
   let sandboxZipUrl = null;
@@ -951,13 +970,15 @@ export async function executeSynchronousSubAgent({
   let sandboxCurrentStage = 1;
   let sandboxDoneData = null;
 
-  const emitSandboxSnapshot = (isCompleted = false) => {
-    const mappedSteps = sandboxSteps.length > 0
-      ? sandboxSteps.map((st, idx) => ({
-        ...mapSandboxStepToThoughtStep(st, idx),
-        ...(isCompleted ? { status: st.status === 'failed' ? 'error' : 'done' } : {})
-      }))
-      : initialSnapshot.thoughtSteps;
+  const pushSnapshot = (isCompleted = false) => {
+    const activeSteps = sawSandboxEvents
+      ? (visibleSteps.length > 0
+        ? visibleSteps.map((st, idx) => ({
+          ...mapSandboxStepToThoughtStep(st, idx),
+          ...(isCompleted ? { status: st.status === 'failed' ? 'error' : 'done' } : {})
+        }))
+        : initialSnapshot.thoughtSteps)
+      : (latestFallbackSteps.length > 0 ? latestFallbackSteps : initialSnapshot.thoughtSteps);
 
     onUpdate({
       status: isCompleted ? 'completed' : 'running',
@@ -965,18 +986,87 @@ export async function executeSynchronousSubAgent({
       sandboxSessionId,
       currentStage: isCompleted ? 3 : sandboxCurrentStage,
       elapsedSec: getElapsedSec(),
-      planText: sandboxSteps.map((s) => `- [${SANDBOX_STEP_BADGE_MAP[s.type] || 'STEP'}] ${s.title}`).join('\n'),
-      plannedFiles: sandboxFiles.map((f) => f.name),
+      planText: sawSandboxEvents
+        ? visibleSteps.map((s) => `- [${SANDBOX_STEP_BADGE_MAP[s.type] || 'STEP'}] ${s.title}`).join('\n')
+        : sandboxPlanText,
+      plannedFiles: sawSandboxEvents ? sandboxFiles.map((f) => f.name) : sandboxPlannedFiles,
       activeSkill: sandboxActiveSkill,
       cotText: sandboxCotLog || initialSnapshot.cotText,
-      thoughtSteps: mappedSteps,
+      thoughtSteps: activeSteps,
       files: sandboxFiles,
       activeWritingFile: isCompleted ? null : (sandboxFiles.length > 0 ? sandboxFiles[sandboxFiles.length - 1].name : null),
       zipDownloadUrl: sandboxZipUrl,
       screenshotUrl: sandboxScreenshotUrl,
       previewUrl: sandboxPreviewUrl,
-      finalAnswer: sandboxAnswer
+      finalAnswer: displayedAnswer
     });
+  };
+
+  let stepDrainTimer = null;
+  let answerTypingTimer = null;
+  let lastStepEmitTs = 0;
+
+  const stopPacingTimers = () => {
+    if (stepDrainTimer) {
+      clearInterval(stepDrainTimer);
+      stepDrainTimer = null;
+    }
+    if (answerTypingTimer) {
+      clearInterval(answerTypingTimer);
+      answerTypingTimer = null;
+    }
+  };
+
+  const emitNextQueuedStep = () => {
+    if (stepQueue.length === 0) return false;
+    const nextStep = stepQueue.shift();
+    if (!nextStep) return false;
+    lastStepEmitTs = Date.now();
+    visibleSteps = [...visibleSteps, nextStep];
+    const badge = SANDBOX_STEP_BADGE_MAP[nextStep.type] || 'STEP';
+    sandboxCotLog += `[${badge}] ${nextStep.title}${nextStep.detail ? ` — ${nextStep.detail}` : ''}\n`;
+    pushSnapshot(false);
+    return true;
+  };
+
+  const enqueueSandboxStep = (stepEv) => {
+    stepQueue.push(stepEv);
+    if (!stepDrainTimer) {
+      if (Date.now() - lastStepEmitTs >= 85) {
+        emitNextQueuedStep();
+      }
+      stepDrainTimer = setInterval(() => {
+        if (abortSignal?.aborted || stepQueue.length === 0) {
+          clearInterval(stepDrainTimer);
+          stepDrainTimer = null;
+          return;
+        }
+        emitNextQueuedStep();
+      }, 85);
+    }
+  };
+
+  const ensureAnswerTypingTimer = () => {
+    if (answerTypingTimer) return;
+    answerTypingTimer = setInterval(() => {
+      if (abortSignal?.aborted) {
+        stopPacingTimers();
+        return;
+      }
+      // Wait for queued steps to check off sequentially first so UI progresses runtut -> files -> answer
+      if (stepQueue.length > 0) {
+        return;
+      }
+      if (displayedAnswer.length < targetAnswer.length) {
+        const diff = targetAnswer.length - displayedAnswer.length;
+        const step = getSmoothTypingStep(diff, upstreamDone);
+        displayedAnswer += targetAnswer.substr(displayedAnswer.length, step);
+        pushSnapshot(false);
+      } else if (upstreamDone) {
+        clearInterval(answerTypingTimer);
+        answerTypingTimer = null;
+      }
+    }, 32);
   };
 
   try {
@@ -993,7 +1083,7 @@ export async function executeSynchronousSubAgent({
       sseBuffer = lines.pop() || '';
 
       let hasNewToken = false;
-      let hasSandboxUpdate = false;
+      let hasSandboxMetaUpdate = false;
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -1005,35 +1095,48 @@ export async function executeSynchronousSubAgent({
           const parsed = JSON.parse(dataStr);
           if (parsed.subagent_event && parsed.subagent_event.type) {
             sawSandboxEvents = true;
-            hasSandboxUpdate = true;
             const { type: evType, data: evData } = parsed.subagent_event;
 
             if (evType === 'skill_active' && evData) {
               sandboxActiveSkill = evData;
+              hasSandboxMetaUpdate = true;
             } else if (evType === 'step' && evData) {
-              sandboxSteps = [...sandboxSteps, evData];
-              const badge = SANDBOX_STEP_BADGE_MAP[evData.type] || 'STEP';
-              sandboxCotLog += `[${badge}] ${evData.title}${evData.detail ? ` — ${evData.detail}` : ''}\n`;
               if (['write_file', 'patch_file', 'command', 'unzip_file', 'healing'].includes(evData.type)) {
                 sandboxCurrentStage = Math.max(sandboxCurrentStage, 2);
               } else if (['test_file', 'finish', 'screenshot', 'zip_project'].includes(evData.type)) {
                 sandboxCurrentStage = 3;
               }
+              enqueueSandboxStep(evData);
             } else if (evType === 'step_update' && evData) {
-              const idx = sandboxSteps.findIndex((s) => s.id === evData.id);
-              if (idx >= 0) {
-                sandboxSteps = sandboxSteps.map((s, i) => (i === idx ? { ...s, ...evData } : s));
-              } else if (sandboxSteps.length > 0) {
-                sandboxSteps = sandboxSteps.map((s, i) => (i === sandboxSteps.length - 1 ? { ...s, ...evData } : s));
+              const inQueueIdx = stepQueue.findIndex((s) => s.id === evData.id);
+              if (inQueueIdx >= 0) {
+                stepQueue = stepQueue.map((s, i) => (i === inQueueIdx ? { ...s, ...evData } : s));
+              } else {
+                const idx = visibleSteps.findIndex((s) => s.id === evData.id);
+                if (idx >= 0) {
+                  visibleSteps = visibleSteps.map((s, i) => (i === idx ? { ...s, ...evData } : s));
+                } else if (visibleSteps.length > 0) {
+                  visibleSteps = visibleSteps.map((s, i) => (i === visibleSteps.length - 1 ? { ...s, ...evData } : s));
+                }
+                hasSandboxMetaUpdate = true;
               }
             } else if (evType === 'reasoning' && evData) {
               const chunkTxt = evData.text || evData.content || '';
-              if (chunkTxt) sandboxCotLog += chunkTxt;
+              if (chunkTxt) {
+                sandboxCotLog += chunkTxt;
+                hasSandboxMetaUpdate = true;
+              }
             } else if (evType === 'delta' && evData) {
-              sandboxAnswer += evData.content || '';
+              rawSandboxAnswer += evData.content || '';
+              const cleaned = sanitizeAgenticAnswerText(rawSandboxAnswer);
+              if (cleaned.length > targetAnswer.length) {
+                targetAnswer = cleaned;
+                ensureAnswerTypingTimer();
+              }
             } else if (evType === 'files_update' && Array.isArray(evData?.files)) {
               sandboxFiles = evData.files.map((f, idx) => mapSandboxDeliverableFile(f, idx));
               sandboxCurrentStage = Math.max(sandboxCurrentStage, 2);
+              hasSandboxMetaUpdate = true;
             } else if (evType === 'done' && evData) {
               sandboxDoneData = evData;
               if (Array.isArray(evData.files)) {
@@ -1042,10 +1145,16 @@ export async function executeSynchronousSubAgent({
               if (evData.zipDownloadUrl) sandboxZipUrl = resolveAgentEndpointUrl(evData.zipDownloadUrl);
               if (evData.screenshotUrl) sandboxScreenshotUrl = resolveAgentEndpointUrl(evData.screenshotUrl);
               if (evData.previewUrl) sandboxPreviewUrl = resolveAgentEndpointUrl(evData.previewUrl);
-              if (evData.content && !sandboxAnswer.trim()) sandboxAnswer = evData.content;
+              const cleanedDone = sanitizeAgenticAnswerText(evData.content || '');
+              if (cleanedDone && (!targetAnswer || cleanedDone.length >= targetAnswer.length)) {
+                targetAnswer = cleanedDone;
+                ensureAnswerTypingTimer();
+              }
               sandboxCurrentStage = 3;
+              hasSandboxMetaUpdate = true;
             } else if (evType === 'error' && evData?.error) {
               sandboxCotLog += `[ERROR] ${evData.error}\n`;
+              hasSandboxMetaUpdate = true;
             }
             continue;
           }
@@ -1064,47 +1173,85 @@ export async function executeSynchronousSubAgent({
         }
       }
 
-      if (sawSandboxEvents && hasSandboxUpdate) {
-        emitSandboxSnapshot(false);
+      if (sawSandboxEvents && hasSandboxMetaUpdate) {
+        pushSnapshot(false);
       } else if (!sawSandboxEvents && hasNewToken) {
         const liveState = parseSynchronousOrchestratorBuffer(rawOrchestratorText, taskDescription);
-        onUpdate({
-          status: 'running',
-          taskDescription,
-          sandboxSessionId,
-          currentStage: liveState.currentStage,
-          elapsedSec: getElapsedSec(),
-          planText: liveState.planText,
-          plannedFiles: liveState.plannedFiles,
-          cotText: liveState.cotText || initialSnapshot.cotText,
-          thoughtSteps: liveState.thoughtSteps.length > 0 ? liveState.thoughtSteps : initialSnapshot.thoughtSteps,
-          files: liveState.files,
-          activeWritingFile: liveState.activeWritingFile,
-          finalAnswer: liveState.finalAnswer
-        });
+        sandboxCurrentStage = liveState.currentStage;
+        sandboxPlanText = liveState.planText;
+        sandboxPlannedFiles = liveState.plannedFiles;
+        sandboxCotLog = liveState.cotText || initialSnapshot.cotText;
+        latestFallbackSteps = liveState.thoughtSteps.length > 0 ? liveState.thoughtSteps : initialSnapshot.thoughtSteps;
+        sandboxFiles = liveState.files;
+        const cleanedFallbackAnswer = sanitizeAgenticAnswerText(liveState.finalAnswer || '');
+        if (cleanedFallbackAnswer.length > targetAnswer.length) {
+          targetAnswer = cleanedFallbackAnswer;
+          ensureAnswerTypingTimer();
+        }
+        pushSnapshot(false);
       }
     }
+
+    upstreamDone = true;
+
+    if (sawSandboxEvents) {
+      const resolvedFinal = sanitizeAgenticAnswerText(sandboxDoneData?.content || '') || targetAnswer ||
+        (sandboxFiles.length > 0
+          ? `### Ringkasan Eksekusi Agentic\n\nTugas selesai dijalankan di sandbox dengan **${sandboxFiles.length} berkas** siap dipratinjau atau diunduh.`
+          : 'Tugas berhasil dieksekusi di sandbox Agentic.');
+      if (resolvedFinal.length > targetAnswer.length || !targetAnswer) {
+        targetAnswer = resolvedFinal;
+      }
+    } else {
+      const parsedFinal = parseSynchronousOrchestratorBuffer(rawOrchestratorText, taskDescription);
+      const verifiedState = finalizeDeliverablesFromRawText(rawOrchestratorText, parsedFinal, taskDescription);
+      sandboxPlanText = verifiedState.planText;
+      sandboxPlannedFiles = verifiedState.plannedFiles;
+      sandboxCotLog = verifiedState.cotText;
+      latestFallbackSteps = verifiedState.thoughtSteps;
+      sandboxFiles = verifiedState.files;
+      const cleanedFallbackFinal = sanitizeAgenticAnswerText(verifiedState.finalAnswer || '');
+      if (cleanedFallbackFinal.length > targetAnswer.length || !targetAnswer) {
+        targetAnswer = cleanedFallbackFinal;
+      }
+    }
+
+    // Drain any queued steps sequentially first, then let 32ms smooth typing finish completely
+    if (targetAnswer.length > displayedAnswer.length) {
+      ensureAnswerTypingTimer();
+    }
+    let drainWaitTicks = 0;
+    while ((stepQueue.length > 0 || displayedAnswer.length < targetAnswer.length) && drainWaitTicks < 900) {
+      if (abortSignal?.aborted) break;
+      if (stepQueue.length > 0 && !stepDrainTimer) {
+        enqueueSandboxStep(stepQueue.shift());
+      }
+      if (displayedAnswer.length < targetAnswer.length && !answerTypingTimer) {
+        ensureAnswerTypingTimer();
+      }
+      drainWaitTicks++;
+      await new Promise((r) => setTimeout(r, 32));
+    }
+
+    displayedAnswer = targetAnswer;
   } finally {
+    stopPacingTimers();
     try { reader.releaseLock(); } catch (_e) { }
   }
 
   if (sawSandboxEvents) {
-    const finalAnswer = (sandboxDoneData?.content || sandboxAnswer || '').trim() ||
-      (sandboxFiles.length > 0
-        ? `### Ringkasan Eksekusi Agentic\n\nTugas selesai dijalankan di sandbox dengan **${sandboxFiles.length} berkas** siap dipratinjau atau diunduh.`
-        : 'Tugas berhasil dieksekusi di sandbox Agentic.');
-    sandboxAnswer = finalAnswer;
+    const finalAnswer = targetAnswer || displayedAnswer;
     const completedSandboxSnapshot = {
       status: 'completed',
       taskDescription,
       sandboxSessionId,
       currentStage: 3,
       elapsedSec: getElapsedSec(),
-      planText: sandboxSteps.map((s) => `- [${SANDBOX_STEP_BADGE_MAP[s.type] || 'STEP'}] ${s.title}`).join('\n'),
+      planText: visibleSteps.map((s) => `- [${SANDBOX_STEP_BADGE_MAP[s.type] || 'STEP'}] ${s.title}`).join('\n'),
       plannedFiles: sandboxFiles.map((f) => f.name),
       activeSkill: sandboxActiveSkill,
       cotText: sandboxCotLog || initialSnapshot.cotText,
-      thoughtSteps: (sandboxSteps.length > 0 ? sandboxSteps : []).map((s, idx) => ({
+      thoughtSteps: (visibleSteps.length > 0 ? visibleSteps : []).map((s, idx) => ({
         ...mapSandboxStepToThoughtStep(s, idx),
         status: s.status === 'failed' ? 'error' : 'done'
       })),
@@ -1119,22 +1266,19 @@ export async function executeSynchronousSubAgent({
     return completedSandboxSnapshot;
   }
 
-  const parsedFinal = parseSynchronousOrchestratorBuffer(rawOrchestratorText, taskDescription);
-  const verifiedState = finalizeDeliverablesFromRawText(rawOrchestratorText, parsedFinal, taskDescription);
-
   const completedSnapshot = {
     status: 'completed',
     taskDescription,
     sandboxSessionId,
     currentStage: 3,
     elapsedSec: getElapsedSec(),
-    planText: verifiedState.planText,
-    plannedFiles: verifiedState.plannedFiles,
-    cotText: verifiedState.cotText,
-    thoughtSteps: verifiedState.thoughtSteps,
-    files: verifiedState.files,
+    planText: sandboxPlanText,
+    plannedFiles: sandboxPlannedFiles,
+    cotText: sandboxCotLog,
+    thoughtSteps: latestFallbackSteps,
+    files: sandboxFiles,
     activeWritingFile: null,
-    finalAnswer: verifiedState.finalAnswer
+    finalAnswer: targetAnswer || displayedAnswer
   };
 
   onUpdate(completedSnapshot);

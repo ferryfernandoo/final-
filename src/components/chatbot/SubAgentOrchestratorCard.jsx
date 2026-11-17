@@ -281,6 +281,26 @@ export const SubAgentOrchestratorCard = React.memo(({
         )}
       </div>
 
+      {/* Live Runtut Sequential Steps Preview While Running (unless full drawer is already open) */}
+      {isRunning && !isTreeExpanded && thoughtSteps.length > 0 && (
+        <div className="subagent-live-runner" aria-live="polite">
+          {thoughtSteps.slice(-3).map((step, idx, arr) => {
+            const stepId = step.id || `live_${idx}`;
+            const isLast = idx === arr.length - 1;
+            const stepDone = step.status === 'done' || !isLast;
+            return (
+              <div key={stepId} className={`subagent-live-step-row${stepDone ? ' is-done' : ' is-active'}`}>
+                <span className={`subagent-step-icon${stepDone ? ' done' : ' running'}`}>
+                  {stepDone ? <i className="fa-solid fa-check" /> : <span className="subagent-mini-dot" />}
+                </span>
+                <span className="subagent-live-step-title">{step.title}</span>
+                {step.badge && <span className="subagent-step-badge">{step.badge}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Expanded Minimal Execution Tree Drawer */}
       {isTreeExpanded && (
         <div className="subagent-tree-drawer">
