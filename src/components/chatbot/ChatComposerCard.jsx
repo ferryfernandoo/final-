@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DEEPERNOVA_MODELS } from './chatConstants';
 
-const noop = () => {};
+const noop = () => { };
 
 const ChatComposerCard = ({
   extraClassName = '',
@@ -100,14 +100,14 @@ const ChatComposerCard = ({
 
   // Keep textarea height collapsed cleanly when idle and auto-sized when expanded
   useEffect(() => {
-    const el = textareaElementRef?.current;
+    const el = cardRef.current?.querySelector('textarea');
     if (!el) return;
     if (!isExpanded) {
       el.style.height = '';
     } else if (inputValue) {
       scheduleTextareaResize(el);
     }
-  }, [isExpanded, inputValue, textareaElementRef, scheduleTextareaResize]);
+  }, [isExpanded, inputValue, scheduleTextareaResize]);
 
   // Collapse cleanly and dismiss popups when tapping anywhere outside the composer card
   useEffect(() => {
@@ -172,15 +172,21 @@ const ChatComposerCard = ({
 
   const placeholderText = isTokenLimited
     ? (userLanguage === 'zh'
-        ? '🔒 额度已用完（等待重置）...'
-        : userLanguage === 'id'
-          ? '🔒 Token habis (tunggu reset)...'
-          : '🔒 Token limit reached...')
+      ? '🔒 额度已用完（等待重置）...'
+      : userLanguage === 'id'
+        ? '🔒 Token habis (tunggu reset)...'
+        : '🔒 Token limit reached...')
     : (userLanguage === 'zh'
-        ? '询问 DeeperNova AI...'
-        : userLanguage === 'id'
-          ? 'Tanyakan apa saja...'
-          : 'Ask anything...');
+      ? '询问 DeeperNova AI...'
+      : userLanguage === 'id'
+        ? 'Tanyakan apa saja...'
+        : 'Ask anything...');
+
+  const setTextareaRefs = useCallback((el) => {
+    if (textareaElementRef) textareaElementRef.current = el;
+    if (syncHeroRef) globalThis.heroTextareaRef = el;
+    globalThis.textareaRef = el;
+  }, [textareaElementRef, syncHeroRef]);
 
   return (
     <div
@@ -246,11 +252,7 @@ const ChatComposerCard = ({
 
       <div className="textarea-wrapper">
         <textarea
-          ref={(el) => {
-            if (textareaElementRef) textareaElementRef.current = el;
-            if (syncHeroRef) globalThis.heroTextareaRef = el;
-            globalThis.textareaRef = el;
-          }}
+          ref={setTextareaRefs}
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);

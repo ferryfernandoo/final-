@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { registerBackHandler } from '../services/mobileNavigationService';
@@ -96,6 +97,13 @@ async function parsePptxSlides(bytes) {
       if (runs) paragraphs.push(runs);
     }
 
+    if (paragraphs.length === 0) {
+      const looseText = Array.from(xmlDoc.getElementsByTagNameNS('*', 't'))
+        .map((t) => (t.textContent || '').trim())
+        .filter(Boolean);
+      paragraphs.push(...looseText);
+    }
+
     let notes = '';
     const relPath = `ppt/slides/_rels/slide${entry.num}.xml.rels`;
     if (zip.files[relPath]) {
@@ -119,6 +127,58 @@ async function parsePptxSlides(bytes) {
   return slides;
 }
 
+async function parseDocxXmlFallback(bytes) {
+  const JSZip = (await import('jszip')).default;
+  const zip = await JSZip.loadAsync(bytes);
+  const docEntry = zip.file('word/document.xml');
+  if (!docEntry) return '';
+  const xmlStr = await docEntry.async('string');
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
+  const paras = Array.from(xmlDoc.getElementsByTagNameNS('*', 'p'))
+    .map((p) => Array.from(p.getElementsByTagNameNS('*', 't')).map((t) => t.textContent || '').join('').trim())
+    .filter(Boolean);
+  if (!paras.length) return '';
+  return paras
+    .map((line, i) => {
+      const safe = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return i === 0 ? `<h1>${safe}</h1>` : `<p>${safe}</p>`;
+    })
+    .join('');
+}
+
+function parseTabularFallback(text = '') {
+  const lines = String(text || '').split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (!lines.length) return [];
+  const rows = [];
+  for (const line of lines) {
+    const t = line.trim();
+    if (/^\|?[\s:|-]+\|?$/.test(t) && t.includes('-')) continue;
+    if (t.startsWith('|') && t.includes('|')) {
+      rows.push(t.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
+    } else if (t.includes('\t')) {
+      rows.push(t.split('\t').map((c) => c.trim()));
+    } else {
+      rows.push(t.split(',').map((c) => c.trim().replace(/^"|"$/g, '')));
+    }
+  }
+  return rows.length ? [{ name: 'Sheet1', rows: rows.slice(0, MAX_SHEET_PREVIEW_ROWS), truncated: rows.length > MAX_SHEET_PREVIEW_ROWS, totalRows: rows.length }] : [];
+}
+
+function extractReadableBinaryStrings(bytes) {
+  try {
+    const ascii = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    const lines = ascii
+      .replace(/[^\x20-\x7E\r\n]/g, '\n')
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 6 && /[a-zA-Z]{3}/.test(s));
+    return Array.from(new Set(lines)).slice(0, 80);
+  } catch {
+    return [];
+  }
+}
+
 function getFileMetaIcon(ext) {
   if (ext === 'docx' || ext === 'doc') return { icon: 'fa-solid fa-file-word', color: '#2b579a', label: 'Word' };
   if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') return { icon: 'fa-solid fa-file-excel', color: '#107c41', label: 'Spreadsheet' };
@@ -140,6 +200,107 @@ function formatBytes(size) {
   return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function PdfCanvasViewer({ bytes, blobUrl, fileName, isEn, zoom }) {
+  const [pageImages, setPageImages] = useState([]);
+  const [pdfError, setPdfError] = useState(false);
+  const [numPages, setNumPages] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPageImages([]);
+    setPdfError(false);
+    setNumPages(0);
+
+    const renderPdf = async () => {
+      if (!bytes || bytes.length < 4) {
+        setPdfError(true);
+        return;
+      }
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+        try {
+          const workerMod = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+          if (pdfjsLib?.GlobalWorkerOptions && workerMod?.default) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default;
+          }
+        } catch {
+          if (pdfjsLib?.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '5.6.205'}/pdf.worker.min.mjs`;
+          }
+        }
+        const task = pdfjsLib.getDocument({ data: bytes.slice() });
+        const pdf = await task.promise;
+        if (cancelled) return;
+        setNumPages(pdf.numPages);
+        const maxRenderPages = Math.min(pdf.numPages, 25);
+        const rendered = [];
+        for (let p = 1; p <= maxRenderPages; p++) {
+          if (cancelled) return;
+          const page = await pdf.getPage(p);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(viewport.width);
+          canvas.height = Math.round(viewport.height);
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          rendered.push({ pageNum: p, dataUrl: canvas.toDataURL('image/png') });
+        }
+        if (!cancelled) setPageImages(rendered);
+      } catch (_err) {
+        if (!cancelled) setPdfError(true);
+      }
+    };
+
+    renderPdf();
+    return () => {
+      cancelled = true;
+    };
+  }, [bytes]);
+
+  if (!pdfError && pageImages.length > 0) {
+    return (
+      <div className="fv-pdf-pages-stage">
+        {pageImages.map((pg) => (
+          <div
+            key={pg.pageNum}
+            className="fv-pdf-page-card"
+            style={{ width: `${Math.round(Math.min(920, 740 * zoom))}px` }}
+          >
+            <img
+              src={pg.dataUrl}
+              alt={`${fileName} - Page ${pg.pageNum}`}
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
+            <div className="fv-pdf-page-label">
+              {isEn ? `Page ${pg.pageNum} / ${numPages}` : `Halaman ${pg.pageNum} / ${numPages}`}
+            </div>
+          </div>
+        ))}
+        {numPages > pageImages.length && (
+          <div className="fv-banner-warn" style={{ borderRadius: 8 }}>
+            {isEn
+              ? `Showing first ${pageImages.length} of ${numPages} pages. Download for full PDF.`
+              : `Menampilkan ${pageImages.length} halaman pertama dari ${numPages} halaman. Unduh untuk melihat semua halaman.`}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (blobUrl && pdfError) {
+    return <iframe className="fv-iframe-full" src={blobUrl} title={fileName} />;
+  }
+
+  return (
+    <div className="fv-state-box">
+      <div className="fv-spinner" />
+      <div style={{ fontWeight: 700, fontSize: 15 }}>
+        {isEn ? 'Rendering PDF...' : 'Memuat halaman PDF...'}
+      </div>
+    </div>
+  );
+}
+
 export default function FileViewer({
   file: initialFile = null,
   mode = 'page',
@@ -158,7 +319,7 @@ export default function FileViewer({
   const ext = useMemo(() => getExt(fileName, activeFile?.ext), [fileName, activeFile?.ext]);
   const iconMeta = useMemo(() => getFileMetaIcon(ext), [ext]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(initialFile));
   const [errorMsg, setErrorMsg] = useState(null);
 
   // Parsed state
@@ -220,78 +381,217 @@ export default function FileViewer({
     resetParsedState();
     setBlobUrl(null);
 
-    if (!activeFile) return undefined;
+    if (!activeFile) {
+      setLoading(false);
+      return undefined;
+    }
 
+    setLoading(true);
     const loadAndParse = async () => {
-      setLoading(true);
       try {
         let bytes = null;
-        let plainText = typeof activeFile.content === 'string' ? activeFile.content : null;
+        let plainText = typeof activeFile.content === 'string'
+          ? activeFile.content
+          : (activeFile.content && typeof activeFile.content === 'object' ? JSON.stringify(activeFile.content, null, 2) : null);
+
+        const rawBlob = activeFile.blob instanceof Blob
+          ? activeFile.blob
+          : (activeFile.blob?.blob instanceof Blob ? activeFile.blob.blob : null);
 
         if (activeFile.arrayBuffer instanceof ArrayBuffer) {
           bytes = new Uint8Array(activeFile.arrayBuffer);
         } else if (activeFile.arrayBuffer instanceof Uint8Array) {
           bytes = activeFile.arrayBuffer;
-        } else if (activeFile.blob instanceof Blob) {
-          bytes = new Uint8Array(await activeFile.blob.arrayBuffer());
+        } else if (rawBlob) {
+          bytes = new Uint8Array(await rawBlob.arrayBuffer());
         } else if (typeof activeFile.dataUrl === 'string' && activeFile.dataUrl.startsWith('data:')) {
           bytes = decodeBase64ToBytes(activeFile.dataUrl);
         } else if (activeFile.url) {
           const res = await fetch(activeFile.url, { credentials: 'include' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          bytes = new Uint8Array(await res.arrayBuffer());
-        } else if (activeFile.content && (ext === 'docx' || ext === 'xlsx' || ext === 'xls' || ext === 'pptx')) {
+          if (!res.ok) {
+            if (!plainText) throw new Error(`HTTP ${res.status}`);
+          } else {
+            bytes = new Uint8Array(await res.arrayBuffer());
+          }
+        }
+
+        if ((!bytes || bytes.length === 0) && activeFile.content && ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(ext)) {
           const { buildDeliverableBlob } = await import('../utils/subAgentOfficeBuilder');
           const built = await buildDeliverableBlob({ name: fileName, content: activeFile.content });
-          bytes = new Uint8Array(await built.arrayBuffer());
-        } else if (plainText !== null) {
+          const resolvedBlob = built?.blob instanceof Blob ? built.blob : (built instanceof Blob ? built : null);
+          if (resolvedBlob) {
+            bytes = new Uint8Array(await resolvedBlob.arrayBuffer());
+          }
+        } else if ((!bytes || bytes.length === 0) && plainText !== null) {
           bytes = new TextEncoder().encode(plainText);
         }
 
         if (cancelled) return;
         if (bytes) setResolvedBytes(bytes);
 
+        const isZipSignature = Boolean(bytes && bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b);
+        const isOleBinary = Boolean(bytes && bytes.length >= 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0);
+
         // Parse by file type
         if (ext === 'docx' || ext === 'doc') {
-          if (!bytes || bytes.length < 4) {
+          if (!bytes || bytes.length < 2) {
             throw new Error(isEn ? 'Empty Word document data.' : 'Data berkas Word kosong.');
           }
-          const isZipSignature = bytes[0] === 0x50 && bytes[1] === 0x4b;
-          if (!isZipSignature && ext === 'doc') {
-            setTextBody(plainText || new TextDecoder('utf-8', { fatal: false }).decode(bytes).replace(/[^\x20-\x7E\n\r\t\u00A0-\u024F]/g, ' ').trim());
+          if (isZipSignature) {
+            let clean = '';
+            try {
+              const mammoth = await import('mammoth');
+              const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+              const result = await mammoth.convertToHtml({ arrayBuffer: ab });
+              clean = sanitizeDocxHtml(result.value || '');
+            } catch {
+              clean = '';
+            }
+            if (!clean) {
+              try {
+                clean = await parseDocxXmlFallback(bytes);
+              } catch {
+                clean = '';
+              }
+            }
+            if (cancelled) return;
+            setDocxHtml(clean || `<p>${isEn ? '(Document contains no displayable text)' : '(Dokumen Word berhasil dimuat — silakan unduh untuk melihat seluruh elemen)'}</p>`);
             return;
           }
-          const mammoth = await import('mammoth');
-          const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-          const result = await mammoth.convertToHtml({ arrayBuffer: ab });
+
+          if (isOleBinary) {
+            const lines = extractReadableBinaryStrings(bytes);
+            if (cancelled) return;
+            setDocxHtml(
+              lines.length > 0
+                ? lines.map((l) => `<p>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`).join('')
+                : `<p>${isEn ? 'Legacy binary .doc file. Click Download to open in Word.' : 'Berkas Word biner lama (.doc). Klik Unduh untuk membuka dokumen.'}</p>`
+            );
+            return;
+          }
+
+          const decoded = plainText ?? new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+          if (/<(?:html|body|p|h[1-6]|div|table)\b/i.test(decoded)) {
+            setDocxHtml(sanitizeDocxHtml(decoded));
+            return;
+          }
+          try {
+            const { buildDeliverableBlob } = await import('../utils/subAgentOfficeBuilder');
+            const built = await buildDeliverableBlob({ name: 'preview.docx', content: decoded });
+            const resolvedBlob = built?.blob instanceof Blob ? built.blob : (built instanceof Blob ? built : null);
+            if (resolvedBlob) {
+              const ab = await resolvedBlob.arrayBuffer();
+              const mammoth = await import('mammoth');
+              const res = await mammoth.convertToHtml({ arrayBuffer: ab });
+              if (cancelled) return;
+              setResolvedBytes(new Uint8Array(ab));
+              setDocxHtml(sanitizeDocxHtml(res.value || ''));
+              return;
+            }
+          } catch {}
           if (cancelled) return;
-          const clean = sanitizeDocxHtml(result.value || '');
-          setDocxHtml(clean || `<p>${isEn ? '(Document contains no displayable text)' : '(Dokumen tidak memiliki teks untuk ditampilkan)'}</p>`);
+          setTextBody(decoded);
           return;
         }
 
         if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
-          const XLSX = await import('xlsx');
-          const wb = ext === 'csv' && plainText !== null
-            ? XLSX.read(plainText, { type: 'string' })
-            : XLSX.read(bytes, { type: 'array' });
-          const parsedSheets = wb.SheetNames.map((sheetName) => {
-            const ws = wb.Sheets[sheetName];
-            const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-            const truncated = rawRows.length > MAX_SHEET_PREVIEW_ROWS;
-            const rows = truncated ? rawRows.slice(0, MAX_SHEET_PREVIEW_ROWS) : rawRows;
-            return { name: sheetName, rows, truncated, totalRows: rawRows.length };
-          });
+          let parsedSheets = [];
+          try {
+            const XLSX = await import('xlsx');
+            const wb = ext === 'csv' && plainText !== null
+              ? XLSX.read(plainText, { type: 'string' })
+              : XLSX.read(bytes, { type: 'array' });
+            parsedSheets = (wb.SheetNames || []).map((sheetName) => {
+              const ws = wb.Sheets[sheetName];
+              const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+              const truncated = rawRows.length > MAX_SHEET_PREVIEW_ROWS;
+              const rows = truncated ? rawRows.slice(0, MAX_SHEET_PREVIEW_ROWS) : rawRows;
+              return { name: sheetName, rows, truncated, totalRows: rawRows.length };
+            });
+          } catch {
+            parsedSheets = [];
+          }
+          if (parsedSheets.length === 0) {
+            const decoded = plainText ?? (bytes ? new TextDecoder('utf-8', { fatal: false }).decode(bytes) : '');
+            if (decoded && !isOleBinary) {
+              try {
+                const { buildDeliverableBlob } = await import('../utils/subAgentOfficeBuilder');
+                const built = await buildDeliverableBlob({ name: 'preview.xlsx', content: decoded });
+                const resolvedBlob = built?.blob instanceof Blob ? built.blob : (built instanceof Blob ? built : null);
+                if (resolvedBlob) {
+                  const ab = await resolvedBlob.arrayBuffer();
+                  const XLSX = await import('xlsx');
+                  const wb = XLSX.read(new Uint8Array(ab), { type: 'array' });
+                  parsedSheets = (wb.SheetNames || []).map((sheetName) => {
+                    const ws = wb.Sheets[sheetName];
+                    const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                    return { name: sheetName, rows: rawRows.slice(0, MAX_SHEET_PREVIEW_ROWS), truncated: rawRows.length > MAX_SHEET_PREVIEW_ROWS, totalRows: rawRows.length };
+                  });
+                  if (!cancelled) setResolvedBytes(new Uint8Array(ab));
+                }
+              } catch {}
+              if (parsedSheets.length === 0) {
+                parsedSheets = parseTabularFallback(decoded);
+              }
+            }
+          }
           if (cancelled) return;
-          setSheets(parsedSheets);
+          if (parsedSheets.length > 0) {
+            setSheets(parsedSheets);
+            return;
+          }
+          setTextBody(isEn ? 'Binary spreadsheet ready to download.' : 'Berkas spreadsheet siap diunduh.');
           return;
         }
 
         if (ext === 'pptx' || ext === 'ppt') {
-          if (!bytes || bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
-            throw new Error(isEn ? 'Legacy binary .ppt preview is unavailable. Please download.' : 'Pratinjau .ppt biner lama tidak didukung, silakan unduh berkas.');
+          let parsedSlides = [];
+          if (isZipSignature) {
+            try {
+              parsedSlides = await parsePptxSlides(bytes);
+            } catch {
+              parsedSlides = [];
+            }
+          } else if (isOleBinary) {
+            const lines = extractReadableBinaryStrings(bytes);
+            parsedSlides = [{
+              num: 1,
+              title: fileName,
+              body: lines.length > 0
+                ? lines
+                : [isEn ? 'Legacy binary PowerPoint (.ppt). Download to view full slides.' : 'Berkas PowerPoint biner (.ppt). Silakan unduh untuk melihat seluruh desain slide.'],
+              notes: ''
+            }];
+          } else {
+            const decoded = plainText ?? (bytes ? new TextDecoder('utf-8', { fatal: false }).decode(bytes) : '');
+            if (decoded.trim()) {
+              try {
+                const { buildDeliverableBlob } = await import('../utils/subAgentOfficeBuilder');
+                const built = await buildDeliverableBlob({ name: 'preview.pptx', content: decoded });
+                const resolvedBlob = built?.blob instanceof Blob ? built.blob : (built instanceof Blob ? built : null);
+                if (resolvedBlob) {
+                  const ab = await resolvedBlob.arrayBuffer();
+                  const u8 = new Uint8Array(ab);
+                  if (!cancelled) setResolvedBytes(u8);
+                  parsedSlides = await parsePptxSlides(u8);
+                }
+              } catch {
+                parsedSlides = [];
+              }
+              if (parsedSlides.length === 0) {
+                const sections = decoded.split(/\r?\n---\r?\n/).filter((s) => s.trim());
+                parsedSlides = sections.map((sec, i) => {
+                  const lines = sec.split(/\r?\n/).map((l) => l.replace(/^#+\s*/, '').trim()).filter(Boolean);
+                  return {
+                    num: i + 1,
+                    title: lines[0] || `Slide ${i + 1}`,
+                    body: lines.slice(1),
+                    notes: ''
+                  };
+                });
+              }
+            }
           }
-          const parsedSlides = await parsePptxSlides(bytes);
           if (cancelled) return;
           setSlides(parsedSlides);
           return;
@@ -560,7 +860,7 @@ export default function FileViewer({
                 {slide.body.length > 0 && (
                   <ul className="fv-slide-lines">
                     {slide.body.map((line, i) => (
-                      <li key={i}>{line}</li>
+                      <li key={i}>{String(line || '').replace(/^[-*•]\s+/, '')}</li>
                     ))}
                   </ul>
                 )}
@@ -577,8 +877,16 @@ export default function FileViewer({
       );
     }
 
-    if (isPdf && blobUrl) {
-      return <iframe className="fv-iframe-full" src={blobUrl} title={fileName} />;
+    if (isPdf && (resolvedBytes || blobUrl)) {
+      return (
+        <PdfCanvasViewer
+          bytes={resolvedBytes}
+          blobUrl={blobUrl}
+          fileName={fileName}
+          isEn={isEn}
+          zoom={zoom}
+        />
+      );
     }
 
     if (isHtml) {
@@ -850,7 +1158,7 @@ export default function FileViewer({
               </>
             )}
 
-            {(isDocx || isMd || isImage) && (
+            {(isDocx || isMd || isImage || isPdf) && (
               <>
                 <button type="button" className="fv-btn" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))}>−</button>
                 <button type="button" className="fv-btn" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
@@ -929,11 +1237,12 @@ export default function FileViewer({
   );
 
   if (mode === 'modal') {
-    return (
+    const modalContent = (
       <div className={`fv-modal-backdrop${isFullscreen ? ' is-fullscreen' : ''}`} onClick={onClose}>
         {viewerCard}
       </div>
     );
+    return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
   }
 
   if (mode === 'embedded') {

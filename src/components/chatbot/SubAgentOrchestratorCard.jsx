@@ -10,6 +10,7 @@ import {
 import { highlightCode } from '../../utils/codeHighlight';
 import { renderHighlightedCode } from './chatTextUtils';
 import { FormattedMessageBody } from './ChatMessageFormatter';
+import { createPortal } from 'react-dom';
 import FileViewer from '../FileViewer';
 import { buildDeliverableBlob } from '../../utils/subAgentOfficeBuilder';
 
@@ -106,17 +107,21 @@ export const SubAgentOrchestratorCard = React.memo(({
   const handleOpenInFileViewer = async (file) => {
     if (!file) return;
     const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
-    const isBinaryOffice = ['docx', 'xlsx', 'xls', 'pptx'].includes(ext);
+    const isBinaryOffice = ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(ext);
     if (isBinaryOffice) {
       try {
-        const blob = await buildDeliverableBlob(file);
-        setViewerModalFile({
-          ...file,
-          ext,
-          blob,
-          size: blob.size || file.sizeFormatted
-        });
-        return;
+        const built = await buildDeliverableBlob(file);
+        const resolvedBlob = built?.blob instanceof Blob ? built.blob : (built instanceof Blob ? built : null);
+        if (resolvedBlob) {
+          setViewerModalFile({
+            ...file,
+            ext,
+            blob: resolvedBlob,
+            mimeType: built?.mimeType,
+            size: resolvedBlob.size || file.sizeFormatted
+          });
+          return;
+        }
       } catch (_err) {
         // Fallback to content object if blob builder fails
       }
@@ -490,15 +495,16 @@ export const SubAgentOrchestratorCard = React.memo(({
       )}
 
       {/* Clean Responsive Web Live Preview Modal */}
-      {previewModalFile && (
-        <div
-          className="subagent-preview-overlay"
-          onClick={() => setPreviewModalFile(null)}
-        >
+      {previewModalFile && (() => {
+        const previewOverlay = (
           <div
-            className="subagent-preview-modal"
-            onClick={(e) => e.stopPropagation()}
+            className="subagent-preview-overlay"
+            onClick={() => setPreviewModalFile(null)}
           >
+            <div
+              className="subagent-preview-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="subagent-preview-toolbar">
               <div className="subagent-preview-title">
                 <i className="fa-solid fa-bolt" style={{ color: '#ea580c' }} />
@@ -555,8 +561,10 @@ export const SubAgentOrchestratorCard = React.memo(({
               />
             </div>
           </div>
-        </div>
-      )}
+          </div>
+        );
+        return typeof document !== 'undefined' ? createPortal(previewOverlay, document.body) : previewOverlay;
+      })()}
 
       {viewerModalFile && (
         <FileViewer

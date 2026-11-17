@@ -269,7 +269,7 @@ router.get('/download-zip', async (req, res) => {
     const sandboxDir = agentSandboxService.getSandboxDir(sessionId);
     const allFiles = agentSandboxService.listFiles(sessionId);
     const userFiles = allFiles.filter(
-      (f) => f.name !== 'SKILL.md' && !f.name.startsWith('_runner_temp') && !f.path.includes('__pycache__') && f.ext !== 'pyc'
+      (f) => f.name !== 'SKILL.md' && f.name !== 'CLAUDE.md' && !f.name.startsWith('_runner_temp') && !f.path.includes('__pycache__') && f.ext !== 'pyc'
     );
     const filesToZip = userFiles.length > 0 ? userFiles : allFiles.filter((f) => !f.name.startsWith('_runner_temp'));
 
@@ -1396,7 +1396,8 @@ JIKA TERJADI KENDALA TEKNIS APAPUN (syntax error, missing module/library, runtim
       );
     }
 
-    // Build system prompt with Dynamic Skill Catalog & Sandbox context (Autonomous Agent Orchestrator Standard)
+    // Build system prompt with CLAUDE.md contract, Dynamic Skill Catalog & Sandbox context
+    const claudeContractPrompt = agentSkillService.getClaudeContractPrompt();
     const compactCatalog = agentSkillService.getCompactCatalog();
     const skillSuggestionNote = activeSkill
       ? `\n📖 BUKU SKILL AKTIF: Tugas ini dieksekusi dengan standar buku skill \`${activeSkill.file}\` (${activeSkill.title}). Anda WAJIB berpegang teguh pada aturan dan template di dalamnya!\n`
@@ -1460,6 +1461,7 @@ SIKLUS ORKESTRASI MULTI-STEP RE-ACT & AUTONOMOUS RETRY LOOP:
   Jika terjadi error eksekusi (stderr, syntax error, missing module, atau target berkas belum terbentuk): JANGAN mengeluh atau curhat kepada pengguna! Analisis akar masalah di <thought>, tulis ulang skrip perbaikan via <write_file>, pasang modul jika perlu dengan <run_command>pip install ...</run_command>, jalankan kembali dengan <run_command>, dan verifikasi dengan <check_file>.
 
 ${effortInstruction}
+${claudeContractPrompt}
 ${documentQualityBlueprint}
 ${strictSkillAdherencePrompt}
 ${compactCatalog}
@@ -1912,7 +1914,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
     const hasDocx = finalFiles.some(f => f.ext === 'docx');
     const hasXlsx = finalFiles.some(f => f.ext === 'xlsx');
 
-    const pyFiles = finalFiles.filter(f => f.ext === 'py' && f.name !== 'SKILL.md');
+    const pyFiles = finalFiles.filter(f => f.ext === 'py' && f.name !== 'SKILL.md' && f.name !== 'CLAUDE.md');
 
     if (isCreationIntent && wantsPptx && !hasPptx && pyFiles.length > 0) {
       const pptScript = pyFiles.find(f => /ppt|slide|pres/i.test(f.name)) || pyFiles[0];
@@ -1966,7 +1968,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
 
     // Check which files were genuinely created or modified in THIS turn
     const newlyChangedFiles = finalFiles.filter(f => {
-      if (f.path === 'SKILL.md' || f.path.startsWith('_runner_temp') || (f.ext && f.ext.endsWith('pyc'))) return false;
+      if (f.path === 'SKILL.md' || f.path === 'CLAUDE.md' || f.path.startsWith('_runner_temp') || (f.ext && f.ext.endsWith('pyc'))) return false;
       const prev = existingFileMap.get(f.path);
       if (!prev) return true; // Newly created in this turn!
       if (prev.size !== f.size) return true; // Size changed in this turn!

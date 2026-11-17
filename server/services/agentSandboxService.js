@@ -682,7 +682,18 @@ export function getSandboxDir(sessionId) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  // Ensure SKILL.md is always up-to-date with latest comprehensive skills
+  // Ensure SKILL.md & CLAUDE.md are always up-to-date
+  const claudeSourcePath = path.resolve(__dirname, '..', 'skills', 'CLAUDE.md');
+  const claudeSandboxPath = path.join(dir, 'CLAUDE.md');
+  if (fs.existsSync(claudeSourcePath)) {
+    try {
+      const claudeContent = fs.readFileSync(claudeSourcePath, 'utf8');
+      if (!fs.existsSync(claudeSandboxPath) || fs.readFileSync(claudeSandboxPath, 'utf8') !== claudeContent) {
+        fs.writeFileSync(claudeSandboxPath, claudeContent, 'utf8');
+      }
+    } catch (_) { }
+  }
+
   const skillPath = path.join(dir, 'SKILL.md');
   if (!fs.existsSync(skillPath)) {
     fs.writeFileSync(skillPath, DEFAULT_SKILL_MD, 'utf8');
@@ -1818,7 +1829,7 @@ export function getRelevantDeliverables(files = [], userPrompt = '') {
   // Exclude system and cache files always
   const cleanFiles = (files || []).filter(f => {
     if (!f || !f.name) return false;
-    if (f.name === 'SKILL.md') return false;
+    if (f.name === 'SKILL.md' || f.name === 'CLAUDE.md') return false;
     if (f.name.startsWith('_runner_temp')) return false;
     if (f.ext === 'pyc' || (f.path && f.path.includes('__pycache__'))) return false;
     if (f.name === '.DS_Store' || f.name === 'Thumbs.db') return false;

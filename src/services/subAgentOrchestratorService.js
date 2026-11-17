@@ -134,7 +134,17 @@ export function getSubAgentFileMeta(fileName = 'output.txt') {
     txt: { lang: 'text', badge: 'TXT', icon: 'fa-solid fa-file-alt', color: '#64748b', bg: 'rgba(100, 116, 139, 0.12)', mime: 'text/plain' }
   };
 
-  return map[ext] || {
+  const officeAndDocMap = {
+    docx: { lang: 'markdown', badge: 'DOCX', icon: 'fa-solid fa-file-word', color: '#2b579a' },
+    doc: { lang: 'markdown', badge: 'DOC', icon: 'fa-solid fa-file-word', color: '#2b579a' },
+    xlsx: { lang: 'spreadsheet', badge: 'XLSX', icon: 'fa-solid fa-file-excel', color: '#107c41' },
+    xls: { lang: 'spreadsheet', badge: 'XLS', icon: 'fa-solid fa-file-excel', color: '#107c41' },
+    pptx: { lang: 'slides', badge: 'PPTX', icon: 'fa-solid fa-file-powerpoint', color: '#d24726' },
+    ppt: { lang: 'slides', badge: 'PPT', icon: 'fa-solid fa-file-powerpoint', color: '#d24726' },
+    pdf: { lang: 'pdf', badge: 'PDF', icon: 'fa-solid fa-file-pdf', color: '#dc2626' }
+  };
+
+  return map[ext] || officeAndDocMap[ext] || {
     lang: ext || 'text',
     badge: (ext || 'FILE').toUpperCase(),
     icon: 'fa-solid fa-file-code',
@@ -228,7 +238,7 @@ export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'dee
     seenPaths.add(fileName);
 
     const ext = (fileName.split('.').pop() || '').toLowerCase();
-    if (['docx', 'xlsx', 'pptx'].includes(ext) && f.content) {
+    if (['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(ext) && f.content) {
       const meta = getSubAgentFileMeta(fileName);
       const { blob } = await buildDeliverableBlob(f, `${meta.mime};charset=utf-8`);
       zip.file(fileName, blob);
@@ -287,7 +297,7 @@ export function buildBundledHtmlPreview(files = [], targetHtmlFile = null) {
 /**
  * Parse live streaming buffer from Synchronous Sub-Agent Orchestrator
  */
-function parseSynchronousOrchestratorBuffer(rawBuffer = '', taskDescription = '') {
+function parseSynchronousOrchestratorBuffer(rawBuffer = '', _taskDescription = '') {
   // 1. Extract <SUBAGENT_PLAN>...</SUBAGENT_PLAN>
   let planText = '';
   const planCompleteMatch = rawBuffer.match(/<SUBAGENT_PLAN>([\s\S]*?)<\/SUBAGENT_PLAN>/i);
@@ -301,7 +311,7 @@ function parseSynchronousOrchestratorBuffer(rawBuffer = '', taskDescription = ''
   // Extract planned file names from planText
   const plannedFiles = [];
   if (planText) {
-    const fileRegex = /`?([a-zA-Z0-9_\-./]+\.(?:html|css|js|jsx|ts|tsx|py|json|md|sql|csv|svg|yml|yaml|sh|txt))`?/gi;
+    const fileRegex = /`?([a-zA-Z0-9_\-./]+\.(?:html|css|js|jsx|ts|tsx|py|json|md|sql|csv|svg|yml|yaml|sh|txt|docx?|xlsx?|pptx?|pdf))`?/gi;
     let m;
     const seen = new Set();
     while ((m = fileRegex.exec(planText)) !== null) {
@@ -595,25 +605,34 @@ Permintaan Pengguna Asli: "${userPrompt || taskDescription}"
 Spesifikasi Tugas Sub-Agent: "${taskDescription}"
 Arahan Bahasa: ${langInstruction}
 
+PROTOKOL KUALITAS CLAUDE.md (ANTI-HALUSINASI & ANTI-NGELANTUR):
+- Gunakan angka, metrik, dan struktur yang konsisten di seluruh dokumen, tabel, slide, maupun ringkasan akhir. Jangan mengarang fakta palsu atau placeholder \`// TODO\`.
+- Pilih format berkas paling tepat sesuai permintaan pengguna: \`.docx\` untuk Word/laporan, \`.xlsx\` untuk Excel/tabel hitung/keuangan, \`.pptx\` untuk PowerPoint/presentasi, \`.html/.css/.js\` untuk aplikasi web.
+- Jika berkas yang diminta adalah dokumen Office (\`.docx\`, \`.xlsx\`, \`.pptx\`), DILARANG menulis skrip Python pembantu di dalam \`<SUBAGENT_FILE name="...docx|.xlsx|.pptx">\`. Tulis langsung konten terstruktur sesuai kontrak format di bawah agar konverter biner DeeperNova menghasilkan berkas Office asli yang 100% bisa dibuka di File Viewer maupun Microsoft Office.
+
 INSTRUKSI FORMAT OUTPUT WAJIB (IKUTI URUTAN TAG XML INI SECARA PRESISI):
 
 1. Awali dengan blok <SUBAGENT_PLAN>:
 <SUBAGENT_PLAN>
-- Tulis 2-4 poin rencana arsitektur dan daftar nama berkas yang akan dibuat (misal: \`index.html\`, \`styles.css\`, \`app.js\`, atau \`main.py\`, \`README.md\`, dll.).
+- Tulis 2-4 poin rencana arsitektur dan daftar nama berkas yang akan dibuat (misal: \`index.html\`, \`laporan.docx\`, \`keuangan.xlsx\`, \`presentasi.pptx\`, dll.).
 </SUBAGENT_PLAN>
 
 2. Lanjutkan dengan blok <SUBAGENT_COT> (Chain of Thought terstruktur):
 <SUBAGENT_COT>
-[PLANNER] Analisis kebutuhan utama, komponen sistem, dan pemilihan arsitektur terbaik...
-[ARCHITECT] Perancangan struktur file, alur data, dan antarmuka...
-[BUILDER] Langkah teknis pembuatan masing-masing file, algoritma, dan penanganan edge-case...
-[VERIFIER] Pemeriksaan integritas kode, kompatibilitas antar-file, dan kesiapan eksekusi...
+[PLANNER] Analisis kebutuhan utama, komponen sistem, dan pemilihan format berkas terbaik...
+[ARCHITECT] Perancangan struktur bagian, bab, sheet/tabel, atau slide deck...
+[BUILDER] Langkah teknis konstruksi konten/kode lengkap beserta penanganan edge-case...
+[VERIFIER] Pemeriksaan integritas struktur, konsistensi angka, dan kesiapan pratinjau File Viewer...
 </SUBAGENT_COT>
 
 3. Lanjutkan dengan satu atau beberapa blok <SUBAGENT_FILE name="nama_file.ext" description="Deskripsi singkat fungsi file">:
-- WAJIB menghasilkan berkas/file nyata yang LENGKAP, UTUH, SIAP JALAN (production-ready, tanpa placeholder \`// TODO\` atau pemotongan kode).
-- Jika membuat aplikasi web / landing page / kalkulator / game / dashboard: pastikan tampilan modern, estetis, responsif, dan interaktif (bisa berupa \`index.html\`, \`styles.css\`, \`app.js\` atau single-file lengkap + \`README.md\`).
-- Jangan membungkus isi di dalam <SUBAGENT_FILE> dengan backtick markdown (\`\`\`), langsung tulis isi kode/dokumen murninya!
+- WAJIB menghasilkan berkas/file nyata yang LENGKAP, UTUH, SIAP JALAN (production-ready, tanpa placeholder \`// TODO\` atau pemotongan konten).
+- Jika membuat aplikasi web / landing page / kalkulator / game / dashboard: pastikan tampilan modern, estetis, responsif, dan interaktif (bisa berupa \`index.html\`, \`styles.css\`, \`app.js\` atau single-file lengkap).
+- Kontrak format DOKUMEN OFFICE di dalam \`<SUBAGENT_FILE>\`:
+  * **Untuk Word (\`.docx\`)**: Tulis Markdown terstruktur bersih (\`# Judul Utama\`, \`## Subjudul\`, paragraf analisis, bullet \`- Poin\`, serta tabel Markdown \`| Kolom 1 | Kolom 2 |\`). JANGAN masukkan kode Python.
+  * **Untuk Excel (\`.xlsx\` / \`.csv\`)**: Tulis JSON multi-sheet \`{"excelSheets":[{"name":"Ringkasan","rows":[["Header1","Header2"],["Val1",100]]}]}\` ATAU tabel CSV / tabel Markdown bersih. Pastikan semua baris lengkap.
+  * **Untuk PowerPoint (\`.pptx\`)**: Tulis JSON array slide \`[{"title":"Judul Slide 1","body":"- Poin 1\\n- Poin 2","notes":"Catatan pembicara"}]\` ATAU Markdown slide yang dipisahkan garis \`---\` di baris tersendiri. Buat 6-10 slide padat dan terstruktur!
+- Jangan membungkus isi di dalam <SUBAGENT_FILE> dengan backtick markdown (\`\`\`...\`\`\`), langsung tulis isi kode/konten murninya!
 Contoh:
 <SUBAGENT_FILE name="index.html" description="Antarmuka utama aplikasi">
 <!DOCTYPE html>
@@ -625,7 +644,7 @@ Contoh:
 Tuliskan penjelasan akhir yang rapi, ramah, dan terstruktur (gunakan ### subjudul dan poin-poin):
 - Ringkasan arsitektur & fitur yang telah dibangun oleh Sub-Agent
 - Penjelasan fungsi masing-masing berkas yang dikirimkan
-- Panduan singkat cara menjalankan atau menggunakan berkas tersebut
+- Panduan singkat cara membuka pratinjau di File Viewer atau mengunduh berkas tersebut
 </SUBAGENT_SUMMARY>`;
 }
 

@@ -452,6 +452,7 @@ class AgentSkillService {
     const scored = [];
 
     for (const [id, meta] of this.skills.entries()) {
+      if (id.toUpperCase() === 'CLAUDE') continue;
       let score = 0;
       const idLower = id.toLowerCase();
       const titleLower = meta.title.toLowerCase();
@@ -522,6 +523,20 @@ class AgentSkillService {
     };
   }
 
+  getClaudeContract() {
+    if (!this.isLoaded) this.loadSkills();
+    const direct = this.skills.get('CLAUDE') || this.skills.get('claude');
+    if (direct && direct.content) return direct;
+    return null;
+  }
+
+  getClaudeContractPrompt() {
+    const skill = this.getClaudeContract();
+    if (!skill || !skill.content) return '';
+    const body = skill.content.replace(/^---[\s\S]*?---\s*/m, '').trim();
+    return `\n================================================================================\n📘 [CLAUDE.md — CORE ENGINEERING, ACCURACY & ANTI-HALLUCINATION CONTRACT]\n${body}\n================================================================================\n`;
+  }
+
   /**
    * Build Ultra-Strict prompt injection to force the LLM to follow the skill verbatim
    */
@@ -565,9 +580,9 @@ ${skill.content}
    * Get Compact catalog for prompt injection
    */
   getCompactCatalog() {
-    return `### 📚 ON-DEMAND SKILL CATALOG (181 BUKU SKILL STANDAR TINGGI)
-Gunakan tag \`<read_skill name="nama_skill" />\` untuk membaca panduan buku skill secara lengkap kapan saja.
-Indeks Cepat: Word (.docx) -> \`17-skill-word-docx-lengkap\`, Excel (.xlsx) -> \`20-skill-excel-xlsx-lengkap\`, PPT (.pptx) -> \`24-skill-ppt-pptx-lengkap\`, PDF -> \`27-skill-pdf-report-generation-pro\`, Kurva 300-DPI -> \`26-skill-data-viz-kurva-gila\`, WebApp -> \`07-skill-frontend-web-lengkap\`, Game 3D -> \`76-skill-threejs-webgl-3d-engine-lengkap\`, 3D Twin -> \`124-skill-3d-industrial-digital-twin-scada\`, Android APK -> \`66-skill-android-kotlin-jetpack-compose-pro\`, Agribisnis Bebek/Ayam -> \`35-skill-agribisnis-peternakan-unggas-pakan\`, Kuliner HPP -> \`36-skill-umkm-fnb-kuliner-hpp-resep\`, HRD Payroll -> \`39-skill-hrd-payroll-kpi-karyawan-indonesia\`, SOP ISO/K3 -> \`29-skill-sop-iso-manufacturing-indonesia\`, Surat/Kontrak/CV ATS -> \`31-skill-surat-resmi-kontrak-notulen-indonesia\`.`;
+    return `### 📚 ON-DEMAND SKILL CATALOG (181+ BUKU SKILL STANDAR TINGGI + CLAUDE.md)
+Gunakan tag \`<read_skill name="nama_skill" />\` untuk membaca panduan buku skill secara lengkap kapan saja (termasuk \`CLAUDE\` untuk protokol anti-halusinasi & verifikasi).
+Indeks Cepat: Protokol Inti -> \`CLAUDE\`, Word (.docx) -> \`17-skill-word-docx-lengkap\`, Excel (.xlsx) -> \`20-skill-excel-xlsx-lengkap\`, PPT (.pptx) -> \`24-skill-ppt-pptx-lengkap\`, PDF -> \`27-skill-pdf-report-generation-pro\`, Kurva 300-DPI -> \`26-skill-data-viz-kurva-gila\`, WebApp -> \`07-skill-frontend-web-lengkap\`, Game 3D -> \`76-skill-threejs-webgl-3d-engine-lengkap\`, 3D Twin -> \`124-skill-3d-industrial-digital-twin-scada\`, Android APK -> \`66-skill-android-kotlin-jetpack-compose-pro\`, Agribisnis Bebek/Ayam -> \`35-skill-agribisnis-peternakan-unggas-pakan\`, Kuliner HPP -> \`36-skill-umkm-fnb-kuliner-hpp-resep\`, HRD Payroll -> \`39-skill-hrd-payroll-kpi-karyawan-indonesia\`, SOP ISO/K3 -> \`29-skill-sop-iso-manufacturing-indonesia\`, Surat/Kontrak/CV ATS -> \`31-skill-surat-resmi-kontrak-notulen-indonesia\`.`;
   }
 
   suggestSkill(userMessage = '') {
