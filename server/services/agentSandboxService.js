@@ -682,28 +682,13 @@ export function getSandboxDir(sessionId) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  // Ensure SKILL.md & CLAUDE.md are always up-to-date
-  const claudeSourcePath = path.resolve(__dirname, '..', 'skills', 'CLAUDE.md');
-  const claudeSandboxPath = path.join(dir, 'CLAUDE.md');
-  if (fs.existsSync(claudeSourcePath)) {
-    try {
-      const claudeContent = fs.readFileSync(claudeSourcePath, 'utf8');
-      if (!fs.existsSync(claudeSandboxPath) || fs.readFileSync(claudeSandboxPath, 'utf8') !== claudeContent) {
-        fs.writeFileSync(claudeSandboxPath, claudeContent, 'utf8');
-      }
-    } catch (_) { }
-  }
-
-  const skillPath = path.join(dir, 'SKILL.md');
-  if (!fs.existsSync(skillPath)) {
-    fs.writeFileSync(skillPath, DEFAULT_SKILL_MD, 'utf8');
-  } else {
-    try {
-      const existingSkill = fs.readFileSync(skillPath, 'utf8');
-      if (!existingSkill.includes('KEAHLIAN SUPER #5') || !existingSkill.includes('table.rows.index') || !existingSkill.includes('pptx_designer.py')) {
-        fs.writeFileSync(skillPath, DEFAULT_SKILL_MD, 'utf8');
-      }
-    } catch (_) { }
+  // Internal skills (CLAUDE.md / SKILL.md) are injected via system prompt & read_skill only
+  // Remove any legacy CLAUDE.md/SKILL.md copied into user sandbox root so workspace stays clean
+  for (const sysDoc of ['CLAUDE.md', 'SKILL.md']) {
+    const p = path.join(dir, sysDoc);
+    if (fs.existsSync(p)) {
+      try { fs.unlinkSync(p); } catch (_) { }
+    }
   }
 
   // Ensure kits/ folder exists in session sandbox for instant Python automation
@@ -905,7 +890,7 @@ export function listFiles(sessionId) {
     if (!fs.existsSync(currentDir)) return;
     const items = fs.readdirSync(currentDir, { withFileTypes: true });
     for (const item of items) {
-      if (item.name === '.git' || item.name === 'node_modules' || item.name === 'kits' || item.name === 'templates' || item.name === 'macros' || item.name.startsWith('_runner_temp') || item.name.startsWith('.')) continue;
+      if (item.name === '.git' || item.name === 'node_modules' || item.name === 'kits' || item.name === 'templates' || item.name === 'macros' || item.name === 'CLAUDE.md' || item.name === 'SKILL.md' || item.name.startsWith('_runner_temp') || item.name.startsWith('.')) continue;
       const fullPath = path.join(currentDir, item.name);
       const relative = path.relative(sandboxDir, fullPath).replace(/\\/g, '/');
       if (item.isDirectory()) {
@@ -1083,7 +1068,7 @@ export function grepSearch(sessionId, { query, includes = '', caseInsensitive = 
     if (!fs.existsSync(dir)) return;
     const items = fs.readdirSync(dir, { withFileTypes: true });
     for (const item of items) {
-      if (item.name === '.git' || item.name === 'node_modules' || item.name === 'kits' || item.name === 'templates' || item.name === 'macros' || item.name.startsWith('_runner_temp') || item.name.startsWith('.')) continue;
+      if (item.name === '.git' || item.name === 'node_modules' || item.name === 'kits' || item.name === 'templates' || item.name === 'macros' || item.name === 'CLAUDE.md' || item.name === 'SKILL.md' || item.name.startsWith('_runner_temp') || item.name.startsWith('.')) continue;
       const fullPath = path.join(dir, item.name);
       const relative = path.relative(sandboxDir, fullPath).replace(/\\/g, '/');
 
@@ -1118,6 +1103,119 @@ export function grepSearch(sessionId, { query, includes = '', caseInsensitive = 
 
   walkAndSearch(sandboxDir);
   return results;
+}
+
+export async function extractZipIntoSandbox(sessionId, zipRelativePath, targetSubdir = '.') {
+  const sandboxDir = getSandboxDir(sessionId);
+  const zipFullPath = safeResolvePath(sessionId, zipRelativePath);
+  if (!fs.existsSync(zipFullPath)) {
+    throw new Error(`Arsip ZIP '${zipRelativePath}' tidak ditemukan di sandbox.`);
+  }
+  const buf = fs.readFileSync(zipFullPath);
+  const zip = await JSZip.loadAsync(buf);
+  const rawEntries = Object.values(zip.files).filter((entry) => !entry.dir);
+
+  const MAX_ENTRIES = 600;
+  const MAX_TOTAL_BYTES = 80 * 1024 * 1024;
+  if (rawEntries.length > MAX_ENTRIES) {
+    throw new Error(`Arsip ZIP melebihi batas maksimal ${MAX_ENTRIES} berkas (${rawEntries.length} berkas).`);
+  }
+
+  const shouldSkipEntry = (norm) => {
+    const parts = norm.split('/').filter(Boolean);
+    return parts.some((p) => p === '__MACOSX' || p === '.git' || p === 'node_modules' || p === '__pycache__' || p === '.DS_Store' || p === 'Thumbs.db');
+  };
+
+  const validEntries = [];
+  for (const entry of rawEntries) {
+    const cleanRaw = String(entry.name || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!cleanRaw || cleanRaw.includes('\0') || cleanRaw.split('/').some((seg) => seg === '..')) continue;
+    if (shouldSkipEntry(cleanRaw)) continue;
+    validEntries.push({ entry, cleanPath: cleanRaw });
+  }
+
+  // If all entries share a single top-level wrapper folder and extracting to '.', keep structure intact cleanly
+  const topSegments = new Set(validEntries.map((e) => e.cleanPath.split('/')[0]).filter(Boolean));
+  const rootFolderHint = topSegments.size === 1 ? Array.from(topSegments)[0] : '';
+
+  const extractedFiles = [];
+  let totalBytes = 0;
+
+  for (const { entry, cleanPath } of validEntries) {
+    const relTarget = targetSubdir && targetSubdir !== '.' ? path.posix.join(targetSubdir.replace(/\\/g, '/'), cleanPath) : cleanPath;
+    const destFull = safeResolvePath(sessionId, relTarget);
+    const data = await entry.async('nodebuffer');
+    totalBytes += data.length;
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      throw new Error('Total ukuran ekstraksi ZIP melebihi batas keamanan sandbox (80 MB).');
+    }
+    fs.mkdirSync(path.dirname(destFull), { recursive: true });
+    fs.writeFileSync(destFull, data);
+    extractedFiles.push({
+      path: path.relative(sandboxDir, destFull).replace(/\\/g, '/'),
+      size: data.length
+    });
+  }
+
+  return {
+    zipPath: zipRelativePath,
+    extractedCount: extractedFiles.length,
+    totalBytes,
+    rootFolderHint,
+    extractedFiles
+  };
+}
+
+export async function createProjectZipInSandbox(sessionId, outputZipName = 'project-updated.zip', sourceSubdir = '.') {
+  const sandboxDir = getSandboxDir(sessionId);
+  let safeZipName = String(outputZipName || 'project-updated.zip').trim().replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!safeZipName.toLowerCase().endsWith('.zip')) safeZipName += '.zip';
+
+  const destZipPath = safeResolvePath(sessionId, safeZipName);
+  const destRelNormalized = path.relative(sandboxDir, destZipPath).replace(/\\/g, '/');
+  const prefix = sourceSubdir && sourceSubdir !== '.' ? sourceSubdir.replace(/\\/g, '/').replace(/\/+$/, '') + '/' : '';
+
+  const allFiles = listFiles(sessionId);
+  const candidateFiles = allFiles.filter((f) => {
+    if (!f || !f.path) return false;
+    if (f.path === destRelNormalized) return false;
+    if (f.name === 'CLAUDE.md' || f.name === 'SKILL.md') return false;
+    if (f.name.startsWith('_runner_temp') || f.path.includes('__pycache__') || f.ext === 'pyc') return false;
+    if (f.ext === 'zip' && f.path !== destRelNormalized && f.path.startsWith('uploaded_')) return false;
+    if (prefix && !f.path.startsWith(prefix)) return false;
+    return true;
+  });
+
+  if (candidateFiles.length === 0) {
+    throw new Error('Tidak ada berkas proyek di sandbox untuk dikemas ke ZIP.');
+  }
+
+  const zip = new JSZip();
+  const includedFiles = [];
+  for (const f of candidateFiles) {
+    const full = path.join(sandboxDir, f.path);
+    if (fs.existsSync(full) && fs.statSync(full).isFile()) {
+      const arcName = prefix ? f.path.slice(prefix.length) : f.path;
+      zip.file(arcName, fs.readFileSync(full));
+      includedFiles.push(arcName);
+    }
+  }
+
+  const zipBuffer = await zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 }
+  });
+  fs.mkdirSync(path.dirname(destZipPath), { recursive: true });
+  fs.writeFileSync(destZipPath, zipBuffer);
+
+  return {
+    name: path.basename(destZipPath),
+    path: destRelNormalized,
+    size: zipBuffer.length,
+    fileCount: includedFiles.length,
+    includedFiles
+  };
 }
 
 /**
@@ -1189,6 +1287,17 @@ export async function testFile(sessionId, relativePath) {
       return { success: true, message: `Format JSON valid.`, detail: `Ukuran berkas: ${(stat.size / 1024).toFixed(1)} KB` };
     } catch (jsonErr) {
       return { success: false, message: `Format JSON tidak valid: ${jsonErr.message}`, detail: jsonErr.message };
+    }
+  }
+
+  if (ext === 'zip') {
+    try {
+      const buf = fs.readFileSync(filePath);
+      const zip = await JSZip.loadAsync(buf);
+      const entries = Object.values(zip.files).filter(f => !f.dir);
+      return { success: entries.length > 0, message: entries.length > 0 ? `Arsip ZIP valid (${entries.length} berkas internal).` : 'Arsip ZIP kosong.', detail: `Ukuran: ${(stat.size / 1024).toFixed(1)} KB` };
+    } catch (zipErr) {
+      return { success: false, message: `Arsip ZIP corrupt/tidak valid: ${zipErr.message}`, detail: zipErr.message };
     }
   }
 
@@ -1561,7 +1670,7 @@ export function extractSequentialActions(text) {
   const writtenPaths = new Set();
 
   // Unified tag regex matching paired or self-closing action tags
-  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|edit_file|patch_file|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|check_file|verify_file|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file)\s*([^>]*?)\/?>/gi;
+  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|edit_file|patch_file|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file|unzip_file|extract_zip|unzip|zip_project|zip_files|archive_zip)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|check_file|verify_file|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file|unzip_file|extract_zip|unzip|zip_project|zip_files|archive_zip)\s*([^>]*?)\/?>/gi;
 
   let match;
   while ((match = tagRegex.exec(text)) !== null) {
@@ -1667,6 +1776,14 @@ export function extractSequentialActions(text) {
         actions.push({ type: 'screenshot', target: targetPath, rawMatch, index });
       } else if (tagName === 'preview') {
         actions.push({ type: 'preview', entryFile: body || 'index.html', rawMatch, index });
+      } else if (tagName === 'unzip_file' || tagName === 'extract_zip' || tagName === 'unzip') {
+        const zipPath = getAttr('path') || getAttr('file') || getAttr('src') || body.split('\n')[0].trim();
+        const targetDir = getAttr('target') || getAttr('dest') || '.';
+        actions.push({ type: 'unzip_file', path: zipPath, target: targetDir, rawMatch, index });
+      } else if (tagName === 'zip_project' || tagName === 'zip_files' || tagName === 'archive_zip') {
+        const outName = getAttr('name') || getAttr('path') || getAttr('output') || body.split('\n')[0].trim() || 'project-updated.zip';
+        const srcDir = getAttr('target') || getAttr('include') || getAttr('source') || '.';
+        actions.push({ type: 'zip_project', name: outName, source: srcDir, rawMatch, index });
       }
     } else if (match[4]) {
       // Self-closing tag: <tag attr />
@@ -1714,6 +1831,14 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'screenshot' || tagName === 'take_screenshot') {
         const targetPath = getAttr('target') || getAttr('path') || 'index.html';
         actions.push({ type: 'screenshot', target: targetPath, rawMatch, index });
+      } else if (tagName === 'unzip_file' || tagName === 'extract_zip' || tagName === 'unzip') {
+        const zipPath = getAttr('path') || getAttr('file') || getAttr('src');
+        const targetDir = getAttr('target') || getAttr('dest') || '.';
+        actions.push({ type: 'unzip_file', path: zipPath, target: targetDir, rawMatch, index });
+      } else if (tagName === 'zip_project' || tagName === 'zip_files' || tagName === 'archive_zip') {
+        const outName = getAttr('name') || getAttr('path') || getAttr('output') || 'project-updated.zip';
+        const srcDir = getAttr('target') || getAttr('include') || getAttr('source') || '.';
+        actions.push({ type: 'zip_project', name: outName, source: srcDir, rawMatch, index });
       }
     }
   }
@@ -1886,5 +2011,7 @@ export default {
   extractSequentialActions,
   extractAgentActions,
   getRelevantDeliverables,
+  extractZipIntoSandbox,
+  createProjectZipInSandbox,
   DEFAULT_SKILL_MD
 };

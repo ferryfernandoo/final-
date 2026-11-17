@@ -270,7 +270,7 @@ const AGENT_I18N = {
   }
 };
 
-export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, onLogout, userLanguage: propLanguage, onLanguageChange }) {
+export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isGuest: _isGuest, onNavigate, onLogout: _onLogout, userLanguage: propLanguage, onLanguageChange }) {
   // Synchronized language state
   const [userLanguage, setUserLanguage] = useState(() => propLanguage || detectLanguageSync());
   const t = AGENT_I18N[userLanguage] || AGENT_I18N.id;
@@ -322,7 +322,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   const [isFileSaving, setIsFileSaving] = useState(false);
 
   // Zero-Search Skill Architecture: Active Skill State
-  const [activeSkill, setActiveSkill] = useState(null);
+  const [, setActiveSkill] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
 
   // AI Agent Effort Level ('low' | 'medium' | 'high' - Pantang Menyerah)
@@ -338,7 +338,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     setAgentEffort(lvl);
     try {
       localStorage.setItem('deepernova_agent_effort', lvl);
-    } catch {}
+    } catch { }
   };
 
   // Terminal State
@@ -575,7 +575,15 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
     if (!textToSend || isExecuting || !currentSessionId) return;
 
     if (uploadedAttachments.length > 0) {
-      textToSend += `\n\n[Berkas lampiran yang diunggah pengguna ke sandbox: ${uploadedAttachments.join(', ')}]`;
+      const formattedAttach = uploadedAttachments.map((item) => {
+        if (typeof item === 'string') return item;
+        if (item.isZip) {
+          const sampleList = (item.extractedFiles || []).slice(0, 20).join(', ');
+          return `${item.name} [ZIP otomatis dibuka & diekstrak ke sandbox (${item.extractedCount} berkas): ${sampleList}${item.extractedCount > 20 ? ', ...' : ''}]`;
+        }
+        return item.name;
+      }).join('; ');
+      textToSend += `\n\n[Berkas lampiran yang diunggah pengguna ke sandbox: ${formattedAttach}]`;
       setUploadedAttachments([]);
     }
 
@@ -818,7 +826,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
           // Pre-load skill into SKILL.md tab so drawer displays it immediately
           AgentService.readFile(currentSessionId, 'SKILL.md').then(content => {
             if (content) setSkillContent(content);
-          }).catch(() => {});
+          }).catch(() => { });
         },
         onStep: (step) => {
           setMessages(prev => prev.map(m => {
@@ -1022,11 +1030,23 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       for (const file of files) {
         const res = await AgentService.uploadFile(currentSessionId, file);
         if (res && res.success) {
-          setUploadedAttachments(prev => [...prev, file.name]);
+          setUploadedAttachments(prev => [
+            ...prev,
+            {
+              name: file.name,
+              isZip: Boolean(res.isZip),
+              extractedCount: res.extractedCount || 0,
+              extractedFiles: res.extractedFiles || []
+            }
+          ]);
         }
       }
       const updated = await AgentService.getFiles(currentSessionId);
       setSandboxFiles(updated);
+      if (files.some((f) => f.name.toLowerCase().endsWith('.zip'))) {
+        setActiveDrawerTab('files');
+        setIsDrawerOpen(true);
+      }
     } catch (err) {
       console.error('File upload error:', err);
     } finally {
@@ -1036,7 +1056,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   };
 
   const removeAttachment = (fileName) => {
-    setUploadedAttachments(prev => prev.filter(n => n !== fileName));
+    setUploadedAttachments(prev => prev.filter(item => (typeof item === 'string' ? item : item.name) !== fileName));
   };
 
   // 7. Terminal Execution Action
@@ -1395,7 +1415,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
         </header>
 
         {/* Message Feed */}
-        <div 
+        <div
           className="agent-messages-container"
           ref={messagesContainerRef}
           onScroll={handleContainerScroll}
@@ -1486,9 +1506,9 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
               : { cleanContent: msg.content, steps: [] };
 
             return (
-              <div 
-                key={msg.id} 
-                id={msg.id} 
+              <div
+                key={msg.id}
+                id={msg.id}
                 className={`agent-msg-row is-${msg.role === 'user' ? 'user' : 'bot'} ${msg.isStreaming ? 'is-generating' : ''}`}
               >
                 <div className="agent-msg-avatar">
@@ -1608,6 +1628,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   {isBot && (() => {
                     const rawTurnFiles = (msg.sandboxFiles || []).filter(f =>
                       f.path !== 'SKILL.md' &&
+                      f.path !== 'CLAUDE.md' &&
                       !f.path.startsWith('_runner_temp') &&
                       !f.path.endsWith('.pyc') &&
                       !f.path.includes('__pycache__')
@@ -1631,7 +1652,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                           {filesToShow.map((file) => {
                             const ext = (file.ext || (file.name || '').split('.').pop() || '').toLowerCase();
                             const iconMeta = getFileIcon(ext);
-                            const isViewerPreferred = ['docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'mp3', 'wav'].includes(ext);
+                            const isViewerPreferred = ['docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'pdf', 'zip', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'mp3', 'wav'].includes(ext);
                             const isHtml = ext === 'html';
 
                             const handlePrimaryFileClick = () => {
@@ -1775,13 +1796,17 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             {/* User Attachments Preview Chips */}
             {uploadedAttachments.length > 0 && (
               <div className="agent-upload-chips">
-                {uploadedAttachments.map((name) => (
-                  <span key={name} className="agent-upload-chip">
-                    <i className="fa-solid fa-paperclip" />
-                    <span>{name}</span>
-                    <button type="button" onClick={() => removeAttachment(name)} title="✕">✕</button>
-                  </span>
-                ))}
+                {uploadedAttachments.map((item) => {
+                  const chipName = typeof item === 'string' ? item : item.name;
+                  const zipCount = typeof item === 'object' && item.isZip ? item.extractedCount : 0;
+                  return (
+                    <span key={chipName} className="agent-upload-chip">
+                      <i className={zipCount > 0 ? 'fa-solid fa-file-zipper' : 'fa-solid fa-paperclip'} />
+                      <span>{chipName}{zipCount > 0 ? ` (${zipCount} berkas diekstrak)` : ''}</span>
+                      <button type="button" onClick={() => removeAttachment(chipName)} title="✕">✕</button>
+                    </span>
+                  );
+                })}
                 <span className="agent-upload-status">{t.savedInSandbox}</span>
               </div>
             )}
@@ -1886,8 +1911,8 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
       {/* ===== INTERACTIVE SANDBOX DRAWER & BACKDROP ===== */}
       {isDrawerOpen && (
         <>
-          <div 
-            className="agent-drawer-backdrop" 
+          <div
+            className="agent-drawer-backdrop"
             onClick={() => setIsDrawerOpen(false)}
             aria-label="Tutup panel berkas"
           />
@@ -1916,10 +1941,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                   </div>
                 </div>
 
-                <button 
+                <button
                   type="button"
-                  className="agent-drawer-close" 
-                  onClick={() => setIsDrawerOpen(false)} 
+                  className="agent-drawer-close"
+                  onClick={() => setIsDrawerOpen(false)}
                   title={t.closePanel}
                   aria-label={t.closePanel}
                 >
@@ -2030,94 +2055,94 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                       const selExt = (selectedFile.split('.').pop() || '').toLowerCase();
                       const isBinaryViewerFile = BINARY_VIEWER_EXTS.has(selExt);
                       return (
-                      <>
-                        <div className="agent-editor-bar">
-                          <div className="agent-editor-bar-left">
-                            <button
-                              type="button"
-                              className="agent-editor-mobile-back"
-                              onClick={() => setSelectedFile(null)}
-                              title={t.backToFileListTitle}
-                            >
-                              <i className="fa-solid fa-arrow-left" />
-                              <span>{t.backToFileList}</span>
-                            </button>
-                            <span className="agent-editor-filename" title={selectedFile}>
-                              <i className={(getFileIcon(selExt) || {}).icon || 'fa-solid fa-file-code'} style={{ color: (getFileIcon(selExt) || {}).color || '#ea580c', marginRight: 6 }} />
-                              {selectedFile}
-                            </span>
-                          </div>
-                          <div className="agent-editor-actions">
-                            {!isBinaryViewerFile && (
+                        <>
+                          <div className="agent-editor-bar">
+                            <div className="agent-editor-bar-left">
                               <button
                                 type="button"
-                                onClick={handleSaveCurrentFile}
-                                disabled={isFileSaving}
-                                className="agent-editor-btn is-save"
+                                className="agent-editor-mobile-back"
+                                onClick={() => setSelectedFile(null)}
+                                title={t.backToFileListTitle}
                               >
-                                <i className={isFileSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"} />
-                                <span>{isFileSaving ? t.savingFile : t.saveFile}</span>
+                                <i className="fa-solid fa-arrow-left" />
+                                <span>{t.backToFileList}</span>
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => openAgentFileViewer(selectedFile)}
-                              className="agent-editor-btn is-preview"
-                              title="Buka di File Viewer"
-                            >
-                              <i className="fa-solid fa-eye" />
-                              <span>File Viewer</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleDownloadFile}
-                              className="agent-editor-btn is-download"
-                              title={t.downloadFileTitle}
-                            >
-                              <i className="fa-solid fa-download" />
-                              <span>{t.downloadFile}</span>
-                            </button>
-                            {selectedFile.endsWith('.html') && (
+                              <span className="agent-editor-filename" title={selectedFile}>
+                                <i className={(getFileIcon(selExt) || {}).icon || 'fa-solid fa-file-code'} style={{ color: (getFileIcon(selExt) || {}).color || '#ea580c', marginRight: 6 }} />
+                                {selectedFile}
+                              </span>
+                            </div>
+                            <div className="agent-editor-actions">
+                              {!isBinaryViewerFile && (
+                                <button
+                                  type="button"
+                                  onClick={handleSaveCurrentFile}
+                                  disabled={isFileSaving}
+                                  className="agent-editor-btn is-save"
+                                >
+                                  <i className={isFileSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"} />
+                                  <span>{isFileSaving ? t.savingFile : t.saveFile}</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setPreviewUrl(`/api/agent/preview/${currentSessionId}/${selectedFile}`);
-                                  setActiveDrawerTab('preview');
-                                }}
+                                onClick={() => openAgentFileViewer(selectedFile)}
                                 className="agent-editor-btn is-preview"
-                                title={t.previewFileTitle}
+                                title="Buka di File Viewer"
                               >
-                                <i className="fa-solid fa-globe" />
-                                <span>Preview</span>
+                                <i className="fa-solid fa-eye" />
+                                <span>File Viewer</span>
                               </button>
-                            )}
+                              <button
+                                type="button"
+                                onClick={handleDownloadFile}
+                                className="agent-editor-btn is-download"
+                                title={t.downloadFileTitle}
+                              >
+                                <i className="fa-solid fa-download" />
+                                <span>{t.downloadFile}</span>
+                              </button>
+                              {selectedFile.endsWith('.html') && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPreviewUrl(`/api/agent/preview/${currentSessionId}/${selectedFile}`);
+                                    setActiveDrawerTab('preview');
+                                  }}
+                                  className="agent-editor-btn is-preview"
+                                  title={t.previewFileTitle}
+                                >
+                                  <i className="fa-solid fa-globe" />
+                                  <span>Preview</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        {isBinaryViewerFile ? (
-                          <div className="agent-editor-textarea-wrap" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
-                            <FileViewer
-                              mode="embedded"
-                              file={{
-                                name: selectedFile.split('/').pop() || selectedFile,
-                                ext: selExt,
-                                url: AgentService.getDownloadUrl(currentSessionId, selectedFile)
-                              }}
-                              onDownload={() => handleDownloadSingleFile(selectedFile)}
-                              userLanguage={userLanguage}
-                            />
-                          </div>
-                        ) : (
-                          <div className="agent-editor-textarea-wrap">
-                            <textarea
-                              className="agent-editor-textarea"
-                              value={fileContent}
-                              onChange={(e) => setFileContent(e.target.value)}
-                              spellCheck={false}
-                              placeholder={t.emptyFileContent}
-                            />
-                          </div>
-                        )}
-                      </>
+                          {isBinaryViewerFile ? (
+                            <div className="agent-editor-textarea-wrap" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
+                              <FileViewer
+                                mode="embedded"
+                                file={{
+                                  name: selectedFile.split('/').pop() || selectedFile,
+                                  ext: selExt,
+                                  url: AgentService.getDownloadUrl(currentSessionId, selectedFile)
+                                }}
+                                onDownload={() => handleDownloadSingleFile(selectedFile)}
+                                userLanguage={userLanguage}
+                              />
+                            </div>
+                          ) : (
+                            <div className="agent-editor-textarea-wrap">
+                              <textarea
+                                className="agent-editor-textarea"
+                                value={fileContent}
+                                onChange={(e) => setFileContent(e.target.value)}
+                                spellCheck={false}
+                                placeholder={t.emptyFileContent}
+                              />
+                            </div>
+                          )}
+                        </>
                       );
                     })() : (
                       <div className="agent-editor-placeholder">

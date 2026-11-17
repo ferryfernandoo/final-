@@ -217,15 +217,15 @@ export const SubAgentOrchestratorCard = React.memo(({
   const latestStep = thoughtSteps[thoughtSteps.length - 1];
   const pillLabel = isRunning
     ? (activeWritingFile
-        ? (isEn ? `Writing ${activeWritingFile}...` : `Menulis ${activeWritingFile}...`)
-        : (latestStep?.title || (isEn ? 'Sub-Agent working...' : 'Sub-Agent bekerja...')))
+      ? (isEn ? `Writing ${activeWritingFile}...` : `Menulis ${activeWritingFile}...`)
+      : (latestStep?.title || (isEn ? 'Sub-Agent working...' : 'Sub-Agent bekerja...')))
     : isCompleted
-    ? (isEn
+      ? (isEn
         ? `Done • ${thoughtSteps.length} steps${files.length ? ` • ${files.length} files` : ''}`
         : `Selesai • ${thoughtSteps.length} langkah${files.length ? ` • ${files.length} berkas` : ''}`)
-    : isAborted
-    ? (isEn ? 'Sub-Agent stopped' : 'Sub-Agent dihentikan')
-    : (isEn ? 'Sub-Agent interrupted' : 'Sub-Agent terganggu');
+      : isAborted
+        ? (isEn ? 'Sub-Agent stopped' : 'Sub-Agent dihentikan')
+        : (isEn ? 'Sub-Agent interrupted' : 'Sub-Agent terganggu');
 
   const stageNames = isEn
     ? ['Planner', 'Engineer', 'Verifier']
@@ -505,62 +505,62 @@ export const SubAgentOrchestratorCard = React.memo(({
               className="subagent-preview-modal"
               onClick={(e) => e.stopPropagation()}
             >
-            <div className="subagent-preview-toolbar">
-              <div className="subagent-preview-title">
-                <i className="fa-solid fa-bolt" style={{ color: '#ea580c' }} />
-                <span>Preview — {previewModalFile.name}</span>
-              </div>
+              <div className="subagent-preview-toolbar">
+                <div className="subagent-preview-title">
+                  <i className="fa-solid fa-bolt" style={{ color: '#ea580c' }} />
+                  <span>Preview — {previewModalFile.name}</span>
+                </div>
 
-              <div className="subagent-preview-controls">
-                {['desktop', 'tablet', 'mobile'].map((vp) => (
+                <div className="subagent-preview-controls">
+                  {['desktop', 'tablet', 'mobile'].map((vp) => (
+                    <button
+                      key={vp}
+                      type="button"
+                      className={`subagent-vp-btn${previewViewport === vp ? ' active' : ''}`}
+                      onClick={() => setPreviewViewport(vp)}
+                    >
+                      {vp === 'desktop' ? 'Desktop' : vp === 'tablet' ? 'Tablet' : 'Mobile'}
+                    </button>
+                  ))}
                   <button
-                    key={vp}
                     type="button"
-                    className={`subagent-vp-btn${previewViewport === vp ? ' active' : ''}`}
-                    onClick={() => setPreviewViewport(vp)}
+                    className="subagent-vp-btn"
+                    onClick={() => setPreviewKey((k) => k + 1)}
+                    title="Reload"
                   >
-                    {vp === 'desktop' ? 'Desktop' : vp === 'tablet' ? 'Tablet' : 'Mobile'}
+                    <i className="fa-solid fa-rotate-right" />
                   </button>
-                ))}
-                <button
-                  type="button"
-                  className="subagent-vp-btn"
-                  onClick={() => setPreviewKey((k) => k + 1)}
-                  title="Reload"
-                >
-                  <i className="fa-solid fa-rotate-right" />
-                </button>
-                <button
-                  type="button"
-                  className="subagent-vp-btn primary"
-                  onClick={handleOpenPreviewNewTab}
-                >
-                  ↗ Tab Baru
-                </button>
-                <button
-                  type="button"
-                  className="subagent-vp-btn close"
-                  onClick={() => setPreviewModalFile(null)}
-                >
-                  ✕
-                </button>
+                  <button
+                    type="button"
+                    className="subagent-vp-btn primary"
+                    onClick={handleOpenPreviewNewTab}
+                  >
+                    ↗ Tab Baru
+                  </button>
+                  <button
+                    type="button"
+                    className="subagent-vp-btn close"
+                    onClick={() => setPreviewModalFile(null)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div className={`subagent-preview-stage${previewViewport === 'desktop' ? ' full' : ''}`}>
+                <iframe
+                  key={previewKey}
+                  title={`SubAgent Preview ${previewModalFile.name}`}
+                  srcDoc={bundledPreviewHtml}
+                  sandbox="allow-scripts allow-modals allow-forms allow-popups allow-same-origin"
+                  className="subagent-preview-iframe"
+                  style={{
+                    width: previewViewport === 'mobile' ? '390px' : previewViewport === 'tablet' ? '768px' : '100%',
+                    borderRadius: previewViewport === 'desktop' ? '0' : '12px'
+                  }}
+                />
               </div>
             </div>
-
-            <div className={`subagent-preview-stage${previewViewport === 'desktop' ? ' full' : ''}`}>
-              <iframe
-                key={previewKey}
-                title={`SubAgent Preview ${previewModalFile.name}`}
-                srcDoc={bundledPreviewHtml}
-                sandbox="allow-scripts allow-modals allow-forms allow-popups allow-same-origin"
-                className="subagent-preview-iframe"
-                style={{
-                  width: previewViewport === 'mobile' ? '390px' : previewViewport === 'tablet' ? '768px' : '100%',
-                  borderRadius: previewViewport === 'desktop' ? '0' : '12px'
-                }}
-              />
-            </div>
-          </div>
           </div>
         );
         return typeof document !== 'undefined' ? createPortal(previewOverlay, document.body) : previewOverlay;

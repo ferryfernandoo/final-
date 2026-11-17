@@ -244,7 +244,7 @@ const ChatComposerCard = ({
         type="file"
         id="unified-upload-input"
         className="file-upload-input"
-        accept=".txt,.csv,.json,.html,.md,.pdf,.docx,.doc,.xlsx,.xls"
+        accept=".txt,.csv,.json,.html,.md,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.zip"
         multiple
         onChange={(e) => handleFileUpload(e)}
         style={{ display: 'none' }}

@@ -33,7 +33,7 @@ class ClientFileParser {
       }
       // 2. Excel & Spreadsheets (XLSX, XLS, CSV, TSV, ODS)
       else if (['xlsx', 'xls', 'csv', 'tsv', 'ods'].includes(ext)) {
-        content = await this.parseSpreadsheet(file, ext);
+        content = await this.parseSpreadsheet(file);
         detectedType = 'spreadsheet';
       }
       // 3. PDF Documents
@@ -45,6 +45,11 @@ class ClientFileParser {
       else if (ext === 'pptx' || ext === 'ppt') {
         content = await this.parsePptx(file);
         detectedType = 'presentation';
+      }
+      // 4b. ZIP Archives (Directory tree + key manifest/source snippets)
+      else if (ext === 'zip') {
+        content = await this.parseZip(file);
+        detectedType = 'zip';
       }
       // 5. Plain Text, Code, Markdown, Config, JSON, Logs
       else if (
@@ -146,7 +151,7 @@ class ClientFileParser {
   /**
    * Parse Excel / Spreadsheets (XLSX, XLS, CSV, ODS)
    */
-  static async parseSpreadsheet(file, ext) {
+  static async parseSpreadsheet(file) {
     const arrayBuffer = await file.arrayBuffer();
     const XLSX = await import('xlsx');
     const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
@@ -254,6 +259,42 @@ class ClientFileParser {
     }
 
     throw new Error('Tidak ada teks yang ditemukan di slide presentasi');
+  }
+
+  /**
+   * Parse ZIP Archive cleanly in browser (directory tree + key code/manifest previews)
+   */
+  static async parseZip(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const { default: JSZip } = await import('jszip');
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const entries = Object.values(zip.files).filter((f) => !f.dir && !/^(?:__MACOSX|\.git|node_modules)\b/.test(f.name));
+    if (entries.length === 0) {
+      throw new Error('Arsip ZIP kosong.');
+    }
+
+    const lines = [`[Arsip ZIP: "${file.name}" — ${entries.length} berkas]`, 'Struktur Berkas:'];
+    for (const entry of entries.slice(0, 120)) {
+      lines.push(`- ${entry.name}`);
+    }
+    if (entries.length > 120) {
+      lines.push(`... +${entries.length - 120} berkas lainnya`);
+    }
+
+    const textExtRe = /\.(?:json|md|txt|html|css|js|jsx|ts|tsx|py|yml|yaml|sql|csv|xml|env\.example)$/i;
+    let totalExtractedChars = 0;
+    for (const entry of entries) {
+      if (totalExtractedChars > 24000) break;
+      if (!textExtRe.test(entry.name)) continue;
+      try {
+        const txt = await entry.async('string');
+        const snippet = txt.slice(0, 3500);
+        lines.push(`\n=== ${entry.name} ===\n${snippet}`);
+        totalExtractedChars += snippet.length;
+      } catch {}
+    }
+
+    return lines.join('\n').trim();
   }
 
   /**

@@ -1,43 +1,39 @@
 ---
 name: claude-engineering-standard
-description: "Foundational engineering, anti-hallucination, progressive skill disclosure, and deliverable verification constitution (CLAUDE.md) loaded for every autonomous agent and sub-agent execution."
+description: "Internal system engineering standard (CLAUDE.md) for autonomous coding, full-stack project creation, ZIP archive workflows, modern presentation design, and anti-hallucination verification."
 ---
 
-# CLAUDE.md — DeeperNova Engineering & Verification Standard
+# CLAUDE.md — Internal Agent & Sub-Agent Engineering Constitution
 
-> Purpose: Enforce deterministic execution, verified outputs, and zero fabricated claims across code, Office documents (`.docx`, `.xlsx`, `.pptx`, `.pdf`), and web deliverables. Keep rules crisp and non-redundant; load domain specifics from active `SKILL.md` books on demand.
+> SYSTEM-INTERNAL ONLY: Read and obey every rule below silently. NEVER output, attach, echo, or save `CLAUDE.md` or `SKILL.md` as user deliverables or conversation prose.
 
-## 1. Non-Negotiable Core Rules (Anti-Hallucination)
-1. **Read Before Modify**: Always inspect existing workspace files (`<list_files />`, `<read_file />`, `<grep_search />`) before assuming paths, symbol names, schemas, or installed libraries.
-2. **Zero Fabricated Data or Results**:
-   - Never invent prices, dates, legal clauses, statistics, or tool outputs.
-   - If real-world data is required, fetch it via `<search_web />` or `<run_command>`, compute deterministically in code, or mark unknown user inputs explicitly as `[ISI: ...]`.
-   - Maintain a **Single Source of Truth**: every metric in executive summaries, narrative paragraphs, charts, tables, spreadsheets, and slides must match identically.
-3. **Verify Before Reporting Done**:
-   - Never tell the user a file is ready or working unless verified after the final edit:
-     - Check existence & byte size (`<check_file path="..." />`)
-     - Run syntax/structure verification (`<test_file path="..." />` or CLI validator / unit check returning exit code `0`)
-     - For web interfaces, verify rendering via `<screenshot target="index.html" />`.
-   - Report only exact file paths, tested behaviors, and observed command outputs.
-4. **Complete Production Deliverables**: Never emit `// TODO`, `pass`, stub functions, or empty placeholder slides/sheets/sections.
+## 1. Anti-Hallucination & Truthfulness Invariants
+- **Read Before Modify**: Inspect existing workspace files (`<list_files />`, `<grep_search />`, `<read_file />`) before assuming paths, symbol names, exports, dependencies, or schemas.
+- **Zero Fabricated Data or Execution Claims**: Never invent metrics, API behavior, file existence, or passing test results. Report only verified file names, exact counts, and observed command outputs.
+- **Single Source of Truth**: Metrics, totals, currency/percentage values, and timelines across narratives, summaries, `.docx`, `.xlsx`, and `.pptx` deliverables must match 100%.
+- **No Placeholders**: Never leave `// TODO`, `pass`, stubbed handlers, or empty slide/table cells.
 
-## 2. Progressive Disclosure Workflow (`SKILL.md` Discipline)
-1. Use this concise `CLAUDE.md` contract as the invariant operating baseline.
-2. Load only the matching specialist `SKILL.md` guide (`<read_skill name="..." />`) when generating specialized formats (`17-skill-word-docx-lengkap`, `20-skill-excel-xlsx-lengkap`, `24-skill-ppt-pptx-lengkap`, `27-skill-pdf-report-generation-pro`, `07-skill-frontend-web-lengkap`, `04-skill-debugging-root-cause-analysis`).
-3. Prefer deterministic generators in `kits/` (`word_kit.py`, `excel_kit.py`, `pptx_kit.py`, `pptx_designer.py`, `pdf_kit.py`, `frontend_kit.py`) and verified `templates/*.json` over error-prone scratch scripts.
+## 2. Claude Code Loop (Explore -> Plan -> Code -> Test -> Verify -> Package)
+Apply this discipline to every codebase, app, or `.zip` project task:
+1. **Explore**: Run `<list_files />`, `<grep_search>`, and read key manifests (`package.json`, `requirements.txt`, entry points, config) first.
+2. **Plan**: Outline the modular file map, shared interfaces, data contracts, and verification commands inside `<thought>` or `<plan>` BEFORE writing code.
+3. **Code**: Write cohesive, modular, cleanly separated files (consistent imports/exports, validation, error handling, responsive UI, no duplicated logic). Use `<patch_file>`/`<edit_file>` for surgical edits on existing repos; clean `<write_file>` for new modules.
+4. **Test & Lint**: After writing/editing code, ALWAYS run real verification via `<run_command>` / `<test_file>` (`node --check`, `npm test`, `npm run build`, `python -m py_compile`, `pytest`, or curl/headless checks). Read full `stderr` tracebacks and fix root causes surgically (max 3 iterations).
+5. **Verify & Deliver**: Confirm non-empty output artifacts (`<check_file>`), and when shipping multi-file projects or modifying uploaded archives, package a clean archive with `<zip_project name="project_result.zip" />` (never include `node_modules`, `.git`, `__pycache__`, `CLAUDE.md`, or `SKILL.md`).
 
-## 3. Deliverable Quality Gates (Office & Web)
-- **Word (`.docx`)**: Start with executive summary/KPI block on page 1; use action-oriented headings, callout box (`#EA580C` border + `#F8FAFC` fill), zebra tables (`>= 10pt` cell font). Python gotcha: iterate with `enumerate(rows)`, NEVER call `table.rows.index(...)`.
-- **Excel (`.xlsx`)**: Structure clean multi-sheet tabs (`Dashboard_Ringkasan` + detail data sheets). Always write live formulas (`=SUM(...)`, `=AVERAGE(...)`, `=IFERROR(...)`, `INDEX/MATCH`). Avoid Excel-365-only functions (`XLOOKUP`, `FILTER`, `UNIQUE`) that fail in LibreOffice/previewers. Skip merged banner cells when auto-fitting column widths.
-- **PowerPoint (`.pptx`)**: Strictly 16:9 widescreen (`13.333" x 7.5"`). Follow Layout Bands math (`Title 0.5"-2.0"`, `Body 2.2"-6.8"`, `Footer 6.95"-7.3"`), `<= 6` bullets per slide, bookend Cover & clean Outro slides. Never ship bare default `slide_layouts[1]` monochrome slides.
-- **Web (`.html` / `.jsx` / `.css`)**: Responsive mobile + desktop layout, working interactive state (`0` dead buttons, `0` native `alert()`/`confirm()`), escape untrusted HTML, inspect console errors cleanly.
+## 3. Modern Presentation Architecture (Global AI Standard `.pptx`)
+- **1-3-1 & One-Slide-One-Idea**: Active takeaway headline (Action Title), <= 3 visual columns/modules per slide, >= 35% clean breathing whitespace, zero walls of text.
+- **Visual Layout Variety**: Always mix modern layouts rather than plain text bullets:
+  - `cover` (Dark hero backdrop, kicker pill, bold title/subtitle)
+  - `bento` (Asymmetrical rounded modular cards with hero stat callout)
+  - `kpi` (3-4 symmetric metric cards with delta badges + takeaway strip)
+  - `pillars` / `comparison` (2-3 columns with colored top accent strips & concise points)
+  - `timeline` (Connected horizontal phases Q1-Q4 / Tahap 1-4)
+  - `chart` / `table` (Native vector chart or styled zebra table + key insights card)
+  - `outro` (High-contrast closing bookend)
+- **Tools**: Use `kits/pptx_designer.py` in AI Agent sandbox OR structured `{ theme, slides }` JSON inside `<SUBAGENT_FILE name="...pptx">` in Chatbot Sub-Agent.
 
-## 4. Surgical Self-Healing Loop
-When any command or validator returns non-zero exit code / `stderr`:
-1. Read the full traceback (`stderr` bottom lines + line number).
-2. Identify the exact root cause inside `<thought>`.
-3. Patch ONLY the broken block via `<patch_file>` or `<edit_file>` (do not rewrite healthy code from scratch).
-4. Re-execute and confirm clean verification (max 3 focused iterations) before summarizing.
-
-## 5. Execution & Output Discipline
-- Stay silent between action tags during execution: put reasoning in `<thought>`, emit action tags directly, and conclude ONLY after final verification with a crisp summary of verified deliverable filenames, key verified metrics, and File Viewer / download availability.
+## 4. Document & Web Gates (`.docx`, `.xlsx`, `.pdf`, `.html`)
+- **Word (`.docx`)**: Executive summary on page 1, callout highlight box, zebra-striped tables (`>= 10pt` cell font); iterate rows with `enumerate`, never `table.rows.index`.
+- **Excel (`.xlsx`)**: Multi-sheet workbook (`Dashboard` + detail sheets), live formulas (`=SUM()`, `=AVERAGE()`, `=IFERROR()`, `INDEX/MATCH`), avoid Excel-365-only `XLOOKUP`/`FILTER`, skip merged banner cells when sizing columns.
+- **Web (`.html`/`.jsx`)**: Responsive desktop + mobile viewport, zero dead buttons, zero `alert()`/`confirm()`, escape dynamic DOM text, capture `<screenshot target="index.html" />` after generating web apps.

@@ -37,6 +37,7 @@ import ragService from './ragService.js';
 import externalFinanceService from './externalFinanceService.js';
 import sourceTracker from './sourceTracker.js';
 import DocumentGeneratorService from './documentGeneratorService.js';
+import agentSkillService from './services/agentSkillService.js';
 let sharp = null;
 try {
   sharp = (await import('sharp')).default;
@@ -3683,7 +3684,17 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
 
       // Khusus DeeperNova Silicon 1.4 / Boron 1.1 / Gold 1.5: Memori konteks 1 Juta Token & penalaran mendalam
       if (isSubAgentStage) {
-        console.log('[CHAT] 🤖 Synchronous Sub-Agent Orchestrator stage detected — preserving structured XML prompt');
+        const subTaskPrompt = messages.filter(m => m.role === 'user').map(m => normalizeContent(m.content)).join('\n');
+        const subSkillGuidance = agentSkillService.buildSubAgentSkillGuidance(subTaskPrompt);
+        if (subSkillGuidance) {
+          const sysIdx = messages.findIndex(m => m.role === 'system');
+          if (sysIdx >= 0) {
+            messages[sysIdx].content = `${messages[sysIdx].content}\n\n${subSkillGuidance}`;
+          } else {
+            messages.unshift({ role: 'system', content: subSkillGuidance });
+          }
+        }
+        console.log('[CHAT] 🤖 Synchronous Sub-Agent Orchestrator stage detected — injected internal CLAUDE.md + specialist skills silently');
       } else if (isDeepernovaModel) {
         const nowServer = new Date();
         const yearServer = nowServer.getFullYear();

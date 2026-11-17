@@ -69,9 +69,116 @@ function decodeBase64ToBytes(dataUrl) {
   return new TextEncoder().encode(decodeURIComponent(body));
 }
 
+function parseHexOrSchemeColor(containerNode, themeMap = {}, fallback = null) {
+  if (!containerNode) return fallback;
+  const srgb = containerNode.getElementsByTagNameNS('*', 'srgbClr')[0];
+  if (srgb) {
+    const val = (srgb.getAttribute('val') || '').replace(/^#/, '');
+    if (/^[0-9a-f]{6}$/i.test(val)) return `#${val}`;
+  }
+  const scheme = containerNode.getElementsByTagNameNS('*', 'schemeClr')[0];
+  if (scheme) {
+    const key = (scheme.getAttribute('val') || '').toLowerCase();
+    const mapped = themeMap[key] || themeMap[key === 'tx1' ? 'dk1' : key === 'bg1' ? 'lt1' : key === 'tx2' ? 'dk2' : key === 'bg2' ? 'lt2' : key];
+    if (mapped) return mapped;
+  }
+  return fallback;
+}
+
+function isDarkHex(hex = '') {
+  const m = String(hex).replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return false;
+  const lum = (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) / 255;
+  return lum < 0.48;
+}
+
+function uint8ToDataUrl(u8, mime = 'image/png') {
+  let bin = '';
+  for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+  return `data:${mime};base64,${btoa(bin)}`;
+}
+
+async function parsePptxTheme(zip, parser) {
+  const map = {
+    dk1: '#0F172A', lt1: '#FFFFFF', dk2: '#1E293B', lt2: '#F8FAFC',
+    accent1: '#4F46E5', accent2: '#0284C7', accent3: '#10B981',
+    accent4: '#EA580C', accent5: '#8B5CF6', accent6: '#0EA5E9'
+  };
+  const themeEntry = zip.file('ppt/theme/theme1.xml');
+  if (!themeEntry) return map;
+  try {
+    const xml = await themeEntry.async('string');
+    const doc = parser.parseFromString(xml, 'application/xml');
+    const clrScheme = doc.getElementsByTagNameNS('*', 'clrScheme')[0];
+    if (!clrScheme) return map;
+    for (const key of Object.keys(map)) {
+      const node = clrScheme.getElementsByTagNameNS('*', key)[0];
+      if (!node) continue;
+      const srgb = node.getElementsByTagNameNS('*', 'srgbClr')[0];
+      const sysClr = node.getElementsByTagNameNS('*', 'sysClr')[0];
+      const hex = srgb?.getAttribute('val') || sysClr?.getAttribute('lastClr');
+      if (hex && /^[0-9a-f]{6}$/i.test(hex)) map[key] = `#${hex}`;
+    }
+  } catch {}
+  return map;
+}
+
+function resolvePptRelTarget(relTarget = '') {
+  const clean = String(relTarget || '').replace(/\\/g, '/').trim();
+  if (!clean) return '';
+  if (clean.startsWith('/')) return clean.slice(1);
+  if (clean.startsWith('../')) return `ppt/${clean.slice(3)}`;
+  if (clean.startsWith('ppt/')) return clean;
+  return `ppt/slides/${clean}`;
+}
+
+async function parsePptxChartXml(zip, relPath, parser, themeMap) {
+  const entry = zip.file(relPath);
+  if (!entry) return null;
+  try {
+    const xml = await entry.async('string');
+    const doc = parser.parseFromString(xml, 'application/xml');
+    const isLine = doc.getElementsByTagNameNS('*', 'lineChart').length > 0 && doc.getElementsByTagNameNS('*', 'barChart').length === 0;
+    const serNodes = Array.from(doc.getElementsByTagNameNS('*', 'ser'));
+    if (!serNodes.length) return null;
+    const firstSer = serNodes[0];
+    const cats = Array.from(firstSer.getElementsByTagNameNS('*', 'cat')[0]?.getElementsByTagNameNS('*', 'v') || []).map((n) => (n.textContent || '').trim());
+    const vals = Array.from(firstSer.getElementsByTagNameNS('*', 'val')[0]?.getElementsByTagNameNS('*', 'v') || []).map((n) => parseFloat(n.textContent || '0') || 0);
+    const spPr = firstSer.getElementsByTagNameNS('*', 'spPr')[0];
+    const color = parseHexOrSchemeColor(spPr, themeMap, themeMap.accent1 || '#4F46E5');
+    return { type: isLine ? 'line' : 'bar', labels: cats, values: vals, color };
+  } catch {
+    return null;
+  }
+}
+
 async function parsePptxSlides(bytes) {
   const JSZip = (await import('jszip')).default;
   const zip = await JSZip.loadAsync(bytes);
+  const parser = new DOMParser();
+  const themeMap = await parsePptxTheme(zip, parser);
+
+  // Slide size in EMU (default 16:9 widescreen 13.333" x 7.5")
+  let slideW = 12192000;
+  let slideH = 6858000;
+  const presEntry = zip.file('ppt/presentation.xml');
+  if (presEntry) {
+    try {
+      const presDoc = parser.parseFromString(await presEntry.async('string'), 'application/xml');
+      const sldSz = presDoc.getElementsByTagNameNS('*', 'sldSz')[0];
+      if (sldSz) {
+        const cx = parseInt(sldSz.getAttribute('cx') || '0', 10);
+        const cy = parseInt(sldSz.getAttribute('cy') || '0', 10);
+        if (cx > 0 && cy > 0) {
+          slideW = cx;
+          slideH = cy;
+        }
+      }
+    } catch {}
+  }
+  const slideWidthPt = (slideW / 914400) * 72;
+  const slideHeightPt = (slideH / 914400) * 72;
+
   const slideEntries = Object.keys(zip.files)
     .map((name) => {
       const m = name.match(/^ppt\/slides\/slide(\d+)\.xml$/i);
@@ -80,7 +187,6 @@ async function parsePptxSlides(bytes) {
     .filter(Boolean)
     .sort((a, b) => a.num - b.num);
 
-  const parser = new DOMParser();
   const slides = [];
 
   for (const entry of slideEntries) {
@@ -104,10 +210,18 @@ async function parsePptxSlides(bytes) {
       paragraphs.push(...looseText);
     }
 
+    // Parse slide relationships (media images, charts, speaker notes)
     let notes = '';
+    const relMap = {};
     const relPath = `ppt/slides/_rels/slide${entry.num}.xml.rels`;
     if (zip.files[relPath]) {
       const relStr = await zip.file(relPath).async('string');
+      const relDoc = parser.parseFromString(relStr, 'application/xml');
+      for (const rel of Array.from(relDoc.getElementsByTagNameNS('*', 'Relationship'))) {
+        const id = rel.getAttribute('Id');
+        const target = rel.getAttribute('Target') || '';
+        if (id) relMap[id] = target;
+      }
       const noteMatch = relStr.match(/Target="\.\.\/(notesSlides\/notesSlide\d+\.xml)"/i);
       if (noteMatch && zip.files[`ppt/${noteMatch[1]}`]) {
         const noteXml = await zip.file(`ppt/${noteMatch[1]}`).async('string');
@@ -119,9 +233,137 @@ async function parsePptxSlides(bytes) {
       }
     }
 
+    // Extract background fill
+    const bgNode = xmlDoc.getElementsByTagNameNS('*', 'bg')[0];
+    const bgFillNode = bgNode?.getElementsByTagNameNS('*', 'solidFill')[0] || bgNode?.getElementsByTagNameNS('*', 'gs')[0];
+    const bgColor = parseHexOrSchemeColor(bgFillNode, themeMap, '#FFFFFF');
+    const slideDarkBg = isDarkHex(bgColor);
+
+    // Extract visual elements from <p:spTree>
+    const elements = [];
+    const spTree = xmlDoc.getElementsByTagNameNS('*', 'spTree')[0];
+    const children = spTree ? Array.from(spTree.children || []) : [];
+
+    for (const child of children) {
+      const localName = (child.localName || child.nodeName || '').split(':').pop();
+      if (localName === 'nvGrpSpPr' || localName === 'grpSpPr') continue;
+
+      const xfrm = child.getElementsByTagNameNS('*', 'xfrm')[0];
+      const off = xfrm?.getElementsByTagNameNS('*', 'off')[0];
+      const ext = xfrm?.getElementsByTagNameNS('*', 'ext')[0];
+      if (!off || !ext) continue;
+
+      const xPct = (parseFloat(off.getAttribute('x') || '0') / slideW) * 100;
+      const yPct = (parseFloat(off.getAttribute('y') || '0') / slideH) * 100;
+      const wPct = (parseFloat(ext.getAttribute('cx') || '0') / slideW) * 100;
+      const hPct = (parseFloat(ext.getAttribute('cy') || '0') / slideH) * 100;
+      if (wPct <= 0.05 || hPct <= 0.05) continue;
+
+      if (localName === 'sp') {
+        const spPr = child.getElementsByTagNameNS('*', 'spPr')[0];
+        const prstGeom = spPr?.getElementsByTagNameNS('*', 'prstGeom')[0]?.getAttribute('prst') || 'rect';
+        const directSolidFill = Array.from(spPr?.children || []).find((n) => (n.localName || '').endsWith('solidFill'));
+        const noFill = Array.from(spPr?.children || []).some((n) => (n.localName || '').endsWith('noFill'));
+        const fillColor = noFill ? 'transparent' : parseHexOrSchemeColor(directSolidFill, themeMap, 'transparent');
+
+        const lnNode = Array.from(spPr?.children || []).find((n) => (n.localName || '').endsWith('ln'));
+        const lnNoFill = lnNode && Array.from(lnNode.children || []).some((n) => (n.localName || '').endsWith('noFill'));
+        const lnFill = lnNode && Array.from(lnNode.children || []).find((n) => (n.localName || '').endsWith('solidFill'));
+        const borderColor = (!lnNode || lnNoFill || !lnFill) ? 'transparent' : parseHexOrSchemeColor(lnFill, themeMap, 'transparent');
+        const borderPt = borderColor !== 'transparent' ? Math.max(0.75, (parseFloat(lnNode.getAttribute('w') || '12700') / 12700)) : 0;
+
+        const txBody = child.getElementsByTagNameNS('*', 'txBody')[0];
+        const bodyPr = txBody?.getElementsByTagNameNS('*', 'bodyPr')[0];
+        const anchor = bodyPr?.getAttribute('anchor') || 't';
+        const shapeDark = fillColor !== 'transparent' ? isDarkHex(fillColor) : slideDarkBg;
+        const defaultTextColor = shapeDark ? '#FFFFFF' : '#0F172A';
+
+        const richParagraphs = [];
+        if (txBody) {
+          for (const p of Array.from(txBody.children || [])) {
+            if ((p.localName || '') !== 'p') continue;
+            const pPr = Array.from(p.children || []).find((n) => (n.localName || '') === 'pPr');
+            const algn = pPr?.getAttribute('algn') || 'l';
+            const hasBuChar = Boolean(pPr?.getElementsByTagNameNS('*', 'buChar')[0]);
+            const runs = [];
+            for (const r of Array.from(p.children || [])) {
+              const rName = r.localName || '';
+              if (rName !== 'r' && rName !== 'fld') continue;
+              const tNode = r.getElementsByTagNameNS('*', 't')[0];
+              const txt = tNode?.textContent || '';
+              if (!txt) continue;
+              const rPr = r.getElementsByTagNameNS('*', 'rPr')[0];
+              const szRaw = rPr?.getAttribute('sz');
+              const fontSize = szRaw ? parseFloat(szRaw) / 100 : 14;
+              const bold = rPr?.getAttribute('b') === '1';
+              const italic = rPr?.getAttribute('i') === '1';
+              const rFill = Array.from(rPr?.children || []).find((n) => (n.localName || '') === 'solidFill');
+              const color = parseHexOrSchemeColor(rFill, themeMap, defaultTextColor);
+              runs.push({ text: txt, fontSize, bold, italic, color });
+            }
+            if (runs.length > 0) {
+              richParagraphs.push({ align: algn === 'ctr' ? 'center' : algn === 'r' ? 'right' : 'left', bullet: hasBuChar, runs });
+            }
+          }
+        }
+
+        elements.push({
+          kind: 'shape',
+          x: xPct, y: yPct, w: wPct, h: hPct,
+          prstGeom, fillColor, borderColor, borderPt, anchor,
+          paragraphs: richParagraphs
+        });
+      } else if (localName === 'pic') {
+        const blip = child.getElementsByTagNameNS('*', 'blip')[0];
+        const rId = blip?.getAttribute('r:embed') || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+        const relTarget = rId ? relMap[rId] : null;
+        if (relTarget) {
+          const mediaPath = resolvePptRelTarget(relTarget);
+          const mediaEntry = zip.file(mediaPath);
+          if (mediaEntry) {
+            const mediaU8 = await mediaEntry.async('uint8array');
+            const mExt = mediaPath.split('.').pop()?.toLowerCase() || 'png';
+            const mime = mExt === 'jpg' || mExt === 'jpeg' ? 'image/jpeg' : mExt === 'svg' ? 'image/svg+xml' : `image/${mExt}`;
+            elements.push({ kind: 'image', x: xPct, y: yPct, w: wPct, h: hPct, src: uint8ToDataUrl(mediaU8, mime) });
+          }
+        }
+      } else if (localName === 'graphicFrame') {
+        const tbl = child.getElementsByTagNameNS('*', 'tbl')[0];
+        if (tbl) {
+          const tblRows = [];
+          for (const tr of Array.from(tbl.getElementsByTagNameNS('*', 'tr'))) {
+            const rowCells = [];
+            for (const tc of Array.from(tr.getElementsByTagNameNS('*', 'tc'))) {
+              const tcPr = tc.getElementsByTagNameNS('*', 'tcPr')[0];
+              const tcFill = tcPr?.getElementsByTagNameNS('*', 'solidFill')[0];
+              const fillColor = parseHexOrSchemeColor(tcFill, themeMap, '#FFFFFF');
+              const txt = Array.from(tc.getElementsByTagNameNS('*', 't')).map((t) => t.textContent || '').join('').trim();
+              const rPr = tc.getElementsByTagNameNS('*', 'rPr')[0];
+              const color = parseHexOrSchemeColor(rPr?.getElementsByTagNameNS('*', 'solidFill')[0], themeMap, isDarkHex(fillColor) ? '#FFFFFF' : '#0F172A');
+              const bold = rPr?.getAttribute('b') === '1';
+              rowCells.push({ text: txt, fillColor, color, bold });
+            }
+            if (rowCells.length) tblRows.push(rowCells);
+          }
+          elements.push({ kind: 'table', x: xPct, y: yPct, w: wPct, h: hPct, rows: tblRows });
+        } else {
+          const chartNode = child.getElementsByTagNameNS('*', 'chart')[0];
+          const rId = chartNode?.getAttribute('r:id') || chartNode?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+          const relTarget = rId ? relMap[rId] : null;
+          if (relTarget) {
+            const chartPath = resolvePptRelTarget(relTarget);
+            const chartData = await parsePptxChartXml(zip, chartPath, parser, themeMap);
+            if (chartData) {
+              elements.push({ kind: 'chart', x: xPct, y: yPct, w: wPct, h: hPct, chart: chartData });
+            }
+          }
+        }
+      }
+    }
+
     const title = paragraphs[0] || `Slide ${entry.num}`;
     const body = paragraphs.length > 1 ? paragraphs.slice(1) : [];
-    slides.push({ num: entry.num, title, body, notes });
+    slides.push({ num: entry.num, title, body, notes, bgColor, slideWidthPt, slideHeightPt, elements });
   }
 
   return slides;
@@ -179,11 +421,192 @@ function extractReadableBinaryStrings(bytes) {
   }
 }
 
+function PptxVisualSlideCanvas({ slide }) {
+  const stageRef = useRef(null);
+  const [frameWidth, setFrameWidth] = useState(820);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const update = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 40) setFrameWidth(w);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const designWpx = (slide.slideWidthPt || 960) * (96 / 72);
+  const scale = frameWidth / designWpx;
+  const aspect = (slide.slideWidthPt || 960) / (slide.slideHeightPt || 540);
+
+  return (
+    <div
+      ref={stageRef}
+      className="fv-pptx-visual-canvas"
+      style={{ aspectRatio: String(aspect), background: slide.bgColor || '#FFFFFF' }}
+    >
+      {(slide.elements || []).map((el, idx) => {
+        const baseStyle = {
+          position: 'absolute',
+          left: `${el.x}%`,
+          top: `${el.y}%`,
+          width: `${el.w}%`,
+          height: `${el.h}%`,
+          boxSizing: 'border-box',
+          overflow: 'hidden'
+        };
+
+        if (el.kind === 'image') {
+          return (
+            <img
+              key={idx}
+              src={el.src}
+              alt=""
+              style={{ ...baseStyle, objectFit: 'contain' }}
+            />
+          );
+        }
+
+        if (el.kind === 'table' && el.rows?.length) {
+          return (
+            <div key={idx} style={{ ...baseStyle, overflow: 'auto' }}>
+              <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', fontSize: `${Math.max(7, 11 * scale)}px` }}>
+                <tbody>
+                  {el.rows.map((row, rIdx) => (
+                    <tr key={rIdx}>
+                      {row.map((cell, cIdx) => (
+                        <td
+                          key={cIdx}
+                          style={{
+                            background: cell.fillColor,
+                            color: cell.color,
+                            fontWeight: cell.bold || rIdx === 0 ? 700 : 400,
+                            border: '1px solid #cbd5e1',
+                            padding: `${Math.max(2, 4 * scale)}px ${Math.max(3, 6 * scale)}px`
+                          }}
+                        >
+                          {cell.text}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+
+        if (el.kind === 'chart' && el.chart?.values?.length) {
+          const maxVal = Math.max(1, ...el.chart.values.map((v) => Math.abs(v)));
+          const barCount = el.chart.values.length;
+          return (
+            <div key={idx} style={{ ...baseStyle, padding: `${Math.max(4, 10 * scale)}px`, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <svg viewBox="0 0 400 200" style={{ width: '100%', height: '100%' }}>
+                {el.chart.type === 'line' ? (
+                  <>
+                    <polyline
+                      fill="none"
+                      stroke={el.chart.color || '#4F46E5'}
+                      strokeWidth="4"
+                      points={el.chart.values.map((v, i) => `${30 + (i * 340) / Math.max(1, barCount - 1)},${165 - (v / maxVal) * 130}`).join(' ')}
+                    />
+                    {el.chart.values.map((v, i) => {
+                      const cx = 30 + (i * 340) / Math.max(1, barCount - 1);
+                      const cy = 165 - (v / maxVal) * 130;
+                      return (
+                        <g key={i}>
+                          <circle cx={cx} cy={cy} r="5" fill={el.chart.color || '#4F46E5'} />
+                          <text x={cx} y="190" fontSize="11" textAnchor="middle" fill="#475569">{el.chart.labels[i] || ''}</text>
+                        </g>
+                      );
+                    })}
+                  </>
+                ) : (
+                  el.chart.values.map((v, i) => {
+                    const slotW = 360 / Math.max(1, barCount);
+                    const barW = Math.min(48, slotW * 0.62);
+                    const barH = Math.max(4, (Math.max(0, v) / maxVal) * 130);
+                    const bx = 20 + i * slotW + (slotW - barW) / 2;
+                    const by = 165 - barH;
+                    return (
+                      <g key={i}>
+                        <rect x={bx} y={by} width={barW} height={barH} rx="4" fill={el.chart.color || '#4F46E5'} />
+                        <text x={bx + barW / 2} y={by - 5} fontSize="10" fontWeight="700" textAnchor="middle" fill="#0F172A">{v}</text>
+                        <text x={bx + barW / 2} y="186" fontSize="10" textAnchor="middle" fill="#475569">{String(el.chart.labels[i] || '').slice(0, 12)}</text>
+                      </g>
+                    );
+                  })
+                )}
+              </svg>
+            </div>
+          );
+        }
+
+        const radius = el.prstGeom === 'ellipse'
+          ? '50%'
+          : el.prstGeom === 'roundRect'
+            ? `${Math.max(3, 10 * scale)}px`
+            : '0px';
+        const justify = el.anchor === 'ctr' ? 'center' : el.anchor === 'b' ? 'flex-end' : 'flex-start';
+
+        return (
+          <div
+            key={idx}
+            style={{
+              ...baseStyle,
+              background: el.fillColor,
+              borderRadius: radius,
+              border: el.borderPt > 0 && el.borderColor !== 'transparent'
+                ? `${Math.max(1, el.borderPt * scale)}px solid ${el.borderColor}`
+                : 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: justify,
+              padding: el.paragraphs?.length ? `${Math.max(2, 5 * scale)}px ${Math.max(3, 7 * scale)}px` : 0
+            }}
+          >
+            {(el.paragraphs || []).map((p, pIdx) => (
+              <div
+                key={pIdx}
+                style={{
+                  textAlign: p.align,
+                  lineHeight: 1.28,
+                  marginBottom: `${Math.max(1, 3 * scale)}px`,
+                  wordBreak: 'break-word'
+                }}
+              >
+                {p.bullet && <span style={{ marginRight: `${Math.max(2, 4 * scale)}px`, color: p.runs[0]?.color || '#334155', fontSize: `${Math.max(6, (p.runs[0]?.fontSize || 13) * scale)}px` }}>•</span>}
+                {p.runs.map((r, rIdx) => (
+                  <span
+                    key={rIdx}
+                    style={{
+                      fontSize: `${Math.max(6, (r.fontSize || 13) * scale)}px`,
+                      fontWeight: r.bold ? 700 : 400,
+                      fontStyle: r.italic ? 'italic' : 'normal',
+                      color: r.color
+                    }}
+                  >
+                    {r.text}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function getFileMetaIcon(ext) {
   if (ext === 'docx' || ext === 'doc') return { icon: 'fa-solid fa-file-word', color: '#2b579a', label: 'Word' };
   if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') return { icon: 'fa-solid fa-file-excel', color: '#107c41', label: 'Spreadsheet' };
   if (ext === 'pptx' || ext === 'ppt') return { icon: 'fa-solid fa-file-powerpoint', color: '#d24726', label: 'PowerPoint' };
   if (ext === 'pdf') return { icon: 'fa-solid fa-file-pdf', color: '#dc2626', label: 'PDF' };
+  if (ext === 'zip') return { icon: 'fa-solid fa-file-zipper', color: '#7c3aed', label: 'ZIP Archive' };
   if (IMAGE_EXTS.has(ext)) return { icon: 'fa-solid fa-file-image', color: '#059669', label: 'Image' };
   if (VIDEO_EXTS.has(ext)) return { icon: 'fa-solid fa-file-video', color: '#7c3aed', label: 'Video' };
   if (AUDIO_EXTS.has(ext)) return { icon: 'fa-solid fa-file-audio', color: '#0284c7', label: 'Audio' };
@@ -327,9 +750,12 @@ export default function FileViewer({
   const [sheets, setSheets] = useState([]); // [{ name, rows, truncated, totalRows }]
   const [activeSheetIdx, setActiveSheetIdx] = useState(0);
   const [sheetSearch, setSheetSearch] = useState('');
-  const [slides, setSlides] = useState([]); // [{ num, title, body, notes }]
+  const [slides, setSlides] = useState([]); // [{ num, title, body, notes, bgColor, elements }]
   const [activeSlideIdx, setActiveSlideIdx] = useState(0);
   const [showAllSlides, setShowAllSlides] = useState(true);
+  const [pptxViewMode, setPptxViewMode] = useState('visual'); // 'visual' | 'outline'
+  const [zipEntries, setZipEntries] = useState([]); // [{ path, name, size, ext, entry }]
+  const [selectedZipEntry, setSelectedZipEntry] = useState(null); // { path, name, text, imgUrl, size }
   const [textBody, setTextBody] = useState('');
   const [htmlViewMode, setHtmlViewMode] = useState('preview'); // 'preview' | 'source'
   const [mdViewMode, setMdViewMode] = useState('rendered'); // 'rendered' | 'source'
@@ -367,6 +793,8 @@ export default function FileViewer({
     setSheetSearch('');
     setSlides([]);
     setActiveSlideIdx(0);
+    setZipEntries([]);
+    setSelectedZipEntry(null);
     setTextBody('');
     setResolvedBytes(null);
     setZoom(1);
@@ -488,7 +916,7 @@ export default function FileViewer({
               setDocxHtml(sanitizeDocxHtml(res.value || ''));
               return;
             }
-          } catch {}
+          } catch { }
           if (cancelled) return;
           setTextBody(decoded);
           return;
@@ -529,7 +957,7 @@ export default function FileViewer({
                   });
                   if (!cancelled) setResolvedBytes(new Uint8Array(ab));
                 }
-              } catch {}
+              } catch { }
               if (parsedSheets.length === 0) {
                 parsedSheets = parseTabularFallback(decoded);
               }
@@ -608,6 +1036,37 @@ export default function FileViewer({
           return;
         }
 
+        if (ext === 'zip' && bytes) {
+          const JSZip = (await import('jszip')).default;
+          const zip = await JSZip.loadAsync(bytes);
+          const entries = [];
+          for (const [entryPath, zipObj] of Object.entries(zip.files)) {
+            if (zipObj.dir || entryPath.startsWith('__MACOSX/')) continue;
+            const entryName = entryPath.split('/').pop() || entryPath;
+            const entryExt = (entryName.split('.').pop() || '').toLowerCase();
+            entries.push({
+              path: entryPath,
+              name: entryName,
+              ext: entryExt,
+              size: zipObj._data?.uncompressedSize || 0,
+              zipObj
+            });
+          }
+          entries.sort((a, b) => a.path.localeCompare(b.path));
+          if (cancelled) return;
+          setZipEntries(entries);
+          if (entries.length > 0) {
+            const preferred = entries.find((e) => /^(readme\.md|package\.json|index\.html|main\.py|app\.js)$/i.test(e.name)) || entries[0];
+            if (preferred && (TEXT_EXTS.has(preferred.ext) || ['html', 'htm', 'csv'].includes(preferred.ext))) {
+              try {
+                const txt = await preferred.zipObj.async('string');
+                if (!cancelled) setSelectedZipEntry({ path: preferred.path, name: preferred.name, text: txt, size: preferred.size });
+              } catch {}
+            }
+          }
+          return;
+        }
+
         if (IMAGE_EXTS.has(ext) || VIDEO_EXTS.has(ext) || AUDIO_EXTS.has(ext)) {
           if (bytes && bytes.length > 0) {
             const mime = ext === 'svg'
@@ -659,7 +1118,7 @@ export default function FileViewer({
     return () => {
       cancelled = true;
       if (objectUrlToRevoke) {
-        try { URL.revokeObjectURL(objectUrlToRevoke); } catch {}
+        try { URL.revokeObjectURL(objectUrlToRevoke); } catch { }
       }
     };
   }, [activeFile, ext, fileName, isEn]);
@@ -713,6 +1172,7 @@ export default function FileViewer({
   const isSheet = ext === 'xlsx' || ext === 'xls' || ext === 'csv';
   const isPptx = ext === 'pptx' || ext === 'ppt';
   const isPdf = ext === 'pdf';
+  const isZip = ext === 'zip';
   const isHtml = ext === 'html' || ext === 'htm';
   const isMd = ext === 'md' || ext === 'markdown';
   const isImage = IMAGE_EXTS.has(ext);
@@ -855,24 +1315,93 @@ export default function FileViewer({
                 <span>SLIDE {slide.num} / {slides.length}</span>
                 <span>{fileName}</span>
               </div>
-              <div className="fv-slide-body">
-                <h3 className="fv-slide-title">{slide.title}</h3>
-                {slide.body.length > 0 && (
-                  <ul className="fv-slide-lines">
-                    {slide.body.map((line, i) => (
-                      <li key={i}>{String(line || '').replace(/^[-*•]\s+/, '')}</li>
-                    ))}
-                  </ul>
-                )}
-                {slide.notes && (
-                  <div className="fv-slide-notes">
-                    <strong>{isEn ? 'Speaker Notes: ' : 'Catatan Slide: '}</strong>
-                    {slide.notes}
-                  </div>
-                )}
-              </div>
+              {pptxViewMode === 'visual' && slide.elements?.length > 0 ? (
+                <div className="fv-pptx-visual-wrap">
+                  <PptxVisualSlideCanvas slide={slide} />
+                </div>
+              ) : (
+                <div className="fv-slide-body">
+                  <h3 className="fv-slide-title">{slide.title}</h3>
+                  {slide.body.length > 0 && (
+                    <ul className="fv-slide-lines">
+                      {slide.body.map((line, i) => (
+                        <li key={i}>{String(line || '').replace(/^[-*•]\s+/, '')}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {slide.notes && (
+                <div className="fv-slide-notes" style={{ margin: '0 18px 16px' }}>
+                  <strong>{isEn ? 'Speaker Notes: ' : 'Catatan Slide: '}</strong>
+                  {slide.notes}
+                </div>
+              )}
             </div>
           ))}
+        </div>
+      );
+    }
+
+    if (isZip) {
+      return (
+        <div className="fv-zip-explorer">
+          <div className="fv-zip-sidebar">
+            <div className="fv-zip-sidebar-hdr">
+              <span>{isEn ? `Archive Contents (${zipEntries.length})` : `Isi Arsip ZIP (${zipEntries.length})`}</span>
+            </div>
+            <div className="fv-zip-list">
+              {zipEntries.map((item) => {
+                const isSel = selectedZipEntry?.path === item.path;
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    className={`fv-zip-item${isSel ? ' active' : ''}`}
+                    onClick={async () => {
+                      if (IMAGE_EXTS.has(item.ext)) {
+                        const u8 = await item.zipObj.async('uint8array');
+                        const mime = item.ext === 'svg' ? 'image/svg+xml' : `image/${item.ext === 'jpg' ? 'jpeg' : item.ext}`;
+                        setSelectedZipEntry({ path: item.path, name: item.name, imgUrl: uint8ToDataUrl(u8, mime), size: item.size });
+                      } else {
+                        const txt = await item.zipObj.async('string');
+                        const isBin = txt.slice(0, 256).includes('\0');
+                        setSelectedZipEntry({
+                          path: item.path,
+                          name: item.name,
+                          text: isBin ? (isEn ? '(Binary file inside archive)' : '(Berkas biner di dalam arsip)') : txt,
+                          size: item.size
+                        });
+                      }
+                    }}
+                  >
+                    <span className="fv-zip-path">{item.path}</span>
+                    <span className="fv-zip-size">{formatBytes(item.size)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="fv-zip-preview">
+            {selectedZipEntry ? (
+              selectedZipEntry.imgUrl ? (
+                <div className="fv-media-stage">
+                  <img src={selectedZipEntry.imgUrl} alt={selectedZipEntry.name} className="fv-image-el" />
+                </div>
+              ) : (
+                <div className="fv-code-wrap" style={{ height: '100%' }}>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10, borderBottom: '1px solid #1e293b', paddingBottom: 6 }}>
+                    {selectedZipEntry.path}
+                  </div>
+                  <pre className="fv-code-pre wrap">{selectedZipEntry.text || ''}</pre>
+                </div>
+              )
+            ) : (
+              <div className="fv-state-box">
+                <p style={{ color: '#64748b' }}>{isEn ? 'Select any file from the archive to inspect.' : 'Pilih berkas di arsip ZIP untuk meninjau isinya.'}</p>
+              </div>
+            )}
+          </div>
         </div>
       );
     }
@@ -1082,17 +1611,31 @@ export default function FileViewer({
               <>
                 <button
                   type="button"
+                  className={`fv-btn${pptxViewMode === 'visual' ? ' is-active' : ''}`}
+                  onClick={() => setPptxViewMode('visual')}
+                >
+                  {isEn ? 'Visual 16:9' : 'Visual 16:9'}
+                </button>
+                <button
+                  type="button"
+                  className={`fv-btn${pptxViewMode === 'outline' ? ' is-active' : ''}`}
+                  onClick={() => setPptxViewMode('outline')}
+                >
+                  {isEn ? 'Outline' : 'Teks'}
+                </button>
+                <button
+                  type="button"
                   className={`fv-btn${showAllSlides ? ' is-active' : ''}`}
                   onClick={() => setShowAllSlides(true)}
                 >
-                  {isEn ? `All Slides (${slides.length})` : `Semua Slide (${slides.length})`}
+                  {isEn ? `All (${slides.length})` : `Semua (${slides.length})`}
                 </button>
                 <button
                   type="button"
                   className={`fv-btn${!showAllSlides ? ' is-active' : ''}`}
                   onClick={() => setShowAllSlides(false)}
                 >
-                  {isEn ? 'Single Slide' : 'Per Slide'}
+                  {isEn ? 'Single' : 'Per Slide'}
                 </button>
                 {!showAllSlides && (
                   <>
@@ -1211,7 +1754,7 @@ export default function FileViewer({
                       await navigator.clipboard.writeText(textBody);
                       setCopiedText(true);
                       setTimeout(() => setCopiedText(false), 1600);
-                    } catch {}
+                    } catch { }
                   }}
                 >
                   {copiedText ? (isEn ? '✓ Copied' : '✓ Tersalin') : (isEn ? 'Copy' : 'Salin')}

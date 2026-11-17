@@ -409,8 +409,8 @@ class AgentSkillService {
       return this.readSkill('10-skill-backend-rest-api-python-node');
     }
 
-    // 23. AGENTIC CODING / DEBUGGING / TDD / REFACTORING
-    if (/\b(koding|coding|debug|debugging|error|traceback|refactor|tdd|unit\s*test)\b/i.test(p)) {
+    // 23. AGENTIC CODING / DEBUGGING / TDD / REFACTORING / ZIP PROJECTS
+    if (/\b(koding|coding|debug|debugging|error|traceback|refactor|tdd|unit\s*test|zip|arsip|ekstrak|extract|proyek|project|aplikasi|sistem|bot|cli|script)\b/i.test(p)) {
       if (/\b(debug|debugging|error|traceback)\b/i.test(p)) return this.readSkill('04-skill-debugging-root-cause-analysis');
       if (/\b(tdd|unit\s*test|testing)\b/i.test(p)) return this.readSkill('03-skill-tdd-testing-qa-automation');
       if (/\b(refactor|clean\s*architecture)\b/i.test(p)) return this.readSkill('05-skill-refactoring-clean-architecture');
@@ -534,7 +534,37 @@ class AgentSkillService {
     const skill = this.getClaudeContract();
     if (!skill || !skill.content) return '';
     const body = skill.content.replace(/^---[\s\S]*?---\s*/m, '').trim();
-    return `\n================================================================================\n📘 [CLAUDE.md — CORE ENGINEERING, ACCURACY & ANTI-HALLUCINATION CONTRACT]\n${body}\n================================================================================\n`;
+    return `\n================================================================================\n📘 [SYSTEM SKILL AKTIF: CLAUDE.md — ATURAN INTERNAL WAJIB (JANGAN PERNAH DICETAK ATAU DILAMPIRKAN SEBAGAI FILE KE PERCAKAPAN)]\n${body}\n================================================================================\n`;
+  }
+
+  /**
+   * Build concise internal CLAUDE.md + task-specific skill guidance for Chatbot Sub-Agent Orchestrator
+   */
+  buildSubAgentSkillGuidance(taskPrompt = '') {
+    const claudePrompt = this.getClaudeContractPrompt();
+    const evalRes = this.evaluateSkillRequirement(taskPrompt || '');
+    let skillExcerpt = '';
+    if (evalRes?.requiresSkill && evalRes.selectedSkill?.content) {
+      const cleanBody = evalRes.selectedSkill.content.replace(/^---[\s\S]*?---\s*/m, '').trim();
+      skillExcerpt = `\n📖 [SYSTEM SKILL SPESIALIS AKTIF: ${evalRes.selectedSkill.id} — "${evalRes.selectedSkill.title}"]\n${cleanBody.slice(0, 3200)}\n`;
+    }
+    const wantsPpt = /\b(pptx?|powerpoint|presentasi|presentation|deck|slide)\b/i.test(taskPrompt || '');
+    const modernPptGuide = wantsPpt ? `
+📊 [DESAIN PRESENTASI AI MODERN (.pptx) — GAMMA & MCKINSEY BENTO STANDARD]:
+- WAJIB menerapkan aturan 1-3-1 ("One Slide, One Idea"): Judul kalimat aksi aktif, maksimal 3 kolom/kartu per slide, minimal 35% ruang kosong bersih, DILARANG dinding teks panjang!
+- WAJIB variasi tata letak di dalam JSON <SUBAGENT_FILE name="nama.pptx"> berformat:
+  {"theme":"indigo","slides":[
+    {"layout":"cover","kicker":"KICKER RINGKAS","title":"Judul Presentasi Tajam","subtitle":"Subjudul jelas","meta":"2026 • DeeperNova AI"},
+    {"layout":"kpi","kicker":"METRIK KUNCI","title":"Headline Insight Utama","kpis":[{"label":"TARGET","value":"Rp 2.5 M","delta":"+18% YoY","positive":true},{"label":"EFISIENSI","value":"94%","delta":"+12% QoQ","positive":true},{"label":"ADOPSI","value":"42.5K","delta":"+31%","positive":true}],"bullets":["Poin ringkas inti maksimal 12 kata."]},
+    {"layout":"bento","kicker":"SOROTAN UTAMA","title":"Judul Bento Grid Asimetris","hero":{"stat":"3.4x","label":"ROI Otonom","title":"Dampak Utama","desc":"Penjelasan singkat 1-2 kalimat."},"cards":[{"title":"Modul A","desc":"Ringkasan padat."},{"title":"Modul B","desc":"Ringkasan padat."}]},
+    {"layout":"pillars","kicker":"ARSITEKTUR","title":"Tiga Pilar Eksekusi","cards":[{"tag":"01","title":"Pilar Pertama","bullets":["Bullet 1","Bullet 2"]},{"tag":"02","title":"Pilar Kedua","bullets":["Bullet 1","Bullet 2"]},{"tag":"03","title":"Pilar Ketiga","bullets":["Bullet 1","Bullet 2"]}]},
+    {"layout":"timeline","kicker":"ROADMAP","title":"Tahapan Implementasi Terstruktur","steps":[{"phase":"Q1 • FASE 1","title":"Pondasi","desc":"Deskripsi singkat."},{"phase":"Q2 • FASE 2","title":"Skalabilitas","desc":"Deskripsi singkat."},{"phase":"Q3 • FASE 3","title":"Optimasi","desc":"Deskripsi singkat."}]},
+    {"layout":"chart","kicker":"TREN DATA","title":"Pertumbuhan Kinerja Kuartalan","chart":{"type":"bar","seriesName":"Pendapatan (Miliar)","labels":["Q1","Q2","Q3","Q4"],"values":[1.2,1.8,2.4,3.2]},"insight":{"title":"Sorotan Tren","bullets":["Pertumbuhan konsisten +42% tiap kuartal.","Q4 mencapai rekor tertinggi."]}},
+    {"layout":"outro","title":"Siap Melangkah ke Tahap Berikutnya","subtitle":"Terima kasih • Diskusi & Implementasi 2026"}
+  ]}
+- Buat minimal 6-8 slide berkualitas tinggi dengan tema tepat ("indigo" | "navy" | "emerald" | "amber" | "obsidian"). JANGAN tulis skrip Python di dalam file .pptx!
+` : '';
+    return `${claudePrompt}${skillExcerpt}${modernPptGuide}`;
   }
 
   /**
