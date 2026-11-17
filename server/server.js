@@ -303,7 +303,7 @@ app.use((req, res, next) => {
     reqPath === '/index.html' ||
     reqPath === '/help' ||
     reqPath === '/help.html' ||
-    reqPath === '/documents' ||
+    reqPath === '/viewer' ||
     reqPath === '/chat' ||
     reqPath === '/universe' ||
     reqPath === '/ceo.jpg' ||
@@ -7787,13 +7787,17 @@ app.use([
   );
 });
 
+app.get(['/documents', '/documents/'], (_req, res) => {
+  res.redirect(301, '/viewer');
+});
+
 // SPA catch-all for public frontend routes
 app.get([
   '/', '/landing', '/landing/',
   '/chat', '/chat/',
   '/agent', '/agent/',
   '/codedance', '/codedance/',
-  '/documents', '/documents/',
+  '/viewer', '/viewer/',
   '/universe', '/universe/',
   '/office', '/office/',
   '/cloud', '/cloud/',

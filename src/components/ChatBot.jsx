@@ -6,6 +6,7 @@ import { ragService } from '../services/ragService';
 import { ConversationPersistenceService } from '../services/conversationPersistenceService';
 import ImageGenerationService from '../services/imageGenerationService';
 import ClientFileParser from '../services/clientFileParser';
+import FileViewer from './FileViewer';
 import { deepernovaTtsService } from '../services/deepernovaTtsService';
 import { saveImageToGallery, downloadImageDirectly } from '../services/imageStorageService';
 import { downloadText } from '../services/universalDownloadService';
@@ -76,6 +77,22 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [inputValue, setInputValue] = useState('');
   const [aiMode, setAiMode] = useState('brainstorm'); // 'brainstorm' | 'agent'
   const [activeFile, setActiveFile] = useState(null); // null or { id, name, type, content }
+  const [viewerFile, setViewerFile] = useState(null);
+  const openActiveFileViewer = useCallback(async (file) => {
+    if (!file) return;
+    const rawExt = (file.name || '').includes('.')
+      ? file.name.split('.').pop().toLowerCase()
+      : (file.type === 'excel' ? 'xlsx' : (file.type || 'docx'));
+    let fileUrl = file.url || null;
+    if (!fileUrl && !file.dataUrl && !file.content && file.id) {
+      fileUrl = `${API_BASE_URL}/api/cloud/files/${file.id}/raw`;
+    }
+    setViewerFile({
+      ...file,
+      ext: rawExt,
+      url: fileUrl
+    });
+  }, []);
   const [workspaceFiles, setWorkspaceFiles] = useState([]);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
@@ -8912,6 +8929,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     activeFile,
     onNavigate,
     setActiveFile,
+    openActiveFileViewer,
     fetchWorkspaceFiles,
     isAgentExecuting,
     agentLogs,
@@ -9291,6 +9309,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         countdownFullText={countdownFullText}
         activeFile={activeFile}
         onNavigate={onNavigate}
+        onViewActiveFile={openActiveFileViewer}
         setActiveFile={setActiveFile}
         showAlert={showAlert}
         showSlashMenu={showSlashMenu}
@@ -9341,6 +9360,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       />
 
       <ChatSecondaryModals ctx={modalCtx} />
+
+      {viewerFile && (
+        <FileViewer
+          mode="modal"
+          file={viewerFile}
+          onClose={() => setViewerFile(null)}
+          userLanguage={userLanguage}
+        />
+      )}
     </div>
 
     <ChatAgenticRightPanel

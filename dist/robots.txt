@@ -26,6 +26,7 @@ Allow: /
 Allow: /help
 Allow: /help.html
 Allow: /agent
+Allow: /viewer
 Allow: /chat
 Allow: /universe
 Allow: /ceo.jpg
@@ -78,6 +79,7 @@ Allow: /
 Allow: /help
 Allow: /help.html
 Allow: /agent
+Allow: /viewer
 Allow: /chat
 Allow: /universe
 Allow: /ceo.jpg
@@ -93,6 +95,7 @@ Allow: /
 Allow: /help
 Allow: /help.html
 Allow: /agent
+Allow: /viewer
 Allow: /chat
 Allow: /universe
 Allow: /ceo.jpg

@@ -1,0 +1,629 @@
+/* Clean Universal File Viewer Styles (Light / Slate Minimalist Theme) */
+
+.fv-page-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+.fv-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.fv-modal-backdrop.is-fullscreen {
+  padding: 0;
+}
+
+.fv-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  color: #0f172a;
+  overflow: hidden;
+}
+
+.fv-modal-backdrop .fv-container {
+  max-width: 1080px;
+  height: 90vh;
+  height: 90dvh;
+  border-radius: 16px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.35);
+}
+
+.fv-modal-backdrop.is-fullscreen .fv-container {
+  max-width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  border-radius: 0;
+  border: none;
+}
+
+.fv-embedded-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: #f8fafc;
+  color: #0f172a;
+  overflow: hidden;
+}
+
+/* Header Toolbar */
+.fv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.fv-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fv-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.fv-back-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.fv-file-icon-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.fv-title-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fv-filename {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fv-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.fv-ext-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.fv-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.fv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.fv-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.fv-btn.is-active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.fv-btn.is-primary {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.fv-btn.is-primary:hover {
+  background: #1e293b;
+}
+
+.fv-btn.is-close {
+  padding: 7px 11px;
+  font-size: 14px;
+}
+
+/* Sub-toolbar (sheet tabs, zoom controls, search) */
+.fv-subbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.fv-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 2px;
+}
+
+.fv-sheet-tab {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.fv-sheet-tab.active {
+  background: #107c41;
+  border-color: #107c41;
+  color: #ffffff;
+}
+
+.fv-search-input {
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 12px;
+  color: #0f172a;
+  outline: none;
+  min-width: 170px;
+}
+
+.fv-search-input:focus {
+  border-color: #3b82f6;
+}
+
+/* Main Body */
+.fv-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #f1f5f9;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.fv-state-box {
+  margin: auto;
+  padding: 40px 24px;
+  text-align: center;
+  max-width: 460px;
+}
+
+.fv-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #cbd5e1;
+  border-top-color: #ea580c;
+  border-radius: 50%;
+  animation: fvSpin 0.75s linear infinite;
+  margin: 0 auto 14px;
+}
+
+@keyframes fvSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Dropzone in Page Mode */
+.fv-dropzone-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.fv-dropzone {
+  width: 100%;
+  max-width: 560px;
+  background: #ffffff;
+  border: 2px dashed #cbd5e1;
+  border-radius: 18px;
+  padding: 44px 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.fv-dropzone:hover,
+.fv-dropzone.dragging {
+  border-color: #ea580c;
+  background: #fff7ed;
+}
+
+.fv-dropzone-icon {
+  font-size: 42px;
+  color: #ea580c;
+  margin-bottom: 14px;
+}
+
+.fv-dropzone h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.fv-dropzone p {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.fv-formats-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+
+.fv-format-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+/* Word / DOCX Document Paper */
+.fv-docx-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 16px 48px;
+}
+
+.fv-docx-paper {
+  max-width: 820px;
+  margin: 0 auto;
+  background: #ffffff;
+  padding: 40px 48px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.07);
+  color: #1e293b;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  line-height: 1.72;
+  overflow-wrap: break-word;
+}
+
+.fv-docx-paper h1,
+.fv-docx-paper h2,
+.fv-docx-paper h3 {
+  color: #0f172a;
+  margin-top: 1.3em;
+  margin-bottom: 0.45em;
+  line-height: 1.3;
+}
+
+.fv-docx-paper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13.5px;
+}
+
+.fv-docx-paper th,
+.fv-docx-paper td {
+  border: 1px solid #cbd5e1;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.fv-docx-paper th {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.fv-docx-paper img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Excel / CSV Spreadsheet Grid */
+.fv-sheet-scroll {
+  flex: 1;
+  overflow: auto;
+  background: #ffffff;
+}
+
+.fv-sheet-table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-size: 12.5px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.fv-sheet-table th,
+.fv-sheet-table td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 10px;
+  max-width: 340px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  vertical-align: top;
+}
+
+.fv-sheet-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 700;
+  text-align: center;
+}
+
+.fv-sheet-row-idx {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  text-align: right;
+  width: 44px;
+  min-width: 44px;
+  user-select: none;
+}
+
+.fv-sheet-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.fv-sheet-table tbody tr:first-child td {
+  font-weight: 600;
+  background: #fffbeb;
+}
+
+/* PowerPoint Slides */
+.fv-slides-stage {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.fv-slide-card {
+  width: 100%;
+  max-width: 820px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.fv-slide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.fv-slide-body {
+  padding: 28px 32px;
+  min-height: 220px;
+}
+
+.fv-slide-title {
+  margin: 0 0 14px;
+  font-size: 21px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.fv-slide-lines {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.fv-slide-notes {
+  margin-top: 18px;
+  padding: 10px 14px;
+  background: #fff7ed;
+  border-left: 3px solid #ea580c;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #7c2d12;
+}
+
+/* PDF & HTML Frames */
+.fv-iframe-full {
+  width: 100%;
+  height: 100%;
+  min-height: 460px;
+  border: none;
+  background: #ffffff;
+  flex: 1;
+}
+
+/* Code / Text Viewer */
+.fv-code-wrap {
+  flex: 1;
+  overflow: auto;
+  padding: 18px 20px;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.fv-code-pre {
+  margin: 0;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.fv-code-pre.wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Media Stage */
+.fv-media-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  background: #0b0f19;
+  padding: 20px;
+}
+
+.fv-image-el {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.18s ease;
+  border-radius: 6px;
+}
+
+.fv-video-el {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+  background: #000000;
+}
+
+.fv-banner-warn {
+  padding: 8px 16px;
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #fcd34d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .fv-modal-backdrop {
+    padding: 0;
+  }
+  .fv-modal-backdrop .fv-container {
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+  .fv-docx-paper {
+    padding: 22px 18px;
+  }
+  .fv-slide-body {
+    padding: 20px 18px;
+  }
+}

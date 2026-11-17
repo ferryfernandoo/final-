@@ -7,6 +7,7 @@ const ChatBot = lazy(() => import('./components/ChatBot'));
 const AgentChat = lazy(() => import('./components/AgentChat'));
 const Login = lazy(() => import('./components/Login'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
+const FileViewer = lazy(() => import('./components/FileViewer'));
 const DeepernovaUniverse = lazy(() => import('./components/DeepernovaUniverse'));
 const AICalendarHub = lazy(() => import('./components/AICalendarHub'));
 const AIManagerOffice = lazy(() => import('./components/AIManagerOffice'));
@@ -211,7 +212,7 @@ function App() {
       if (path === '/agent' || hash === '#agent') return 'agent';
       if (path === '/help' || hash === '#help') return 'help';
       if (path === '/codedance' || hash === '#codedance') return 'agent';
-      if (path === '/documents' || hash === '#documents') return 'chat';
+      if (path === '/viewer' || hash === '#viewer' || path === '/documents' || hash === '#documents') return 'viewer';
       if (path === '/chat' || hash === '#chat') return 'chat';
       if (path === '/universe' || hash === '#universe') return 'universe';
       if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') return 'office';
@@ -235,7 +236,7 @@ function App() {
 
   // Enhanced navigation handler that supports browser URL pushState
   const handleNavigate = (view) => {
-    const targetView = view === 'documents' ? 'chat' : view;
+    const targetView = view === 'documents' ? 'viewer' : view;
     if (targetView === 'office') {
       if (!isAuthenticated || isGuest) {
         setPendingPostLoginRedirect('office');
@@ -263,6 +264,7 @@ function App() {
       const routeMap = {
         agent: '/agent',
         help: '/help',
+        viewer: '/viewer',
         chat: '/chat',
         universe: '/universe',
         office: '/office',
@@ -315,8 +317,8 @@ function App() {
         }
 
         // Secondary Views navigate back to parent view
-        if (currentView === 'documents') {
-          const originView = sessionStorage.getItem('editor_return_view') || 'office';
+        if (currentView === 'viewer') {
+          const originView = sessionStorage.getItem('viewer_return_view') || 'chat';
           handleNavigate(originView);
           return true;
         }
@@ -378,7 +380,7 @@ function App() {
       }
       else if (path === '/help' || hash === '#help') setCurrentView('help');
       else if (path === '/codedance' || hash === '#codedance') setCurrentView('agent');
-      else if (path === '/documents' || hash === '#documents') setCurrentView('chat');
+      else if (path === '/viewer' || hash === '#viewer' || path === '/documents' || hash === '#documents') setCurrentView('viewer');
       else if (path === '/chat' || hash === '#chat') setCurrentView('chat');
       else if (path === '/universe' || hash === '#universe') setCurrentView('universe');
       else if (path === '/office' || hash === '#office' || path === '/cloud' || hash === '#cloud') setCurrentView('office');
@@ -939,6 +941,16 @@ function App() {
 
   console.log(`[App] Rendering: ${currentView} (isNative=${isNative}, isAuthenticated=${isAuthenticated}, isGuest=${isGuest})`);
   
+  if (currentView === 'viewer') {
+    return (
+      <ErrorBoundary onNavigate={handleNavigate}>
+        <Suspense fallback={<PageLoaderFallback />}>
+          <FileViewer mode="page" onNavigate={handleNavigate} userLanguage={userLanguage} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
   if (currentView === 'universe') {
     return (
       <Suspense fallback={<PageLoaderFallback />}>

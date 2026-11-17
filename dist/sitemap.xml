@@ -63,6 +63,14 @@
     </image:image>
   </url>
 
+  <!-- Universal File Viewer -->
+  <url>
+    <loc>https://deepernova.com/viewer</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
   <!-- Intelligent Multi-Model ChatBot -->
   <url>
     <loc>https://deepernova.com/chat</loc>

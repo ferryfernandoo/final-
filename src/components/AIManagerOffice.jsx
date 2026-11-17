@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { API_BASE_URL } from '../apiConfig';
 import { registerBackHandler } from '../services/mobileNavigationService';
 import { downloadFromUrl } from '../services/universalDownloadService';
+import FileViewer from './FileViewer';
 import './AIManagerOffice.css';
 
 // Helper: Real-time XMLHttpRequest upload with exact percentage tracking
@@ -79,6 +80,7 @@ const CloudMediaViewerModal = ({ file, onClose, getFileIcon }) => {
   const isAudio = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma'].includes(ext) || file.category === 'audio';
   const isCodeText = file.text || ['txt', 'md', 'json', 'js', 'ts', 'jsx', 'tsx', 'py', 'html', 'css', 'cpp', 'c', 'cs', 'java', 'php', 'rb', 'sql', 'sh', 'xml', 'yaml', 'yml'].includes(ext) || file.category === 'code';
   const isPdf = ext === 'pdf' || file.category === 'pdf';
+  const isRichDoc = isPdf || ['docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'].includes(ext) || ['docx', 'word', 'doc', 'excel', 'xlsx', 'pptx', 'ppt', 'pdf'].includes((file.category || '').toLowerCase());
 
   // Asynchronously fetch full data if missing or [[stored]]
   useEffect(() => {
@@ -380,6 +382,19 @@ const CloudMediaViewerModal = ({ file, onClose, getFileIcon }) => {
             <div className="media-code-container" style={{ width: '100%', height: '100%', overflow: 'auto', background: '#090d16', padding: '20px', borderRadius: '8px', color: '#38bdf8', fontFamily: 'monospace', fontSize: '13px', whiteSpace: 'pre-wrap' }}>
               {file.text || (typeof file.content === 'string' ? file.content : JSON.stringify(file.content, null, 2)) || (typeof dataUrl === 'string' && !dataUrl.startsWith('data:') ? dataUrl : 'Menampilkan isi berkas teks...')}
             </div>
+          ) : isRichDoc ? (
+            <FileViewer
+              mode="embedded"
+              file={{
+                name: file.name,
+                ext,
+                size: file.size,
+                url: activeSrc,
+                dataUrl: (dataUrl && dataUrl !== '[[stored]]') ? dataUrl : file.dataUrl,
+                content: file.content
+              }}
+              onDownload={handleDownload}
+            />
           ) : (
             <div className="media-fallback-container" style={{ textAlign: 'center', padding: '40px', color: '#cbd5e1' }}>
               <span style={{ fontSize: '64px', display: 'block', marginBottom: '16px' }}>{getFileIcon ? getFileIcon(file, 64) : '📄'}</span>

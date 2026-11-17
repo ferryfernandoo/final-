@@ -1208,6 +1208,7 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
     showAlert,
     activeFile,
     setActiveFile,
+    openActiveFileViewer,
     fetchWorkspaceFiles,
     isAgentExecuting,
     agentLogs,
@@ -1614,6 +1615,14 @@ export const ChatSecondaryModals = React.memo(function ChatSecondaryModals({ ctx
                   </div>
                 </div>
                 <div className="file-actions">
+                  <button
+                    type="button"
+                    className="workspace-btn primary"
+                    onClick={() => openActiveFileViewer?.(activeFile)}
+                    title={userLanguage === 'zh' ? '在文件查看器中打开' : userLanguage === 'id' ? 'Buka di File Viewer' : 'Open in File Viewer'}
+                  >
+                    <i className="fas fa-eye"></i>
+                  </button>
                   <button
                     type="button"
                     className="workspace-btn"

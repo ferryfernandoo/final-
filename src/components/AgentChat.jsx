@@ -6,6 +6,7 @@ import AgentService from '../services/agentService';
 import { downloadFromUrl, downloadText } from '../services/universalDownloadService';
 import AgentExecutionTree, { extractExecutionStepsAndCleanContent } from './AgentExecutionTree';
 import { detectLanguageSync, saveLanguage, LANGUAGE_OPTIONS } from '../utils/languageDetector';
+import FileViewer from './FileViewer';
 import './AgentChat.css';
 
 const AGENT_I18N = {
@@ -322,6 +323,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
   // Zero-Search Skill Architecture: Active Skill State
   const [activeSkill, setActiveSkill] = useState(null);
+  const [viewerFile, setViewerFile] = useState(null);
 
   // AI Agent Effort Level ('low' | 'medium' | 'high' - Pantang Menyerah)
   const [agentEffort, setAgentEffort] = useState(() => {
@@ -917,8 +919,29 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
   };
 
   // 6. Sandbox File Editor Actions
+  const BINARY_VIEWER_EXTS = new Set(['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'ico', 'bmp', 'mp4', 'webm', 'mov', 'mp3', 'wav', 'ogg', 'm4a', 'zip', 'rar', '7z']);
+
+  const openAgentFileViewer = (fileOrPath) => {
+    if (!fileOrPath || !currentSessionId) return;
+    const pathStr = typeof fileOrPath === 'string' ? fileOrPath : (fileOrPath.path || fileOrPath.name);
+    const name = (typeof fileOrPath === 'string' ? fileOrPath.split('/').pop() : fileOrPath.name) || pathStr.split('/').pop() || 'file';
+    const ext = (typeof fileOrPath === 'object' && fileOrPath.ext ? fileOrPath.ext : name.split('.').pop() || '').toLowerCase();
+    setViewerFile({
+      name,
+      ext,
+      path: pathStr,
+      size: typeof fileOrPath === 'object' ? fileOrPath.size : undefined,
+      url: AgentService.getDownloadUrl(currentSessionId, pathStr)
+    });
+  };
+
   const handleSelectFile = async (filePath) => {
     setSelectedFile(filePath);
+    const ext = (filePath.split('.').pop() || '').toLowerCase();
+    if (BINARY_VIEWER_EXTS.has(ext)) {
+      setFileContent('');
+      return;
+    }
     const content = await AgentService.readFile(currentSessionId, filePath);
     setFileContent(content || '');
   };
@@ -1608,12 +1631,12 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                           {filesToShow.map((file) => {
                             const ext = (file.ext || (file.name || '').split('.').pop() || '').toLowerCase();
                             const iconMeta = getFileIcon(ext);
-                            const isOfficeOrPdfDoc = ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'pdf'].includes(ext);
+                            const isViewerPreferred = ['docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'mp3', 'wav'].includes(ext);
                             const isHtml = ext === 'html';
 
                             const handlePrimaryFileClick = () => {
-                              if (isOfficeOrPdfDoc) {
-                                handleDownloadSingleFile(file);
+                              if (isViewerPreferred) {
+                                openAgentFileViewer(file);
                               } else if (isHtml) {
                                 setPreviewUrl(`/api/agent/preview/${currentSessionId}/${file.path}`);
                                 setActiveDrawerTab('preview');
@@ -1630,7 +1653,7 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                 key={file.path}
                                 className="agent-msg-file-card"
                                 onClick={handlePrimaryFileClick}
-                                title={isOfficeOrPdfDoc ? `Klik untuk mengunduh ${file.name}` : `Klik untuk membuka ${file.name}`}
+                                title={isViewerPreferred ? `Klik untuk membuka ${file.name} di File Viewer` : `Klik untuk membuka ${file.name}`}
                               >
                                 <div className="agent-msg-file-info">
                                   <div className="agent-file-icon-box">
@@ -1646,29 +1669,32 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                   </div>
                                 </div>
                                 <div className="agent-msg-file-actions">
-                                  {!isOfficeOrPdfDoc && (
-                                    <button
-                                      type="button"
-                                      className="agent-file-card-btn is-primary"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handlePrimaryFileClick();
-                                      }}
-                                      title={isHtml ? 'Buka Live Preview' : 'Lihat isi berkas'}
-                                    >
-                                      {isHtml ? (
-                                        <>
-                                          <i className="fa-solid fa-eye" />
-                                          <span>Preview</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <i className="fa-solid fa-code" />
-                                          <span>Lihat Kode</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    className="agent-file-card-btn is-primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePrimaryFileClick();
+                                    }}
+                                    title={isViewerPreferred ? `Buka ${file.name} di File Viewer` : (isHtml ? 'Buka Live Preview' : 'Lihat isi berkas')}
+                                  >
+                                    {isViewerPreferred ? (
+                                      <>
+                                        <i className="fa-solid fa-eye" />
+                                        <span>Lihat File</span>
+                                      </>
+                                    ) : isHtml ? (
+                                      <>
+                                        <i className="fa-solid fa-eye" />
+                                        <span>Preview</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <i className="fa-solid fa-code" />
+                                        <span>Lihat Kode</span>
+                                      </>
+                                    )}
+                                  </button>
                                   <button
                                     type="button"
                                     className="agent-file-card-btn is-download"
@@ -2000,7 +2026,10 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
 
                   {/* File Editor View */}
                   <div className="agent-file-editor">
-                    {selectedFile ? (
+                    {selectedFile ? (() => {
+                      const selExt = (selectedFile.split('.').pop() || '').toLowerCase();
+                      const isBinaryViewerFile = BINARY_VIEWER_EXTS.has(selExt);
+                      return (
                       <>
                         <div className="agent-editor-bar">
                           <div className="agent-editor-bar-left">
@@ -2014,19 +2043,30 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                               <span>{t.backToFileList}</span>
                             </button>
                             <span className="agent-editor-filename" title={selectedFile}>
-                              <i className={(getFileIcon(selectedFile.split('.').pop()) || {}).icon || 'fa-solid fa-file-code'} style={{ color: (getFileIcon(selectedFile.split('.').pop()) || {}).color || '#ea580c', marginRight: 6 }} />
+                              <i className={(getFileIcon(selExt) || {}).icon || 'fa-solid fa-file-code'} style={{ color: (getFileIcon(selExt) || {}).color || '#ea580c', marginRight: 6 }} />
                               {selectedFile}
                             </span>
                           </div>
                           <div className="agent-editor-actions">
+                            {!isBinaryViewerFile && (
+                              <button
+                                type="button"
+                                onClick={handleSaveCurrentFile}
+                                disabled={isFileSaving}
+                                className="agent-editor-btn is-save"
+                              >
+                                <i className={isFileSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"} />
+                                <span>{isFileSaving ? t.savingFile : t.saveFile}</span>
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={handleSaveCurrentFile}
-                              disabled={isFileSaving}
-                              className="agent-editor-btn is-save"
+                              onClick={() => openAgentFileViewer(selectedFile)}
+                              className="agent-editor-btn is-preview"
+                              title="Buka di File Viewer"
                             >
-                              <i className={isFileSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"} />
-                              <span>{isFileSaving ? t.savingFile : t.saveFile}</span>
+                              <i className="fa-solid fa-eye" />
+                              <span>File Viewer</span>
                             </button>
                             <button
                               type="button"
@@ -2047,23 +2087,39 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
                                 className="agent-editor-btn is-preview"
                                 title={t.previewFileTitle}
                               >
-                                <i className="fa-solid fa-eye" />
+                                <i className="fa-solid fa-globe" />
                                 <span>Preview</span>
                               </button>
                             )}
                           </div>
                         </div>
-                        <div className="agent-editor-textarea-wrap">
-                          <textarea
-                            className="agent-editor-textarea"
-                            value={fileContent}
-                            onChange={(e) => setFileContent(e.target.value)}
-                            spellCheck={false}
-                            placeholder={t.emptyFileContent}
-                          />
-                        </div>
+                        {isBinaryViewerFile ? (
+                          <div className="agent-editor-textarea-wrap" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
+                            <FileViewer
+                              mode="embedded"
+                              file={{
+                                name: selectedFile.split('/').pop() || selectedFile,
+                                ext: selExt,
+                                url: AgentService.getDownloadUrl(currentSessionId, selectedFile)
+                              }}
+                              onDownload={() => handleDownloadSingleFile(selectedFile)}
+                              userLanguage={userLanguage}
+                            />
+                          </div>
+                        ) : (
+                          <div className="agent-editor-textarea-wrap">
+                            <textarea
+                              className="agent-editor-textarea"
+                              value={fileContent}
+                              onChange={(e) => setFileContent(e.target.value)}
+                              spellCheck={false}
+                              placeholder={t.emptyFileContent}
+                            />
+                          </div>
+                        )}
                       </>
-                    ) : (
+                      );
+                    })() : (
                       <div className="agent-editor-placeholder">
                         <i className="fa-solid fa-code" style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }} />
                         <div style={{ fontWeight: 600 }}>{t.selectFileToView}</div>
@@ -2180,6 +2236,16 @@ export default function AgentChat({ user, isAuthenticated, isGuest, onNavigate, 
             </div>
           </aside>
         </>
+      )}
+
+      {viewerFile && (
+        <FileViewer
+          mode="modal"
+          file={viewerFile}
+          onDownload={() => handleDownloadSingleFile(viewerFile)}
+          onClose={() => setViewerFile(null)}
+          userLanguage={userLanguage}
+        />
       )}
     </div>
   );

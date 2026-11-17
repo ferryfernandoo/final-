@@ -34,6 +34,16 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
       action: () => handleOpenOffice()
     },
     {
+      id: 'viewer',
+      title: 'File Viewer',
+      tag: 'Universal Document & Media Viewer',
+      desc: 'Pembuka berkas ringan untuk Word (.docx), Excel (.xlsx, .csv), PowerPoint (.pptx), PDF, gambar, media, dan teks langsung di browser.',
+      icon: 'https://img.icons8.com/fluency/96/documents.png',
+      badgeColor: '#0ea5e9',
+      glow: 'rgba(14, 165, 233, 0.4)',
+      action: () => onNavigate?.('viewer')
+    },
+    {
       id: 'calendar',
       title: 'AI Calendar & Alarm',
       tag: 'Native Android Sync',
@@ -153,7 +163,7 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
       {/* Footer Stats Bar */}
       <footer className="universe-futuristic-footer">
         <div className="stat-item">
-          <span className="stat-number">3</span>
+          <span className="stat-number">4</span>
           <span className="stat-label">Aplikasi Utama</span>
         </div>
         <div className="stat-divider"></div>

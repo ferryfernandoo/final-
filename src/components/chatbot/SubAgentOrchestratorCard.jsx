@@ -10,6 +10,8 @@ import {
 import { highlightCode } from '../../utils/codeHighlight';
 import { renderHighlightedCode } from './chatTextUtils';
 import { FormattedMessageBody } from './ChatMessageFormatter';
+import FileViewer from '../FileViewer';
+import { buildDeliverableBlob } from '../../utils/subAgentOfficeBuilder';
 
 export const SubAgentOrchestratorCard = React.memo(({
   subAgentData,
@@ -29,6 +31,7 @@ export const SubAgentOrchestratorCard = React.memo(({
   const [copiedCot, setCopiedCot] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState(null);
+  const [viewerModalFile, setViewerModalFile] = useState(null);
   const [previewModalFile, setPreviewModalFile] = useState(null);
   const [previewViewport, setPreviewViewport] = useState('desktop');
   const [previewKey, setPreviewKey] = useState(0);
@@ -98,6 +101,31 @@ export const SubAgentOrchestratorCard = React.memo(({
     } finally {
       setDownloadingFileId(null);
     }
+  };
+
+  const handleOpenInFileViewer = async (file) => {
+    if (!file) return;
+    const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
+    const isBinaryOffice = ['docx', 'xlsx', 'xls', 'pptx'].includes(ext);
+    if (isBinaryOffice) {
+      try {
+        const blob = await buildDeliverableBlob(file);
+        setViewerModalFile({
+          ...file,
+          ext,
+          blob,
+          size: blob.size || file.sizeFormatted
+        });
+        return;
+      } catch (_err) {
+        // Fallback to content object if blob builder fails
+      }
+    }
+    setViewerModalFile({
+      ...file,
+      ext,
+      size: file.sizeFormatted
+    });
   };
 
   const handleDownloadZip = async () => {
@@ -400,15 +428,13 @@ export const SubAgentOrchestratorCard = React.memo(({
                       >
                         {isInspecting ? (isEn ? 'Hide' : 'Tutup') : (isEn ? 'Code' : 'Kode')}
                       </button>
-                      {isHtmlOrSvg && (
-                        <button
-                          type="button"
-                          className="subagent-file-btn accent"
-                          onClick={() => setPreviewModalFile(file)}
-                        >
-                          Preview
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="subagent-file-btn accent"
+                        onClick={() => (isHtmlOrSvg ? setPreviewModalFile(file) : handleOpenInFileViewer(file))}
+                      >
+                        {isHtmlOrSvg ? 'Preview' : (isEn ? 'View' : 'Lihat')}
+                      </button>
                       <button
                         type="button"
                         className="subagent-file-btn dark"
@@ -530,6 +556,16 @@ export const SubAgentOrchestratorCard = React.memo(({
             </div>
           </div>
         </div>
+      )}
+
+      {viewerModalFile && (
+        <FileViewer
+          mode="modal"
+          file={viewerModalFile}
+          onDownload={() => handleDownloadSingleFile(viewerModalFile)}
+          onClose={() => setViewerModalFile(null)}
+          userLanguage={userLanguage}
+        />
       )}
     </div>
   );
