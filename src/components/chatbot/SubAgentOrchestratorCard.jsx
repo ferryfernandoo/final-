@@ -107,6 +107,16 @@ export const SubAgentOrchestratorCard = React.memo(({
   const handleOpenInFileViewer = async (file) => {
     if (!file) return;
     const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
+    if (file.isServerFile && (file.url || file.downloadUrl)) {
+      setViewerModalFile({
+        ...file,
+        ext,
+        url: file.url || file.downloadUrl,
+        downloadUrl: file.downloadUrl || file.url,
+        size: file.sizeFormatted
+      });
+      return;
+    }
     const isBinaryOffice = ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(ext);
     if (isBinaryOffice) {
       try {
@@ -134,10 +144,10 @@ export const SubAgentOrchestratorCard = React.memo(({
   };
 
   const handleDownloadZip = async () => {
-    if (isZipping || files.length === 0) return;
+    if (isZipping || (files.length === 0 && !subAgentData?.zipDownloadUrl)) return;
     setIsZipping(true);
     try {
-      await downloadAllSubAgentFilesAsZip(files, subAgentData.taskDescription);
+      await downloadAllSubAgentFilesAsZip(files, subAgentData.taskDescription, subAgentData?.zipDownloadUrl || null);
     } finally {
       setIsZipping(false);
     }
@@ -404,6 +414,8 @@ export const SubAgentOrchestratorCard = React.memo(({
             {files.map((file) => {
               const isInspecting = inspectedFileId === file.id;
               const isHtmlOrSvg = /\.(html?|svg)$/i.test(file.name);
+              const isBinaryFile = /\.(zip|rar|7z|pdf|docx?|xlsx?|pptx?|png|jpe?g|webp|gif|mp4|mp3)$/i.test(file.name);
+              const canInspectCode = Boolean(file.content && !isBinaryFile);
               return (
                 <div key={file.id} className="subagent-file-item">
                   <div className="subagent-file-row">
@@ -420,23 +432,25 @@ export const SubAgentOrchestratorCard = React.memo(({
                       <div className="subagent-file-meta-col">
                         <span className="subagent-file-name">{file.name}</span>
                         <span className="subagent-file-submeta">
-                          {file.badge} • {file.lineCount} {isEn ? 'lines' : 'baris'} • {file.sizeFormatted}
+                          {file.badge}{file.lineCount > 0 ? ` • ${file.lineCount} ${isEn ? 'lines' : 'baris'}` : ''} • {file.sizeFormatted}
                         </span>
                       </div>
                     </div>
 
                     <div className="subagent-file-actions">
-                      <button
-                        type="button"
-                        className={`subagent-file-btn${isInspecting ? ' active' : ''}`}
-                        onClick={() => setInspectedFileId(isInspecting ? null : file.id)}
-                      >
-                        {isInspecting ? (isEn ? 'Hide' : 'Tutup') : (isEn ? 'Code' : 'Kode')}
-                      </button>
+                      {canInspectCode && (
+                        <button
+                          type="button"
+                          className={`subagent-file-btn${isInspecting ? ' active' : ''}`}
+                          onClick={() => setInspectedFileId(isInspecting ? null : file.id)}
+                        >
+                          {isInspecting ? (isEn ? 'Hide' : 'Tutup') : (isEn ? 'Code' : 'Kode')}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="subagent-file-btn accent"
-                        onClick={() => (isHtmlOrSvg ? setPreviewModalFile(file) : handleOpenInFileViewer(file))}
+                        onClick={() => (isHtmlOrSvg && file.content ? setPreviewModalFile(file) : handleOpenInFileViewer(file))}
                       >
                         {isHtmlOrSvg ? 'Preview' : (isEn ? 'View' : 'Lihat')}
                       </button>
@@ -453,7 +467,7 @@ export const SubAgentOrchestratorCard = React.memo(({
                     </div>
                   </div>
 
-                  {isInspecting && (
+                  {isInspecting && canInspectCode && (
                     <div className="subagent-code-inspector">
                       <div className="subagent-code-toolbar">
                         <span>{file.name} ({file.lineCount} baris)</span>
@@ -475,6 +489,18 @@ export const SubAgentOrchestratorCard = React.memo(({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Live Headless Screenshot Preview captured by Agentic Sandbox */}
+      {subAgentData?.screenshotUrl && (
+        <div className="subagent-screenshot-preview" style={{ marginTop: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', background: '#0f172a' }}>
+          <img
+            src={subAgentData.screenshotUrl}
+            alt="Preview visual sandbox"
+            style={{ width: '100%', maxHeight: '260px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+            onClick={() => onImageClick?.(subAgentData.screenshotUrl)}
+          />
         </div>
       )}
 

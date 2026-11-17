@@ -34,6 +34,8 @@ const ChatComposerCard = ({
   isReasoningCapable = false,
   isReasoningEnabled = false,
   toggleReasoning = noop,
+  isAgenticMode = false,
+  toggleAgenticMode = noop,
   isSttListening = false,
   toggleSpeechToText = noop,
   isAutoVoiceEnabled = false,
@@ -383,6 +385,25 @@ const ChatComposerCard = ({
                 </span>
               </button>
             )}
+
+            <button
+              type="button"
+              className={`claude-agentic-toggle-btn ${isAgenticMode ? 'active' : ''}`}
+              onMouseDown={handleKeepFocusMouseDown}
+              onClick={toggleAgenticMode}
+              title={
+                isAgenticMode
+                  ? (userLanguage === 'id' ? 'Mode Agentic Otonom: AKTIF (Sandbox, Kode, Terminal & ZIP)' : 'Autonomous Agentic Mode: ON (Sandbox, Code, Terminal & ZIP)')
+                  : (userLanguage === 'id' ? 'Aktifkan Mode Agentic Otonom di Chatbot' : 'Enable Autonomous Agentic Mode in Chatbot')
+              }
+              tabIndex={isExpanded ? 0 : -1}
+            >
+              <span aria-hidden="true">⚡</span>
+              <span>Agentic</span>
+              <span className={`agentic-toggle-status-pill ${isAgenticMode ? 'on' : 'off'}`}>
+                {isAgenticMode ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Auto' : 'Auto')}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -533,7 +554,27 @@ const ChatComposerCard = ({
             <span className="menu-icon"><i className="fas fa-file-alt" style={{ color: '#ff6b00' }}></i></span>
             <div className="menu-item-text">
               <span className="menu-item-title">{userLanguage === 'id' ? 'Upload Dokumen / Berkas' : 'Upload Document / File'}</span>
-              <span className="menu-item-desc">PDF, Word (.docx), Excel (.xlsx)</span>
+              <span className="menu-item-desc">PDF, Word, Excel, PPTX, .ZIP</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              toggleAgenticMode();
+              setShowInputMenu(false);
+            }}
+          >
+            <span className="menu-icon"><i className="fas fa-bolt" style={{ color: isAgenticMode ? '#4f46e5' : '#64748b' }}></i></span>
+            <div className="menu-item-text">
+              <span className="menu-item-title">
+                {userLanguage === 'id' ? 'Mode Agentic Otonom' : 'Autonomous Agentic Mode'}{' '}
+                <strong style={{ fontSize: '11px', color: isAgenticMode ? '#4f46e5' : '#64748b' }}>
+                  ({isAgenticMode ? (userLanguage === 'id' ? 'AKTIF' : 'ON') : 'AUTO'})
+                </strong>
+              </span>
+              <span className="menu-item-desc">{userLanguage === 'id' ? 'Eksekusi kode, terminal, web & arsip ZIP di chat' : 'Sandbox code, terminal, web & ZIP workflows'}</span>
             </div>
           </button>
 

@@ -77,7 +77,7 @@ router.delete('/sessions/:sessionId', (req, res) => {
       if (fs.existsSync(dir)) {
         fs.rmSync(dir, { recursive: true, force: true });
       }
-    } catch (_cleanupErr) {}
+    } catch (_cleanupErr) { }
 
     res.json({ success: true });
   } catch (err) {
@@ -302,6 +302,55 @@ router.get('/download-zip', async (req, res) => {
   }
 });
 
+/**
+ * Save a text or base64 file into a session sandbox and auto-extract .zip archives safely.
+ */
+async function saveBufferOrContentToSandbox(sessionId, filename, { content, base64, extractZip = true } = {}) {
+  const cleanName = String(filename || 'upload.bin').replace(/^[/\\]+/, '');
+  let fileBuffer;
+  if (base64) {
+    fileBuffer = Buffer.from(base64, 'base64');
+  } else {
+    fileBuffer = Buffer.from(content || '', 'utf8');
+  }
+  const targetPath = agentSandboxService.safeResolvePath(sessionId, cleanName);
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(targetPath, fileBuffer);
+
+  let zipMeta = null;
+  if (extractZip !== false && cleanName.toLowerCase().endsWith('.zip')) {
+    try {
+      zipMeta = await agentSandboxService.extractZipIntoSandbox(sessionId, cleanName, '.');
+    } catch (unzipErr) {
+      console.warn('[AGENT_ROUTES] Auto-unzip warning:', unzipErr.message);
+    }
+  }
+  return { cleanName, zipMeta };
+}
+
+/**
+ * Sync one or more chatbot/client uploaded files into the target session sandbox.
+ */
+export async function attachUploadedFilesToSandbox(sessionId, attachedFiles = []) {
+  if (!sessionId || !Array.isArray(attachedFiles) || attachedFiles.length === 0) return [];
+  agentSandboxService.getSandboxDir(sessionId);
+  const results = [];
+  for (const item of attachedFiles) {
+    if (!item || !item.name) continue;
+    try {
+      const saved = await saveBufferOrContentToSandbox(sessionId, item.name, {
+        content: item.content,
+        base64: item.base64,
+        extractZip: item.extractZip !== false
+      });
+      results.push(saved);
+    } catch (err) {
+      console.warn(`[AGENT_ROUTES] Failed syncing attachment '${item.name}':`, err.message);
+    }
+  }
+  return results;
+}
+
 // POST /api/agent/upload - Upload user file (auto-extracting .zip archives) to sandbox session
 router.post('/upload', async (req, res) => {
   try {
@@ -309,24 +358,7 @@ router.post('/upload', async (req, res) => {
     if (!sessionId || !filename) {
       return res.status(400).json({ success: false, error: 'sessionId dan filename diperlukan' });
     }
-    let fileBuffer;
-    if (base64) {
-      fileBuffer = Buffer.from(base64, 'base64');
-    } else {
-      fileBuffer = Buffer.from(content || '', 'utf8');
-    }
-    const targetPath = agentSandboxService.safeResolvePath(sessionId, filename);
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.writeFileSync(targetPath, fileBuffer);
-
-    let zipMeta = null;
-    if (extractZip !== false && filename.toLowerCase().endsWith('.zip')) {
-      try {
-        zipMeta = await agentSandboxService.extractZipIntoSandbox(sessionId, filename, '.');
-      } catch (unzipErr) {
-        console.warn('[AGENT_ROUTES] Auto-unzip warning:', unzipErr.message);
-      }
-    }
+    const { zipMeta } = await saveBufferOrContentToSandbox(sessionId, filename, { content, base64, extractZip });
 
     const files = agentSandboxService.listFiles(sessionId);
     res.json({
@@ -350,20 +382,20 @@ router.post('/upload', async (req, res) => {
 router.post('/execute', async (req, res) => {
   try {
     const { sessionId, language, code, command, timeoutMs, task, userId } = req.body;
-    
+
     // Support high-level async task execution (from ChatBot.jsx or background workers)
     if (task && !code && !command) {
       const actualSessionId = sessionId || `agent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
       const actualUserId = userId || getUserId(req);
       agentSessionDb.create(actualSessionId, actualUserId, task.slice(0, 45));
-      
+
       // Initialize sandbox cleanly without writing internal system markdown files
       agentSandboxService.getSandboxDir(actualSessionId);
 
       // Check existing/target deliverables in sandbox
       const files = agentSandboxService.listFiles(actualSessionId);
       const docFile = files.find(f => ['docx', 'pptx', 'xlsx', 'pdf'].includes(f.ext));
-      
+
       return res.json({
         success: true,
         sessionId: actualSessionId,
@@ -937,27 +969,27 @@ function createStreamActionParser(callbacks) {
       }
 
       const openTagSubstr = buffer.slice(0, closeGtIndex + 1);
-      const isSelfClosing = openTagSubstr.endsWith('/>') || 
-                            openTagSubstr.includes('/>') ||
-                            tagName === 'check_file' || 
-                            tagName === 'verify_file' || 
-                            tagName === 'delete_file' ||
-                            tagName === 'remove_file' ||
-                            tagName === 'delete' ||
-                            tagName === 'test_file' ||
-                            tagName === 'validate_file' ||
-                            tagName === 'send_file' ||
-                            tagName === 'deliver_file' ||
-                            tagName === 'resend_file' ||
-                            tagName === 'list_files' ||
-                            tagName === 'dir' ||
-                            tagName === 'revert_file' ||
-                            tagName === 'rollback_file' ||
-                            (tagName === 'grep_search' && !buffer.includes('</grep_search>')) ||
-                            (tagName === 'grep' && !buffer.includes('</grep>')) ||
-                            (tagName === 'read_skill' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30) ||
-                            (tagName === 'search_skill' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30) ||
-                            (tagName === 'search_web' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30);
+      const isSelfClosing = openTagSubstr.endsWith('/>') ||
+        openTagSubstr.includes('/>') ||
+        tagName === 'check_file' ||
+        tagName === 'verify_file' ||
+        tagName === 'delete_file' ||
+        tagName === 'remove_file' ||
+        tagName === 'delete' ||
+        tagName === 'test_file' ||
+        tagName === 'validate_file' ||
+        tagName === 'send_file' ||
+        tagName === 'deliver_file' ||
+        tagName === 'resend_file' ||
+        tagName === 'list_files' ||
+        tagName === 'dir' ||
+        tagName === 'revert_file' ||
+        tagName === 'rollback_file' ||
+        (tagName === 'grep_search' && !buffer.includes('</grep_search>')) ||
+        (tagName === 'grep' && !buffer.includes('</grep>')) ||
+        (tagName === 'read_skill' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30) ||
+        (tagName === 'search_skill' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30) ||
+        (tagName === 'search_web' && !buffer.includes(`</${tagName}>`) && buffer.length > closeGtIndex + 30);
 
       if (isSelfClosing) {
         const fullTag = openTagSubstr;
@@ -1031,45 +1063,49 @@ function createStreamActionParser(callbacks) {
   return { feed, flush };
 }
 
-router.post('/run', async (req, res) => {
-  const { sessionId, prompt, model = 'deepernova-gold-1.5', history = [], effort = 'high', language = 'id' } = req.body;
-  const userId = getUserId(req);
-
-  if (!sessionId || !prompt) {
-    return res.status(400).json({ success: false, error: 'sessionId dan prompt diperlukan' });
-  }
-
-  // Set SSE streaming headers
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  if (typeof res.flushHeaders === 'function') res.flushHeaders();
-
-  res.write(': connected\n\n');
-
+/**
+ * Execute the full Autonomous Multi-Step ReAct Sandbox Agent loop.
+ * Shared by `/api/agent/run` and Chatbot Sub-Agent (`/api/subagent/orchestrate`).
+ */
+export async function executeAutonomousAgentRun({
+  sessionId,
+  prompt,
+  model = 'deepernova-gold-1.5',
+  history = [],
+  effort = 'high',
+  language = 'id',
+  userId = 'guest_agent_user',
+  onEvent,
+  onCloseRegister,
+  finishStream
+}) {
   let isAborted = false;
   const upstreamAbortController = new AbortController();
 
-  res.on('close', () => {
-    if (!res.writableEnded) {
+  if (typeof onCloseRegister === 'function') {
+    onCloseRegister(() => {
       isAborted = true;
       try {
         upstreamAbortController.abort();
-      } catch (_) {}
+      } catch (_) { }
       try {
         killSessionProcesses(sessionId);
-      } catch (_) {}
+      } catch (_) { }
       console.log(`[AGENT_STREAM] Client disconnected prematurely for session ${sessionId}, upstream aborted & active processes terminated.`);
-    }
-  });
+    });
+  }
 
   const emitEvent = (eventType, data) => {
     if (isAborted) return;
     try {
-      res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
-      if (typeof res.flush === 'function') res.flush();
-    } catch (_e) {}
+      onEvent?.(eventType, data);
+    } catch (_e) { }
+  };
+
+  const endStream = () => {
+    try {
+      finishStream?.();
+    } catch (_e) { }
   };
 
   const chainOfWork = [];
@@ -1787,7 +1823,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
               const json = JSON.parse(line.slice(6));
               const deltaContent = json.choices?.[0]?.delta?.content || '';
               const deltaReasoning = json.choices?.[0]?.delta?.reasoning_content || json.choices?.[0]?.delta?.reasoning || '';
-              
+
               if (deltaReasoning) {
                 accumulatedReasoning += deltaReasoning;
                 emitEvent('reasoning', { text: deltaReasoning, full: accumulatedReasoning });
@@ -1796,7 +1832,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
                 turnRawContent += deltaContent;
                 await streamParser.feed(deltaContent);
               }
-            } catch (_e) {}
+            } catch (_e) { }
           }
         }
       }
@@ -1815,16 +1851,16 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
 
         const hasErrorInTurn = turnObservations.some(o => {
           const text = (o.observation || '').toLowerCase();
-          return text.includes('stderr') || 
-                 text.includes('error:') || 
-                 text.includes('traceback') || 
-                 text.includes('exception:') || 
-                 text.includes('syntaxerror') || 
-                 text.includes('nameerror') || 
-                 text.includes('attributeerror') || 
-                 text.includes('modulenotfounderror') ||
-                 text.includes('gagal') ||
-                 text.includes('failed');
+          return text.includes('stderr') ||
+            text.includes('error:') ||
+            text.includes('traceback') ||
+            text.includes('exception:') ||
+            text.includes('syntaxerror') ||
+            text.includes('nameerror') ||
+            text.includes('attributeerror') ||
+            text.includes('modulenotfounderror') ||
+            text.includes('gagal') ||
+            text.includes('failed');
         });
 
         // Detect unmet target deliverables in sandbox
@@ -1859,11 +1895,11 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           turnRawContent.lastIndexOf('/>')
         );
 
-        const trailingText = lastActionCloseIdx !== -1 
-          ? turnRawContent.slice(lastActionCloseIdx).replace(/<[^>]+>/g, '').trim() 
+        const trailingText = lastActionCloseIdx !== -1
+          ? turnRawContent.slice(lastActionCloseIdx).replace(/<[^>]+>/g, '').trim()
           : '';
 
-        const alreadyConcluded = trailingText.length > 30 && 
+        const alreadyConcluded = trailingText.length > 30 &&
           /(?:kesimpulan|status|tuntas|selesai|berkas|deliverable|unduh|ringkasan|intisari)/i.test(trailingText);
 
         if (!needsSelfHealing && unmetGoals.length === 0 && alreadyConcluded) {
@@ -1880,8 +1916,8 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           isSelfHealingActive = true;
           addStep('healing', `Mendeteksi Kendala & Memulai Perbaikan Mandiri (Percobaan #${stepIteration})`, `Menganalisis penyebab kegagalan dan merancang kode perbaikan baru...`, 'running');
 
-          const effortModeTag = effort === 'high' 
-            ? '🔥 MODE PANTANG MENYERAH (MAX EFFORT)' 
+          const effortModeTag = effort === 'high'
+            ? '🔥 MODE PANTANG MENYERAH (MAX EFFORT)'
             : (effort === 'low' ? '⚡ MODE CEPAT (LOW EFFORT)' : '⚖️ MODE STANDAR SEIMBANG');
 
           followUpInstruction = `${obsFormatted}\n\n` +
@@ -1957,7 +1993,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
     }
 
     if (isAborted) {
-      res.end();
+      endStream();
       return;
     }
 
@@ -1993,7 +2029,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           updateLastStep(res.success ? 'completed' : 'failed', res.success ? 'Berkas PowerPoint (.pptx) berhasil dibuat.' : `Error: ${res.stderr}`);
           finalFiles = agentSandboxService.listFiles(sessionId);
           emitEvent('files_update', { files: finalFiles });
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -2006,7 +2042,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           updateLastStep(res.success ? 'completed' : 'failed', res.success ? 'Dokumen Word (.docx) berhasil dibuat.' : `Error: ${res.stderr}`);
           finalFiles = agentSandboxService.listFiles(sessionId);
           emitEvent('files_update', { files: finalFiles });
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -2019,7 +2055,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
           updateLastStep(res.success ? 'completed' : 'failed', res.success ? 'Spreadsheet Excel (.xlsx) berhasil dibuat.' : `Error: ${res.stderr}`);
           finalFiles = agentSandboxService.listFiles(sessionId);
           emitEvent('files_update', { files: finalFiles });
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -2122,17 +2158,94 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       accumulatedReasoning
     ).catch(err => console.warn('[AGENT MEMORY] Error saving turn memory:', err.message));
 
-    res.end();
+    endStream();
   } catch (runErr) {
     if (isAborted) {
-      res.end();
+      endStream();
       return;
     }
     console.error('[AGENT_RUN_ERROR]', runErr);
     addStep('error', 'Terjadi Kendala', runErr.message, 'failed');
     emitEvent('error', { error: runErr.message, chainOfWork });
-    res.end();
+    endStream();
   }
+}
+
+const PREVIEWABLE_TEXT_EXTS = new Set([
+  'html', 'htm', 'css', 'js', 'mjs', 'jsx', 'ts', 'tsx',
+  'py', 'json', 'md', 'sql', 'csv', 'svg', 'sh', 'yml', 'yaml', 'txt'
+]);
+
+/**
+ * Enrich sandbox file metadata with direct download/raw URLs and inline text content for live preview/code panels.
+ */
+export function buildEnrichedSandboxFiles(sessionId, files = []) {
+  if (!Array.isArray(files) || !sessionId) return [];
+  const encodedSid = encodeURIComponent(sessionId);
+  return files
+    .filter((f) => f && f.name !== 'CLAUDE.md' && f.name !== 'SKILL.md' && !String(f.name || '').startsWith('_runner_temp'))
+    .map((f) => {
+      const relPath = f.path || f.name;
+      const ext = (f.ext || String(relPath).split('.').pop() || '').toLowerCase();
+      const encodedPath = encodeURIComponent(relPath);
+      const isText = PREVIEWABLE_TEXT_EXTS.has(ext);
+      let textContent = null;
+      if (isText && (f.size || 0) <= 250000) {
+        try {
+          textContent = agentSandboxService.readFile(sessionId, relPath);
+        } catch (_) {
+          textContent = null;
+        }
+      }
+      return {
+        ...f,
+        name: f.name || path.basename(relPath),
+        path: relPath,
+        ext,
+        isServerFile: true,
+        url: `/api/agent/file/raw?sessionId=${encodedSid}&path=${encodedPath}`,
+        downloadUrl: `/api/agent/file/download?sessionId=${encodedSid}&path=${encodedPath}`,
+        ...(textContent != null ? { content: textContent } : {})
+      };
+    });
+}
+
+router.post('/run', async (req, res) => {
+  const { sessionId, prompt, model = 'deepernova-gold-1.5', history = [], effort = 'high', language = 'id' } = req.body;
+  const userId = getUserId(req);
+
+  if (!sessionId || !prompt) {
+    return res.status(400).json({ success: false, error: 'sessionId dan prompt diperlukan' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+  res.write(': connected\n\n');
+
+  await executeAutonomousAgentRun({
+    sessionId,
+    prompt,
+    model,
+    history,
+    effort,
+    language,
+    userId,
+    onEvent: (eventType, data) => {
+      res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (typeof res.flush === 'function') res.flush();
+    },
+    onCloseRegister: (cb) => {
+      res.on('close', () => {
+        if (!res.writableEnded) cb();
+      });
+    },
+    finishStream: () => {
+      if (!res.writableEnded) res.end();
+    }
+  });
 });
 
 export default router;

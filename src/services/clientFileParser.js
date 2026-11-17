@@ -98,7 +98,7 @@ class ClientFileParser {
             meta: { ...meta, charCount: rawText.length }
           };
         }
-      } catch (_) {}
+      } catch (_) { }
 
       throw new Error(`Gagal membaca file "${fileName}": ${err.message}`);
     }
@@ -291,7 +291,7 @@ class ClientFileParser {
         const snippet = txt.slice(0, 3500);
         lines.push(`\n=== ${entry.name} ===\n${snippet}`);
         totalExtractedChars += snippet.length;
-      } catch {}
+      } catch { }
     }
 
     return lines.join('\n').trim();

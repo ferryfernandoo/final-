@@ -74,21 +74,32 @@ export function parseSubAgentFlag(text = '', fallbackUserPrompt = '', language =
 }
 
 /**
- * Check if the user explicitly requested Sub-Agent mode or downloadable file/project creation,
- * as a safety net when the LLM answers normally without emitting the literal bracket flag.
+ * Check if the user explicitly requested Sub-Agent / Agentic mode, .zip archive handling,
+ * or downloadable file/project engineering work.
  */
-export function detectExplicitSubAgentUserIntent(userPrompt = '') {
+export function detectExplicitSubAgentUserIntent(userPrompt = '', attachedFiles = [], isAgenticMode = false) {
   if (!userPrompt || typeof userPrompt !== 'string') return false;
   const norm = userPrompt.trim();
-  if (norm.length < 4) return false;
+  if (norm.length < 3) return false;
 
-  // 1. Explicit sub-agent mention
-  if (/\b(sub[\s-]*agent|subagent|mode\s+agentic|agent\s+orchestrator|aktifkan\s+agent|pake\s+sub\s*agent)\b/i.test(norm)) {
+  const isTrivialGreeting = /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(norm);
+  if (isAgenticMode && !isTrivialGreeting) {
     return true;
   }
 
-  // 2. Explicit request to generate & send/deliver a file in chat
-  if (/\b(kirim(?:kan)?\s+file(?:nya)?|buat(?:kan|in)?\s+file|bikin(?:kan|in)?\s+file|generate\s+file|sertakan\s+file(?:nya)?|dalam\s+bentuk\s+file)\b/i.test(norm)) {
+  // 1. Explicit sub-agent or agentic mention
+  if (/\b(sub[\s-]*agent|subagent|mode\s+agent(?:ic)?|agentic|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent|pake\s+sub\s*agent)\b/i.test(norm)) {
+    return true;
+  }
+
+  // 2. Explicit file/archive delivery or .zip extraction/re-packaging request
+  if (/\b(kirim(?:kan)?\s+file(?:nya)?|buat(?:kan|in)?\s+file|bikin(?:kan|in)?\s+file|generate\s+file|sertakan\s+file(?:nya)?|dalam\s+bentuk\s+file|ekstrak\s+zip|unzip|zip\s+ulang|bungkus\s+zip|archive\s+zip)\b/i.test(norm)) {
+    return true;
+  }
+
+  // 3. Uploaded .zip / code files paired with edit/fix/audit/build instructions
+  const hasZipOrProjectAttachment = Array.isArray(attachedFiles) && attachedFiles.some((f) => /\.(zip|py|js|jsx|ts|tsx|html|css|json|csv|sql)$/i.test(f?.name || ''));
+  if (hasZipOrProjectAttachment && /\b(buka|ekstrak|unzip|perbaiki|fix|debug|refactor|ubah|edit|tambah|buat|uji|test|audit|zip|bungkus|analisis|grafik|chart|jalankan|run)\b/i.test(norm)) {
     return true;
   }
 
@@ -141,7 +152,11 @@ export function getSubAgentFileMeta(fileName = 'output.txt') {
     xls: { lang: 'spreadsheet', badge: 'XLS', icon: 'fa-solid fa-file-excel', color: '#107c41' },
     pptx: { lang: 'slides', badge: 'PPTX', icon: 'fa-solid fa-file-powerpoint', color: '#d24726' },
     ppt: { lang: 'slides', badge: 'PPT', icon: 'fa-solid fa-file-powerpoint', color: '#d24726' },
-    pdf: { lang: 'pdf', badge: 'PDF', icon: 'fa-solid fa-file-pdf', color: '#dc2626' }
+    pdf: { lang: 'pdf', badge: 'PDF', icon: 'fa-solid fa-file-pdf', color: '#dc2626' },
+    zip: { lang: 'zip', badge: 'ZIP', icon: 'fa-solid fa-file-zipper', color: '#7c3aed', bg: 'rgba(124, 58, 237, 0.12)', mime: 'application/zip' },
+    png: { lang: 'image', badge: 'PNG', icon: 'fa-solid fa-file-image', color: '#0891b2', bg: 'rgba(8, 145, 178, 0.12)', mime: 'image/png' },
+    jpg: { lang: 'image', badge: 'JPG', icon: 'fa-solid fa-file-image', color: '#0891b2', bg: 'rgba(8, 145, 178, 0.12)', mime: 'image/jpeg' },
+    jpeg: { lang: 'image', badge: 'JPEG', icon: 'fa-solid fa-file-image', color: '#0891b2', bg: 'rgba(8, 145, 178, 0.12)', mime: 'image/jpeg' }
   };
 
   return map[ext] || officeAndDocMap[ext] || {
@@ -216,9 +231,20 @@ export async function downloadSingleSubAgentFile(file) {
 }
 
 /**
- * Package all Sub-Agent deliverable files into a single .ZIP archive and download
+ * Package all Sub-Agent deliverable files into a single .ZIP archive and download.
+ * Uses server sandbox ZIP directly when zipDownloadUrl is present to preserve full directory trees.
  */
-export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'deepernova-subagent') {
+export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'deepernova-subagent', zipDownloadUrl = null) {
+  const slug = String(taskTitle || 'deepernova-subagent')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'deepernova-subagent';
+
+  if (zipDownloadUrl && typeof zipDownloadUrl === 'string') {
+    return downloadFromUrl(zipDownloadUrl, `${slug}-files.zip`);
+  }
+
   if (!Array.isArray(files) || files.length === 0) {
     showDownloadToast({ fileName: 'archive.zip', status: 'error', subtitle: 'Belum ada berkas untuk diarsipkan.' });
     return { ok: false, error: 'Tidak ada berkas.' };
@@ -230,7 +256,7 @@ export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'dee
   for (let idx = 0; idx < files.length; idx++) {
     const f = files[idx];
     if (!f) continue;
-    let fileName = String(f.name || `file_${idx + 1}.txt`).replace(/^[/\\]+/, '');
+    let fileName = String(f.path || f.name || `file_${idx + 1}.txt`).replace(/^[/\\]+/, '');
     if (seenPaths.has(fileName)) {
       const dot = fileName.lastIndexOf('.');
       fileName = dot > 0 ? `${fileName.slice(0, dot)}_${idx + 1}${fileName.slice(dot)}` : `${fileName}_${idx + 1}`;
@@ -238,20 +264,19 @@ export async function downloadAllSubAgentFilesAsZip(files = [], taskTitle = 'dee
     seenPaths.add(fileName);
 
     const ext = (fileName.split('.').pop() || '').toLowerCase();
-    if (['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(ext) && f.content) {
+    if (['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(ext) && f.content && !f.isServerFile) {
       const meta = getSubAgentFileMeta(fileName);
       const { blob } = await buildDeliverableBlob(f, `${meta.mime};charset=utf-8`);
       zip.file(fileName, blob);
+    } else if (f.isServerFile && (f.downloadUrl || f.url) && f.content == null) {
+      const resp = await fetch(f.downloadUrl || f.url, { credentials: 'include' });
+      if (resp.ok) {
+        zip.file(fileName, await resp.arrayBuffer());
+      }
     } else {
       zip.file(fileName, f.content ?? '');
     }
   }
-
-  const slug = String(taskTitle || 'deepernova-subagent')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40) || 'deepernova-subagent';
 
   const blob = await zip.generateAsync({ type: 'blob' });
   return downloadBlob(blob, `${slug}-files.zip`, { mimeType: 'application/zip' });
@@ -657,14 +682,132 @@ Tuliskan penjelasan akhir yang rapi, ramah, dan terstruktur (gunakan ### subjudu
 </SUBAGENT_SUMMARY>`;
 }
 
+const SANDBOX_STEP_BADGE_MAP = {
+  skill: 'SKILL',
+  plan: 'PLANNER',
+  search: 'SEARCH',
+  command: 'TERMINAL',
+  write_file: 'BUILDER',
+  patch_file: 'PATCH',
+  read_file: 'EXPLORE',
+  list_files: 'EXPLORE',
+  grep_search: 'EXPLORE',
+  test_file: 'TEST',
+  unzip_file: 'ZIP',
+  zip_project: 'ZIP',
+  screenshot: 'PREVIEW',
+  healing: 'HEALING',
+  finish: 'VERIFIER',
+  error: 'ERROR'
+};
+
+function resolveAgentEndpointUrl(pathOrUrl) {
+  if (!pathOrUrl) return null;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  const base = (API_BASE_URL || '').replace(/\/+$/, '');
+  const rel = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+  return `${base}${rel}`;
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 /**
- * Execute the Synchronous Sub-Agent Orchestrator.
- * Streams real-time progress updates (Stage 1 -> Stage 2 -> Stage 3, live CoT, live Files, Final Answer)
- * via `onUpdate(snapshot)` in a single synchronous execution lifecycle.
+ * Convert uploaded chatbot files (including binary .zip rawFile blobs) into sandbox upload payloads.
+ */
+async function serializeAttachedFilesForSandbox(attachedFiles = []) {
+  if (!Array.isArray(attachedFiles) || attachedFiles.length === 0) return [];
+  const prepared = [];
+  for (const item of attachedFiles.slice(0, 10)) {
+    if (!item || !item.name) continue;
+    const rawFile = item.rawFile;
+    if (rawFile && typeof rawFile.arrayBuffer === 'function') {
+      const ext = (item.name.split('.').pop() || '').toLowerCase();
+      const isText = rawFile.type?.startsWith('text/') || /^(txt|csv|json|html?|css|js|jsx|ts|tsx|py|md|sql|yml|yaml|xml|sh)$/i.test(ext);
+      if (isText && rawFile.size <= 4 * 1024 * 1024) {
+        prepared.push({ name: item.name, content: await rawFile.text(), extractZip: true });
+      } else if (rawFile.size <= 18 * 1024 * 1024) {
+        const buf = await rawFile.arrayBuffer();
+        prepared.push({ name: item.name, base64: arrayBufferToBase64(buf), extractZip: true });
+      }
+    } else if (typeof item.content === 'string') {
+      prepared.push({ name: item.name, content: item.content, extractZip: false });
+    }
+  }
+  return prepared;
+}
+
+/**
+ * Map a backend autonomous sandbox step event into a SubAgentOrchestratorCard step entry.
+ */
+function mapSandboxStepToThoughtStep(step = {}, index = 0) {
+  const rawType = String(step.type || 'command').toLowerCase();
+  const badge = SANDBOX_STEP_BADGE_MAP[rawType] || rawType.toUpperCase().slice(0, 12);
+  let agent = 'Engineer Sub-Agent';
+  if (['plan', 'skill', 'search'].includes(rawType)) agent = 'Planner Sub-Agent';
+  else if (['test_file', 'finish', 'screenshot', 'zip_project'].includes(rawType)) agent = 'Verifier Sub-Agent';
+  return {
+    id: step.id || `sb_step_${index}`,
+    agent,
+    badge,
+    title: step.title || 'Eksekusi Langkah Otonom',
+    detail: step.detail || '',
+    status: step.status === 'completed' || step.status === 'done' ? 'done' : step.status === 'failed' ? 'error' : 'running'
+  };
+}
+
+/**
+ * Map a backend sandbox deliverable record into a SubAgentOrchestratorCard file descriptor.
+ */
+function mapSandboxDeliverableFile(f, index = 0) {
+  const cleanPath = String(f.path || f.name || `deliverable_${index + 1}.txt`).replace(/^[/\\]+/, '');
+  const cleanName = String(f.name || cleanPath.split('/').pop() || cleanPath);
+  const contentStr = typeof f.content === 'string' ? f.content : '';
+  const sizeBytes = Number.isFinite(f.size) ? f.size : (Number.isFinite(f.sizeBytes) ? f.sizeBytes : new Blob([contentStr]).size);
+  const lineCount = contentStr ? contentStr.split('\n').length : 0;
+  const meta = getSubAgentFileMeta(cleanName);
+
+  return {
+    id: f.id || `sb_file_${cleanPath}_${index}`,
+    name: cleanName,
+    path: cleanPath,
+    description: f.description || `Berkas ${meta.badge} dari Workspace Sandbox`,
+    content: contentStr || null,
+    isServerFile: Boolean(f.isServerFile || f.downloadUrl || f.url),
+    url: resolveAgentEndpointUrl(f.url),
+    downloadUrl: resolveAgentEndpointUrl(f.downloadUrl),
+    sizeBytes,
+    sizeFormatted: formatBytesSize(sizeBytes),
+    lineCount,
+    language: meta.lang,
+    badge: meta.badge,
+    icon: meta.icon,
+    color: meta.color,
+    bg: meta.bg,
+    mime: meta.mime,
+    status: 'verified'
+  };
+}
+
+/**
+ * Execute the Unified Autonomous Agent & Sub-Agent Orchestrator inside Chatbot Biasa.
+ * Runs the real server Sandbox ReAct loop (`subagent_event` stream) with seamless fallback
+ * to XML Sub-Agent streaming (`choices[0].delta.content`) when mocked or offline.
  */
 export async function executeSynchronousSubAgent({
   taskDescription,
   userPrompt,
+  chatHistory = [],
+  conversationId = null,
+  attachedFiles = [],
+  effort = 'high',
   language = 'id',
   model = 'deepernova-silicon-1.4',
   abortSignal = null,
@@ -672,39 +815,66 @@ export async function executeSynchronousSubAgent({
 }) {
   const startTime = Date.now();
   const getElapsedSec = () => Math.max(0.1, (Date.now() - startTime) / 1000).toFixed(1);
+  const sandboxSessionId = conversationId
+    ? `chat_${String(conversationId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48)}`
+    : `chat_${Date.now()}`;
 
   const initialSnapshot = {
-    status: 'running', // 'running' | 'completed' | 'error'
+    status: 'running',
     taskDescription,
+    sandboxSessionId,
     currentStage: 1,
     elapsedSec: '0.1',
     planText: '',
     plannedFiles: [],
+    activeSkill: null,
     cotText: language === 'id'
-      ? `[PLANNER] Menginisialisasi Sub-Agent Orchestrator untuk: "${taskDescription}"...\n`
-      : `[PLANNER] Initializing Sub-Agent Orchestrator for: "${taskDescription}"...\n`,
+      ? `[PLANNER] Menginisialisasi Agentic Sub-Agent Sandbox untuk: "${taskDescription}"...\n`
+      : `[PLANNER] Initializing Agentic Sub-Agent Sandbox for: "${taskDescription}"...\n`,
     thoughtSteps: [
       {
         id: 'init_plan',
         agent: 'Planner Sub-Agent',
         badge: 'PLANNER',
-        title: language === 'id' ? 'Menganalisis spesifikasi tugas & merancang struktur berkas...' : 'Analyzing task specifications & file architecture...',
+        title: language === 'id' ? 'Menganalisis tugas & menyiapkan workspace sandbox...' : 'Analyzing task & preparing workspace sandbox...',
         detail: taskDescription,
         status: 'running'
       }
     ],
     files: [],
     activeWritingFile: null,
+    zipDownloadUrl: null,
+    screenshotUrl: null,
+    previewUrl: null,
     finalAnswer: ''
   };
 
   onUpdate(initialSnapshot);
+
+  const preparedAttachments = await serializeAttachedFilesForSandbox(attachedFiles);
+  const trimmedHistory = Array.isArray(chatHistory)
+    ? chatHistory
+      .filter((m) => m && (m.text || m.content) && !m.isStreaming)
+      .slice(-6)
+      .map((m) => ({
+        role: m.sender === 'user' || m.role === 'user' ? 'user' : 'assistant',
+        content: String(m.text || m.content || '').slice(0, 1500)
+      }))
+    : [];
 
   const orchestratorPrompt = buildSubAgentOrchestratorPrompt(taskDescription, userPrompt, language);
   const requestBody = {
     model: model || 'deepernova-silicon-1.4',
     stream: true,
     isSubAgentStage: true,
+    enableAgenticSandbox: true,
+    sandboxSessionId,
+    conversationId,
+    rawUserPrompt: userPrompt || taskDescription,
+    taskDescription,
+    chatHistory: trimmedHistory,
+    attachedFiles: preparedAttachments,
+    effort,
     language,
     temperature: 0.45,
     max_tokens: 8192,
@@ -734,6 +904,7 @@ export async function executeSynchronousSubAgent({
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'x-device-id': getDeviceId()
@@ -765,6 +936,47 @@ export async function executeSynchronousSubAgent({
   let sseBuffer = '';
   let rawOrchestratorText = '';
 
+  // Real Autonomous Sandbox tracking state
+  let sawSandboxEvents = false;
+  let sandboxSteps = [];
+  let sandboxCotLog = '';
+  let sandboxAnswer = '';
+  let sandboxFiles = [];
+  let sandboxActiveSkill = null;
+  let sandboxZipUrl = null;
+  let sandboxScreenshotUrl = null;
+  let sandboxPreviewUrl = null;
+  let sandboxCurrentStage = 1;
+  let sandboxDoneData = null;
+
+  const emitSandboxSnapshot = (isCompleted = false) => {
+    const mappedSteps = sandboxSteps.length > 0
+      ? sandboxSteps.map((st, idx) => ({
+          ...mapSandboxStepToThoughtStep(st, idx),
+          ...(isCompleted ? { status: st.status === 'failed' ? 'error' : 'done' } : {})
+        }))
+      : initialSnapshot.thoughtSteps;
+
+    onUpdate({
+      status: isCompleted ? 'completed' : 'running',
+      taskDescription,
+      sandboxSessionId,
+      currentStage: isCompleted ? 3 : sandboxCurrentStage,
+      elapsedSec: getElapsedSec(),
+      planText: sandboxSteps.map((s) => `- [${SANDBOX_STEP_BADGE_MAP[s.type] || 'STEP'}] ${s.title}`).join('\n'),
+      plannedFiles: sandboxFiles.map((f) => f.name),
+      activeSkill: sandboxActiveSkill,
+      cotText: sandboxCotLog || initialSnapshot.cotText,
+      thoughtSteps: mappedSteps,
+      files: sandboxFiles,
+      activeWritingFile: isCompleted ? null : (sandboxFiles.length > 0 ? sandboxFiles[sandboxFiles.length - 1].name : null),
+      zipDownloadUrl: sandboxZipUrl,
+      screenshotUrl: sandboxScreenshotUrl,
+      previewUrl: sandboxPreviewUrl,
+      finalAnswer: sandboxAnswer
+    });
+  };
+
   try {
     while (true) {
       if (abortSignal?.aborted) {
@@ -779,6 +991,8 @@ export async function executeSynchronousSubAgent({
       sseBuffer = lines.pop() || '';
 
       let hasNewToken = false;
+      let hasSandboxUpdate = false;
+
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed || !trimmed.startsWith('data:')) continue;
@@ -787,6 +1001,53 @@ export async function executeSynchronousSubAgent({
 
         try {
           const parsed = JSON.parse(dataStr);
+          if (parsed.subagent_event && parsed.subagent_event.type) {
+            sawSandboxEvents = true;
+            hasSandboxUpdate = true;
+            const { type: evType, data: evData } = parsed.subagent_event;
+
+            if (evType === 'skill_active' && evData) {
+              sandboxActiveSkill = evData;
+            } else if (evType === 'step' && evData) {
+              sandboxSteps = [...sandboxSteps, evData];
+              const badge = SANDBOX_STEP_BADGE_MAP[evData.type] || 'STEP';
+              sandboxCotLog += `[${badge}] ${evData.title}${evData.detail ? ` — ${evData.detail}` : ''}\n`;
+              if (['write_file', 'patch_file', 'command', 'unzip_file', 'healing'].includes(evData.type)) {
+                sandboxCurrentStage = Math.max(sandboxCurrentStage, 2);
+              } else if (['test_file', 'finish', 'screenshot', 'zip_project'].includes(evData.type)) {
+                sandboxCurrentStage = 3;
+              }
+            } else if (evType === 'step_update' && evData) {
+              const idx = sandboxSteps.findIndex((s) => s.id === evData.id);
+              if (idx >= 0) {
+                sandboxSteps = sandboxSteps.map((s, i) => (i === idx ? { ...s, ...evData } : s));
+              } else if (sandboxSteps.length > 0) {
+                sandboxSteps = sandboxSteps.map((s, i) => (i === sandboxSteps.length - 1 ? { ...s, ...evData } : s));
+              }
+            } else if (evType === 'reasoning' && evData) {
+              const chunkTxt = evData.text || evData.content || '';
+              if (chunkTxt) sandboxCotLog += chunkTxt;
+            } else if (evType === 'delta' && evData) {
+              sandboxAnswer += evData.content || '';
+            } else if (evType === 'files_update' && Array.isArray(evData?.files)) {
+              sandboxFiles = evData.files.map((f, idx) => mapSandboxDeliverableFile(f, idx));
+              sandboxCurrentStage = Math.max(sandboxCurrentStage, 2);
+            } else if (evType === 'done' && evData) {
+              sandboxDoneData = evData;
+              if (Array.isArray(evData.files)) {
+                sandboxFiles = evData.files.map((f, idx) => mapSandboxDeliverableFile(f, idx));
+              }
+              if (evData.zipDownloadUrl) sandboxZipUrl = resolveAgentEndpointUrl(evData.zipDownloadUrl);
+              if (evData.screenshotUrl) sandboxScreenshotUrl = resolveAgentEndpointUrl(evData.screenshotUrl);
+              if (evData.previewUrl) sandboxPreviewUrl = resolveAgentEndpointUrl(evData.previewUrl);
+              if (evData.content && !sandboxAnswer.trim()) sandboxAnswer = evData.content;
+              sandboxCurrentStage = 3;
+            } else if (evType === 'error' && evData?.error) {
+              sandboxCotLog += `[ERROR] ${evData.error}\n`;
+            }
+            continue;
+          }
+
           const delta =
             parsed.choices?.[0]?.delta?.content ||
             parsed.choices?.[0]?.text ||
@@ -801,11 +1062,14 @@ export async function executeSynchronousSubAgent({
         }
       }
 
-      if (hasNewToken) {
+      if (sawSandboxEvents && hasSandboxUpdate) {
+        emitSandboxSnapshot(false);
+      } else if (!sawSandboxEvents && hasNewToken) {
         const liveState = parseSynchronousOrchestratorBuffer(rawOrchestratorText, taskDescription);
         onUpdate({
           status: 'running',
           taskDescription,
+          sandboxSessionId,
           currentStage: liveState.currentStage,
           elapsedSec: getElapsedSec(),
           planText: liveState.planText,
@@ -822,12 +1086,44 @@ export async function executeSynchronousSubAgent({
     try { reader.releaseLock(); } catch (_e) { }
   }
 
+  if (sawSandboxEvents) {
+    const finalAnswer = (sandboxDoneData?.content || sandboxAnswer || '').trim() ||
+      (sandboxFiles.length > 0
+        ? `### Ringkasan Eksekusi Agentic\n\nTugas selesai dijalankan di sandbox dengan **${sandboxFiles.length} berkas** siap dipratinjau atau diunduh.`
+        : 'Tugas berhasil dieksekusi di sandbox Agentic.');
+    sandboxAnswer = finalAnswer;
+    const completedSandboxSnapshot = {
+      status: 'completed',
+      taskDescription,
+      sandboxSessionId,
+      currentStage: 3,
+      elapsedSec: getElapsedSec(),
+      planText: sandboxSteps.map((s) => `- [${SANDBOX_STEP_BADGE_MAP[s.type] || 'STEP'}] ${s.title}`).join('\n'),
+      plannedFiles: sandboxFiles.map((f) => f.name),
+      activeSkill: sandboxActiveSkill,
+      cotText: sandboxCotLog || initialSnapshot.cotText,
+      thoughtSteps: (sandboxSteps.length > 0 ? sandboxSteps : []).map((s, idx) => ({
+        ...mapSandboxStepToThoughtStep(s, idx),
+        status: s.status === 'failed' ? 'error' : 'done'
+      })),
+      files: sandboxFiles,
+      activeWritingFile: null,
+      zipDownloadUrl: sandboxZipUrl,
+      screenshotUrl: sandboxScreenshotUrl,
+      previewUrl: sandboxPreviewUrl,
+      finalAnswer
+    };
+    onUpdate(completedSandboxSnapshot);
+    return completedSandboxSnapshot;
+  }
+
   const parsedFinal = parseSynchronousOrchestratorBuffer(rawOrchestratorText, taskDescription);
   const verifiedState = finalizeDeliverablesFromRawText(rawOrchestratorText, parsedFinal, taskDescription);
 
   const completedSnapshot = {
     status: 'completed',
     taskDescription,
+    sandboxSessionId,
     currentStage: 3,
     elapsedSec: getElapsedSec(),
     planText: verifiedState.planText,

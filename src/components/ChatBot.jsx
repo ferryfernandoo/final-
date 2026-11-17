@@ -451,6 +451,24 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     });
   }, []);
 
+  const [isAgenticMode, setIsAgenticMode] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_agentic_mode') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+  const toggleAgenticMode = useCallback(() => {
+    setIsAgenticMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('deepernova_agentic_mode', String(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+  const handleSubAgentActionRef = useRef(null);
+
   const [localModelProgress, setLocalModelProgress] = useState({ pct: 0, statusText: '', isLoading: false });
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
@@ -3353,6 +3371,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   }, [messages]);
 
   const agenticSteps = useMemo(() => {
+    const subSteps = latestAiMessage?.subAgentData?.thoughtSteps;
+    if (Array.isArray(subSteps) && subSteps.length > 0) {
+      return subSteps.map((s) => ({
+        title: `${s.badge ? `[${s.badge}] ` : ''}${s.title || 'Langkah Otonom'}`,
+        desc: s.detail || '',
+        status: s.status === 'done' || s.status === 'completed' ? 'completed' : 'in-progress'
+      }));
+    }
     const text = latestAiMessage?.text || latestAiMessage?.content || '';
     const sources = latestAiMessage?.searchSources || foundSources;
     const lastUserMessage = [...messages].reverse().find(m => m.sender === 'user');
@@ -3600,14 +3626,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           userLanguage
         );
 
-        // Add to uploaded files list
+        // Add to uploaded files list (keep in-memory rawFile for binary/.zip sandbox transfers)
         const newFile = {
           id: `file_${Date.now()}_${i}`,
           name: file.name,
           size: sizeKB,
           tokens: tokenEstimate,
           content: content,
-          fileType: parseResult.fileType
+          fileType: parseResult.fileType,
+          rawFile: file
         };
 
         setUploadedFiles(prev => [...prev, newFile]);
@@ -5780,6 +5807,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     }
 
+    // Capture attached files (with rawFile blobs) BEFORE clearing input tray
+    const attachedFilesForTurn = Array.isArray(uploadedFiles) ? [...uploadedFiles] : [];
+
     // 2. IMMEDIATELY CLEAR INPUT TRAY UI STATE (input text, uploaded images preview, uploaded files)
     setInputValue('');
     setTextQueue([]);
@@ -5795,6 +5825,25 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     if (detectedImageRequest && detectedImageRequest.isExplicit) {
       console.log('[ChatBot] Explicit image request directive detected in handleSendMessage:', detectedImageRequest);
       handleInlineImageGeneration(detectedImageRequest, userMessageForChat, imagesToPass);
+      return;
+    }
+
+    // Autonomous Agentic Mode direct execution inside Chatbot Biasa (skips intermediate /api/chat delay)
+    const isTrivialAgenticGreeting = /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(cleanUserText);
+    if (isAgenticMode && !isTrivialAgenticGreeting && imagesToPass.length === 0 && typeof handleSubAgentActionRef.current === 'function') {
+      clearLoadingPhaseTimers();
+      triggeredAgentTasksRef.current.add(placeholderId);
+      isProcessingRef.current = false;
+      const directTaskDesc = cleanUserText || fullMessage;
+      handleSubAgentActionRef.current(placeholderId, 'confirm', {
+        taskDescription: directTaskDesc,
+        userPrompt: directTaskDesc,
+        chatHistory: updatedConversationHistory,
+        conversationId: activeConvId || currentConversationId,
+        attachedFiles: attachedFilesForTurn,
+        model: selectedModel || 'deepernova-2.3-pro',
+        introText: ''
+      });
       return;
     }
 
@@ -6088,12 +6137,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       displayedReasoningText = targetReasoningText;
       fullText = targetFullText;
 
-      // Pre-check if AI emitted a Sub-Agent Orchestrator flag in rawText/fullText
-      const preCheckSubAgent = parseSubAgentFlag(
-        `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`,
-        lastSentUserInputTextRef.current || fullMessage || '',
-        userLanguage
-      );
+      // Pre-check if AI emitted a Sub-Agent Orchestrator flag without concatenating duplicate texts
+      const subAgentFallbackPrompt = lastSentUserInputTextRef.current || fullMessage || '';
+      const preCheckSubAgent =
+        parseSubAgentFlag(rawText, subAgentFallbackPrompt, userLanguage) ||
+        parseSubAgentFlag(fullText, subAgentFallbackPrompt, userLanguage) ||
+        parseSubAgentFlag(targetReasoningText, subAgentFallbackPrompt, userLanguage);
       if (preCheckSubAgent && preCheckSubAgent.introText) {
         fullText = preCheckSubAgent.introText;
         displayedFullText = fullText;
@@ -6248,10 +6297,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // 3. Synchronous Agent Orchestrator runs in-place with live Chain of Thought (CoT) and delivers downloadable/previewable files
       // ============================================================
       const userPromptForSubAgent = lastSentUserInputTextRef.current || fullMessage || '';
-      const combinedSubAgentSource = `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`;
-      let parsedSubAgent = parseSubAgentFlag(combinedSubAgentSource, userPromptForSubAgent, userLanguage);
+      let parsedSubAgent =
+        parseSubAgentFlag(rawText, userPromptForSubAgent, userLanguage) ||
+        parseSubAgentFlag(fullText, userPromptForSubAgent, userLanguage) ||
+        parseSubAgentFlag(targetReasoningText, userPromptForSubAgent, userLanguage);
 
-      if (!parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent)) {
+      if (!parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent, attachedFilesForTurn, isAgenticMode)) {
         const cleanedOpening = stripSubAgentFlags(fullText || '').trim();
         const shortOpening = cleanedOpening
           ? cleanedOpening.split(/\n\n/).slice(0, 2).join('\n\n').slice(0, 420).trim()
@@ -6264,6 +6315,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         };
       }
 
+      let pendingAutoSubAgent = null;
       if (
         parsedSubAgent &&
         (parsedSubAgent.triggered || parsedSubAgent.hasFlag) &&
@@ -6274,16 +6326,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           parsedSubAgent.introText || buildDefaultIntroText(parsedSubAgent.taskDescription, userLanguage);
 
         console.log(
-          `[ChatBot] 🤖 Sub-Agent proposal ready — waiting for explicit user confirmation (${parsedSubAgent.flagTag})`
+          `[ChatBot] 🤖 Agentic Sub-Agent auto-executing for task (${parsedSubAgent.flagTag})`
         );
 
-        const awaitingSubAgentData = {
+        pendingAutoSubAgent = {
           status: 'awaiting_confirmation',
           currentStage: 0,
           elapsedSec: '0.0',
           flagTag: parsedSubAgent.flagTag,
           taskDescription: parsedSubAgent.taskDescription,
           userPrompt: userPromptForSubAgent,
+          chatHistory: updatedConversationHistory,
+          conversationId: activeConvId || currentConversationId,
+          attachedFiles: attachedFilesForTurn,
           model: selectedModel || 'deepernova-2.3-pro',
           introText: introConversationalText,
           planText: '',
@@ -6295,34 +6350,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           finalAnswer: '',
         };
 
-        setMessages((prevMessages) => {
-          const updatedMessages = prevMessages.map((m) =>
+        setMessages((prevMessages) =>
+          prevMessages.map((m) =>
             m.id === placeholderId
               ? {
                   ...m,
                   text: introConversationalText,
                   isStreaming: false,
                   isThinking: false,
-                  subAgentData: awaitingSubAgentData,
+                  subAgentData: pendingAutoSubAgent,
                 }
               : m
-          );
-
-          setConversations((prevConvs) => {
-            const targetConvId = activeConvId || currentConversationId;
-            const updatedConvs = (prevConvs || []).map((c) =>
-              c.id === targetConvId
-                ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
-                : c
-            );
-            ConversationPersistenceService.saveToLocalStorage(updatedConvs);
-            return updatedConvs;
-          });
-
-          return updatedMessages;
-        });
+          )
+        );
       }
-      
+
       // finishStreaming already called at drain completion (line ~7231) — no duplicate call needed
       
       setAnimatingMessages((prev) => ({ ...prev, [placeholderId]: false }));
@@ -6337,6 +6379,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Clean up conversation-specific abort controller
       if (currentConversationId) {
         abortControllersMapRef.current.delete(currentConversationId);
+      }
+
+      if (pendingAutoSubAgent && typeof handleSubAgentActionRef.current === 'function') {
+        handleSubAgentActionRef.current(placeholderId, 'confirm', pendingAutoSubAgent);
       }
 
       // Immediate save after response completes
@@ -8577,12 +8623,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
 
     if (action === 'confirm' && subAgentMeta) {
-      const taskDescription = subAgentMeta.taskDescription || subAgentMeta.userPrompt || '';
-      const userPrompt = subAgentMeta.userPrompt || taskDescription;
-      const introText = subAgentMeta.introText || '';
+      const {
+        attachedFiles: rawAttachedFiles = [],
+        chatHistory: passedHistory = null,
+        conversationId: passedConvId = null,
+        ...sanitizedMeta
+      } = subAgentMeta;
+      const taskDescription = sanitizedMeta.taskDescription || sanitizedMeta.userPrompt || '';
+      const userPrompt = sanitizedMeta.userPrompt || taskDescription;
+      const introText = sanitizedMeta.introText || '';
+      const targetConvId = passedConvId || convId;
 
       const runningSubAgentData = {
-        ...subAgentMeta,
+        ...sanitizedMeta,
         status: 'running',
         currentStage: 1,
         elapsedSec: '0.1',
@@ -8629,8 +8682,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const finalSubAgentState = await executeSynchronousSubAgent({
           taskDescription,
           userPrompt,
+          chatHistory: passedHistory || messagesRef.current || [],
+          conversationId: targetConvId,
+          attachedFiles: rawAttachedFiles,
+          effort: sanitizedMeta.effort || 'high',
           language: lang || 'id',
-          model: subAgentMeta.model || activeModel || 'deepernova-2.3-pro',
+          model: sanitizedMeta.model || activeModel || 'deepernova-2.3-pro',
           abortSignal: subAgentController.signal,
           onUpdate: (liveSubAgentState) => {
             setMessages((prev) =>
@@ -8660,7 +8717,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
           setConversations((prevConvs) => {
             const updatedConvs = (prevConvs || []).map((c) =>
-              c.id === convId
+              c.id === targetConvId
                 ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
                 : c
             );
@@ -8693,9 +8750,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         setLoading(false);
         setIsSendGenerating(false);
         isSendGeneratingRef.current = false;
+        isProcessingRef.current = false;
       }
     }
   }, []);
+  handleSubAgentActionRef.current = handleSubAgentAction;
 
   const renderEmptyHeroState = () => (
     <ChatEmptyHero
@@ -8730,6 +8789,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       isReasoningCapable={isReasoningCapable}
       isReasoningEnabled={isReasoningEnabled}
       toggleReasoning={toggleReasoning}
+      isAgenticMode={isAgenticMode}
+      toggleAgenticMode={toggleAgenticMode}
       isSttListening={isSttListening}
       toggleSpeechToText={toggleSpeechToText}
       isAutoVoiceEnabled={isAutoVoiceEnabled}
@@ -9352,6 +9413,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         isReasoningCapable={isReasoningCapable}
         isReasoningEnabled={isReasoningEnabled}
         toggleReasoning={toggleReasoning}
+        isAgenticMode={isAgenticMode}
+        toggleAgenticMode={toggleAgenticMode}
         isSttListening={isSttListening}
         toggleSpeechToText={toggleSpeechToText}
         isAutoVoiceEnabled={isAutoVoiceEnabled}

@@ -2494,7 +2494,8 @@
 }
 
 .toolbar-expandable-pills.visible {
-  max-width: 210px !important;
+  max-width: 390px !important;
+  flex-wrap: wrap !important;
   opacity: 1 !important;
   transform: translate3d(0, 0, 0) scale(1) !important;
   pointer-events: auto !important;
@@ -2894,6 +2895,80 @@
   background: #f59e0b !important;
   color: #ffffff !important;
   box-shadow: 0 0 8px rgba(245, 158, 11, 0.4) !important;
+}
+
+/* Autonomous Agentic Mode Toggle Pill in Chatbot Composer */
+.claude-agentic-toggle-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  background: rgba(248, 250, 252, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 9999px !important;
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  cursor: pointer !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  user-select: none !important;
+  white-space: nowrap !important;
+}
+
+[data-theme="dark"] .claude-agentic-toggle-btn {
+  background: rgba(39, 39, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+}
+
+.claude-agentic-toggle-btn.active {
+  background: rgba(79, 70, 229, 0.12) !important;
+  border-color: rgba(79, 70, 229, 0.45) !important;
+  color: #4f46e5 !important;
+  box-shadow: 0 0 12px rgba(79, 70, 229, 0.18) !important;
+}
+
+[data-theme="dark"] .claude-agentic-toggle-btn.active {
+  background: rgba(99, 102, 241, 0.2) !important;
+  border-color: rgba(129, 140, 248, 0.55) !important;
+  color: #a5b4fc !important;
+}
+
+.agentic-toggle-status-pill {
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  padding: 1px 5px !important;
+  border-radius: 9999px !important;
+  text-transform: uppercase !important;
+}
+
+.agentic-toggle-status-pill.off {
+  background: rgba(148, 163, 184, 0.2) !important;
+  color: #64748b !important;
+}
+
+.agentic-toggle-status-pill.on {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+@media (max-width: 640px) {
+  .toolbar-expandable-pills.visible {
+    row-gap: 6px !important;
+    column-gap: 6px !important;
+    padding-bottom: 2px !important;
+  }
+  .claude-agentic-toggle-btn,
+  .claude-reasoning-toggle-btn {
+    padding: 4px 9px !important;
+    font-size: 11.5px !important;
+  }
+  .input-container.claude-style.expanded .input-card-toolbar {
+    align-items: flex-end !important;
+    padding-bottom: 2px !important;
+  }
 }
 
 /* Web Search Toggle Button in Input Toolbar */

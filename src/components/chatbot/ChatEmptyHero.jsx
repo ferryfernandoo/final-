@@ -37,6 +37,8 @@ export const ChatEmptyHero = React.memo(({
   isReasoningCapable = false,
   isReasoningEnabled = false,
   toggleReasoning,
+  isAgenticMode = false,
+  toggleAgenticMode,
   isSttListening = false,
   toggleSpeechToText,
   isAutoVoiceEnabled = false,
@@ -171,6 +173,8 @@ export const ChatEmptyHero = React.memo(({
         isReasoningCapable={isReasoningCapable}
         isReasoningEnabled={isReasoningEnabled}
         toggleReasoning={toggleReasoning}
+        isAgenticMode={isAgenticMode}
+        toggleAgenticMode={toggleAgenticMode}
         isSttListening={isSttListening}
         toggleSpeechToText={toggleSpeechToText}
         isAutoVoiceEnabled={isAutoVoiceEnabled}

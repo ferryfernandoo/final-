@@ -29,7 +29,11 @@ import db from './database.js';
 import { SQLiteSessionStore } from './sessionStore.js';
 import { v4 as uuidv4 } from 'uuid';
 import apiProxyRoutes from './routes/api-proxy.js';
-import agentRoutes from './routes/agentRoutes.js';
+import agentRoutes, {
+  attachUploadedFilesToSandbox,
+  executeAutonomousAgentRun,
+  buildEnrichedSandboxFiles
+} from './routes/agentRoutes.js';
 import { apiProxyService } from './apiProxyService.js';
 import webSearchService from './webSearchService.js';
 import imageDownloadService, { downloadAndCacheImage, batchPreloadImages } from './imageDownloadService.js';
@@ -3320,15 +3324,16 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       ));
 
   try {
-    // Safety check for messages
-    if (!req.body.messages || !Array.isArray(req.body.messages)) {
+    // Safety check for messages (allow rawUserPrompt/taskDescription directly on agentic /api/subagent/orchestrate)
+    const hasAgenticTaskPrompt = req.path === '/api/subagent/orchestrate' && req.body?.enableAgenticSandbox !== false && Boolean(req.body?.rawUserPrompt || req.body?.taskDescription);
+    if (!hasAgenticTaskPrompt && (!req.body.messages || !Array.isArray(req.body.messages))) {
       return res.status(400).json({
         success: false,
         error: 'Invalid request: messages array is required'
       });
     }
 
-    const shouldStream = req.body.stream === true;
+    const shouldStream = req.body.stream === true || hasAgenticTaskPrompt;
 
     // ⚡ INSTANT UNBUFFERED SSE HANDSHAKE:
     // Flush response headers immediately to unblock reverse proxy (Vercel/tunnel) edge buffers
@@ -3341,6 +3346,61 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         res.flushHeaders();
       }
       res.write(': connected\n\n');
+    }
+
+    // 🤖 AUTONOMOUS SANDBOX ORCHESTRATOR FOR CHATBOT BIASA (/api/subagent/orchestrate)
+    if (req.path === '/api/subagent/orchestrate' && req.body?.enableAgenticSandbox !== false) {
+      const rawPromptMsg = req.body.rawUserPrompt || req.body.taskDescription || (Array.isArray(req.body.messages) ? req.body.messages.filter(m => m.role === 'user').map(m => (typeof m.content === 'string' ? m.content : '')).join('\n') : '');
+      const sandboxSessionId = String(req.body.sandboxSessionId || req.body.sessionId || `chat_${req.body.conversationId || Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const userId = (req.isAuthenticated && req.isAuthenticated() && req.user?.id) || req.user?.id || req.headers['x-device-id'] || req.body.deviceId || 'chatbot_guest';
+      const attachedFiles = Array.isArray(req.body.attachedFiles) ? req.body.attachedFiles : [];
+
+      if (attachedFiles.length > 0) {
+        await attachUploadedFilesToSandbox(sandboxSessionId, attachedFiles);
+      }
+
+      const emitChatbotSubAgentEvent = (eventType, payload) => {
+        if (res.writableEnded) return;
+        let outPayload = payload;
+        if (eventType === 'files_update' && Array.isArray(payload?.files)) {
+          outPayload = { ...payload, files: buildEnrichedSandboxFiles(sandboxSessionId, payload.files) };
+        } else if (eventType === 'done' && payload) {
+          outPayload = {
+            ...payload,
+            sessionId: sandboxSessionId,
+            zipDownloadUrl: `/api/agent/download-zip?sessionId=${encodeURIComponent(sandboxSessionId)}`,
+            files: buildEnrichedSandboxFiles(sandboxSessionId, payload.files || []),
+            allFiles: buildEnrichedSandboxFiles(sandboxSessionId, payload.allFiles || [])
+          };
+        }
+        try {
+          res.write(`data: ${JSON.stringify({ subagent_event: { type: eventType, data: outPayload } })}\n\n`);
+          if (typeof res.flush === 'function') res.flush();
+        } catch (_e) { }
+      };
+
+      await executeAutonomousAgentRun({
+        sessionId: sandboxSessionId,
+        prompt: rawPromptMsg || 'Selesaikan tugas otonom pengguna dengan standar profesional tertinggi.',
+        model: req.body.model || 'deepernova-gold-1.5',
+        history: Array.isArray(req.body.chatHistory) ? req.body.chatHistory : [],
+        effort: req.body.effort || 'high',
+        language: req.body.language || 'id',
+        userId,
+        onEvent: emitChatbotSubAgentEvent,
+        onCloseRegister: (cb) => {
+          res.on('close', () => {
+            if (!res.writableEnded) cb();
+          });
+        },
+        finishStream: () => {
+          if (!res.writableEnded) {
+            try { res.write('data: [DONE]\n\n'); } catch (_e) { }
+            res.end();
+          }
+        }
+      });
+      return;
     }
 
     let messages = JSON.parse(JSON.stringify(req.body.messages)); // Deep clone
@@ -3769,11 +3829,15 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
 
         // 🤖 DETEKSI TUGAS AGENTIC / SUB-AGENT DI CHATBOT
         const lastUserText = (userQuery || '').trim();
+        const hasZipOrProjectWork =
+          /\.(?:zip|tar|gz|py|js|jsx|ts|tsx|html|css|json|sql|csv)\b/i.test(lastUserText) ||
+          /===\s*ATTACHED FILE|\b(unzip|ekstrak|bongkar|zip\s*ulang|bungkus\s*zip|arsip\s*zip)\b/i.test(lastUserText);
         const looksAgenticSubAgentTask =
           lastUserText.length > 0 &&
-          (/\b(sub[\s-]?agent|mode\s+agent(?:ic)?|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent)\b/i.test(lastUserText) ||
-            (/\b(buat(?:kan|in)?|bikin(?:kan|in)?|bangun(?:kan)?|kembangkan|generate|create|build|develop|rancang(?:kan)?|susun(?:kan)?)\b/i.test(lastUserText) &&
-              /\b(file|berkas|website|web\s*app|landing\s*page|aplikasi|dashboard|portofolio|portfolio|kalkulator|game|script|kode|project|proyek|html|css|javascript|react|python|docx?|word|xlsx?|excel|spreadsheet|csv|pptx?|powerpoint|presentasi|presentation|deck|slide|pdf|laporan|proposal|invoice)\b/i.test(lastUserText) &&
+          (/\b(sub[\s-]?agent|mode\s+agent(?:ic)?|agentic|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent)\b/i.test(lastUserText) ||
+            (hasZipOrProjectWork && /\b(buka|ekstrak|cek|periksa|audit|perbaiki|fix|debug|refactor|ubah|edit|tambah|zip|bungkus|analisis|visualisasi|grafik|chart|jalankan|run|test|uji)\b/i.test(lastUserText)) ||
+            (/\b(buat(?:kan|in)?|bikin(?:kan|in)?|bangun(?:kan)?|kembangkan|generate|create|build|develop|rancang(?:kan)?|susun(?:kan)?|perbaiki|fix|debug|refactor|automasi|scrape|crawl|konversi|analisis)\b/i.test(lastUserText) &&
+              /\b(file|berkas|zip|website|web\s*app|landing\s*page|aplikasi|app|dashboard|portofolio|portfolio|kalkulator|game|script|kode|code|backend|api|endpoint|bot|scraper|crawler|project|proyek|html|css|javascript|react|python|node|docx?|word|xlsx?|excel|spreadsheet|csv|pptx?|powerpoint|presentasi|presentation|deck|slide|pdf|laporan|proposal|invoice|grafik|chart)\b/i.test(lastUserText) &&
               !/\b(gambar|foto|ilustrasi|lukisan|logo|poster|avatar|wallpaper)\b/i.test(lastUserText)));
 
         // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual dan WAJIBKAN pencarian web
