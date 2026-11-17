@@ -587,183 +587,188 @@ export const SUGGESTION_PROMPTS_POOL = [
 
 export const RANDOM_GREETINGS = {
   subuh: [
-    'Selamat Subuh',
-    'Subuh! {name} udah bangun aja nih 🌅',
-    'Pagi-pagi Subuh {name} beraksi lagi! ⚡',
-    'Semangat Subuh, {name}! ☀️',
-    'Subuh cerah! Siap produktif pagi ini {name}? 🚀',
-    'Woi {name}, Subuh-subuh dah siap tempur! 🔥',
-    'Selamat Subuh {name}, rejeki dipatok ayam kalo telat! 🐔',
-    '{name} versi Subuh: Tanpa tanding, siap produktif! 💎',
-    'Salam Subuh {name}! Ayam jago aja kalah cepet ama lu 🐓',
-    'Matahari aja belum terbit, {name} udah beraksi duluan ⚡',
-    'Subuh-subuh gini aura produktif {name} membara 🔥',
-    'Subuh bray! {name} siap bantai to-do list hari ini 📋',
-    'Subuh tenang, otak jernih! Gas terus {name} 🚀',
-    'Waktu Subuh = Waktu emas {name} beraksi! 🏆',
-    'Subuh berkah! Mau eksekusi projek apa kita {name}?'
+    'Selamat subuh {name}, udah pukul {time} — pagi-pagi udah bangun aja nih',
+    'Masih pukul {time} subuh, {name}. Mau ngapain duluan hari ini?',
+    'Subuh tenang pukul {time}, {name}. Siap mulai pelan-pelan?',
+    'Jam {time} pagi buta, {name} udah on aja nih'
   ],
   pagi: [
-    'Selamat Pagi',
-    'Pagi! {name} beraksi lagi nih 😎',
-    'Semangat Pagi, {name}! ☀️',
-    'Pagi cerah! Ada ide keren apa hari ini, {name}? 💡',
-    'Woi {name}, pagi-pagi dah siap tempur nih! 🔥',
-    'Pagi! {name} mode produktif: ON 🚀',
-    'Yo {name}! Pagi ini mau garap projek apa?',
-    'Selamat Pagi! {name} siap naklukin hari ini 🔥',
-    'Pagi bro {name}! Gasss terus 🏎️',
-    'Pagi {name}! Siap bikin masterpiece baru? ✨',
-    'Halo {name}! Energi pagi masih 100% nih 🔋',
-    '{name} comeback lagi pagi ini! 🚀',
-    'Pagi dunia! {name} siap mengguncang hari 😎',
-    'Mood pagi ini: {name} gak bisa dihentikan! 💥',
-    'Pagi ceria! Kopi panas + {name} beraksi = combo maut ☕',
-    'Semangat pagi {name}! Hari baru, rekor baru 🏆',
-    'Pagi bos {name}! Siap memimpin eksekusi hari ini 💪',
-    'Pagi-pagi gini racikan kode/ide {name} biasanya makin mantap 🧠',
-    'Selamat Pagi {name}! Mari kita selesaikan misi hari ini 🎯',
-    'Pagi {name}! Jangan lupa senyum, gass terus ⚡'
+    'Selamat pagi {name}, sekarang pukul {time}. Mau bahas apa kita?',
+    'Pagi {name}, udah jam {time} nih. Ada yang mau dikerjain bareng?',
+    'Selamat pagi! Pukul {time} gini {name} siap mulai dari mana?',
+    'Pagi {name}, jam {time} — ada ide atau kerjaan pagi ini?'
   ],
   siang: [
-    'Selamat Siang',
-    'Siang! {name} beraksi lagi nih 😎',
-    'Siang! {name} masih semangat kan? 🔥',
-    'Siang-siang gini {name} tetap produktif ⚡',
-    'Semangat Siang, {name}! Udah makan siang belum? 🍱',
-    'Siang {name}! Lanjut fokus gasss lagi 🚀',
-    'Yo {name}! Siang ini mau tuntasin apa?',
-    'Selamat Siang {name}, tetep fokus walau ngantuk melanda! ☕',
-    'Siang terik, tapi semangat {name} makin membara 🔥',
-    'Siang bray! {name} mode fokus tingkat tinggi 🎯',
-    'Matahari di puncak, {name} lagi di puncak performa 💪',
-    'Siang {name}! Rehat bentar, abis itu sikat lagi 🚀',
-    'Jangan kendor {name}! Siang ini jadwalnya panen hasil 🌾',
-    'Siang bosku {name}! Mau lanjut garap fitur apa nih?',
-    'Siang-siang gini racikan {name} makin gacor! 🔥'
+    'Selamat siang {name}, udah pukul {time} — masih lanjut fokus kan?',
+    'Siang {name}! Jam {time} gini mau beresin apa lagi nih?',
+    'Pukul {time} siang, {name}. Santai dulu atau langsung gas?',
+    'Selamat siang {name}, jam {time} — ada yang bisa dibantu sekarang?'
   ],
   sore: [
-    'Selamat Sore',
-    'Sore! {name} beraksi lagi nih 😎',
-    'Semangat Sore, {name}! 🌅',
-    'Sore cerah! Masih on fire nih {name} 🔥',
-    'Sore {name}! Santai sejenak atau lanjut gasss? ☕',
-    'Yo {name}! Senja menyapa, ide tetep mengalir 🎨',
-    'Sore {name}! Tinggal dikit lagi tuntas nih 🚀',
-    'Sore-sore gini {name} makin gak ada obat! 💊',
-    'Langit sore indah, tapi karya {name} lebih indah ✨',
-    'Sore bray {name}! Energi sore hari tetep stabil ⚡',
-    'Sore santai tapi tetep bantai, khas {name} banget 😎',
-    'Menjelang malam, {name} makin lincah beraksi 🏎️',
-    'Sore {name}! Mau rehat ngeteh dulu atau sikat abis?',
-    'Sore mantap {name}! Tinggal finish line nih 🏁'
+    'Selamat sore {name}, sekarang pukul {time}. Mau lanjut apa nih?',
+    'Sore {name}, udah jam {time} — tinggal beresin apa buat hari ini?',
+    'Pukul {time} sore, {name}. Lanjut ngobrol atau selesaikan kerjaan?',
+    'Selamat sore {name}, jam {time} gini enaknya bahas apa?'
   ],
   petang: [
-    'Selamat Petang',
-    'Petang! {name} masih sempat beraksi nih 🌇',
-    'Selamat Petang, {name}! Rehat sejenak atau gass terus? ☕',
-    'Petang cerah, {name}! Siap-siap malam produktif 🌙',
-    'Petang {name}! Menuju malam penuh ide ✨',
-    'Matahari terbenam, semangat {name} tak pernah padam 🔥',
-    'Petang bray {name}! Waktu transisi menuju malam gokil 🚀',
-    'Petang syahdu, {name} tetep fokus beraksi 💪',
-    'Petang {name}! Istirahat bentar yuk biar malam makin tajam 🧠',
-    'Selamat Petang {name}! Waktu yang pas buat koreksi & evaluasi 📋'
+    'Selamat petang {name}, udah pukul {time} nih',
+    'Jam {time} menjelang malam, {name}. Masih ada yang mau dilanjut?',
+    'Petang {name}, pukul {time} — santai dulu atau mau mulai obrolan?',
+    'Selamat petang! Pukul {time} gini mau ngapain, {name}?'
   ],
   malam: [
-    'Selamat Malam',
-    'Malam! {name} mode lembur beraksi nih 🌙',
-    'Malam {name}! Masih belum padam semangatnya 🔥',
-    'Yo {name}! Malam-malam gini tetep produktif 😎',
-    'Selamat Malam, {name}! Siap tuntasin tugas hari ini? 🚀',
-    'Malam {name}! Night owl squad beraksi lagi 🦉',
-    'Selamat Malam {name}! Ketenangan malam bikin ide makin lancar ✨',
-    'Malam bray! {name} mode fokus tanpa gangguan 🔇',
-    'Ketika yang lain tidur, {name} beraksi di kegelapan 🌌',
-    'Malam dingin, tapi otak {name} tetep panas membara 🔥',
-    'Malam syahdu {name}! Sikat abis sebelum rebahan 🛌',
-    'Selamat Malam {name}! Lembur berkualitas hasil memuaskan 💎',
-    'Night mode ON: {name} beraksi tanpa ampun ⚡',
-    'Malam bos {name}! Ada ide gila apa malam ini? 💡',
-    'Malam tenang = Waktu emas {name} berkreasi ✨'
+    'Selamat malam {name}, udah pukul {time} — masih aktif aja nih',
+    'Jam {time} malam, {name}. Lagi santai atau masih lanjut garap sesuatu?',
+    'Malam {name}! Pukul {time} gini mau ngobrol soal apa?',
+    'Udah pukul {time} malem nih, {name}. Mau lembur tipis-tipis atau ngobrol santai?'
   ],
   larutMalam: [
-    'Selamat Larut Malam',
-    'Malam-malam gini {name} masih beraksi aja nih 🌌',
-    'Belum tidur {name}? Mode kalong aktif 🦇',
-    'Malam larut, {name} tetep gasss terus 🔥',
-    'Insomnia mode: {name} beraksi lagi! 🚀',
-    'Larut malam {name}! Kopi gelas keberapa nih? ☕',
-    'Malam sepi, {name} lagi fokus-fokusnya ngoding/nulis 💻',
-    'Dunia udah tidur, tapi {name} baru aja mulai beraksi 🧙‍♂️',
-    'Larut malam gini aura jenius {name} keluar semua ✨',
-    'Lembur tingkat dewa! {name} emang gak ada tandingannya 💪',
-    'Ssshh... {name} lagi ngeracik sesuatu yang besar malam ini 🤫',
-    'Jam kalong: {name} siap mengguncang esok hari 🌅',
-    'Larut malam gini fokus {name} udah 200% 🚀',
-    'Gak ada gangguan, {name} bebas beraksi sepuasnya 🎧',
-    'Malam larut {name}! Jangan lupa minum air putih ya 💧'
+    'Udah pukul {time}, {name} — masih jam ngalong nih?',
+    'Jam ngalong pukul {time} bareng {name}. Belum ngantuk?',
+    'Wah udah jam {time} dini hari, {name}. Tim begadang lagi ngapain nih?',
+    'Mode ngalong pukul {time}, {name}. Santai, aku temenin malem ini'
+  ],
+  en: {
+    early: [
+      'Early morning, {name} — it is {time}. What is on your mind?',
+      'Up at {time}, {name}? Ready to get an early start?'
+    ],
+    morning: [
+      'Good morning {name}, it is {time}. Where should we start today?',
+      'Morning {name} — {time} already. Anything you want to work on?'
+    ],
+    afternoon: [
+      'Good afternoon {name}, it is {time}. How is your day going?',
+      'Afternoon {name} ({time}). What can we tackle right now?'
+    ],
+    evening: [
+      'Good evening {name}, it is {time}. Still wrapping things up?',
+      'Evening {name} — {time} now. What would you like to chat about?'
+    ],
+    lateNight: [
+      'Burning the midnight oil at {time}, {name}?',
+      'Late night session at {time}, {name}. What are we diving into?'
+    ]
+  },
+  zh: {
+    morning: [
+      '早上好 {name}，现在是 {time}，今天想先聊什么？',
+      '{name} 早安，现在 {time}，准备开始新对话了吗？'
+    ],
+    afternoon: [
+      '下午好 {name}，现在是 {time}，有什么需要帮忙的吗？',
+      '{name} 下午好（{time}），现在想处理什么内容？'
+    ],
+    evening: [
+      '晚上好 {name}，已经 {time} 了，还在忙吗？',
+      '{name} 晚上好，现在 {time}，今天想聊点什么？'
+    ],
+    lateNight: [
+      '已经深夜 {time} 了，{name} 还在熬夜吗？',
+      '夜深了（{time}），{name}，有什么想聊的随时说'
+    ]
+  },
+  privateId: [
+    'Ruang privat pukul {time} — chat ini nggak disimpan di riwayat, {name}',
+    'Mode privat aktif ({time}). Semua obrolan di sini cuma sementara, {name}',
+    'Jam {time} di ruang privat, {name}. Aman, selesai keluar langsung bersih'
+  ],
+  privateEn: [
+    'Private chat at {time} — nothing here is saved to history, {name}',
+    'Private session active ({time}). Ephemeral and off the record, {name}'
+  ],
+  privateZh: [
+    '隐私对话模式（{time}）— 此处聊天不会被保存，{name}'
   ]
 };
 
 export const RANDOM_HINTS = [
   'Sebaiknya kita mulai dari mana?',
   'Ada projek menarik apa hari ini?',
-  'Mau garap atau bahas apa kita?',
-  'Apa yang ingin kamu selesaikan hari ini?',
-  'Ada ide gila apa yang mau dieksekusi?',
-  'Siap bantai tugas hari ini?',
-  'Butuh bantuan coding, nulis, atau analisa apa nih?',
-  'Ketik aja, gua siap bantu eksekusi!',
-  'Mau lanjutin yang kemarin atau mulai hal baru?',
-  'Bikin sesuatu yang keren yuk!',
-  'Ada bug atau error yang mau dihancurkan?',
-  'Apa rencana besar kita sekarang?',
-  'Tumpahin semua ide kamu di sini!',
-  'Siap bantu 24/7 tanpa henti!',
-  'Tinggal sebut, langsung kita garap!'
+  'Mau garap atau bahas apa kita?'
 ];
 
-export const getTimeBasedGreeting = (userName = '') => {
+const formatCurrentClockHHMM = () => {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+};
+
+const formatGreetingTemplate = (template, cleanName, timeStr) => {
+  let out = template.replace(/\{time\}/g, timeStr);
+  if (cleanName) {
+    out = out.replace(/\{name\}/g, cleanName);
+  } else {
+    out = out
+      .replace(/,\s*\{name\}/g, '')
+      .replace(/\{name\},\s*/g, '')
+      .replace(/bareng\s+\{name\}/gi, '')
+      .replace(/\{name\}/g, '');
+  }
+  return out
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,?!.])/g, '$1')
+    .replace(/^[,\s—–-]+/, '')
+    .trim();
+};
+
+export const getTimeBasedGreeting = (userName = '', options = {}) => {
+  const { language = 'id', lastGreeting = '', isPrivate = false } =
+    typeof options === 'object' && options !== null ? options : {};
+
   const hour = new Date().getHours();
+  const timeStr = formatCurrentClockHHMM();
+  const trimmedName = (userName || '').trim();
+  const cleanName =
+    trimmedName && !/^(guest|tamu|teman|user|pengguna)$/i.test(trimmedName)
+      ? trimmedName
+      : '';
+
   let pool = RANDOM_GREETINGS.pagi;
 
-  if (hour >= 3 && hour < 6) {
-    pool = RANDOM_GREETINGS.subuh;
-  } else if (hour >= 6 && hour < 11) {
-    pool = RANDOM_GREETINGS.pagi;
-  } else if (hour >= 11 && hour < 15) {
-    pool = RANDOM_GREETINGS.siang;
-  } else if (hour >= 15 && hour < 18) {
-    pool = RANDOM_GREETINGS.sore;
-  } else if (hour >= 18 && hour < 20) {
-    pool = RANDOM_GREETINGS.petang;
-  } else if (hour >= 20 && hour < 24) {
-    pool = RANDOM_GREETINGS.malam;
+  if (isPrivate) {
+    if (language === 'en') pool = RANDOM_GREETINGS.privateEn;
+    else if (language === 'zh') pool = RANDOM_GREETINGS.privateZh;
+    else pool = RANDOM_GREETINGS.privateId;
+  } else if (language === 'en') {
+    if (hour >= 0 && hour < 4) pool = RANDOM_GREETINGS.en.lateNight;
+    else if (hour >= 4 && hour < 6) pool = RANDOM_GREETINGS.en.early;
+    else if (hour >= 6 && hour < 12) pool = RANDOM_GREETINGS.en.morning;
+    else if (hour >= 12 && hour < 18) pool = RANDOM_GREETINGS.en.afternoon;
+    else pool = RANDOM_GREETINGS.en.evening;
+  } else if (language === 'zh') {
+    if (hour >= 0 && hour < 5) pool = RANDOM_GREETINGS.zh.lateNight;
+    else if (hour >= 5 && hour < 12) pool = RANDOM_GREETINGS.zh.morning;
+    else if (hour >= 12 && hour < 18) pool = RANDOM_GREETINGS.zh.afternoon;
+    else pool = RANDOM_GREETINGS.zh.evening;
   } else {
-    pool = RANDOM_GREETINGS.larutMalam;
+    if (hour >= 4 && hour < 6) pool = RANDOM_GREETINGS.subuh;
+    else if (hour >= 6 && hour < 11) pool = RANDOM_GREETINGS.pagi;
+    else if (hour >= 11 && hour < 15) pool = RANDOM_GREETINGS.siang;
+    else if (hour >= 15 && hour < 18) pool = RANDOM_GREETINGS.sore;
+    else if (hour >= 18 && hour < 20) pool = RANDOM_GREETINGS.petang;
+    else if (hour >= 20 && hour < 24) pool = RANDOM_GREETINGS.malam;
+    else pool = RANDOM_GREETINGS.larutMalam;
   }
 
-  const template = pool[Math.floor(Math.random() * pool.length)];
-  const name = userName && userName.trim() ? userName.trim() : '';
+  const formattedCandidates = pool.map((tpl) => formatGreetingTemplate(tpl, cleanName, timeStr));
+  const freshCandidates =
+    lastGreeting && formattedCandidates.length > 1
+      ? formattedCandidates.filter((c) => c !== lastGreeting)
+      : formattedCandidates;
 
-  if (template.includes('{name}')) {
-    return template.replace(/\{name\}/g, name ? name : 'Bro/Sis').replace(/\s+/g, ' ').trim();
-  }
-
-  if (name) {
-    return `${template}, ${name}`;
-  }
-  return template;
+  const list = freshCandidates.length > 0 ? freshCandidates : formattedCandidates;
+  return list[Math.floor(Math.random() * list.length)];
 };
 
 export const FALLBACK_GREETINGS = {
-  greeting: 'Selamat Pagi',
+  greeting: 'Apa yang bisa kita bahas sekarang?',
   hint: 'Sebaiknya kita mulai dari mana?'
 };
 
 // Helper to get stylized file badge information (icon, colors, label)
-export const getFileBadgeInfo = (fileName = '', fileType = '') => {
+export const getFileBadgeInfo = (fileName = '', _fileType = '') => {
   const ext = (fileName.split('.').pop() || '').toLowerCase();
   if (['pdf'].includes(ext)) return { icon: 'fa-file-pdf', color: '#ef4444', bg: '#fef2f2', label: 'PDF Document' };
   if (['doc', 'docx'].includes(ext)) return { icon: 'fa-file-word', color: '#2563eb', bg: '#eff6ff', label: 'Word Document' };

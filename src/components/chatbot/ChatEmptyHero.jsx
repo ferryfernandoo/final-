@@ -7,7 +7,8 @@ import ChatComposerCard from './ChatComposerCard';
 
 export const ChatEmptyHero = React.memo(({
   userLanguage = 'id',
-  onNavigate,
+  aiGreeting = '',
+  isPrivateChat = false,
   uploadedFiles = [],
   uploadedImages = [],
   attachmentQueueMinimized = false,
@@ -37,8 +38,6 @@ export const ChatEmptyHero = React.memo(({
   isReasoningCapable = false,
   isReasoningEnabled = false,
   toggleReasoning,
-  isAgenticMode = false,
-  toggleAgenticMode,
   isSttListening = false,
   toggleSpeechToText,
   isAutoVoiceEnabled = false,
@@ -46,34 +45,33 @@ export const ChatEmptyHero = React.memo(({
   handleOpenCamera,
   setShowGlobalMemorySettings
 }) => {
+  const defaultGreeting =
+    userLanguage === 'zh'
+      ? '现在想聊些什么？'
+      : userLanguage === 'id'
+        ? 'Mau ngobrolin apa sekarang?'
+        : 'What would you like to talk about?';
+  const headingText = (aiGreeting && aiGreeting.trim()) || defaultGreeting;
+
   return (
     <div className="meta-hero-empty-state">
       <div className="meta-hero-header-wrap">
-        <h1 className="meta-hero-heading">
-          {userLanguage === 'zh'
-            ? '今天我能为您提供什么帮助？'
-            : userLanguage === 'id'
-              ? 'Apa yang bisa saya bantu hari ini?'
-              : 'What can I help you with today?'}
-        </h1>
-        <button
-          type="button"
-          className="meta-hero-agent-pill-btn"
-          onClick={() => onNavigate?.('agent')}
-          title={
-            userLanguage === 'zh'
-              ? '启动自主 AI Agent（代码执行、终端与项目）'
-              : userLanguage === 'id'
-                ? 'Buka Autonomous AI Agent (Eksekusi Kode, Terminal & Proyek)'
-                : 'Launch Autonomous AI Agent (Code execution, terminal & projects)'
-          }
-        >
-          <span className="agent-pill-icon">⚡</span>
-          <span className="agent-pill-label">
-            {userLanguage === 'zh' ? 'AI Agent 模式' : userLanguage === 'id' ? 'Mode AI Agent' : 'AI Agent'}
-          </span>
-          <span className="agent-pill-arrow">→</span>
-        </button>
+        {isPrivateChat && (
+          <div className="meta-hero-private-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>
+              {userLanguage === 'zh'
+                ? '隐私模式 · 对话不保存'
+                : userLanguage === 'id'
+                  ? 'Private Chat · Tidak disimpan ke riwayat'
+                  : 'Private Chat · Not saved to history'}
+            </span>
+          </div>
+        )}
+        <h1 className="meta-hero-heading">{headingText}</h1>
       </div>
 
       {(uploadedFiles.length > 0 || uploadedImages.length > 0) && (
@@ -173,8 +171,6 @@ export const ChatEmptyHero = React.memo(({
         isReasoningCapable={isReasoningCapable}
         isReasoningEnabled={isReasoningEnabled}
         toggleReasoning={toggleReasoning}
-        isAgenticMode={isAgenticMode}
-        toggleAgenticMode={toggleAgenticMode}
         isSttListening={isSttListening}
         toggleSpeechToText={toggleSpeechToText}
         isAutoVoiceEnabled={isAutoVoiceEnabled}
@@ -189,93 +185,6 @@ export const ChatEmptyHero = React.memo(({
           document.body.scrollTop = 0;
         }}
       />
-
-      <div className="meta-prompt-chips-row">
-        <button
-          type="button"
-          className="meta-prompt-chip"
-          onClick={() => {
-            setInputValue(
-              userLanguage === 'zh'
-                ? '请清晰易懂地解释这个概念：'
-                : userLanguage === 'id'
-                  ? 'Jelaskan konsep ini secara jelas dan mudah dipahami: '
-                  : 'Explain this concept clearly and simply: '
-            );
-            setTimeout(() => {
-              if (textareaElementRef?.current) {
-                textareaElementRef.current.focus();
-                scheduleTextareaResize?.(textareaElementRef.current);
-              }
-            }, 20);
-          }}
-        >
-          💡 {userLanguage === 'zh' ? '随心提问' : userLanguage === 'id' ? 'Tanyakan apa pun' : 'Ask anything'}
-        </button>
-        <button
-          type="button"
-          className="meta-prompt-chip"
-          onClick={() => {
-            setInputValue(
-              userLanguage === 'zh'
-                ? '请帮我编写代码实现：'
-                : userLanguage === 'id'
-                  ? 'Bantu saya menulis kode program untuk: '
-                  : 'Help write code for: '
-            );
-            setTimeout(() => {
-              if (textareaElementRef?.current) {
-                textareaElementRef.current.focus();
-                scheduleTextareaResize?.(textareaElementRef.current);
-              }
-            }, 20);
-          }}
-        >
-          💻 {userLanguage === 'zh' ? '编写代码' : userLanguage === 'id' ? 'Tulis kode' : 'Write code'}
-        </button>
-        <button
-          type="button"
-          className="meta-prompt-chip"
-          onClick={() => {
-            setInputValue(
-              userLanguage === 'zh'
-                ? '请帮我制定结构化计划与策略：'
-                : userLanguage === 'id'
-                  ? 'Bantu susun rencana dan langkah terstruktur untuk: '
-                  : 'Help plan a structured strategy for: '
-            );
-            setTimeout(() => {
-              if (textareaElementRef?.current) {
-                textareaElementRef.current.focus();
-                scheduleTextareaResize?.(textareaElementRef.current);
-              }
-            }, 20);
-          }}
-        >
-          🎯 {userLanguage === 'zh' ? '计划与策略' : userLanguage === 'id' ? 'Rencana & strategi' : 'Plan & strategy'}
-        </button>
-        <button
-          type="button"
-          className="meta-prompt-chip"
-          onClick={() => {
-            setInputValue(
-              userLanguage === 'zh'
-                ? '请帮我起草一份关于以下内容的专业文档：'
-                : userLanguage === 'id'
-                  ? 'Buatkan draf teks profesional tentang: '
-                  : 'Draft a professional document about: '
-            );
-            setTimeout(() => {
-              if (textareaElementRef?.current) {
-                textareaElementRef.current.focus();
-                scheduleTextareaResize?.(textareaElementRef.current);
-              }
-            }, 20);
-          }}
-        >
-          📝 {userLanguage === 'zh' ? '撰写文档' : userLanguage === 'id' ? 'Tulis dokumen' : 'Write document'}
-        </button>
-      </div>
     </div>
   );
 });

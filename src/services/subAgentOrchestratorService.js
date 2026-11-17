@@ -77,29 +77,31 @@ export function parseSubAgentFlag(text = '', fallbackUserPrompt = '', language =
  * Check if the user explicitly requested Sub-Agent / Agentic mode, .zip archive handling,
  * or downloadable file/project engineering work.
  */
-export function detectExplicitSubAgentUserIntent(userPrompt = '', attachedFiles = [], isAgenticMode = false) {
+export function detectExplicitSubAgentUserIntent(userPrompt = '', attachedFiles = [], isAgenticMode = true) {
+  // When Auto Agentic mode is turned OFF in Settings, disable auto agentic routing
+  if (!isAgenticMode) return false;
   if (!userPrompt || typeof userPrompt !== 'string') return false;
   const norm = userPrompt.trim();
   if (norm.length < 3) return false;
 
-  const isTrivialGreeting = /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(norm);
-  if (isAgenticMode && !isTrivialGreeting) {
+  // 1. Explicit sub-agent / agentic / archive action commands
+  if (/\b(sub[\s-]*agent|subagent|mode\s+agent(?:ic)?|agentic|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent|pake\s+sub\s*agent|ekstrak\s+zip|unzip|zip\s+ulang|bungkus\s+zip|archive\s+zip)\b/i.test(norm)) {
     return true;
   }
 
-  // 1. Explicit sub-agent or agentic mention
-  if (/\b(sub[\s-]*agent|subagent|mode\s+agent(?:ic)?|agentic|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent|pake\s+sub\s*agent)\b/i.test(norm)) {
+  // 2. Explicit file / Office / archive / deliverable generation requests
+  if (/\b(kirim(?:kan)?\s+file(?:nya)?|buat(?:kan|in)?\s+(?:file|berkas|dokumen|ppt|pptx|powerpoint|presentasi|slide|word|docx|excel|xlsx|spreadsheet|pdf|zip|website|web|landing\s*page|aplikasi|dashboard|app|game|portofolio|projek|project|script)|bikin(?:kan|in)?\s+(?:file|berkas|dokumen|ppt|pptx|powerpoint|presentasi|slide|word|docx|excel|xlsx|spreadsheet|pdf|zip|website|web|landing\s*page|aplikasi|dashboard|app|game|portofolio|projek|project|script)|generate\s+(?:file|pptx|docx|xlsx|pdf|zip|project|app)|build\s+(?:a\s+)?(?:web|app|project|site|landing|dashboard)|export\s+(?:to\s+)?(?:ppt|pptx|docx|xlsx|pdf|zip)|sertakan\s+file(?:nya)?|dalam\s+bentuk\s+file)\b/i.test(norm)) {
     return true;
   }
 
-  // 2. Explicit file/archive delivery or .zip extraction/re-packaging request
-  if (/\b(kirim(?:kan)?\s+file(?:nya)?|buat(?:kan|in)?\s+file|bikin(?:kan|in)?\s+file|generate\s+file|sertakan\s+file(?:nya)?|dalam\s+bentuk\s+file|ekstrak\s+zip|unzip|zip\s+ulang|bungkus\s+zip|archive\s+zip)\b/i.test(norm)) {
+  // 3. Explicit Office/archive format mentions with creation/analysis intent
+  if (/\.(?:zip|pptx?|docx?|xlsx?|csv|html)\b/i.test(norm) && /\b(buat|bikin|create|generate|ekstrak|unzip|perbaiki|fix|edit|ubah|update|export|unduh|download|konversi|convert)\b/i.test(norm)) {
     return true;
   }
 
-  // 3. Uploaded .zip / code files paired with edit/fix/audit/build instructions
-  const hasZipOrProjectAttachment = Array.isArray(attachedFiles) && attachedFiles.some((f) => /\.(zip|py|js|jsx|ts|tsx|html|css|json|csv|sql)$/i.test(f?.name || ''));
-  if (hasZipOrProjectAttachment && /\b(buka|ekstrak|unzip|perbaiki|fix|debug|refactor|ubah|edit|tambah|buat|uji|test|audit|zip|bungkus|analisis|grafik|chart|jalankan|run)\b/i.test(norm)) {
+  // 4. Uploaded .zip or code/project files paired with extract/edit/fix/audit/build instructions
+  const hasZipOrProjectAttachment = Array.isArray(attachedFiles) && attachedFiles.some((f) => /\.(zip|py|js|jsx|ts|tsx|html|css|json|csv|sql|docx?|xlsx?|pptx?)$/i.test(f?.name || ''));
+  if (hasZipOrProjectAttachment && /\b(buka|ekstrak|unzip|perbaiki|fix|debug|refactor|ubah|edit|tambah|buat|bikin|uji|test|audit|zip|bungkus|analisis|grafik|chart|jalankan|run|update|upgrade)\b/i.test(norm)) {
     return true;
   }
 
@@ -952,9 +954,9 @@ export async function executeSynchronousSubAgent({
   const emitSandboxSnapshot = (isCompleted = false) => {
     const mappedSteps = sandboxSteps.length > 0
       ? sandboxSteps.map((st, idx) => ({
-          ...mapSandboxStepToThoughtStep(st, idx),
-          ...(isCompleted ? { status: st.status === 'failed' ? 'error' : 'done' } : {})
-        }))
+        ...mapSandboxStepToThoughtStep(st, idx),
+        ...(isCompleted ? { status: st.status === 'failed' ? 'error' : 'done' } : {})
+      }))
       : initialSnapshot.thoughtSteps;
 
     onUpdate({

@@ -37,6 +37,9 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
     saveLanguage,
     isPrivateChat,
     setIsPrivateChat,
+    togglePrivateChat,
+    isAgenticMode = true,
+    toggleAgenticMode,
     showTokenUsage,
     setShowTokenUsage,
     setShowApiDashboard,
@@ -409,14 +412,29 @@ export const ChatPrimaryModals = React.memo(function ChatPrimaryModals({ ctx }) 
 
             <div className="settings-option-row">
               <div className="option-text">
+                <span className="option-title">{userLanguage === 'zh' ? '自动智能代理 (Agentic)' : userLanguage === 'id' ? 'Agentic Otomatis' : 'Auto Agentic Mode'}</span>
+                <span className="option-desc">{userLanguage === 'zh' ? '自动执行代码、Office 文档、ZIP 压缩包与多步骤任务' : userLanguage === 'id' ? 'Jalankan sub-agent, kode, dokumen Office & ZIP secara otomatis' : 'Automatically execute sub-agents, code, Office docs & ZIP workflows'}</span>
+              </div>
+              <label className="modern-switch">
+                <input
+                  type="checkbox"
+                  checked={isAgenticMode}
+                  onChange={() => toggleAgenticMode?.()}
+                />
+                <span className="switch-slider"></span>
+              </label>
+            </div>
+
+            <div className="settings-option-row">
+              <div className="option-text">
                 <span className="option-title">{userLanguage === 'zh' ? '隐私模式' : userLanguage === 'id' ? 'Mode Privat' : 'Private Mode'}</span>
-                <span className="option-desc">{userLanguage === 'zh' ? '不保存新的会话记录' : userLanguage === 'id' ? 'Jangan simpan sesi percakapan baru' : 'Do not save new conversation sessions'}</span>
+                <span className="option-desc">{userLanguage === 'zh' ? '不保存新的会话记录，对话更直接坦率' : userLanguage === 'id' ? 'Sesi aman tidak disimpan ke riwayat & memori' : 'Ephemeral session — zero history or memory saved'}</span>
               </div>
               <label className="modern-switch">
                 <input
                   type="checkbox"
                   checked={isPrivateChat}
-                  onChange={() => setIsPrivateChat(s => !s)}
+                  onChange={() => (togglePrivateChat ? togglePrivateChat() : setIsPrivateChat(s => !s))}
                 />
                 <span className="switch-slider"></span>
               </label>

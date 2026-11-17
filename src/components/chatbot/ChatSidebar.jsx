@@ -33,6 +33,8 @@ export const ChatSidebar = React.memo(({
   setShowApiDashboard,
   setShowPersonalityModal,
   setShowPrivateModal,
+  isPrivateChat = false,
+  startPrivateChat,
   setShowGlobalMemorySettings,
   setShowSettingsModal,
   setShowFormatDbModal,
@@ -92,6 +94,34 @@ export const ChatSidebar = React.memo(({
               <span>{userLanguage === 'zh' ? '新建对话' : userLanguage === 'id' ? 'New chat' : 'New chat'}</span>
             </div>
             <span className="meta-nav-shortcut">Ctrl+Shift+O</span>
+          </button>
+
+          {/* 2. Private chat (No-Save Ephemeral Mode) */}
+          <button
+            type="button"
+            className={`meta-sidebar-nav-btn ${isPrivateChat ? 'active private-active' : ''}`}
+            onClick={() => {
+              startPrivateChat?.();
+              if (typeof window !== 'undefined' && window.innerWidth <= 960) {
+                setSidebarOpen(false);
+              }
+            }}
+            title={
+              userLanguage === 'zh'
+                ? '隐私对话（不保存到历史或记忆）'
+                : userLanguage === 'id'
+                  ? 'Private Chat (Obrolan aman tanpa disimpan ke riwayat)'
+                  : 'Private Chat (Zero history saved)'
+            }
+          >
+            <div className="meta-nav-left-content">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>{userLanguage === 'zh' ? '隐私对话' : userLanguage === 'id' ? 'Private chat' : 'Private chat'}</span>
+            </div>
+            {isPrivateChat && <span className="meta-nav-shortcut">{userLanguage === 'zh' ? '开启' : userLanguage === 'id' ? 'Aktif' : 'On'}</span>}
           </button>
 
           {/* 2. Search (Ctrl+K) */}

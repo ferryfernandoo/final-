@@ -111,6 +111,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [, setUserCountry] = useState('ID');
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [isPrivateChat, setIsPrivateChat] = useState(false);
+  const isPrivateChatRef = useRef(false);
+  useEffect(() => {
+    isPrivateChatRef.current = isPrivateChat;
+  }, [isPrivateChat]);
+  const isPrivateSession = useCallback((convId) => {
+    return Boolean(isPrivateChatRef.current || String(convId || '').startsWith('private_'));
+  }, []);
   const [, setIsPaused] = useState(false);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [compactView, setCompactView] = useState(false); // show only last exchange when true and at bottom
@@ -453,9 +460,10 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
   const [isAgenticMode, setIsAgenticMode] = useState(() => {
     try {
-      return localStorage.getItem('deepernova_agentic_mode') === 'true';
+      const stored = localStorage.getItem('deepernova_agentic_mode');
+      return stored === null ? true : stored !== 'false';
     } catch (e) {
-      return false;
+      return true;
     }
   });
   const toggleAgenticMode = useCallback(() => {
@@ -544,6 +552,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const typingTimerRef = useRef(null);
   const resizeFrameRef = useRef(null);
   const greetingGenerationRef = useRef(false);
+  const lastGreetingRef = useRef('');
   const finishedStreamingIdsRef = useRef(new Set());
   const lazyScrollAnimRef = useRef(null);
   const targetScrollTopRef = useRef(null);
@@ -605,6 +614,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   // ===== CONVERSATION PERSISTENCE (AUTO-SAVE ON CHANGE) =====
   useEffect(() => {
     if (!messages || messages.length === 0) return;
+    if (isPrivateChat || String(currentConversationId || '').startsWith('private_')) return;
 
     const isStreamingActive = messages.some(m => m.isStreaming || m.isThinking || (m.sender === 'bot' && (!m.text || m.text.trim() === '')));
     if (isStreamingActive) return;
@@ -664,13 +674,24 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     setGeneratingGreeting(true);
 
     try {
-      const greeting = getTimeBasedGreeting(userName);
+      const greeting = getTimeBasedGreeting(userName || user?.name || '', {
+        language: userLanguage,
+        lastGreeting: lastGreetingRef.current,
+        isPrivate: isPrivateSession(currentConversationId)
+      });
+      lastGreetingRef.current = greeting;
       const randomHint = RANDOM_HINTS[Math.floor(Math.random() * RANDOM_HINTS.length)];
       setAiGreeting(greeting);
       setAiHint(randomHint);
     } catch (error) {
       console.error('[ChatBot] Welcome text error:', error);
-      setAiGreeting(getTimeBasedGreeting(userName));
+      const fallback = getTimeBasedGreeting(userName || user?.name || '', {
+        language: userLanguage,
+        lastGreeting: lastGreetingRef.current,
+        isPrivate: isPrivateSession(currentConversationId)
+      });
+      lastGreetingRef.current = fallback;
+      setAiGreeting(fallback);
       setAiHint(FALLBACK_GREETINGS.hint);
     } finally {
       setGeneratingGreeting(false);
@@ -750,15 +771,13 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     saveUserName('Teman');
   };
 
-  // Generate greeting when chat is empty or conversation changes
+  // Generate greeting when chat is empty or room/private mode/user changes
   useEffect(() => {
     if (messages.length === 0) {
-      setAiGreeting(null);
-      setAiHint(null);
       greetingGenerationRef.current = false;
       generateAIWelcomeText();
     }
-  }, [currentConversationId, userName, messages.length]);
+  }, [currentConversationId, isPrivateChat, userName, user?.name, userLanguage, messages.length]);
 
   const getSourceLogo = (source) => {
     const iconValue = source?.sourceIcon || source?.icon || '';
@@ -1572,6 +1591,9 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       // Defer side-effects and INSTANT CONVERSATION PERSISTENCE outside the state updater using setTimeout
       setTimeout(() => {
         try {
+          if (isPrivateSession(currentConversationId)) {
+            return;
+          }
           const convId = currentConversationId || `conv_${Date.now()}`;
           if (!currentConversationId) {
             lastLoadedConversationIdRef.current = convId;
@@ -2122,7 +2144,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
   const rememberConversationId = (convId) => {
     try {
-      if (convId) {
+      if (convId && !String(convId).startsWith('private_') && !isPrivateChatRef.current) {
         localStorage.setItem('chatbot_last_conversation', String(convId));
       }
     } catch (e) {
@@ -2142,6 +2164,8 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       updatedAt: new Date().toISOString(),
       isPrivate: false,
     };
+    isPrivateChatRef.current = false;
+    setIsPrivateChat(false);
     // Clean out empty non-active sessions when user starts a fresh chat
     remoteTypewriterRef.current?.finishNow();
     deepernovaTtsService.stop();
@@ -2154,7 +2178,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       clearTimeout(autoVoiceTimerRef.current);
       autoVoiceTimerRef.current = null;
     }
-    setConversations((prev) => [newConv, ...prev.filter(c => c && c.messages && c.messages.length > 0)]);
+    setConversations((prev) => [newConv, ...prev.filter(c => c && !c.isPrivate && !String(c.id || '').startsWith('private_') && c.messages && c.messages.length > 0)]);
     switchingConvRef.current = true;
     setCurrentConversationId(newId);
     rememberConversationId(newId);
@@ -2166,12 +2190,12 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     prevMessagesLengthRef.current = 0;
     prevLastMessageTextRef.current = '';
     setCompactView(true);
-    setIsPrivateChat(false);
     isLockedToUserAskRef.current = false;
     lockedUserMessageIdRef.current = null;
     setActiveImageFollowUps([]);
     setUploadedImages([]);
     setUploadedFiles([]);
+    setTextQueue([]);
     capturedRefImagesRef.current = [];
     setTimeout(() => {
       switchingConvRef.current = false;
@@ -2354,13 +2378,16 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     loadConversations();
   }, [isAuthenticated, isGuest]);
 
-  // Save conversations whenever they change (to localStorage or backend)
+  // Save conversations whenever they change (strictly excluding private chats)
   useEffect(() => {
     const saveConversations = async () => {
-      if (conversations.length > 0) {
+      const publicConvs = (conversations || []).filter(
+        (c) => c && !c.isPrivate && !String(c.id || '').startsWith('private_')
+      );
+      if (publicConvs.length > 0) {
         try {
-          console.log(`[ChatBot] Auto-saving ${conversations.length} conversations. Auth: isAuth=${isAuthenticated}, isGuest=${isGuest}`);
-          const result = await ConversationPersistenceService.saveConversations(conversations, isAuthenticated, isGuest);
+          console.log(`[ChatBot] Auto-saving ${publicConvs.length} conversations. Auth: isAuth=${isAuthenticated}, isGuest=${isGuest}`);
+          const result = await ConversationPersistenceService.saveConversations(publicConvs, isAuthenticated, isGuest);
           console.log(`[ChatBot] Save result:`, result);
         } catch (err) {
           console.error('Error auto-saving conversations:', err);
@@ -3348,13 +3375,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   }, [conversations, currentConversationId]);
 
   const activeConvTitle = useMemo(() => {
+    if (isPrivateChat) {
+      return userLanguage === 'zh' ? '🔒 隐私对话' : '🔒 Private Chat';
+    }
     if (activeConv?.title) return activeConv.title;
     if (messages.length > 0) {
       const firstUser = messages.find(m => m.sender === 'user' || m.role === 'user');
       if (firstUser?.text) return firstUser.text.slice(0, 32);
     }
     return userLanguage === 'id' ? 'Tanya Deepernova AI' : 'Ask Deepernova AI';
-  }, [activeConv, messages, userLanguage]);
+  }, [activeConv, isPrivateChat, messages, userLanguage]);
 
   // Extract latest AI message for live agentic step parsing
   const latestAiMessage = useMemo(() => {
@@ -3431,27 +3461,53 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const startPrivateChat = () => {
     setShowPrivateModal(false);
     const newId = `private_${Date.now()}`;
-    const _newConv = {
-      id: newId,
-      title: '🔒 Private Chat',
-      messages: [],
-      isLoading: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isPrivate: true,
-    };
-    // Add to state only, not to saved conversations
+    isPrivateChatRef.current = true;
+    setIsPrivateChat(true);
+    remoteTypewriterRef.current?.finishNow();
+    deepernovaTtsService.stop();
+    deepernovaTtsService.clearCache();
+    playingMessageIdRef.current = null;
+    setPlayingMessageId(null);
+    streamingSeenIdsRef.current.clear();
+    autoSpokenIdsRef.current.clear();
+    switchingConvRef.current = true;
     setCurrentConversationId(newId);
     setMessages([]);
-    setIsPrivateChat(true);
+    currentConversationHistoryRef.current = [];
+    lastSentPromptRef.current = '';
+    lastSentUserMessageIdRef.current = null;
+    lastSentUserInputTextRef.current = '';
+    prevMessagesLengthRef.current = 0;
+    prevLastMessageTextRef.current = '';
+    isLockedToUserAskRef.current = false;
+    lockedUserMessageIdRef.current = null;
+    setActiveImageFollowUps([]);
+    setUploadedImages([]);
+    setUploadedFiles([]);
+    setTextQueue([]);
+    capturedRefImagesRef.current = [];
     setError(null);
     setCompactView(true);
+    setTimeout(() => {
+      switchingConvRef.current = false;
+    }, 300);
+  };
+
+  const togglePrivateChat = () => {
+    if (isPrivateChatRef.current || isPrivateChat) {
+      createNewConversation();
+    } else {
+      startPrivateChat();
+    }
   };
 
   // Switch conversation
   const switchConversation = (convId) => {
     const conv = conversations.find((c) => c.id === convId);
     if (conv) {
+      const nextPrivate = Boolean(conv.isPrivate || String(convId).startsWith('private_'));
+      isPrivateChatRef.current = nextPrivate;
+      setIsPrivateChat(nextPrivate);
       remoteTypewriterRef.current?.finishNow();
       deepernovaTtsService.stop();
       deepernovaTtsService.clearCache();
@@ -3615,16 +3671,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         const sizeKB = parseResult.meta.sizeKB;
         const tokenEstimate = parseResult.meta.tokenEstimate;
 
-        // Store in memory
-        memoryService.addMemory(
-          {
-            content: content,
-            type: 'file_content',
-            weight: 2
-          },
-          currentConversationId,
-          userLanguage
-        );
+        // Store in memory (skipped in Private Chat)
+        if (!isPrivateSession(currentConversationId)) {
+          memoryService.addMemory(
+            {
+              content: content,
+              type: 'file_content',
+              weight: 2
+            },
+            currentConversationId,
+            userLanguage
+          );
+        }
 
         // Add to uploaded files list (keep in-memory rawFile for binary/.zip sandbox transfers)
         const newFile = {
@@ -3779,14 +3837,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             ));
           }
 
-          // Auto-save uploaded image to "Gambar Saya" (works for both local mode and logged-in mode)
-          saveImageToGallery({
-            id: imageId,
-            prompt: `Unggahan: ${file.name}`,
-            imageUrl: (gotPublicUrl && uploadedUrl) ? uploadedUrl : base64Data,
-            type: 'uploaded',
-            model: 'user-upload'
-          }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Auto-save uploaded image error:', e));
+          // Auto-save uploaded image to "Gambar Saya" (skipped in Private Chat)
+          if (!isPrivateSession(currentConversationId)) {
+            saveImageToGallery({
+              id: imageId,
+              prompt: `Unggahan: ${file.name}`,
+              imageUrl: (gotPublicUrl && uploadedUrl) ? uploadedUrl : base64Data,
+              type: 'uploaded',
+              model: 'user-upload'
+            }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Auto-save uploaded image error:', e));
+          }
 
           setCustomAlert({
             type: 'success',
@@ -5458,32 +5518,31 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           msg.id === placeholderId ? updatedMessage : msg
         );
 
-        // Update conversations state with new messages (including imageUrl)
-        setConversations((prevConvs) => {
-          const updatedConvs = prevConvs.map(conv =>
-            conv.id === currentConversationId
-              ? { ...conv, messages: updated, updatedAt: new Date().toISOString() }
-              : conv
-          );
+        // Update conversations state with new messages (skip persistence in Private Chat)
+        if (!isPrivateSession(currentConversationId)) {
+          setConversations((prevConvs) => {
+            const updatedConvs = prevConvs.map(conv =>
+              conv.id === currentConversationId
+                ? { ...conv, messages: updated, updatedAt: new Date().toISOString() }
+                : conv
+            );
 
-          console.log(`[ChatBot] Updated conversation ${currentConversationId} with image message`);
-          console.log(`[ChatBot] Message text length: ${updatedMessage.text.length}, has imageUrl: ${!!updatedMessage.imageUrl}`);
+            // Save conversation immediately with updated messages
+            ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+              .catch(err => console.error('[ChatBot] Error saving conversation:', err));
 
-          // Save conversation immediately with updated messages
-          ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-            .catch(err => console.error('[ChatBot] Error saving conversation:', err));
+            // Save generated/edited image to "Gambar Saya"
+            saveImageToGallery({
+              id: `gen_${placeholderId}`,
+              prompt: imageRequest?.prompt || refinedPrompt || 'Gambar Dihasilkan AI',
+              imageUrl: imageData.image.url,
+              type: isEditRequest ? 'edited' : 'generated',
+              model: isEditRequest ? 'qwen-image-edit-max' : 'qwen-image'
+            }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Auto-save generated image error:', e));
 
-          // Save generated/edited image to "Gambar Saya" (works for both local mode and logged-in mode)
-          saveImageToGallery({
-            id: `gen_${placeholderId}`,
-            prompt: imageRequest?.prompt || refinedPrompt || 'Gambar Dihasilkan AI',
-            imageUrl: imageData.image.url,
-            type: isEditRequest ? 'edited' : 'generated',
-            model: isEditRequest ? 'qwen-image-edit-max' : 'qwen-image'
-          }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Auto-save generated image error:', e));
-
-          return updatedConvs;
-        });
+            return updatedConvs;
+          });
+        }
 
         return updated;
       });
@@ -5752,14 +5811,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     lastSentUserInputTextRef.current = inputValue.trim() || fullMessage;
     currentMessageIdRef.current = placeholderId;
 
-    // Ensure conversation ID is established immediately so later state updates don't cause sudden scroll jumping
+    // Ensure conversation ID is established immediately (ephemeral private_ ID when in Private Chat)
     let activeConvId = currentConversationId;
     if (!activeConvId) {
-      activeConvId = `conv_${Date.now()}`;
+      activeConvId = isPrivateChatRef.current ? `private_${Date.now()}` : `conv_${Date.now()}`;
       lastLoadedConversationIdRef.current = activeConvId;
       setCurrentConversationId(activeConvId);
-      rememberConversationId(activeConvId);
-      try { memoryService.processConversation([...messages, userMessageForChat], activeConvId, userLanguage); } catch (e) { }
+      if (!isPrivateSession(activeConvId)) {
+        rememberConversationId(activeConvId);
+        try { memoryService.processConversation([...messages, userMessageForChat], activeConvId, userLanguage); } catch (e) { }
+      }
     }
 
     // Reset internet warning banner & start progressive loading phase timers (Mengirim -> Merenungi -> Lambat)
@@ -5774,16 +5835,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       activatedAt: Date.now(),
     }));
 
-    // Auto-save reference images to permanent gallery storage (local & logged-in modes)
-    imagesToActivate.forEach(img => {
-      saveImageToGallery({
-        id: img.id,
-        prompt: `Referensi: ${img.fileName || 'Gambar'}`,
-        imageUrl: img.publicUrl || img.dataUrl || img.url,
-        type: 'uploaded',
-        model: 'user-upload'
-      }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Gallery save warning:', e));
-    });
+    // Auto-save reference images to permanent gallery storage (skipped in Private Chat)
+    if (!isPrivateSession(activeConvId)) {
+      imagesToActivate.forEach(img => {
+        saveImageToGallery({
+          id: img.id,
+          prompt: `Referensi: ${img.fileName || 'Gambar'}`,
+          imageUrl: img.publicUrl || img.dataUrl || img.url,
+          type: 'uploaded',
+          model: 'user-upload'
+        }, isAuthenticated, user).catch(e => console.warn('[ChatBot] Gallery save warning:', e));
+      });
+    }
 
     // Reference images for current turn:
     // If user uploaded new image(s) in this message, use ONLY the new image(s) (do NOT merge previous images).
@@ -5829,9 +5892,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // Autonomous Agentic Mode direct execution inside Chatbot Biasa (skips intermediate /api/chat delay)
-    const isTrivialAgenticGreeting = /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(cleanUserText);
-    if (isAgenticMode && !isTrivialAgenticGreeting && imagesToPass.length === 0 && typeof handleSubAgentActionRef.current === 'function') {
+    // Autonomous Agentic Mode direct execution inside Chatbot Biasa (skips intermediate /api/chat delay for build/code/Office/ZIP tasks)
+    if (
+      isAgenticMode &&
+      imagesToPass.length === 0 &&
+      typeof handleSubAgentActionRef.current === 'function' &&
+      detectExplicitSubAgentUserIntent(cleanUserText, attachedFilesForTurn, true)
+    ) {
       clearLoadingPhaseTimers();
       triggeredAgentTasksRef.current.add(placeholderId);
       isProcessingRef.current = false;
@@ -6062,8 +6129,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           targetFullText = sanitizeStreamingText(rawText);
           triggerInlineImageIfNeeded(placeholderId, rawText);
           triggerWebSearchIfNeeded(placeholderId, rawText);
-          triggerRecallMemoryIfNeeded(placeholderId, rawText);
-          triggerMemoryActionsIfNeeded(placeholderId, rawText);
+          if (!isPrivateSession(activeConvId)) {
+            triggerRecallMemoryIfNeeded(placeholderId, rawText);
+            triggerMemoryActionsIfNeeded(placeholderId, rawText);
+          }
           if (triggeredSearchRequestsRef.current.has(placeholderId) || triggeredRecallRequestsRef.current.has(placeholderId)) {
             return;
           }
@@ -6296,9 +6365,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // ============================================================
       const userPromptForSubAgent = lastSentUserInputTextRef.current || fullMessage || '';
       const combinedSubAgentSource = `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`;
-      let parsedSubAgent = parseSubAgentFlag(combinedSubAgentSource, userPromptForSubAgent, userLanguage);
+      let parsedSubAgent = isAgenticMode
+        ? parseSubAgentFlag(combinedSubAgentSource, userPromptForSubAgent, userLanguage)
+        : null;
 
-      if (!parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent, attachedFilesForTurn, isAgenticMode)) {
+      if (isAgenticMode && !parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent, attachedFilesForTurn, true)) {
         const cleanedOpening = stripSubAgentFlags(fullText || '').trim();
         const shortOpening = cleanedOpening
           ? cleanedOpening.split(/\n\n/).slice(0, 2).join('\n\n').slice(0, 420).trim()
@@ -6381,12 +6452,15 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         handleSubAgentActionRef.current(placeholderId, 'confirm', pendingAutoSubAgent);
       }
 
-      // Immediate save after response completes
+      // Immediate save after response completes (strictly skipped in Private Chat)
       const saveAfterResponse = async () => {
+        if (isPrivateSession(activeConvId)) return;
         console.log(`[ChatBot] Saving conversation after response completed`);
         await ConversationPersistenceService.saveConversations(conversations, isAuthenticated, isGuest);
       };
-      setTimeout(() => saveAfterResponse(), 100);
+      if (!isPrivateSession(activeConvId)) {
+        setTimeout(() => saveAfterResponse(), 100);
+      }
 
       // Clear uploaded files and images, then minimize image queue
       setTimeout(() => {
@@ -6394,7 +6468,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         setUploadedImages([]);
         setAttachmentQueueMinimized(true);
         // Also clear from localStorage
-        if (currentConversationId) {
+        if (currentConversationId && !isPrivateSession(currentConversationId)) {
           localStorage.removeItem(`deepernova_images_${currentConversationId}`);
         }
       }, 200);
@@ -6406,20 +6480,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const textForImageTrigger = fullText;
       triggerInlineImageIfNeeded(placeholderId, textForImageTrigger);
 
-      // Process and store memories from this interaction
-      memoryService.processConversation([...messages, userMessageForChat], currentConversationId, userLanguage);
+      // Process memories and generate title only for non-private rooms
+      const titleConvId = activeConvId || currentConversationId;
+      if (!isPrivateSession(titleConvId)) {
+        memoryService.processConversation([...messages, userMessageForChat], titleConvId, userLanguage);
 
-      // Generate AI-powered chat title after first response (only once per session)
-      const titleConvId = currentConversationId;
-      setTimeout(() => {
-        if (titleConvId) {
-          if (!aiTitledConversationsRef.current.has(titleConvId)) {
-            generateChatTitle(titleConvId);
+        setTimeout(() => {
+          if (titleConvId) {
+            if (!aiTitledConversationsRef.current.has(titleConvId)) {
+              generateChatTitle(titleConvId);
+            }
+            // Load sources for display
+            loadSourcesForConversation(titleConvId);
           }
-          // Load sources for display
-          loadSourcesForConversation(titleConvId);
-        }
-      }, 500);
+        }, 500);
+      }
 
       // Reset auto-retry counter on success
       autoRetryCountRef.current = 0;
@@ -6689,16 +6764,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               return msg;
             });
 
-            setConversations((prevConvs) => {
-              const updatedConvs = prevConvs.map(conv =>
-                conv.id === currentConversationId
-                  ? { ...conv, messages: updated, updatedAt: new Date().toISOString() }
-                  : conv
-              );
-              ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-                .catch(err => console.error('[ChatBot] Error saving conversation:', err));
-              return updatedConvs;
-            });
+            if (!isPrivateSession(currentConversationId)) {
+              setConversations((prevConvs) => {
+                const updatedConvs = prevConvs.map(conv =>
+                  conv.id === currentConversationId
+                    ? { ...conv, messages: updated, updatedAt: new Date().toISOString() }
+                    : conv
+                );
+                ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+                  .catch(err => console.error('[ChatBot] Error saving conversation:', err));
+                return updatedConvs;
+              });
+            }
 
             return updated;
           });
@@ -7401,16 +7478,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             : msg
         );
 
-        setConversations((prevConvs) => {
-          const updatedConvs = prevConvs.map(conv =>
-            conv.id === currentConversationId
-              ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
-              : conv
-          );
-          ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-            .catch(err => console.error('[ChatBot] Error saving after search:', err));
-          return updatedConvs;
-        });
+        if (!isPrivateSession(currentConversationId)) {
+          setConversations((prevConvs) => {
+            const updatedConvs = prevConvs.map(conv =>
+              conv.id === currentConversationId
+                ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
+                : conv
+            );
+            ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+              .catch(err => console.error('[ChatBot] Error saving after search:', err));
+            return updatedConvs;
+          });
+        }
         return updated;
       });
 
@@ -7624,16 +7703,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }
               : msg
           );
-          setConversations((prevConvs) => {
-            const updatedConvs = prevConvs.map(conv =>
-              conv.id === currentConversationId
-                ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
-                : conv
-            );
-            ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-              .catch(err => console.error('[ChatBot] Error saving after fallback search:', err));
-            return updatedConvs;
-          });
+          if (!isPrivateSession(currentConversationId)) {
+            setConversations((prevConvs) => {
+              const updatedConvs = prevConvs.map(conv =>
+                conv.id === currentConversationId
+                  ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
+                  : conv
+              );
+              ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+                .catch(err => console.error('[ChatBot] Error saving after fallback search:', err));
+              return updatedConvs;
+            });
+          }
           return updated;
         });
 
@@ -8155,16 +8236,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 : msg
             );
 
-            setConversations((prevConvs) => {
-              const updatedConvs = prevConvs.map(conv =>
-                conv.id === currentConversationId
-                  ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
-                  : conv
-              );
-              ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
-                .catch(err => console.error('[ChatBot] Error saving after recall memory:', err));
-              return updatedConvs;
-            });
+            if (!isPrivateSession(currentConversationId)) {
+              setConversations((prevConvs) => {
+                const updatedConvs = prevConvs.map(conv =>
+                  conv.id === currentConversationId
+                    ? { ...conv, messages: updated, isLoading: false, updatedAt: new Date().toISOString() }
+                    : conv
+                );
+                ConversationPersistenceService.saveConversations(updatedConvs, isAuthenticated, isGuest)
+                  .catch(err => console.error('[ChatBot] Error saving after recall memory:', err));
+                return updatedConvs;
+              });
+            }
             return updated;
           });
 
@@ -8605,14 +8688,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             }
             : m
         );
-        setConversations((prevConvs) => {
-          const updatedConvs = (prevConvs || []).map((c) =>
-            c.id === convId ? { ...c, messages: updatedMessages, updatedAt: new Date().toISOString() } : c
-          );
-          ConversationPersistenceService.saveToLocalStorage(updatedConvs);
-          ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => { });
-          return updatedConvs;
-        });
+        if (!isPrivateSession(convId)) {
+          setConversations((prevConvs) => {
+            const updatedConvs = (prevConvs || []).map((c) =>
+              c.id === convId ? { ...c, messages: updatedMessages, updatedAt: new Date().toISOString() } : c
+            );
+            ConversationPersistenceService.saveToLocalStorage(updatedConvs);
+            ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => { });
+            return updatedConvs;
+          });
+        }
         return updatedMessages;
       });
       return;
@@ -8711,16 +8796,18 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               : m
           );
 
-          setConversations((prevConvs) => {
-            const updatedConvs = (prevConvs || []).map((c) =>
-              c.id === targetConvId
-                ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
-                : c
-            );
-            ConversationPersistenceService.saveToLocalStorage(updatedConvs);
-            ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => { });
-            return updatedConvs;
-          });
+          if (!isPrivateSession(targetConvId)) {
+            setConversations((prevConvs) => {
+              const updatedConvs = (prevConvs || []).map((c) =>
+                c.id === targetConvId
+                  ? { ...c, messages: updatedMessages, isLoading: false, updatedAt: new Date().toISOString() }
+                  : c
+              );
+              ConversationPersistenceService.saveToLocalStorage(updatedConvs);
+              ConversationPersistenceService.saveConversations(updatedConvs, authed, guest).catch(() => { });
+              return updatedConvs;
+            });
+          }
 
           return updatedMessages;
         });
@@ -8755,7 +8842,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   const renderEmptyHeroState = () => (
     <ChatEmptyHero
       userLanguage={userLanguage}
-      onNavigate={onNavigate}
+      aiGreeting={aiGreeting}
+      isPrivateChat={isPrivateChat}
       uploadedFiles={uploadedFiles}
       uploadedImages={uploadedImages}
       attachmentQueueMinimized={attachmentQueueMinimized}
@@ -8785,8 +8873,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       isReasoningCapable={isReasoningCapable}
       isReasoningEnabled={isReasoningEnabled}
       toggleReasoning={toggleReasoning}
-      isAgenticMode={isAgenticMode}
-      toggleAgenticMode={toggleAgenticMode}
       isSttListening={isSttListening}
       toggleSpeechToText={toggleSpeechToText}
       isAutoVoiceEnabled={isAutoVoiceEnabled}
@@ -8900,6 +8986,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     saveLanguage,
     isPrivateChat,
     setIsPrivateChat,
+    togglePrivateChat,
+    isAgenticMode,
+    toggleAgenticMode,
     showTokenUsage,
     setShowTokenUsage,
     setShowApiDashboard,
@@ -9056,6 +9145,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         setShowApiDashboard={setShowApiDashboard}
         setShowPersonalityModal={setShowPersonalityModal}
         setShowPrivateModal={setShowPrivateModal}
+        isPrivateChat={isPrivateChat}
+        startPrivateChat={startPrivateChat}
         setShowGlobalMemorySettings={setShowGlobalMemorySettings}
         setShowSettingsModal={setShowSettingsModal}
         setShowFormatDbModal={setShowFormatDbModal}
@@ -9417,8 +9508,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           isReasoningCapable={isReasoningCapable}
           isReasoningEnabled={isReasoningEnabled}
           toggleReasoning={toggleReasoning}
-          isAgenticMode={isAgenticMode}
-          toggleAgenticMode={toggleAgenticMode}
           isSttListening={isSttListening}
           toggleSpeechToText={toggleSpeechToText}
           isAutoVoiceEnabled={isAutoVoiceEnabled}

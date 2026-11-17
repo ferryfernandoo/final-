@@ -68,26 +68,36 @@ class ConversationPersistenceService {
     return localConvs.length > 0 ? localConvs : null;
   }
 
+  static isPrivateConversation(conv) {
+    return Boolean(conv?.isPrivate || String(conv?.id || '').startsWith('private_'));
+  }
+
+  static filterPublicConversations(conversations) {
+    if (!Array.isArray(conversations)) return [];
+    return conversations.filter((c) => c && !this.isPrivateConversation(c));
+  }
+
   /**
    * Save conversations to appropriate storage:
    * - Authenticated users: Save strictly to backend cloud database (NOT in shared localStorage)
    * - Guests: Save to browser localStorage
    */
   static async saveConversations(conversations, isAuthenticated, isGuest) {
-    if (!Array.isArray(conversations) || conversations.length === 0) return true;
+    const publicConversations = this.filterPublicConversations(conversations);
+    if (publicConversations.length === 0) return true;
 
-    _memoryCache = conversations;
+    _memoryCache = publicConversations;
 
     if (this.shouldUseBackendStorage(isAuthenticated, isGuest)) {
       // Authenticated users: Save strictly to backend cloud database
       try {
-        await this.saveToBackend(conversations);
+        await this.saveToBackend(publicConversations);
       } catch (err) {
         console.warn('[ConversationPersistence] Backend save error:', err);
       }
     } else {
       // Guest mode only: save to browser localStorage
-      this.saveToLocalStorage(conversations);
+      this.saveToLocalStorage(publicConversations);
     }
     return true;
   }
@@ -174,9 +184,8 @@ class ConversationPersistenceService {
    */
   static saveToLocalStorage(conversations) {
     try {
-      if (conversations.length > 0) {
-        const publicConversations = conversations.filter(c => !c.isPrivate);
-        if (publicConversations.length > 0) {
+      const publicConversations = this.filterPublicConversations(conversations);
+      if (publicConversations.length > 0) {
           const validConversations = publicConversations
             .map(conv => {
               if (!conv.id || !conv.title || !Array.isArray(conv.messages)) {
@@ -242,7 +251,6 @@ class ConversationPersistenceService {
             }
           }
         }
-      }
       return true;
     } catch (err) {
       console.error('Error saving to localStorage:', err);
@@ -339,9 +347,9 @@ class ConversationPersistenceService {
    */
   static async saveToBackend(conversations) {
     try {
-      if (conversations.length === 0) return true;
-
-      const publicConversations = conversations.filter(c => !c.isPrivate && Array.isArray(c.messages) && c.messages.length > 0);
+      const publicConversations = this.filterPublicConversations(conversations).filter(
+        (c) => Array.isArray(c.messages) && c.messages.length > 0
+      );
       if (publicConversations.length === 0) return true;
 
       const deviceId = getDeviceId();

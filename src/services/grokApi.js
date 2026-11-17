@@ -657,7 +657,8 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 };
 
 // Function untuk call backend proxy
-const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true) => {
+const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
+  const isPrivateSession = Boolean(isPrivateMode || String(conversationId || '').startsWith('private_'));
   try {
     const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
     const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
@@ -724,15 +725,17 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     let finalMessages;
 
     if (isFlashModel) {
-      // 1. Dapatkan memori profil aktif & rangkuman percakapan dari chatbot
+      // 1. Dapatkan memori profil aktif & rangkuman percakapan dari chatbot (isolasi penuh saat mode privat)
       let memoryBlock = '';
-      if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
-        try {
-          memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
-        } catch (e) { }
-      }
-      if (!memoryBlock && globalMemory) {
-        memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
+      if (!isPrivateSession) {
+        if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
+          try {
+            memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
+          } catch (e) { }
+        }
+        if (!memoryBlock && globalMemory) {
+          memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
+        }
       }
 
       const timeInfo = language === 'id'
@@ -791,6 +794,12 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       const activePersonalityObj = PERSONALITIES[activePersonalityKey] || PERSONALITIES[DEFAULT_PERSONALITY] || PERSONALITIES.friendly;
       const personalitySystemAppend = activePersonalityObj?.systemPromptAppend || '';
 
+      const privateCandidBlock = isPrivateSession
+        ? (language === 'id'
+          ? '\n\n[MODE OBROLAN PRIVAT]: Sesi ini sementara dan terisolasi penuh dari riwayat/memori pengguna. Jawablah secara jujur, blak-blakan, lugas, langsung ke inti, objektif, dan tanpa basa-basi atau menggurui untuk diskusi terbuka yang aman dan wajar, sambil tetap mematuhi prinsip keselamatan terhadap konten berbahaya atau ilegal.'
+          : '\n\n[PRIVATE CHAT MODE]: This session is ephemeral and completely isolated from saved history/memory. Respond candidly, directly, objectively, and without preachy lecturing or unnecessary filler for benign/open discussions, while upholding safety principles against harmful or illegal content.')
+        : '';
+
       if (isSearchConclusion) {
         // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
         systemPromptContent =
@@ -804,6 +813,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
           searchInstruction +
           visionInstruction +
+          privateCandidBlock +
           (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
           (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
           (memoryBlock ? ('\n' + memoryBlock) : '');
@@ -819,6 +829,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
           searchInstruction +
           visionInstruction +
+          privateCandidBlock +
           (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
           (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
           (memoryBlock ? ('\n' + memoryBlock) : '');
@@ -867,7 +878,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         { role: 'user', content: userMessageContent }
       ];
     } else {
-      systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '');
+      systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, isPrivateSession ? '' : globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '') + (isPrivateSession ? privateCandidBlock : '');
       finalMessages = [
         { role: 'system', content: systemPromptContent },
         ...contextMessages,
@@ -1013,21 +1024,24 @@ export const appendToGlobalMemory = async (newQuestion, isAuthenticated, isGuest
   return;
 };
 
-export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false, enableWebSearch = true) => {
+export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
   let lastError = null;
   const operationStartTime = Date.now();
+  const isPrivateSession = Boolean(isPrivateMode || String(conversationId || '').startsWith('private_'));
 
-  // Non-blocking auto-record user question in global memory
-  appendToGlobalMemory(message, isAuthenticated, isGuest).catch(() => { });
-
-  // Instant synchronous memory access from local storage
+  // Non-blocking auto-record user question in global memory (strictly disabled in Private Chat)
   let globalMemory = '';
-  try {
-    globalMemory = localStorage.getItem('guest_global_memory') || '';
-  } catch (e) { }
+  if (!isPrivateSession) {
+    appendToGlobalMemory(message, isAuthenticated, isGuest).catch(() => { });
 
-  // Background non-blocking RAG index load
-  ragService.tryLoadRemoteIndex().catch(() => { });
+    // Instant synchronous memory access from local storage
+    try {
+      globalMemory = localStorage.getItem('guest_global_memory') || '';
+    } catch (e) { }
+
+    // Background non-blocking RAG index load
+    ragService.tryLoadRemoteIndex().catch(() => { });
+  }
 
   const safeUploadedImages = Array.isArray(uploadedImages) ? uploadedImages : [];
   const hasImages = safeUploadedImages.length > 0;
@@ -1064,7 +1078,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
     : `\n\n[FORMAT IMPORTANT]: If there are multiple points/items, MUST separate each with a blank newline. Don't write everything in 1 paragraph.`) + directSearchReminder);
 
   const validDirectImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
-  const localMemoryContext = isDirectSearchConclusion ? '' : getLocalMemoryContext(message, language, conversationId, sessionMessageCount);
+  const localMemoryContext = (isDirectSearchConclusion || isPrivateSession) ? '' : getLocalMemoryContext(message, language, conversationId, sessionMessageCount);
 
   if (validDirectImageUrls.length > 0) {
     userContent = [
@@ -1100,7 +1114,8 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
       conversationId,
       isGuest,
       enableReasoning,
-      enableWebSearch
+      enableWebSearch,
+      isPrivateSession
     );
   } catch (backendErr) {
     if (backendErr.name === 'AbortError') throw backendErr;
