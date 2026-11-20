@@ -3696,9 +3696,9 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
     }
 
     try {
-      const isSearchConclusion = (req.body.messages || messages || []).some(m => {
+      const isSearchConclusion = req.body.enableWebSearch === false || req.body.skipWebSearch === true || (req.body.messages || messages || []).some(m => {
         const c = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(x => x.text || '').join(' ') : '');
-        return c.includes('DATA HASIL PENCARIAN') || c.includes('HASIL PENCARIAN WEB') || c.includes('[INSTRUKSI SISTEM:');
+        return c.includes('DATA HASIL PENCARIAN') || c.includes('HASIL PENCARIAN WEB') || c.includes('Hasil Penelusuran Web Teratas') || c.includes('Sumber Berita Berbagai Media') || c.includes('[INSTRUKSI SISTEM:');
       });
 
       // Auto-detect vision requirement in server chat route (NEVER active during search conclusions)

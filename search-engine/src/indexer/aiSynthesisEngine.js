@@ -485,49 +485,7 @@ Pedoman Penulisan Koran:
    * 3. Tertiary: FreeLLM Gateway / Direct Free-Tier API (if configured with valid key)
    */
   async _callAiChat({ messages, stream = false, signal = null }) {
-    // 1. Try local DeeperNova AI Gateway on port 3001
-    try {
-      const res3001 = await fetch('http://127.0.0.1:3001/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, stream }),
-        signal: signal || AbortSignal.timeout(30000)
-      });
-      if (res3001.ok) {
-        if (!stream) {
-          const data = await res3001.json();
-          const content = data.choices?.[0]?.message?.content?.trim();
-          if (content) return { content, thinking: null, engine: 'DeeperNova Neural AI' };
-        } else {
-          return { response: res3001, engine: 'DeeperNova Neural AI' };
-        }
-      }
-    } catch (e) {
-      console.warn('[AiSynthesis] Gateway port 3001 unavailable:', e.message);
-    }
-
-    // 2. Try local GPU Sandbox engine on port 8000
-    try {
-      const res8000 = await fetch('http://127.0.0.1:8000/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'deepernova', messages, stream }),
-        signal: signal || AbortSignal.timeout(30000)
-      });
-      if (res8000.ok) {
-        if (!stream) {
-          const data = await res8000.json();
-          const content = data.choices?.[0]?.message?.content?.trim();
-          if (content) return { content, thinking: null, engine: 'DeeperNova Engine (Port 8000)' };
-        } else {
-          return { response: res8000, engine: 'DeeperNova Engine (Port 8000)' };
-        }
-      }
-    } catch (e) {
-      console.warn('[AiSynthesis] Port 8000 unavailable:', e.message);
-    }
-
-    // 3. Fallback to FreeLLM Gateway if configured
+    // 1. Primary: FreeLLM Gateway (Port 3005) for fast direct synthesis without search loop
     if (this.freeLlmUrl && this.freeLlmApiKey) {
       try {
         const resFreeLlm = await fetch(this.freeLlmUrl, {
@@ -537,12 +495,12 @@ Pedoman Penulisan Koran:
             'Authorization': `Bearer ${this.freeLlmApiKey}`
           },
           body: JSON.stringify({
-            model: this.freeLlmModel,
+            model: this.freeLlmModel || 'free-router',
             messages,
             stream,
-            max_tokens: 650
+            max_tokens: 1024
           }),
-          signal: signal || AbortSignal.timeout(30000)
+          signal: signal || AbortSignal.timeout(15000)
         });
         if (resFreeLlm.ok) {
           if (!stream) {
@@ -552,16 +510,37 @@ Pedoman Penulisan Koran:
               return {
                 content: choice.content.trim(),
                 thinking: choice.reasoning_content?.trim() || null,
-                engine: `FreeLLM (${this.freeLlmModel})`
+                engine: `FreeLLM (${this.freeLlmModel || 'free-router'})`
               };
             }
           } else {
-            return { response: resFreeLlm, engine: `FreeLLM (${this.freeLlmModel})` };
+            return { response: resFreeLlm, engine: `FreeLLM (${this.freeLlmModel || 'free-router'})` };
           }
         }
       } catch (e) {
         console.warn('[AiSynthesis] FreeLLM API unavailable:', e.message);
       }
+    }
+
+    // 2. Fallback: local DeeperNova AI Gateway on port 3001 (with web search disabled)
+    try {
+      const res3001 = await fetch('http://127.0.0.1:3001/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'qwen2.5-vl-72b', enableWebSearch: false, messages, stream }),
+        signal: signal || AbortSignal.timeout(15000)
+      });
+      if (res3001.ok) {
+        if (!stream) {
+          const data = await res3001.json();
+          const content = data.choices?.[0]?.message?.content?.trim();
+          if (content) return { content, thinking: null, engine: 'DeeperNova FreeLLM AI' };
+        } else {
+          return { response: res3001, engine: 'DeeperNova FreeLLM AI' };
+        }
+      }
+    } catch (e) {
+      console.warn('[AiSynthesis] Gateway port 3001 unavailable:', e.message);
     }
 
     throw new Error('All AI synthesis engines currently unavailable');
