@@ -177,7 +177,7 @@ export function getUpstreamModelPlan(requestedModel = '', options = {}) {
   const isGrok = lower.includes('grok-4.6') || lower === 'grok';
   const isVisionReq = hasImages || lower.includes('image') || (lower === 'qwen2.5-vl-72b' && hasImages);
 
-  const FAST_POOL = ['qwen2.5-vl-72b', 'free-router', 'north-mini-code', 'nemotron-3.5-lightning', 'nemotron-3-ultra-550b'];
+  const FAST_POOL = ['qwen2.5-vl-72b', 'nemotron-3-ultra-550b', 'north-mini-code', 'free-router', 'nemotron-3.5-lightning'];
   const REAL_DIRECT_MODELS = new Set([
     'qwen2.5-vl-72b',
     'nemotron-3-ultra-550b',
@@ -199,27 +199,27 @@ export function getUpstreamModelPlan(requestedModel = '', options = {}) {
   let gatewayModels;
   if (isVisionReq) {
     tier = 'vision';
-    gatewayModels = ['qwen2.5-vl-72b', 'auto'];
+    gatewayModels = ['qwen2.5-vl-72b', 'nemotron-3.5-super-vl', 'auto'];
   } else if (REAL_DIRECT_MODELS.has(lower)) {
     tier = lower;
     gatewayModels = [lower, ...FAST_POOL];
   } else if (lower.includes('4.6-giga') || lower.includes('giga') || (lower.includes('gold') && lower.includes('pro'))) {
     tier = 'nemotron-3-ultra-550b';
-    gatewayModels = ['nemotron-3-ultra-550b', 'nemotron-3.5-lightning', 'qwen2.5-vl-72b', 'free-router'];
+    gatewayModels = ['nemotron-3-ultra-550b', 'qwen2.5-vl-72b', 'nemotron-3.5-lightning', 'free-router'];
   } else if (lower.includes('2.3-pro') || lower.includes('2.3') || lower.includes('code')) {
     tier = 'north-mini-code';
-    gatewayModels = ['north-mini-code', 'free-router', 'qwen2.5-vl-72b', 'nemotron-3.5-lightning'];
+    gatewayModels = ['north-mini-code', 'nemotron-3-ultra-550b', 'qwen2.5-vl-72b', 'free-router'];
   } else if (lower.includes('silicon') || lower.includes('flash') || lower.includes('lightning')) {
     tier = 'nemotron-3.5-lightning';
-    gatewayModels = ['nemotron-3.5-lightning', 'qwen2.5-vl-72b', 'north-mini-code', 'free-router'];
+    gatewayModels = ['nemotron-3.5-lightning', 'nemotron-3-ultra-550b', 'qwen2.5-vl-72b', 'north-mini-code'];
   } else if (isGrok) {
-    tier = 'free-router';
-    gatewayModels = ['free-router', 'nemotron-3-ultra-550b', 'qwen2.5-vl-72b'];
+    tier = 'nemotron-3-ultra-550b';
+    gatewayModels = ['nemotron-3-ultra-550b', 'free-router', 'qwen2.5-vl-72b'];
   } else {
     tier = enableReasoning ? 'nemotron-3-ultra-550b' : 'qwen2.5-vl-72b';
     const baseModels = enableReasoning
       ? ['nemotron-3-ultra-550b', 'nemotron-3.5-super-vl', 'qwen2.5-vl-72b', 'free-router']
-      : ['qwen2.5-vl-72b', 'free-router', 'north-mini-code', 'nemotron-3.5-lightning'];
+      : ['qwen2.5-vl-72b', 'nemotron-3-ultra-550b', 'north-mini-code', 'free-router'];
     gatewayModels = hasCustomDefault ? [customEnvModel, ...baseModels] : baseModels;
     if (!enableReasoning && fastDefaultModel && !gatewayModels.includes(fastDefaultModel)) {
       gatewayModels.unshift(fastDefaultModel);
@@ -276,6 +276,9 @@ export async function dispatchFreeLlmRequest({
   const plan = getUpstreamModelPlan(requestedModel, { hasImages, enableReasoning });
   const deadTargets = new Set();
   let lastError = null;
+  // Cap cumulative fallback budget so proxy/Edge callers receive a fast failover within Vercel's 25s limit
+  const totalBudgetMs = timeoutMs ? Math.max(timeoutMs * 2, 20000) : 21000;
+  const dispatchDeadline = Date.now() + totalBudgetMs;
 
   for (const { target, index } of orderedTargets) {
     const targetKey = `${target.id}:${target.apiKey}`;
@@ -287,16 +290,24 @@ export async function dispatchFreeLlmRequest({
         return { response: null, modelUsed: null, platformUsed: null, clientAborted: true, lastError };
       }
 
+      const remainingBudget = dispatchDeadline - Date.now();
+      if (!timeoutMs && remainingBudget < 2000 && lastError) {
+        break;
+      }
+
       const attemptAbort = new AbortController();
       let attemptTimedOut = false;
       const onParentAbort = () => attemptAbort.abort();
       if (signal) signal.addEventListener('abort', onParentAbort, { once: true });
 
-      const effectiveTimeout = timeoutMs || (
+      const baseAttemptTimeout = timeoutMs || (
         (plan.isGrok || modelToTry.includes('smart') || modelToTry.includes('550b') || modelToTry.includes('120b') || modelToTry.includes('397b'))
-          ? 14000
-          : 8500
+          ? 12000
+          : (stream ? 6000 : 7500)
       );
+      const effectiveTimeout = timeoutMs
+        ? timeoutMs
+        : Math.max(3000, Math.min(baseAttemptTimeout, remainingBudget));
       const timer = setTimeout(() => {
         attemptTimedOut = true;
         attemptAbort.abort();
@@ -352,7 +363,8 @@ export async function dispatchFreeLlmRequest({
         if (status === 401 || status === 403) {
           markFreeLlmTargetError(target, status);
           deadTargets.add(targetKey);
-        } else if (status === 402 || status === 429) {
+        } else if ((status === 402 || status === 429) && target.platform !== 'freellmapi') {
+          // Only cool down direct provider keys; freellmapi gateway manages per-model upstream limits internally.
           markFreeLlmTargetError(target, status);
         }
         lastError = new Error(`${target.platform} model ${modelToTry} status ${status}: ${errText.slice(0, 160)}`);
