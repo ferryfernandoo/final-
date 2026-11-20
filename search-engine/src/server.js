@@ -2274,6 +2274,8 @@ app.get('*', (req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
+server.keepAliveTimeout = 95000;
+server.headersTimeout = 96000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n======================================================`);
   console.log(`  🚀 DEEPERNOVA SEARCH ENGINE & CRAWLER READY`);

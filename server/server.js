@@ -7791,7 +7791,7 @@ app.get([
   next();
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const httpServer = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 File Generation Server running on http://localhost:${PORT}`);
   console.log(`📁 Temp directory: ${tempDir}`);
 
@@ -7809,3 +7809,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.warn(`   Install Python 3 from: https://www.python.org/downloads/`);
   }
 });
+httpServer.keepAliveTimeout = 95000;
+httpServer.headersTimeout = 96000;
