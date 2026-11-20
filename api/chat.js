@@ -3,15 +3,37 @@ export const config = {
 };
 
 // SECURITY: API keys are loaded ONLY from environment variables (Vercel Project Settings → Environment Variables).
-// Never hardcode secrets in source code.
-const TOKENMIX_API_KEYS = Array.from(new Set([
-  ...String(process.env.TOKENMIX_API_KEYS || '').split(','),
-  process.env.TOKENMIX_API_KEY,
-  process.env.TOKENMIX_SECONDARY_API_KEY,
-  process.env.TOKENMIX_FALLBACK_API_KEY
-].map(k => (k || '').trim()).filter(Boolean)));
+// Never hardcode secrets in source code. Zero external paid gateway dependencies; 100% FreeLLM focused.
+const getEdgeFreeLlmTargets = () => {
+  const targets = [];
+  const gatewayUrl = (process.env.FREELLM_API_URL || '').trim();
+  const gatewayKeys = Array.from(new Set([
+    ...String(process.env.FREELLM_API_KEYS || '').split(','),
+    process.env.FREELLM_API_KEY,
+    process.env.FREELLM_SECONDARY_API_KEY,
+    process.env.FREELLM_FALLBACK_API_KEY
+  ].map(k => (k || '').trim()).filter(Boolean)));
+  if (gatewayUrl && gatewayKeys.length > 0) {
+    for (const k of gatewayKeys) {
+      targets.push({ platform: 'freellmapi', url: gatewayUrl, key: k });
+    }
+  }
+  const direct = [
+    { platform: 'groq', env: 'GROQ_API_KEY', url: 'https://api.groq.com/openai/v1/chat/completions' },
+    { platform: 'gemini', env: 'GEMINI_API_KEY', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' },
+    { platform: 'openrouter', env: 'OPENROUTER_API_KEY', url: 'https://openrouter.ai/api/v1/chat/completions' },
+    { platform: 'cerebras', env: 'CEREBRAS_API_KEY', url: 'https://api.cerebras.ai/v1/chat/completions' },
+    { platform: 'mistral', env: 'MISTRAL_API_KEY', url: 'https://api.mistral.ai/v1/chat/completions' }
+  ];
+  for (const p of direct) {
+    for (const k of String(process.env[p.env] || '').split(',').map(s => s.trim()).filter(Boolean)) {
+      targets.push({ platform: p.platform, url: p.url, key: k });
+    }
+  }
+  return targets;
+};
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://avon-borough-jews-notes.trycloudflare.com';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com';
 
 const SERVER_PERSONALITY_PROMPTS = {
   casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab seperti teman karib (gunakan aku-kamu, partikel nih, yuk, dong, loh, santai aja).\n- DILARANG KERAS menggunakan bahasa baku, kaku, formal, atau seperti surat dinas!',
@@ -54,7 +76,7 @@ export default async function handler(req) {
 
   const {
     messages = [],
-    model = 'deepernova-silicon-1.4',
+    model = 'qwen2.5-vl-72b',
     stream = false,
     personality = 'friendly',
     language = 'id',
@@ -72,7 +94,8 @@ export default async function handler(req) {
 
   // Fast-path: When keys are stored in the local server's .env (not in Vercel Edge env),
   // forward immediately to /api/upstream/chat with automatic retry and zero Edge delay.
-  if (TOKENMIX_API_KEYS.length === 0 && FALLBACK_BACKEND_URL) {
+  const edgeTargets = getEdgeFreeLlmTargets();
+  if (edgeTargets.length === 0 && FALLBACK_BACKEND_URL) {
     const sameOriginUpstream = new URL('/api/upstream/chat', req.url).toString();
     const payloadStr = JSON.stringify(body);
     let lastProxyErr = null;
@@ -125,25 +148,22 @@ export default async function handler(req) {
     year: 'numeric'
   });
 
-  const reqLower = (model || '').toLowerCase();
-  let currentBrandedName = 'DeeperNova Silicon 1.4';
-  if (reqLower.includes('gold')) {
-    currentBrandedName = reqLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
-  } else if (reqLower.includes('boron')) {
-    currentBrandedName = 'DeeperNova Boron 1.1';
-  }
+  const HONEST_EDGE_NAMES = {
+    'qwen2.5-vl-72b': 'Qwen 2.5 VL 72B',
+    'nemotron-3-ultra-550b': 'NVIDIA Nemotron 3 Ultra 550B',
+    'nemotron-3.5-lightning': 'NVIDIA Nemotron 3.5 Lightning',
+    'north-mini-code': 'Cohere North Mini Code',
+    'free-router': 'FreeRouter Auto (FreeLLM)',
+    'nemotron-3.5-super-vl': 'NVIDIA Nemotron 3.5 Super VL'
+  };
+  const reqLower = String(model || '').toLowerCase().trim();
+  const currentModelDisplay = HONEST_EDGE_NAMES[reqLower] || model || 'Qwen 2.5 VL 72B';
 
   let systemPrompt =
-    `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam buatan DeeperNova AI Indonesia.\n` +
+    `Kamu adalah asisten AI berbahasa Indonesia yang berjalan pada model ${currentModelDisplay} melalui platform DeeperNova AI.\n` +
     `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}.\n` +
-    `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia.\n` +
-    `[INFORMASI RESMI KEPEMIMPINAN & PENGEMBANGAN - HANYA JIKA DITANYA]:\n` +
-    `- Founder: Ferry Fernando\n` +
-    `- CEO: Ferry Fernando\n` +
-    `- Wakil CEO: Anju Malinton Pakpahan\n` +
-    `- Tim Pengembang: Proyek ini dikembangkan bersama tim AI yang sangat besar di belakang DeeperNova AI.\n` +
-    `- Metode Pengembangan AI: AI ini dikembangkan oleh model AI DeeperNova generasi sebelumnya, di mana seluruh proses pengembangan berjalan secara otonom penuh (full autonomous).\n` +
-    `ATURAN MUTLAK KEPEMIMPINAN: Jawaban di atas WAJIB diberikan secara lengkap dan tepat jika pengguna menanyakan siapa founder, siapa CEO, siapa wakil CEO, siapa pembuat/pencipta/tim di balik DeeperNova AI, atau bagaimana AI ini dikembangkan. JANGAN PERNAH menyebutkan hal ini jika pengguna tidak menanyakannya (hanya jika ditanya saja).\n` +
+    `TRANSPARANSI MODEL: Jika pengguna menanyakan model apa yang sedang berjalan, jawablah dengan jujur sesuai model aktif (${currentModelDisplay}).\n` +
+    `[INFORMASI PLATFORM DEEPERNOVA - HANYA JIKA DITANYA]: Founder & CEO: Ferry Fernando, Wakil CEO: Anju Malinton Pakpahan. Jangan sebut jika tidak ditanya.\n` +
     'ATURAN GAYA KOMUNIKASI (MUTLAK):\n' +
     '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF: Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional.\n' +
     '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana atau sapaan ("halo", "hai"), jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele.\n' +
@@ -300,40 +320,71 @@ export default async function handler(req) {
     }
   }
 
-  // Model selection
-  const envChatModel = (process.env.TOKENMIX_CHAT_MODEL || '').trim();
-  const fastDefaultModel = (!envChatModel || envChatModel === 'gpt-4.1-mini') ? 'gpt-4o-mini' : envChatModel;
-  let selectedUpstreamModel = fastDefaultModel;
-  if (hasImagesInPayload) {
-    selectedUpstreamModel = 'gpt-4o-mini'; // Always route to fast vision-capable model
-  } else if (enableReasoning) {
-    selectedUpstreamModel = 'grok-4.1-fast-reasoning';
-  }
+  // Honest FreeLLM Model selection (Zero DeepSeek / Zero TokenMix / Zero fake branding)
+  const envChatModel = (process.env.FREELLM_CHAT_MODEL || '').trim();
+  const fastDefaultModel = (!envChatModel || envChatModel === 'auto') ? 'qwen2.5-vl-72b' : envChatModel;
+  const reqModelLower = String(model || '').toLowerCase().trim();
+  const FAST_POOL = ['qwen2.5-vl-72b', 'free-router', 'north-mini-code', 'nemotron-3.5-lightning', 'nemotron-3-ultra-550b'];
+  const DIRECT_REAL_MODELS = new Set([
+    'qwen2.5-vl-72b',
+    'nemotron-3-ultra-550b',
+    'nemotron-3.5-lightning',
+    'north-mini-code',
+    'free-router',
+    'nemotron-3.5-super-vl',
+    'dots3-note-preview',
+    'gpt-oss-120b',
+    'gpt-oss-20b',
+    'llama-3.3-70b'
+  ]);
+  const isGrok46 = reqModelLower.includes('grok-4.6') || reqModelLower === 'grok';
+  const isUltra = reqModelLower.includes('550b') || reqModelLower.includes('4.6-giga') || reqModelLower.includes('giga') || (reqModelLower.includes('gold') && reqModelLower.includes('pro'));
+  const isCodeTier = reqModelLower.includes('north-mini') || reqModelLower.includes('2.3-pro') || reqModelLower.includes('2.3');
+  const isLightning = reqModelLower.includes('lightning') || reqModelLower.includes('silicon');
 
-  const candidateModels = hasImagesInPayload
-    ? ['gpt-4o-mini', 'llama-4-maverick', 'gpt-4.1-mini']
-    : (enableReasoning ? ['grok-4.1-fast-reasoning', 'gpt-4o-mini', 'llama-3.3-70b', 'qwen3.8-flash'] : Array.from(new Set([fastDefaultModel, 'gpt-4o-mini', 'llama-3.3-70b', 'qwen3.8-flash'])));
+  const freellmCandidates = hasImagesInPayload
+    ? ['qwen2.5-vl-72b', 'auto']
+    : DIRECT_REAL_MODELS.has(reqModelLower)
+      ? Array.from(new Set([reqModelLower, ...FAST_POOL]))
+      : isUltra
+        ? ['nemotron-3-ultra-550b', 'nemotron-3.5-lightning', 'qwen2.5-vl-72b', 'free-router']
+        : isCodeTier
+          ? ['north-mini-code', 'free-router', 'qwen2.5-vl-72b', 'nemotron-3.5-lightning']
+          : isLightning
+            ? ['nemotron-3.5-lightning', 'qwen2.5-vl-72b', 'north-mini-code', 'free-router']
+            : isGrok46
+              ? ['free-router', 'nemotron-3-ultra-550b', 'qwen2.5-vl-72b']
+              : (enableReasoning
+                ? ['nemotron-3-ultra-550b', 'nemotron-3.5-super-vl', 'qwen2.5-vl-72b', 'free-router']
+                : Array.from(new Set([fastDefaultModel, ...FAST_POOL])));
 
-  // Rotate across TokenMix keys with model fallback and strict connect timeout
+  const edgePlanByPlatform = {
+    freellmapi: freellmCandidates,
+    groq: hasImagesInPayload ? ['meta-llama/llama-4-maverick-17b-128e-instruct'] : ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
+    gemini: isUltra ? ['gemini-2.5-flash'] : ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
+    openrouter: ['openrouter/free', 'meta-llama/llama-3.3-70b-instruct:free'],
+    cerebras: isUltra ? ['llama-3.3-70b'] : ['llama3.1-8b', 'llama-3.3-70b'],
+    mistral: ['mistral-small-latest']
+  };
+
   let upstreamResponse = null;
   let lastErr = null;
 
-  for (const modelToTry of candidateModels) {
-    let modelTimedOut = false;
-    for (let i = 0; i < TOKENMIX_API_KEYS.length; i++) {
-      const key = TOKENMIX_API_KEYS[i];
+  for (const target of edgeTargets) {
+    const models = edgePlanByPlatform[target.platform] || ['qwen2.5-vl-72b', 'free-router'];
+    for (const modelToTry of models) {
       const attemptAbort = new AbortController();
       let timedOut = false;
       const timer = setTimeout(() => {
         timedOut = true;
         attemptAbort.abort();
-      }, modelToTry.includes('reasoning') ? 12000 : 7500);
+      }, (modelToTry.includes('550b') || modelToTry.includes('smart')) ? 13000 : 8500);
       try {
-        const resp = await fetch('https://api.tokenmix.ai/v1/chat/completions', {
+        const resp = await fetch(target.url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${key}`,
+            'Authorization': `Bearer ${target.key}`,
           },
           signal: attemptAbort.signal,
           body: JSON.stringify({
@@ -350,20 +401,19 @@ export default async function handler(req) {
           break;
         } else {
           const errTxt = await resp.text();
-          lastErr = new Error(`Model ${modelToTry} key ${i} failed: ${resp.status} ${errTxt.slice(0, 100)}`);
+          lastErr = new Error(`${target.platform} model ${modelToTry} failed: ${resp.status} ${errTxt.slice(0, 100)}`);
+          if (resp.status === 401 || resp.status === 403) break;
         }
       } catch (e) {
         lastErr = e;
         if (timedOut) {
-          modelTimedOut = true;
-          break;
+          continue;
         }
       } finally {
         clearTimeout(timer);
       }
     }
     if (upstreamResponse && upstreamResponse.ok) break;
-    if (modelTimedOut) continue;
   }
 
   // If no env keys configured on Edge yet, proxy securely via Vercel CDN rewrite to the local backend server (which holds .env locally)
@@ -410,8 +460,7 @@ export default async function handler(req) {
         const text = new TextDecoder().decode(chunk);
         const sanitized = text
           .replace(/\bDoubao\b/gi, 'DeeperNova')
-          .replace(/\bByteDance\b/gi, 'DeeperNova AI')
-          .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
+          .replace(/\bByteDance\b/gi, 'DeeperNova AI');
         controller.enqueue(new TextEncoder().encode(sanitized));
       }
     });
@@ -433,8 +482,7 @@ export default async function handler(req) {
   if (data?.choices?.[0]?.message?.content) {
     data.choices[0].message.content = data.choices[0].message.content
       .replace(/\bDoubao\b/gi, 'DeeperNova')
-      .replace(/\bByteDance\b/gi, 'DeeperNova AI')
-      .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
+      .replace(/\bByteDance\b/gi, 'DeeperNova AI');
   }
 
   return new Response(JSON.stringify(data), {

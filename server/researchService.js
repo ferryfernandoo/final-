@@ -92,7 +92,7 @@ export class ResearchService {
     const searchBases = [
       'http://127.0.0.1:4000/api/v1',
       process.env.DEEPERNOVA_SEARCH_API_URL?.includes('/api/v1') ? process.env.DEEPERNOVA_SEARCH_API_URL : `${process.env.DEEPERNOVA_SEARCH_API_URL}/api/v1`,
-      'https://challenge-roles-cincinnati-indicator.trycloudflare.com/api/v1'
+      'https://williams-condo-mile-discussing.trycloudflare.com/api/v1'
     ].filter(Boolean);
 
     for (const dnSearchUrl of searchBases) {

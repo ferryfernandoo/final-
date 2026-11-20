@@ -1670,7 +1670,7 @@ export function extractSequentialActions(text) {
   const writtenPaths = new Set();
 
   // Unified tag regex matching paired or self-closing action tags
-  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|file|edit_file|patch_file|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file|unzip_file|extract_zip|unzip|zip_project|zip_files|archive_zip)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|check_file|verify_file|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file|unzip_file|extract_zip|unzip|zip_project|zip_files|archive_zip)\s*([^>]*?)\/?>/gi;
+  const tagRegex = /<(thought|read_file|read|read_skill|search_skill|search_web|search|run_command|command|terminal|write_file|subagent_file|file|edit_file|patch_file|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|execute_code|run_code|check_file|verify_file|preview|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file|unzip_file|extract_zip|unzip|zip_project|zip_files|archive_zip)([^>]*)>([\s\S]*?)<\/\1>|<(read_file|read|read_skill|search_skill|search_web|search|delete_file|remove_file|delete|test_file|validate_file|send_file|deliver_file|resend_file|list_files|dir|check_file|verify_file|screenshot|take_screenshot|grep_search|grep|revert_file|rollback_file|unzip_file|extract_zip|unzip|zip_project|zip_files|archive_zip)\s*([^>]*?)\/?>/gi;
 
   let match;
   while ((match = tagRegex.exec(text)) !== null) {
@@ -1735,7 +1735,7 @@ export function extractSequentialActions(text) {
       } else if (tagName === 'send_file' || tagName === 'deliver_file' || tagName === 'resend_file') {
         const filePath = getAttr('path') || getAttr('file') || body.split('\n')[0].trim();
         actions.push({ type: 'send_file', path: filePath, rawMatch, index });
-      } else if (tagName === 'write_file' || tagName === 'file') {
+      } else if (tagName === 'write_file' || tagName === 'file' || tagName === 'subagent_file') {
         let filePath = getAttr('path') || getAttr('file') || getAttr('name');
         if (!filePath) {
           const attrFileMatch = attrStr.trim().match(/^["']?([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)["']?$/i);

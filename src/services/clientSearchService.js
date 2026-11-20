@@ -781,78 +781,58 @@ export function generateSearchQueryVariants(rawQuery, userPrompt = '') {
   return variants;
 }
 
+export function isComparisonQueryText(text = '') {
+  if (!text || typeof text !== 'string') return false;
+  return /\b(?:banding(?:kan)?|perbandingan|komparasi|vs\.?|versus|compare|bagusan\s+mana|lebih\s+(?:bagus|baik|unggul)\s+mana|pilih\s+mana|perbedaan\s+.+?\s+(?:dengan|dan|sama))\b/i.test(text);
+}
+
 /**
  * Intelligent Multi-Hop Facet & Deep Research Decomposer:
- * Automatically decomposes complex prompts, comparisons, or multi-faceted queries
- * (e.g., "kopi dan kenapa bikin ngantuk", "perbandingan A vs B") into targeted sub-topic queries.
+ * Only decomposes into multi-step sub-queries for explicit comparison requests.
  */
 export function extractMultiHopFacets(query, userPrompt = '') {
-  const combined = `${query} ${userPrompt}`.toLowerCase().trim();
+  const normalizedPrompt = String(userPrompt || '').trim();
+  const normalizedQuery = String(query || '').trim();
+  const sourceText = isComparisonQueryText(normalizedPrompt)
+    ? normalizedPrompt
+    : normalizedQuery;
   const facets = [];
 
-  // 1. Comparison detection (A vs B, bandingkan X dan Y, bagusan mana)
-  const compMatch = combined.match(/(?:bandingkan|perbedaan|pilih\s+mana|bagusan\s+mana)\s+(.+?)\s+(?:dengan|dan|sama|vs\.?|versus)\s+(.+)/i) ||
-                    combined.match(/(.+?)\s+(?:vs\.?|versus)\s+(.+)/i);
-  if (compMatch && compMatch[1] && compMatch[2]) {
-    const a = compMatch[1].replace(/[?,.!]/g, '').trim();
-    const b = compMatch[2].replace(/[?,.!]/g, '').trim();
-    if (a.length >= 2 && b.length >= 2 && a !== b) {
-      facets.push({
-        topic: a,
-        label: `Profil & Keunggulan ${a}`,
-        query: `${a} spesifikasi fitur kelebihan review`,
-        imageQuery: `${a} foto review produk`
-      });
-      facets.push({
-        topic: b,
-        label: `Profil & Keunggulan ${b}`,
-        query: `${b} spesifikasi fitur kelebihan review`,
-        imageQuery: `${b} foto review produk`
-      });
-      facets.push({
-        topic: 'comparison',
-        label: `Komparasi Komprehensif ${a} vs ${b}`,
-        query: `perbandingan ${a} vs ${b} kelebihan kekurangan`,
-        imageQuery: `${a} vs ${b}`
-      });
-      return facets;
-    }
-  }
-
-  // 2. Coffee and Drowsiness / Biological Mechanism ("kopi ... ngantuk / tidur / lelah")
-  if (/\bkopi\b/i.test(combined) && /\b(ngantuk|kantuk|tidur|lelah|capek|lemas|sleepy|tired|rebound|adenosin)\b/i.test(combined)) {
-    facets.push({
-      topic: 'kopi',
-      label: 'Karakteristik Kopi & Kandungan Kafein',
-      query: 'kopi jenis varian biji seduhan arabika robusta kafein',
-      imageQuery: 'secangkir kopi biji kopi barista espresso'
-    });
-    facets.push({
-      topic: 'ngantuk',
-      label: 'Mekanisme Adenosin & Efek Kantuk Setelah Minum Kopi',
-      query: 'kenapa minum kopi malah ngantuk mekanisme reseptor adenosin dehidrasi toleransi kafein',
-      imageQuery: 'orang ngantuk menguap kelelahan lemas tidur'
-    });
+  if (!isComparisonQueryText(sourceText)) {
     return facets;
   }
 
-  // 3. Health & Medical / Cause & Effect queries ("efek X terhadap Y", "gejala dan penyebab X")
-  const causeEffectMatch = combined.match(/(?:efek|dampak|pengaruh|akibat|penyebab|gejala|manfaat)\s+(.+?)\s+(?:pada|terhadap|untuk|dan)\s+(.+)/i);
-  if (causeEffectMatch && causeEffectMatch[1] && causeEffectMatch[2]) {
-    const t1 = causeEffectMatch[1].replace(/[?,.!]/g, '').trim();
-    const t2 = causeEffectMatch[2].replace(/[?,.!]/g, '').trim();
-    if (t1.length >= 2 && t2.length >= 2) {
+  // Comparison detection (A vs B, bandingkan X dan Y, bagusan mana)
+  const compMatch = sourceText.match(/(?:banding(?:kan)?|perbandingan|komparasi|perbedaan|beda(?:nya)?|pilih\s+mana|bagusan\s+mana|mana\s+yang\s+lebih\s+(?:bagus|baik|unggul)|compare)\s+(.+?)\s+(?:dengan|dan|atau|sama|vs\.?|versus|dibanding(?:kan)?|and|with)\s+(.+)/i) ||
+                    sourceText.match(/(.+?)\s+(?:vs\.?|versus)\s+(.+)/i);
+  if (compMatch && compMatch[1] && compMatch[2]) {
+    const cleanEntity = (raw) => raw
+      .replace(/^(?:antara|mengenai|tentang|dari|kelebihan\s+dan\s+kekurangan)\s+/i, '')
+      .replace(/[?,.!]+$/, '')
+      .replace(/\b(?:untuk|buat|mana\s+yang\s+lebih\s+(?:bagus|baik|unggul)).*$/i, '')
+      .trim()
+      .slice(0, 65);
+    const a = cleanEntity(compMatch[1]);
+    const b = cleanEntity(compMatch[2]);
+    if (a.length >= 2 && b.length >= 2 && a.toLowerCase() !== b.toLowerCase()) {
+      const year = new Date().getFullYear();
       facets.push({
-        topic: t1,
-        label: `Tinjauan Medis & Ilmiah ${t1}`,
-        query: `${t1} definisi kandungan karakteristik`,
-        imageQuery: `${t1} ilustrasi infografis`
+        topic: a,
+        label: `Profil & Data Valid ${a}`,
+        query: `${a} review fitur kelebihan kekurangan data terbaru ${year}`,
+        imageQuery: `${a}`
       });
       facets.push({
-        topic: t2,
-        label: `Pengaruh & Mekanisme ${t2}`,
-        query: `${t1} efek terhadap ${t2} penjelasan ilmiah medis`,
-        imageQuery: `${t2} medis kesehatan`
+        topic: b,
+        label: `Profil & Data Valid ${b}`,
+        query: `${b} review fitur kelebihan kekurangan data terbaru ${year}`,
+        imageQuery: `${b}`
+      });
+      facets.push({
+        topic: 'comparison',
+        label: `Komparasi & Validasi ${a} vs ${b}`,
+        query: `perbandingan ${a} vs ${b} kelebihan kekurangan perbedaan ${year}`,
+        imageQuery: `${a} vs ${b}`
       });
       return facets;
     }
@@ -1094,7 +1074,8 @@ export async function executeWebSearch(query, options = {}) {
   }
 
   // 1. Check in-memory client cache (<0.1ms instant hit)
-  const cacheKey = `${effectiveQuery.toLowerCase()}|${limit}|${includeImages}`;
+  const allowMultiStep = options.allowMultiStep === true || isComparisonQueryText(`${effectiveQuery} ${userPrompt}`);
+  const cacheKey = `${effectiveQuery.toLowerCase()}|${limit}|${includeImages}|ms:${allowMultiStep ? 1 : 0}`;
   const cached = getClientSearchCache(cacheKey);
   if (cached) {
     console.log(`[ClientSearchService] ⚡ Instant Cache Hit for "${effectiveQuery}"`);
@@ -1313,9 +1294,9 @@ export async function executeWebSearch(query, options = {}) {
     }
   }
 
-  // ── PASS 3: Multi-Hop Deep Research & Contextual Image Harvesting ──
-  // Investigates sub-facets & comparisons (e.g. "kopi ... ngantuk", "A vs B")
-  const multiHopFacets = extractMultiHopFacets(effectiveQuery, userPrompt);
+  // ── PASS 3: Multi-Step Deep Research (ONLY for comparisons when allowMultiStep is enabled) ──
+  // Normal queries keep fast single-step search without multi-step expansion.
+  const multiHopFacets = allowMultiStep ? extractMultiHopFacets(effectiveQuery, userPrompt) : [];
   if (multiHopFacets.length > 0) {
     console.log(`[ClientSearchService] 🔬 Multi-Hop Facets detected (${multiHopFacets.length}):`, multiHopFacets.map(f => f.label));
     const facetPromises = multiHopFacets.map(async (facet) => {

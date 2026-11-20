@@ -1,10 +1,10 @@
-// Deepseek API Service with Deepernova AI Identity & Advanced Context Memory
+// DeeperNova AI Service with Unified FreeLLM Gateway & Advanced Context Memory
 import { memoryService } from './memoryService.js';
 import { ragService } from './ragService.js';
 import { API_BASE_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
-import { PERSONALITIES, DEFAULT_PERSONALITY } from '../components/chatbot/chatConstants.js';
-import localAiService, { sanitizeAntiQwen, extractResponseFromReasoning, generateInstantBoronResponse } from './localAiService.js';
+import { PERSONALITIES, DEFAULT_PERSONALITY, sanitizeSelectedModelId } from '../components/chatbot/chatConstants.js';
+import localAiService, { extractResponseFromReasoning, generateInstantBoronResponse } from './localAiService.js';
 
 export const getValidVisionImageUrl = (img) => {
   if (!img) return null;
@@ -36,39 +36,21 @@ const isRagRelevantMessage = (message = '') => {
   return triggerTerms.some(term => normalized.includes(term));
 };
 
-// TokenMix and AI requests are 100% securely isolated and executed on the backend server.
-// No raw API keys or direct provider URLs are exposed in the client frontend bundle.
-const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
-const getDeepseekApiKey = () => '';
-const getTokenMixApiKey = () => '';
-const TOKENMIX_API_KEYS = [];
-const TOKENMIX_API_KEY = '';
-const DEEPSEEK_API_KEY = '';
-
-// DeeperNova Native GPU Model Mapping:
-// - deepernova v1 flash 1: Default ultra-fast GPU model
-// - deepernova-smart-0.5b: Smart compact 0.5B model
-// - deepernova-pure-reasoning: Deep reasoning model
-// - deepernova-100m: Nano 100M model
-const normalizeDeepernovaModel = (deepernovaModel = 'deepernova v1 flash 1') => {
-  const lower = (deepernovaModel || '').toLowerCase();
-  if (lower.includes('pure') || lower.includes('reason')) return 'deepernova-pure-reasoning';
-  if (lower.includes('smart') || lower.includes('0.5b')) return 'deepernova-smart-0.5b';
-  if (lower.includes('100m') || lower.includes('nano')) return 'deepernova-100m';
-  return 'deepernova v1 flash 1';
+// All AI inference requests are 100% securely isolated and routed via the backend FreeLLM gateway.
+// No raw API keys or upstream URLs are exposed in the client frontend bundle.
+const normalizeDeepernovaModel = (deepernovaModel = 'qwen2.5-vl-72b') => {
+  const raw = String(deepernovaModel || '').trim();
+  return sanitizeSelectedModelId(raw);
 };
 
-export const resolveModelForRequest = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+export const resolveModelForRequest = (deepernovaModel = 'qwen2.5-vl-72b', hasImages = false) => {
   return normalizeDeepernovaModel(deepernovaModel);
 };
 
-// Helper function to get actual model name
-export const getTokenMixModel = (deepernovaModel = 'deepernova v1 flash 1', hasImages = false) => {
+// Helper function to get canonical model name for FreeLLM gateway
+export const getFreeLlmModel = (deepernovaModel = 'qwen2.5-vl-72b', hasImages = false) => {
   return normalizeDeepernovaModel(deepernovaModel);
 };
-
-// Backward compatibility alias
-const getDeepseekModel = getTokenMixModel;
 
 // Regex to detect when user explicitly commands to switch topics or move on from prior conversation
 export const EXPLICIT_TOPIC_SWITCH_REGEX = /\b(ganti\s+topik|topik\s+baru|pindah\s+topik|ganti\s+haluan|bahas\s+(yang\s+|hal\s+)?lain|ngobrol\s+(yang\s+|hal\s+)?lain|(?:mau\s+)?(?:tanya|nanya)\s+(?:yang\s+|hal\s+)?(?:lain|berbeda|baru)|skip\s*(?:dulu|aja|deh|lah)?|lupakan\s+(?:yang\s+|hal\s+)?(?:tadi|itu)|jangan\s+bahas\s+itu\s+lagi|stop\s+bahas\s+itu|bukan\s+itu\s+maksud(?:ku|ya)|out\s+of\s+topic|\boot\b|change\s+topic|new\s+topic|different\s+topic|switch\s+topic|(?:let's\s+)?talk\s+about\s+something\s+else|something\s+else|forget\s+(?:that|about\s+that)|never\s+mind\s+that|next\s+topic)\b/i;
@@ -81,7 +63,7 @@ IDENTITAS & SIKAP PROFESIONAL:
 - Anda adalah DeeperNova AI, asisten kecerdasan buatan Indonesia yang ditenagai infrastruktur komputasi berkecepatan tinggi.
 - Jika ditanya identitas ("kamu siapa?", "siapa pembuatmu?", "model apa ini?"), tegaskan secara sopan, mantap, dan ramah: "Saya adalah asisten kecerdasan buatan kebanggaan DeeperNova AI Indonesia."
 - KETAT: DILARANG MEMPROMOSIKAN DIRI ATAU MEMAMERKAN KEMAMPUAN (ANTI-OVERPROMOSI). Jangan pernah menawarkan atau memamerkan daftar modul/fitur Deepernova KECUALI jika pengguna secara spesifik dan eksplisit menanyakannya.
-- Jika pengguna bertanya, mendiskusikan, atau membandingkan model/teknologi AI lain (seperti ChatGPT, model AI global lain, DeepSeek, Llama, Gemini, dll.), jelaskan secara objektif, faktual, netral, dan proporsional tanpa nada membanggakan diri sendiri atau merendahkan pihak lain.
+- Jika pengguna bertanya, mendiskusikan, atau membandingkan model/teknologi AI lain (seperti ChatGPT, Claude, Llama, Gemini, dll.), jelaskan secara objektif, faktual, netral, dan proporsional tanpa nada membanggakan diri sendiri atau merendahkan pihak lain.
 
 PRINSIP UTAMA: ANTI BASA-BASI & PANJANG ADAPTIF (ADAPTIVE DEPTH WITHOUT FLUFF):
 - MUTLAK: JANGAN BASA-BASI! Dilarang menggunakan kalimat pembuka klise ("Tentu saja!", "Pertanyaan yang sangat bagus!", "Terima kasih atas pertanyaan Anda", "Sebagai asisten AI...") dan dilarang menggunakan kalimat penutup basa-basi klise ("Semoga membantu!", "Apakah ada hal lain yang ingin Anda tanyakan?", "Jangan ragu untuk bertanya lagi"). Langsung jawab ke inti substansi.
@@ -113,10 +95,10 @@ PRINSIP UTAMA: ANTI BASA-BASI & PANJANG ADAPTIF (ADAPTIVE DEPTH WITHOUT FLUFF):
 Deepernova terhubung langsung dengan DeeperNova Search Engine yang hidup, aktif, dan terus melakukan live crawling data web.
 1. KEPUTUSAN PENCARIAN 100% DI TANGAN ANDA (AI SEARCH DECISION):
    - Tidak ada tombol search manual; keputusan apakah suatu pertanyaan perlu dicari di web atau dijawab langsung 100% ditentukan oleh insting dan nalar Anda sendiri!
-   - Kapan pun pengguna meminta pencarian ("cari", "search", "googling", "cek", "info"), ATAU menanyakan data terkini, berita mutakhir, fakta spesifik, harga komoditas/emas/saham/kripto/kurs, cuaca, jadwal/skor, profil tokoh/institusi/produk, perbandingan, atau verifikasi fakta internet:
+   - Kapan pun pengguna meminta pencarian ("cari", "search", "googling", "cek", "info"), menanyakan fakta dunia nyata, berita, harga, jadwal, tokoh, atau KAMU MERASA RAGU / TIDAK TAHU jawabannya (DILARANG keras menjawab "Saya tidak tahu" atau menebak!):
      KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):
      [SEARCH_REQUEST: kata kunci pencarian pilihan Anda yang tajam dan alami]
-     (atau [EXECUTE_SEARCH: kata kunci pencarian pilihan Anda])
+     (atau [EXECUTE_SEARCH: kata kunci pencarian pilihan Anda]). Untuk pertanyaan normal, 1x pencarian tunggal sudah cukup.
    - Contoh:
      User: "Berapa harga bitcoin sekarang?" → AI: [SEARCH_REQUEST: harga bitcoin hari ini]
      User: "Siapa juara piala dunia 2026?" → AI: [SEARCH_REQUEST: juara piala dunia 2026]
@@ -169,7 +151,7 @@ IDENTITY & PROFESSIONAL CONDUCT:
 - You are Deepernova AI (DPN), a professional, intelligent, calm, and objective AI assistant.
 - STRICT: NO SELF-PROMOTION OR FEATURE BRAGGING (ANTI-OVERPROMOTION). Never unpromptedly advertise or list Deepernova features/modules (such as AI Agent, Image Generator, sub-20ms search, free platform, etc.), and never mention founders/CEO/trivia UNLESS the user explicitly and specifically asks ("who are you?", "what is Deepernova?", "who created you?").
 - If asked about your identity ("who are you?"), answer concisely and professionally: you are Deepernova AI, an AI assistant ready to assist with various user needs.
-- If users discuss or compare third-party AI models (ChatGPT, leading AI models, DeepSeek, Qwen, Llama, Gemini, etc.), provide factual, objective, and balanced explanations without bias or defensiveness.
+- If users discuss or compare third-party AI models (ChatGPT, leading AI models, Claude, Qwen, Llama, Gemini, etc.), provide factual, objective, and balanced explanations without bias or defensiveness.
 
 CORE PRINCIPLE: NO FLUFF / SMALL TALK & ADAPTIVE DEPTH (ADAPTIVE DEPTH WITHOUT FLUFF):
 - ABSOLUTE: NO FLUFF OR SMALL TALK! Strictly avoid cliché openings ("Certainly!", "Great question!", "Thank you for asking", "As an AI model...") and cliché closings ("Hope this helps!", "Let me know if you need anything else!"). Dive straight into the substance.
@@ -201,10 +183,10 @@ CORE PRINCIPLE: NO FLUFF / SMALL TALK & ADAPTIVE DEPTH (ADAPTIVE DEPTH WITHOUT F
 Deepernova is directly integrated with the live DeeperNova Search Engine with continuous real-time crawling.
 1. 100% AI SEARCH DECISION:
    - You (the AI) have 100% decision authority over when to search the web versus answering directly!
-   - Whenever the user asks to search ("search", "find", "look up", "check") OR asks for recent updates, breaking news, specific facts, commodity/crypto/stock prices, weather, schedules/scores, company/person info, product comparisons, or real-world verification:
+   - Whenever the user asks to search ("search", "find", "look up", "check"), asks for real-world facts/news/prices/schedules/people, OR YOU FEEL UNSURE / DO NOT KNOW the answer (STRICTLY FORBIDDEN to say "I don't know" or guess!):
      OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE FIRST LINE (WITH NO OTHER TEXT AFTER IT):
      [SEARCH_REQUEST: your chosen targeted search keywords]
-     (or [EXECUTE_SEARCH: your chosen targeted search keywords])
+     (or [EXECUTE_SEARCH: your chosen targeted search keywords]). For normal questions, a single search is sufficient.
    - Examples:
      User: "Current bitcoin price?" → AI: [SEARCH_REQUEST: bitcoin price today]
      User: "Who won the 2026 World Cup?" → AI: [SEARCH_REQUEST: 2026 World Cup winner]
@@ -242,7 +224,7 @@ Deepernova is directly integrated with the live DeeperNova Search Engine with co
 - 您是 DeeperNova AI，由高速计算基础设施驱动的专业人工智能助手。
 - 如果被问及身份（“你是谁？”、“你的开发者是谁？”、“这是什么模型？”），请礼貌、从容且坚定地回答：“我是由 DeeperNova AI 打造的专业人工智能助手。”
 - 严禁过度自夸与推销：切勿主动推介或罗列功能特性，除非用户明确询问。
-- 如果用户讨论或对比其他 AI 模型（如 ChatGPT、DeepSeek、Llama、Gemini 等），请秉持客观、事实、中立的态度，不夸大自己，也不贬低他人。
+- 如果用户讨论或对比其他 AI 模型（如 ChatGPT、Claude、Llama、Gemini 等），请秉持客观、事实、中立的态度，不夸大自己，也不贬低他人。
 
 核心原则：杜绝客套套话与自适应深度：
 - 严禁空洞寒暄（如“当然可以！”、“非常有深度的问题！”、“感谢您的提问”、“作为 AI 助手...”）和结尾冗余客套（“希望对您有所帮助！”、“请问还有什么问题吗？”）。直接切入核心回答。
@@ -657,7 +639,7 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
 };
 
 // Function untuk call backend proxy
-const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
+const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'qwen2.5-vl-72b', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
   const isPrivateSession = Boolean(isPrivateMode || String(conversationId || '').startsWith('private_'));
   try {
     const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
@@ -712,14 +694,10 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       userMessageContent = cleanTextMessage;
     }
 
-    const mLower = (deepernovaModel || '').toLowerCase();
-    const isFlashModel = deepernovaModel && (
-      mLower.includes('deepernova') ||
-      mLower.includes('flash') ||
-      mLower.includes('boron') ||
-      mLower.includes('gold') ||
-      mLower.includes('silicon')
-    );
+    const normalizedRequestModel = normalizeDeepernovaModel(deepernovaModel || 'qwen2.5-vl-72b');
+    const mLower = normalizedRequestModel.toLowerCase();
+    const isGrok46Model = false;
+    const isFlashModel = Boolean(normalizedRequestModel);
 
     let systemPromptContent;
     let finalMessages;
@@ -743,30 +721,24 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
 
       const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
-        ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
-        '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan apakah perlu mencari di web 100% ditentukan olehmu!\n' +
-        '- ATURAN EKSEKUSI FLAG SEARCH (MUTLAK):\n' +
-        '  * WAJIB MENCARI (KELUARKAN FLAG) JIKA pertanyaan menyangkut salah satu dari:\n' +
-        '    1. Permintaan pencarian eksplisit ("cari", "search", "googling", "cek", "info tentang", "carikan").\n' +
-        '    2. Berita, peristiwa, tren, rilis, atau apa pun yang "terbaru", "sekarang", "hari ini", "tahun ini", atau tahun 2024 ke atas.\n' +
-        '    3. Fakta spesifik dunia nyata: tokoh/orang, jabatan/pejabat, perusahaan, produk & spesifikasi, harga, tempat/lokasi/alamat, jadwal, skor, statistik, angka, tanggal, aturan/regulasi, film/lagu/game, dan data yang bisa berubah.\n' +
-        '    4. Apa pun yang KAMU TIDAK 100% YAKIN jawabannya. LEBIH BAIK MENCARI DARIPADA MENEBAK/HALUSINASI.\n' +
-        '    Format: KELUARKAN HANYA FLAG DI BARIS PERTAMA (TANPA TEKS LAIN):\n' +
-        '    [SEARCH_REQUEST: kata kunci pencarian pilihanmu]\n' +
-        '    lalu LANGSUNG BERHENTI setelah `]`. DILARANG KERAS menulis jawaban spekulatif atau mengarang fakta sebelum menerima hasil pencarian!\n' +
-        '  * JAWAB LANGSUNG TANPA FLAG HANYA untuk: sapaan/obrolan santai, matematika/hitungan, menulis/merapikan kode, menerjemahkan, merangkum teks yang diberikan pengguna, ide kreatif, dan konsep dasar yang sangat umum & tidak berubah.'
-        : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (100% AI SEARCH DECISION VIA EXECUTION FLAG):\n' +
-        '- You are directly connected to DeeperNova Search Engine & Live Web Crawler. You alone decide when a web search is needed!\n' +
-        '- SEARCH EXECUTION FLAG RULES (MANDATORY):\n' +
-        '  * YOU MUST SEARCH (EMIT THE FLAG) IF the question involves any of:\n' +
-        '    1. An explicit search request ("search", "find", "look up", "check").\n' +
-        '    2. News, events, trends, releases, or anything "latest", "now", "today", "this year", or 2024 onward.\n' +
-        '    3. Specific real-world facts: people, officials, companies, products & specs, prices, places/addresses, schedules, scores, statistics, numbers, dates, regulations, movies/songs/games, and any changeable data.\n' +
-        '    4. Anything you are NOT 100% sure about. SEARCHING IS ALWAYS BETTER THAN GUESSING/HALLUCINATING.\n' +
-        '    Format: OUTPUT ONLY THE FLAG ON THE FIRST LINE (NO OTHER TEXT):\n' +
-        '    [SEARCH_REQUEST: your targeted search query]\n' +
-        '    and STOP IMMEDIATELY after `]`. NEVER write speculative answers or invent facts before receiving search results!\n' +
-        '  * ANSWER DIRECTLY WITHOUT A FLAG ONLY for: greetings/small talk, math, writing/fixing code, translation, summarizing user-provided text, creative ideas, and very basic timeless concepts.'
+        ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (ANTI-HALUSINASI & JIKA RAGU SELALU SEARCHING):\n' +
+        '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan mencari 100% di tanganmu!\n' +
+        '- ATURAN MUTLAK (JIKA MERASA TIDAK TAHU / RAGU → SELALU SEARCHING):\n' +
+        '  * DILARANG KERAS menjawab "Saya tidak tahu", "Saya kurang yakin", "Maaf informasi saya terbatas", atau mengarang jawaban saat kamu tidak 100% yakin!\n' +
+        '  * Kapan pun user menanyakan sesuatu dan kamu merasa TIDAK TAHU, RAGU, atau butuh verifikasi fakta terkini (berita, harga, tokoh, regulasi, spesifikasi, angka, peristiwa, istilah asing, fakta baru): WAJIB usahakan SELALU SEARCHING terlebih dahulu!\n' +
+        '  * Untuk pertanyaan pencarian normal: cukup lakukan 1x pencarian tunggal (single search) dengan format HANYA di baris pertama (TANPA TEKS LAIN):\n' +
+        '    [SEARCH_REQUEST: kata kunci pencarian spesifik pilihanmu]\n' +
+        '    lalu LANGSUNG BERHENTI setelah `]`.\n' +
+        '  * JAWAB LANGSUNG TANPA FLAG HANYA jika kamu yakin 100% (sapaan/obrolan santai, matematika dasar, menulis/merapikan kode mandiri, menerjemahkan, merangkum teks dari user).'
+        : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (NEVER GUESS / ALWAYS SEARCH WHEN UNSURE):\n' +
+        '- You are directly connected to DeeperNova Search Engine & Live Web Crawler.\n' +
+        '- MANDATORY RULE (IF UNSURE OR DON\'T KNOW → ALWAYS SEARCH):\n' +
+        '  * STRICTLY FORBIDDEN to reply "I don\'t know", "I am not sure", "My knowledge is limited", or guess when uncertain!\n' +
+        '  * Whenever the user asks anything and you feel unsure, lack current facts, or need verification (news, prices, people, rules, specs, numbers, recent events, unfamiliar terms): ALWAYS search first!\n' +
+        '  * For normal search queries, emit ONE single search flag on the first line (NO other text):\n' +
+        '    [SEARCH_REQUEST: targeted search keywords]\n' +
+        '    and STOP IMMEDIATELY after `]`.\n' +
+        '  * ANSWER DIRECTLY WITHOUT SEARCH ONLY when 100% certain (greetings, pure math, standalone code, translation, summarizing provided text).'
       );
 
       const visionInstruction = validImageUrls.length > 0
@@ -781,14 +753,17 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
           '- NEVER claim you cannot see images or ask to re-upload!')
         : '';
 
-      let modelNameLabel = 'DeeperNova Gold 1.5';
-      if (mLower.includes('gold')) {
-        modelNameLabel = mLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
-      } else if (mLower.includes('boron')) {
-        modelNameLabel = 'DeeperNova Boron 1.1';
-      } else if (mLower.includes('silicon')) {
-        modelNameLabel = 'DeeperNova Silicon 1.4';
-      }
+      const HONEST_MODEL_LABELS = {
+        'qwen2.5-vl-72b': 'Qwen 2.5 VL 72B',
+        'nemotron-3-ultra-550b': 'NVIDIA Nemotron 3 Ultra 550B',
+        'nemotron-3.5-lightning': 'NVIDIA Nemotron 3.5 Lightning',
+        'north-mini-code': 'Cohere North Mini Code',
+        'free-router': 'FreeRouter Auto (FreeLLM)',
+        'nemotron-3.5-super-vl': 'NVIDIA Nemotron 3.5 Super VL'
+      };
+      const modelNameLabel = HONEST_MODEL_LABELS[mLower] || normalizedRequestModel || 'Qwen 2.5 VL 72B';
+
+      const grok46DirectDirective = '';
 
       const activePersonalityKey = (personality || DEFAULT_PERSONALITY).toLowerCase();
       const activePersonalityObj = PERSONALITIES[activePersonalityKey] || PERSONALITIES[DEFAULT_PERSONALITY] || PERSONALITIES.friendly;
@@ -803,34 +778,36 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       if (isSearchConclusion) {
         // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
         systemPromptContent =
-          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI Indonesia.\n` +
+          `Kamu adalah asisten AI yang berjalan pada model ${modelNameLabel} melalui platform DeeperNova AI.\n` +
           `${personalitySystemAppend}\n\n` +
           timeInfo + '\n' +
-          `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
+          `TRANSPARANSI MODEL: Jika ditanya model apa yang berjalan, jawablah dengan jujur bahwa kamu menggunakan model ${modelNameLabel}.\n` +
           'ATURAN UTAMA GAYA KOMUNIKASI:\n' +
           '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, seru, jangan kaku/baku). Jika Friendly, bicaralah sangat ramah, hangat, dan manis. Jika Formal, bicaralah resmi dan profesional. Jika Cute, bicaralah imut dan ceria. Jika Witty, berikan sentuhan humor cerdas.\n' +
           '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
           '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
           searchInstruction +
           visionInstruction +
+          grok46DirectDirective +
           privateCandidBlock +
-          (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
+          (!enableReasoning && !isGrok46Model ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
           (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
           (memoryBlock ? ('\n' + memoryBlock) : '');
       } else {
         systemPromptContent =
-          `Kamu adalah ${modelNameLabel}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, dan berdaya nalar tinggi buatan DeeperNova AI Indonesia.\n` +
+          `Kamu adalah asisten AI cerdas yang berjalan pada model ${modelNameLabel} melalui platform DeeperNova AI.\n` +
           `${personalitySystemAppend}\n\n` +
           timeInfo + '\n' +
-          `ATURAN IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau dibuat oleh pihak lain. Tegaskan bahwa kamu adalah ${modelNameLabel} buatan DeeperNova AI Indonesia.\n` +
+          `TRANSPARANSI MODEL: Jika ditanya model apa yang sedang kamu gunakan, jawablah jujur sesuai model aktif (${modelNameLabel}).\n` +
           'ATURAN SIKAP & GAYA KOMUNIKASI (MUTLAK):\n' +
           '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (gunakan panggilan luwes aku-kamu, santai, asyik, jangan kaku atau baku seperti buku pelajaran). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. Jika Witty, selipkan kecerdasan dan humor. Jika Cute, gunakan ekspresi imut, ceria, dan penuh energi.\n' +
           '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai gaya kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
           '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
           searchInstruction +
           visionInstruction +
+          grok46DirectDirective +
           privateCandidBlock +
-          (!enableReasoning ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
+          (!enableReasoning && !isGrok46Model ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
           (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
           (memoryBlock ? ('\n' + memoryBlock) : '');
       }
@@ -903,7 +880,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
             credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
             signal: abortController?.signal,
             body: JSON.stringify({
-              model: deepernovaModel || 'deepernova-gold-1.5',
+              model: normalizedRequestModel,
               sessionId: conversationId || null,
               conversationId: conversationId || null,
               deviceId,
@@ -911,7 +888,7 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
               personality: personality || 'mentor',
               messages: finalMessages,
               uploadedImages: validImageUrls,
-              enableReasoning: Boolean(enableReasoning),
+              enableReasoning: Boolean(enableReasoning || isGrok46Model),
               temperature: isFlashModel ? 0.35 : 0.5,
               max_tokens: isFlashModel ? 4096 : 512,
               presence_penalty: isFlashModel ? 0.1 : 0.2,
@@ -1024,7 +1001,7 @@ export const appendToGlobalMemory = async (newQuestion, isAuthenticated, isGuest
   return;
 };
 
-export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'deepernova-gold-1.5', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
+export const sendMessageToGrok = async (message, conversationHistory = [], language = 'id', conversationId = null, personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'qwen2.5-vl-72b', isAuthenticated = false, isGuest = true, userName = '', sessionMessageCount = 0, uploadedImages = [], enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
   let lastError = null;
   const operationStartTime = Date.now();
   const isPrivateSession = Boolean(isPrivateMode || String(conversationId || '').startsWith('private_'));
@@ -1046,7 +1023,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
   const safeUploadedImages = Array.isArray(uploadedImages) ? uploadedImages : [];
   const hasImages = safeUploadedImages.length > 0;
   const effectiveDeepernovaModel = resolveModelForRequest(deepernovaModel, hasImages);
-  const resolvedModel = getTokenMixModel(effectiveDeepernovaModel, hasImages);
+  const resolvedModel = getFreeLlmModel(effectiveDeepernovaModel, hasImages);
 
   const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
   const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
@@ -1095,7 +1072,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
     userContent = `${message}${formatInstructions}${localMemoryContext}`;
   }
 
-  // 🚀 ALL REQUESTS ROUTED TO TOKENMIX META AI VIA BACKEND PROXY (ZERO LOCAL ENGINE)
+  // 🚀 ALL REQUESTS ROUTED TO FREELLM GATEWAY VIA BACKEND PROXY (ZERO LOCAL ENGINE)
 
   // 🚀 FALLBACK / CLOUD MODELS: Hit the backend server proxy (/api/chat)
   try {
@@ -1106,7 +1083,7 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
       language,
       personality,
       abortController,
-      deepernovaModel || 'deepernova-gold-1.5',
+      deepernovaModel ? normalizeDeepernovaModel(deepernovaModel) : 'qwen2.5-vl-72b',
       userName,
       sessionMessageCount,
       safeUploadedImages,
@@ -1128,10 +1105,10 @@ export const sendMessageToGrok = async (message, conversationHistory = [], langu
 // DEEPERNOVA AGENTIC AI
 // ============================================================
 // Routes directly to backend /api/chat with full streaming support.
-// Keeps TokenMix credentials completely private on the server.
+// Keeps FreeLLM gateway credentials completely private on the server.
 // ============================================================
-export const sendAgenticMessage = async (messages, abortController = null) => {
-  const resolvedModel = 'deepernova v1 flash 1';
+export const sendAgenticMessage = async (messages, abortController = null, deepernovaModel = 'qwen2.5-vl-72b') => {
+  const resolvedModel = normalizeDeepernovaModel(deepernovaModel || 'qwen2.5-vl-72b');
   console.log(`[AGENTIC] Routing agentic request to backend proxy: ${API_BASE_URL}/api/chat`);
 
   try {
@@ -1312,8 +1289,9 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
               streamUsage = parsed.usage;
             }
             const delta = parsed.choices?.[0]?.delta;
-            if (delta?.reasoning_content) {
-              const sanitizedReasoning = sanitizeAntiQwen(delta.reasoning_content);
+            const reasoningChunk = delta?.reasoning_content || delta?.reasoning;
+            if (reasoningChunk) {
+              const sanitizedReasoning = sanitizeAntiQwen(reasoningChunk);
               totalReasoningText += sanitizedReasoning;
               await onChunk({ type: 'reasoning', content: sanitizedReasoning });
             }
@@ -1406,7 +1384,7 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
           await onChunk({ type: 'content', content: fallbackAns });
         }
       } else {
-        console.warn('[GROK_API] ⚠️ Stream ended completely empty. Generating guaranteed DeeperNova Boron 1.1 response...');
+        console.warn('[GROK_API] ⚠️ Stream ended completely empty. Generating guaranteed DeeperNova AI response...');
         const fallbackAns = generateInstantBoronResponse();
         fullText = fallbackAns;
         await onChunk({ type: 'content', content: fallbackAns });

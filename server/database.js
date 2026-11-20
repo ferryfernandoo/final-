@@ -620,7 +620,7 @@ export const apiLogDb = {
         apiKeyId || null,
         userId || null,
         endpoint || '/v1/chat/completions',
-        model || 'deepernova-gold-1.5',
+        model || 'qwen2.5-vl-72b',
         promptTokens || 0,
         completionTokens || 0,
         totalTokens || 0,

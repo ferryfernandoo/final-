@@ -3179,7 +3179,7 @@
     top: auto !important;
     width: auto !important;
     max-width: calc(100vw - 24px) !important;
-    max-height: min(325px, 44vh) !important;
+    max-height: min(440px, 64vh) !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;

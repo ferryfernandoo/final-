@@ -25,11 +25,11 @@ const aiSynthesisCache = new AiSynthesisCache(2000, 30 * 60 * 1000);
 
 /**
  * ============================================================================
- * 🧠 DEEPERNOVA GOOGLE-GRADE AI OVERVIEW & DEEPSEEK REASONING SYNTHESIS ENGINE
+ * 🧠 DEEPERNOVA GOOGLE-GRADE AI OVERVIEW & FREELLM REASONING SYNTHESIS ENGINE
  * ============================================================================
  * Generates natural, authoritative, highly-structured generative AI answers
  * matching Google Search's AI Overview (SGE) and Perplexity Pro.
- * Powered by DeepSeek v4 Pro with High-Effort Reasoning & Thinking Trace,
+ * Powered by FreeLLM Gateway with High-Effort Reasoning & Thinking Trace,
  * reading and analyzing the TOP 15 indexed search results.
  * Includes graceful offline RAG fallback if the remote API is unreachable.
  * ============================================================================
@@ -74,11 +74,11 @@ export class AiSynthesisEngine {
   constructor(dbInstance = null, searchEngineInstance = null) {
     this.db = dbInstance;
     this.searchEngine = searchEngineInstance;
-    this.deepseekApiKey = process.env.DEEPSEEK_API_KEY || '';
-    this.deepseekModel = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-    this.deepseekBaseUrl = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
+    this.freeLlmApiKey = (process.env.FREELLM_API_KEY || '').trim();
+    this.freeLlmModel = process.env.FREELLM_MODEL || 'free-router';
+    this.freeLlmUrl = (process.env.FREELLM_API_URL || 'http://127.0.0.1:3005/v1/chat/completions').trim();
     this.ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-    this.ollamaModel = process.env.OLLAMA_MODEL || 'deepseek-r1:latest';
+    this.ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
   }
 
   setSearchEngine(engine) {
@@ -169,7 +169,7 @@ export class AiSynthesisEngine {
   }
 
   /**
-   * Formats top 15 sources into a dense, clean summary for DeepSeek prompt
+   * Formats top 15 sources into a dense, clean summary for FreeLLM prompt
    */
   _buildSourcesPrompt(sources = [], limit = 12) {
     const top = sources.slice(0, limit);
@@ -184,7 +184,7 @@ export class AiSynthesisEngine {
   }
 
   /**
-   * Builds Google SGE / DeepSeek prompt instructions
+   * Builds Google SGE / FreeLLM prompt instructions
    */
   _getSystemPrompt(language = 'id') {
     if (language === 'en') {
@@ -475,14 +475,14 @@ Pedoman Penulisan Koran:
   }
 
   /**
-   * Primary DeepSeek v4 Pro synthesis method reading TOP 15 indexed results
+   * Primary FreeLLM synthesis method reading TOP 15 indexed results
    */
 
   /**
    * Universal AI Chat Dispatcher:
    * 1. Primary: DeeperNova AI Gateway (Port 3001) - 100% Real Live AI
    * 2. Secondary: DeeperNova GPU Sandbox Engine (Port 8000)
-   * 3. Tertiary: DeepSeek remote API (if configured with valid key)
+   * 3. Tertiary: FreeLLM Gateway / Direct Free-Tier API (if configured with valid key)
    */
   async _callAiChat({ messages, stream = false, signal = null }) {
     // 1. Try local DeeperNova AI Gateway on port 3001
@@ -527,40 +527,40 @@ Pedoman Penulisan Koran:
       console.warn('[AiSynthesis] Port 8000 unavailable:', e.message);
     }
 
-    // 3. Fallback to DeepSeek if valid key present
-    if (this.deepseekApiKey && this.deepseekApiKey.startsWith('sk-') && this.deepseekApiKey.length > 20) {
+    // 3. Fallback to FreeLLM Gateway if configured
+    if (this.freeLlmUrl && this.freeLlmApiKey) {
       try {
-        const resDeepseek = await fetch(`${this.deepseekBaseUrl}/chat/completions`, {
+        const resFreeLlm = await fetch(this.freeLlmUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.deepseekApiKey.trim()}`
+            'Authorization': `Bearer ${this.freeLlmApiKey}`
           },
           body: JSON.stringify({
-            model: this.deepseekModel,
+            model: this.freeLlmModel,
             messages,
             stream,
             max_tokens: 650
           }),
           signal: signal || AbortSignal.timeout(30000)
         });
-        if (resDeepseek.ok) {
+        if (resFreeLlm.ok) {
           if (!stream) {
-            const data = await resDeepseek.json();
+            const data = await resFreeLlm.json();
             const choice = data.choices?.[0]?.message;
             if (choice?.content) {
               return {
                 content: choice.content.trim(),
                 thinking: choice.reasoning_content?.trim() || null,
-                engine: `DeepSeek (${this.deepseekModel})`
+                engine: `FreeLLM (${this.freeLlmModel})`
               };
             }
           } else {
-            return { response: resDeepseek, engine: `DeepSeek (${this.deepseekModel})` };
+            return { response: resFreeLlm, engine: `FreeLLM (${this.freeLlmModel})` };
           }
         }
       } catch (e) {
-        console.warn('[AiSynthesis] DeepSeek API unavailable:', e.message);
+        console.warn('[AiSynthesis] FreeLLM API unavailable:', e.message);
       }
     }
 

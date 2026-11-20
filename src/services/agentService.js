@@ -265,7 +265,7 @@ class AgentService {
   static async runTask({
     sessionId,
     prompt,
-    model = 'deepernova-gold-1.5',
+    model = 'qwen2.5-vl-72b',
     history = [],
     effort = 'high',
     language,
@@ -352,7 +352,7 @@ class AgentService {
               } else if (eventType === 'error' && onError) {
                 onError(parsed);
               }
-            } catch (_jsonErr) {}
+            } catch (_jsonErr) { }
           }
         }
       }

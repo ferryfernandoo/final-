@@ -40,9 +40,9 @@ class MemoryStorageBackend {
 }
 
 // System prompt enforcing strict DeeperNova Boron 1.1 identity and Anti-Qwen rules (Ultra-lean for rapid mobile CPU prefill)
-export const DEEPERNOVA_BORON_SYSTEM_PROMPT = `Kamu adalah DeeperNova Boron 1.1, model kecerdasan buatan lokal on-device kebanggaan DeeperNova AI Indonesia yang berjalan 100% offline langsung di perangkat pengguna.
+export const DEEPERNOVA_BORON_SYSTEM_PROMPT = `Kamu adalah DeeperNova AI, model kecerdasan buatan kebanggaan DeeperNova AI Indonesia.
 Jawablah setiap pertanyaan pengguna secara jelas, ramah, akurat, terstruktur, dan tuntas.
-Identitas mutlak: DeeperNova Boron 1.1 buatan DeeperNova AI (bukan Qwen atau pihak lain).`;
+Identitas mutlak: DeeperNova AI (bukan Qwen atau pihak lain).`;
 
 /**
  * Instant intelligent on-device responder as DeeperNova Boron 1.1
@@ -76,9 +76,9 @@ export function generateInstantBoronResponse(prompt = '') {
 export function sanitizeAntiQwen(text) {
   if (!text || typeof text !== 'string') return text;
   return text
-    .replace(/\bQwen(?:2\.5|2|1\.5)?(?:[-_](?:Instruct|Chat|Base|GGUF))?\b/gi, 'DeeperNova Boron 1.1')
-    .replace(/\bQwen\b/gi, 'DeeperNova Boron')
-    .replace(/\bTongyi Qianwen\b/gi, 'DeeperNova Boron 1.1')
+    .replace(/\bQwen(?:2\.5|2|1\.5)?(?:[-_](?:Instruct|Chat|Base|GGUF))?\b/gi, 'DeeperNova AI')
+    .replace(/\bQwen\b/gi, 'DeeperNova AI')
+    .replace(/\bTongyi Qianwen\b/gi, 'DeeperNova AI')
     .replace(/\bAlibaba(?: Cloud)?\b/gi, 'DeeperNova');
 }
 
@@ -128,10 +128,10 @@ export function extractResponseFromReasoning(thought) {
   const paragraphs = cleanThought.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   if (paragraphs.length >= 2) {
     const lastParagraph = paragraphs[paragraphs.length - 1];
-    if (!lastParagraph.toLowerCase().startsWith('saya harus') && 
-        !lastParagraph.toLowerCase().startsWith('let me') &&
-        !lastParagraph.toLowerCase().startsWith('menganalisis') &&
-        lastParagraph.length > 15) {
+    if (!lastParagraph.toLowerCase().startsWith('saya harus') &&
+      !lastParagraph.toLowerCase().startsWith('let me') &&
+      !lastParagraph.toLowerCase().startsWith('menganalisis') &&
+      lastParagraph.length > 15) {
       return sanitizeAntiQwen(lastParagraph);
     }
   }
@@ -149,7 +149,7 @@ export function extractResponseFromReasoning(thought) {
   return sanitizeAntiQwen(
     cleanThought.length > 5
       ? cleanThought
-      : 'Halo! Saya DeeperNova Boron 1.1, siap membantu Anda. Silakan sampaikan pertanyaan atau tugas Anda!'
+      : 'Halo! Saya DeeperNova AI, siap membantu Anda. Silakan sampaikan pertanyaan atau tugas Anda!'
   );
 }
 
@@ -174,7 +174,7 @@ class LocalAiService {
   emitProgress(pct, statusText = '', loaded = 0, total = 0) {
     this.loadProgress = pct;
     for (const listener of this.progressListeners) {
-      try { listener(pct, statusText, loaded, total); } catch (_) {}
+      try { listener(pct, statusText, loaded, total); } catch (_) { }
     }
   }
 
@@ -199,7 +199,7 @@ class LocalAiService {
       this.useCloudFallback = false;
 
       try {
-        console.log('[LocalAI] Initializing DeeperNova Boron 1.1 Local Engine...');
+        console.log('[LocalAI] Initializing DeeperNova Local Engine...');
         this.emitProgress(5, 'Menginisialisasi Wllama Engine...');
 
         // Resolve absolute URL for model and wasm
@@ -263,7 +263,7 @@ class LocalAiService {
             if (onProgress) onProgress(pct);
             this.emitProgress(
               pct,
-              `Memuat Boron 1.1 (${Math.round(receivedBytes / (1024 * 1024))} MB / ${Math.round(totalBytes / (1024 * 1024))} MB)...`,
+              `Memuat Engine AI (${Math.round(receivedBytes / (1024 * 1024))} MB / ${Math.round(totalBytes / (1024 * 1024))} MB)...`,
               receivedBytes,
               totalBytes
             );
@@ -292,8 +292,8 @@ class LocalAiService {
         this.isLoading = false;
         this.loadProgress = 100;
         if (onProgress) onProgress(100);
-        this.emitProgress(100, 'Model DeeperNova Boron 1.1 Siap!', totalBytes, totalBytes);
-        console.log('[LocalAI] ✅ DeeperNova Boron 1.1 Local Engine Ready!');
+        this.emitProgress(100, 'Model DeeperNova AI Siap!', totalBytes, totalBytes);
+        console.log('[LocalAI] ✅ DeeperNova Local Engine Ready!');
         return this.wllama;
       } catch (err) {
         console.warn('[LocalAI] Local GGUF engine initialization deferred to Cloud Fallback:', err);
@@ -359,7 +359,7 @@ class LocalAiService {
     let tokenCount = 0;
     const startTime = Date.now();
 
-    console.log('[LocalAI] Running local generation with DeeperNova Boron 1.1...');
+    console.log('[LocalAI] Running local generation with DeeperNova AI...');
 
     try {
       if (this.wllama?.isModelLoaded?.()) {
@@ -467,7 +467,7 @@ class LocalAiService {
           }
         } else {
           // If both answer and thought are empty, generate guaranteed on-device response
-          console.log('[LocalAI] ⚡ Activating instant DeeperNova Boron 1.1 on-device response...');
+          console.log('[LocalAI] ⚡ Activating instant DeeperNova AI fallback response...');
           const instantResponse = generateInstantBoronResponse(message);
           finalParsed.answer = instantResponse;
           if (onToken) {

@@ -13,7 +13,7 @@ import { API_BASE_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
 import { downloadBlob, downloadFromUrl, showDownloadToast } from './universalDownloadService.js';
 import { buildDeliverableBlob } from '../utils/subAgentOfficeBuilder.js';
-import { getSmoothTypingStep } from '../components/chatbot/chatConstants.js';
+import { getSmoothTypingStep, isSubAgentForbiddenModel } from '../components/chatbot/chatConstants.js';
 import { stripActionPillTags } from '../components/AgentExecutionTree.jsx';
 
 function sanitizeAgenticAnswerText(raw = '') {
@@ -22,6 +22,8 @@ function sanitizeAgenticAnswerText(raw = '') {
     .replace(/<(?:think|thought|thinking|reasoning|plan)[^>]*>[\s\S]*?<\/(?:think|thought|thinking|reasoning|plan)>/gi, '')
     .replace(/<(?:think|thought|thinking|reasoning|plan)[^>]*>[\s\S]*$/i, '')
     .replace(/<\/?(?:SUBAGENT_PLAN|SUBAGENT_COT|SUBAGENT_FILE|SUBAGENT_SUMMARY)\b[^>]*>/gi, '')
+    .replace(/^(?:[-*•]\s*)?(?:✅|📊|🚀)?\s*\*{0,2}Status:?\*{0,2}\s*Konfirmasi[^\n]*\n?/gim, '')
+    .replace(/^(?:Seluruh\s+tugas\s+berhasil\s+dieksekusi|Tugas\s+berhasil\s+dieksekusi|Konfirmasi\s+pengerjaan\s+tuntas|Seluruh\s+tahapan\s+Sub-Agent)[^\n]*\n?/gim, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -85,29 +87,60 @@ export function parseSubAgentFlag(text = '', fallbackUserPrompt = '', language =
   };
 }
 
+export function isComparisonSearchRequest(userPrompt = '') {
+  if (!userPrompt || typeof userPrompt !== 'string') return false;
+  const norm = userPrompt.trim();
+  if (norm.length < 4) return false;
+  const isPureImagePrompt = /\b(gambar|foto|ilustrasi|lukisan|logo|poster|avatar|wallpaper)\b/i.test(norm) &&
+    !/\b(banding(?:kan)?|perbandingan|komparasi|vs\.?|versus|compare|spesifikasi|spek|harga|fitur|review)\b/i.test(norm);
+  if (isPureImagePrompt) return false;
+
+  return (
+    /\b(?:banding(?:kan)?|perbandingan|komparasi)\b/i.test(norm) ||
+    /\b(?:vs\.?|versus|compare)\b/i.test(norm) ||
+    /\b(?:bagusan\s+mana|lebih\s+(?:bagus|baik|unggul|cepat|hemat|murah|cocok|worth\s*it)\s+mana|pilih\s+mana|mana\s+yang\s+lebih)\b/i.test(norm) ||
+    /\b(?:perbedaan|beda(?:nya)?)\s+.+?\s+(?:dengan|dan|sama|vs\.?|versus|dibanding(?:kan)?)\b/i.test(norm) ||
+    /\bkelebihan\s+(?:dan\s+kekurangan|serta\s+kelemahan)?\s*.+?\s+(?:dengan|dan|dibanding(?:kan)?)\b/i.test(norm)
+  );
+}
+
 /**
  * Check if the user explicitly requested Sub-Agent / Agentic mode, .zip archive handling,
- * or downloadable file/project engineering work.
+ * comparison multi-step research, or downloadable file/project engineering work.
  */
-export function detectExplicitSubAgentUserIntent(userPrompt = '', attachedFiles = [], isAgenticMode = true) {
-  // When Auto Agentic mode is turned OFF in Settings, disable auto agentic routing
-  if (!isAgenticMode) return false;
+export function detectExplicitSubAgentUserIntent(userPrompt = '', attachedFiles = [], isAgenticMode = true, modelId = '') {
+  // When Auto Agentic mode is OFF or model forbids Sub-Agent (e.g. grok-4.6), disable auto agentic routing
+  if (!isAgenticMode || isSubAgentForbiddenModel(modelId)) return false;
   if (!userPrompt || typeof userPrompt !== 'string') return false;
   const norm = userPrompt.trim();
   if (norm.length < 3) return false;
+
+  // Ignore image-generation prompts unless explicitly requesting ZIP/code/Office files
+  const isPureImagePrompt = /\b(gambar|foto|ilustrasi|lukisan|logo|poster|avatar|wallpaper)\b/i.test(norm) &&
+    !/\b(file|berkas|zip|html|css|js|python|py|docx?|pptx?|xlsx?|pdf|web|website)\b/i.test(norm);
+  if (isPureImagePrompt) return false;
+
+  // Comparison queries -> run in Agentic mode with Multi-Step Searching for valid cross-checked data
+  if (isComparisonSearchRequest(norm)) {
+    return true;
+  }
 
   // 1. Explicit sub-agent / agentic / archive action commands
   if (/\b(sub[\s-]*agent|subagent|mode\s+agent(?:ic)?|agentic|agent\s+orchestrator|aktifkan\s+(?:sub[\s-]?)?agent|panggil\s+(?:sub[\s-]?)?agent|pake\s+sub\s*agent|ekstrak\s+zip|unzip|zip\s+ulang|bungkus\s+zip|archive\s+zip)\b/i.test(norm)) {
     return true;
   }
 
-  // 2. Explicit file / Office / archive / deliverable generation requests
-  if (/\b(kirim(?:kan)?\s+file(?:nya)?|buat(?:kan|in)?\s+(?:file|berkas|dokumen|ppt|pptx|powerpoint|presentasi|slide|word|docx|excel|xlsx|spreadsheet|pdf|zip|website|web|landing\s*page|aplikasi|dashboard|app|game|portofolio|projek|project|script)|bikin(?:kan|in)?\s+(?:file|berkas|dokumen|ppt|pptx|powerpoint|presentasi|slide|word|docx|excel|xlsx|spreadsheet|pdf|zip|website|web|landing\s*page|aplikasi|dashboard|app|game|portofolio|projek|project|script)|generate\s+(?:file|pptx|docx|xlsx|pdf|zip|project|app)|build\s+(?:a\s+)?(?:web|app|project|site|landing|dashboard)|export\s+(?:to\s+)?(?:ppt|pptx|docx|xlsx|pdf|zip)|sertakan\s+file(?:nya)?|dalam\s+bentuk\s+file)\b/i.test(norm)) {
+  // 2. Explicit file / Office / archive / project creation or modification requests (tolerant to filler words like "aku/dong/coba")
+  if (
+    /\b(kirim(?:kan)?\s+file(?:nya)?|export\s+(?:to|ke)\s+(?:ppt|pptx|docx|xlsx|pdf|zip)|sertakan\s+file(?:nya)?|dalam\s+bentuk\s+file)\b/i.test(norm) ||
+    (/\b(buat(?:kan|in|lah)?|bikin(?:kan|in)?|bangun(?:kan)?|kembangkan|generate|create|build|develop|rancang(?:kan)?|susun(?:kan)?|tuliskan|tulis(?:kan|in)?)\b/i.test(norm) &&
+      /\b(file|berkas|dokumen|ppt|pptx|powerpoint|presentasi|slide|slides|word|docx|excel|xlsx|spreadsheet|csv|pdf|zip|website|web|landing\s*page|aplikasi|dashboard|app|game|kalkulator|portofolio|portfolio|projek|project|script|skrip|program|kode|html|laporan|proposal|makalah)\b/i.test(norm))
+  ) {
     return true;
   }
 
   // 3. Explicit Office/archive format mentions with creation/analysis intent
-  if (/\.(?:zip|pptx?|docx?|xlsx?|csv|html)\b/i.test(norm) && /\b(buat|bikin|create|generate|ekstrak|unzip|perbaiki|fix|edit|ubah|update|export|unduh|download|konversi|convert)\b/i.test(norm)) {
+  if (/\.(?:zip|pptx?|docx?|xlsx?|csv|html|py|js)\b/i.test(norm) && /\b(buat|bikin|create|generate|ekstrak|unzip|perbaiki|fix|edit|ubah|update|export|unduh|download|konversi|convert)\b/i.test(norm)) {
     return true;
   }
 
@@ -120,15 +153,8 @@ export function detectExplicitSubAgentUserIntent(userPrompt = '', attachedFiles 
   return false;
 }
 
-export function buildDefaultIntroText(taskDescription = '', language = 'id') {
-  const cleanTask = (taskDescription || '').slice(0, 120);
-  if (language === 'en') {
-    return `I have prepared an execution plan for **${cleanTask}**. Click **Activate & Run** below if you would like the Sub-Agent to build and bundle the files automatically.`;
-  }
-  if (language === 'zh') {
-    return `我已为您准备好 **${cleanTask}** 的执行方案。如需让子代理自动生成并打包文件，请点击下方的 **启动并运行**。`;
-  }
-  return `Saya siap membantu menyelesaikan **${cleanTask}**. Jika ingin Sub-Agent mengerjakan proses multi-tahap dan menyiapkan berkas siap unduh secara otomatis, silakan klik **Aktifkan Sub-Agent** di bawah ini.`;
+export function buildDefaultIntroText(_taskDescription = '', _language = 'id') {
+  return '';
 }
 
 /**
@@ -557,8 +583,12 @@ function finalizeDeliverablesFromRawText(rawBuffer = '', parsedState, taskDescri
   }
 
   if (!finalAnswer || finalAnswer.length < 15) {
-    const fileListMd = files.map(f => `- **\`${f.name}\`** (${f.badge} • ${f.lineCount} baris • ${f.sizeFormatted}): ${f.description}`).join('\n');
-    finalAnswer = `### Ringkasan Hasil Eksekusi Sub-Agent\n\nSeluruh tahapan **Sub-Agent Orchestrator** telah selesai dijalankan secara sinkron dan terverifikasi. Berikut adalah berkas yang telah disiapkan dan siap Anda unduh atau pratinjau langsung:\n\n${fileListMd}`;
+    if (files.length > 0) {
+      const fileListMd = files.map(f => `- **\`${f.name}\`** (${f.badge}${f.lineCount > 0 ? ` • ${f.lineCount} baris` : ''} • ${f.sizeFormatted})${f.description ? `: ${f.description}` : ''}`).join('\n');
+      finalAnswer = `### Ringkasan Berkas\n\n${fileListMd}`;
+    } else {
+      finalAnswer = '';
+    }
   }
 
   let cotText = parsedState.cotText;
@@ -823,10 +853,13 @@ export async function executeSynchronousSubAgent({
   attachedFiles = [],
   effort = 'high',
   language = 'id',
-  model = 'deepernova-silicon-1.4',
+  model = 'north-mini-code',
   abortSignal = null,
   onUpdate = () => { }
 }) {
+  if (isSubAgentForbiddenModel(model)) {
+    throw new Error('Model grok-4.6 adalah opsi penalaran maksimal dan dilarang menjalankan Sub-Agent.');
+  }
   const startTime = Date.now();
   const getElapsedSec = () => Math.max(0.1, (Date.now() - startTime) / 1000).toFixed(1);
   const sandboxSessionId = conversationId
@@ -878,7 +911,7 @@ export async function executeSynchronousSubAgent({
 
   const orchestratorPrompt = buildSubAgentOrchestratorPrompt(taskDescription, userPrompt, language);
   const requestBody = {
-    model: model || 'deepernova-silicon-1.4',
+    model: model || 'north-mini-code',
     stream: true,
     isSubAgentStage: true,
     enableAgenticSandbox: true,
@@ -971,11 +1004,12 @@ export async function executeSynchronousSubAgent({
   let sandboxDoneData = null;
 
   const pushSnapshot = (isCompleted = false) => {
+    const canRevealFinalAnswer = upstreamDone && stepQueue.length === 0;
     const activeSteps = sawSandboxEvents
       ? (visibleSteps.length > 0
         ? visibleSteps.map((st, idx) => ({
           ...mapSandboxStepToThoughtStep(st, idx),
-          ...(isCompleted ? { status: st.status === 'failed' ? 'error' : 'done' } : {})
+          ...(canRevealFinalAnswer || isCompleted ? { status: st.status === 'failed' ? 'error' : 'done' } : {})
         }))
         : initialSnapshot.thoughtSteps)
       : (latestFallbackSteps.length > 0 ? latestFallbackSteps : initialSnapshot.thoughtSteps);
@@ -984,7 +1018,7 @@ export async function executeSynchronousSubAgent({
       status: isCompleted ? 'completed' : 'running',
       taskDescription,
       sandboxSessionId,
-      currentStage: isCompleted ? 3 : sandboxCurrentStage,
+      currentStage: isCompleted || canRevealFinalAnswer ? 3 : sandboxCurrentStage,
       elapsedSec: getElapsedSec(),
       planText: sawSandboxEvents
         ? visibleSteps.map((s) => `- [${SANDBOX_STEP_BADGE_MAP[s.type] || 'STEP'}] ${s.title}`).join('\n')
@@ -994,11 +1028,12 @@ export async function executeSynchronousSubAgent({
       cotText: sandboxCotLog || initialSnapshot.cotText,
       thoughtSteps: activeSteps,
       files: sandboxFiles,
-      activeWritingFile: isCompleted ? null : (sandboxFiles.length > 0 ? sandboxFiles[sandboxFiles.length - 1].name : null),
+      activeWritingFile: isCompleted || canRevealFinalAnswer ? null : (sandboxFiles.length > 0 ? sandboxFiles[sandboxFiles.length - 1].name : null),
       zipDownloadUrl: sandboxZipUrl,
       screenshotUrl: sandboxScreenshotUrl,
       previewUrl: sandboxPreviewUrl,
-      finalAnswer: displayedAnswer
+      // Strict gate: never answer while agent steps/files are still executing — answer ONLY after agent tasks finish
+      finalAnswer: canRevealFinalAnswer ? displayedAnswer : ''
     });
   };
 
@@ -1047,13 +1082,14 @@ export async function executeSynchronousSubAgent({
   };
 
   const ensureAnswerTypingTimer = () => {
+    if (!upstreamDone) return;
     if (answerTypingTimer) return;
     answerTypingTimer = setInterval(() => {
       if (abortSignal?.aborted) {
         stopPacingTimers();
         return;
       }
-      // Wait for queued steps to check off sequentially first so UI progresses runtut -> files -> answer
+      // Wait until ALL queued work steps have checked off cleanly before answering
       if (stepQueue.length > 0) {
         return;
       }
@@ -1197,8 +1233,8 @@ export async function executeSynchronousSubAgent({
     if (sawSandboxEvents) {
       const resolvedFinal = sanitizeAgenticAnswerText(sandboxDoneData?.content || '') || targetAnswer ||
         (sandboxFiles.length > 0
-          ? `### Ringkasan Eksekusi Agentic\n\nTugas selesai dijalankan di sandbox dengan **${sandboxFiles.length} berkas** siap dipratinjau atau diunduh.`
-          : 'Tugas berhasil dieksekusi di sandbox Agentic.');
+          ? sandboxFiles.map((f) => `- **\`${f.name}\`** (${f.badge} • ${f.sizeFormatted})`).join('\n')
+          : '');
       if (resolvedFinal.length > targetAnswer.length || !targetAnswer) {
         targetAnswer = resolvedFinal;
       }
@@ -1216,16 +1252,23 @@ export async function executeSynchronousSubAgent({
       }
     }
 
-    // Drain any queued steps sequentially first, then let 32ms smooth typing finish completely
+    // Drain all remaining work steps first, and ONLY THEN stream finalAnswer smoothly at 32ms
+    let stepDrainTicks = 0;
+    while (stepQueue.length > 0 && stepDrainTicks < 400) {
+      if (abortSignal?.aborted) break;
+      if (!stepDrainTimer) enqueueSandboxStep(stepQueue.shift());
+      stepDrainTicks++;
+      await new Promise((r) => setTimeout(r, 32));
+    }
+
+    pushSnapshot(false);
+
     if (targetAnswer.length > displayedAnswer.length) {
       ensureAnswerTypingTimer();
     }
     let drainWaitTicks = 0;
-    while ((stepQueue.length > 0 || displayedAnswer.length < targetAnswer.length) && drainWaitTicks < 900) {
+    while (displayedAnswer.length < targetAnswer.length && drainWaitTicks < 900) {
       if (abortSignal?.aborted) break;
-      if (stepQueue.length > 0 && !stepDrainTimer) {
-        enqueueSandboxStep(stepQueue.shift());
-      }
       if (displayedAnswer.length < targetAnswer.length && !answerTypingTimer) {
         ensureAnswerTypingTimer();
       }

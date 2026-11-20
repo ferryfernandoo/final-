@@ -2960,11 +2960,13 @@
     column-gap: 6px !important;
     padding-bottom: 2px !important;
   }
+
   .claude-agentic-toggle-btn,
   .claude-reasoning-toggle-btn {
     padding: 4px 9px !important;
     font-size: 11.5px !important;
   }
+
   .input-container.claude-style.expanded .input-card-toolbar {
     align-items: flex-end !important;
     padding-bottom: 2px !important;
@@ -3078,7 +3080,7 @@
   right: auto !important;
   width: 288px !important;
   max-width: calc(100vw - 32px) !important;
-  max-height: min(335px, 44vh) !important;
+  max-height: min(460px, 68vh) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -3180,7 +3182,7 @@
   display: flex !important;
   flex-direction: column !important;
   gap: 4px !important;
-  max-height: min(275px, 36vh) !important;
+  max-height: min(400px, 58vh) !important;
   overflow-y: auto !important;
   padding-right: 2px !important;
 }

@@ -7,7 +7,10 @@ import agentSandboxService, { DEFAULT_SKILL_MD, extractSequentialActions, getRel
 import agentScreenshotService from '../services/agentScreenshotService.js';
 import agentMemoryService from '../services/agentMemoryService.js';
 import { agentSessionDb, agentMessageDb } from '../database.js';
-import { TOKENMIX_API_KEYS, TOKENMIX_CHAT_API_URL, getEffectiveTokenMixKeys, apiProxyService } from '../apiProxyService.js';
+import {
+  dispatchFreeLlmRequest,
+  apiProxyService
+} from '../apiProxyService.js';
 import webSearchService from '../webSearchService.js';
 import agentSkillService from '../services/agentSkillService.js';
 
@@ -875,7 +878,7 @@ function createStreamActionParser(callbacks) {
     'test_file', 'validate_file', 'send_file', 'deliver_file', 'resend_file',
     'list_files', 'dir',
     'search_web', 'search', 'run_command', 'command', 'terminal',
-    'write_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file',
+    'write_file', 'subagent_file', 'file', 'execute_code', 'run_code', 'check_file', 'verify_file',
     'preview', 'screenshot', 'take_screenshot',
     'grep_search', 'grep', 'revert_file', 'rollback_file',
     'unzip_file', 'extract_zip', 'unzip', 'zip_project', 'zip_files', 'archive_zip'
@@ -1063,6 +1066,62 @@ function createStreamActionParser(callbacks) {
   return { feed, flush };
 }
 
+function isComparisonRequestPrompt(prompt = '') {
+  if (!prompt || typeof prompt !== 'string') return false;
+  return (
+    /\b(?:banding(?:kan)?|perbandingan|komparasi|vs\.?|versus|compare)\b/i.test(prompt) ||
+    /\b(?:bagusan\s+mana|lebih\s+(?:bagus|baik|unggul|cepat|hemat|murah|cocok|worth\s*it)\s+mana|pilih\s+mana|mana\s+yang\s+lebih)\b/i.test(prompt) ||
+    /\b(?:perbedaan|beda(?:nya)?|kelebihan\s+dan\s+kekurangan)\s+.+?\s+(?:dengan|dan|sama|vs\.?|versus|dibanding(?:kan)?)\b/i.test(prompt)
+  );
+}
+
+function buildComparisonSearchSteps(prompt = '') {
+  const clean = String(prompt || '').trim();
+  const year = new Date().getFullYear();
+  const compMatch =
+    clean.match(/(?:banding(?:kan)?|perbandingan|komparasi|perbedaan|beda(?:nya)?|pilih\s+mana|bagusan\s+mana|mana\s+yang\s+lebih\s+(?:bagus|baik|unggul)|compare)\s+(.+?)\s+(?:dengan|dan|atau|sama|vs\.?|versus|dibanding(?:kan)?|and|with)\s+(.+)/i) ||
+    clean.match(/(.+?)\s+(?:vs\.?|versus)\s+(.+)/i);
+
+  if (compMatch && compMatch[1] && compMatch[2]) {
+    const cleanEntity = (raw) => raw
+      .replace(/^(?:antara|mengenai|tentang|dari|kelebihan\s+dan\s+kekurangan)\s+/i, '')
+      .replace(/[?!.,]+$/, '')
+      .replace(/\b(?:untuk|buat|mana\s+yang\s+lebih\s+bagus).*$/i, '')
+      .trim()
+      .slice(0, 65);
+    const entityA = cleanEntity(compMatch[1]);
+    const entityB = cleanEntity(compMatch[2]);
+    if (entityA.length >= 2 && entityB.length >= 2 && entityA.toLowerCase() !== entityB.toLowerCase()) {
+      return [
+        {
+          title: `Riset Data 1: ${entityA}`,
+          query: `${entityA} review fitur kelebihan kekurangan data terbaru ${year}`
+        },
+        {
+          title: `Riset Data 2: ${entityB}`,
+          query: `${entityB} review fitur kelebihan kekurangan data terbaru ${year}`
+        },
+        {
+          title: `Validasi Komparasi: ${entityA} vs ${entityB}`,
+          query: `perbandingan ${entityA} vs ${entityB} kelebihan kekurangan perbedaan ${year}`
+        }
+      ];
+    }
+  }
+
+  const compactBase = clean.replace(/[?!.]+$/, '').slice(0, 90);
+  return [
+    {
+      title: `Riset Data Awal: ${compactBase.slice(0, 40)}`,
+      query: `${compactBase} data fakta terbaru ${year}`
+    },
+    {
+      title: `Validasi Sumber Pembanding`,
+      query: `perbandingan ${compactBase} kelebihan kekurangan data terbaru ${year}`
+    }
+  ];
+}
+
 /**
  * Execute the full Autonomous Multi-Step ReAct Sandbox Agent loop.
  * Shared by `/api/agent/run` and Chatbot Sub-Agent (`/api/subagent/orchestrate`).
@@ -1070,15 +1129,21 @@ function createStreamActionParser(callbacks) {
 export async function executeAutonomousAgentRun({
   sessionId,
   prompt,
-  model = 'deepernova-gold-1.5',
+  model = 'qwen2.5-vl-72b',
   history = [],
   effort = 'high',
   language = 'id',
   userId = 'guest_agent_user',
+  deferDeltaUntilDone = false,
   onEvent,
   onCloseRegister,
   finishStream
 }) {
+  if (String(model || '').toLowerCase().includes('grok-4.6')) {
+    onEvent?.('error', { error: 'Model grok-4.6 dilarang menjalankan sub-agent.', chainOfWork: [] });
+    finishStream?.();
+    return;
+  }
   let isAborted = false;
   const upstreamAbortController = new AbortController();
 
@@ -1165,21 +1230,45 @@ export async function executeAutonomousAgentRun({
     updateLastStep('completed', `Workspace sandbox siap (${existingFiles.length} berkas terdeteksi).`);
 
     const promptLower = (prompt || '').toLowerCase();
-    const isSearchIntent = /\b(cari|search|googling|berita|news|hari ini|terbaru|terkini|siapa|apa itu|apakah|harga|saham|kurs|presiden|pemilu|update|cuaca|jadwal|skor|hasil|peringkat|info|informasi|peristiwa|kejadian|gemini|claude|deepseek|ai agent|investasi|ekonomi|politik)\b/i.test(promptLower);
+    const isComparisonPrompt = isComparisonRequestPrompt(prompt);
+    const isSearchIntent = isComparisonPrompt || /\b(cari|search|googling|berita|news|hari ini|terbaru|terkini|siapa|apa itu|apakah|harga|saham|kurs|presiden|pemilu|update|cuaca|jadwal|skor|hasil|peringkat|info|informasi|peristiwa|kejadian|gemini|claude|deepseek|ai agent|investasi|ekonomi|politik)\b/i.test(promptLower);
 
     let upfrontSearchContext = '';
-    if (isSearchIntent) {
-      addStep('search', `Deepernova Search: ${prompt.slice(0, 48)}`, 'Menelusuri informasi live dan terindeks via Deepernova Search Engine (BM25 + PageRank)...', 'running');
+    if (isComparisonPrompt) {
+      // Multi-Step Searching specifically for comparisons to guarantee valid cross-verified data
+      const compSteps = buildComparisonSearchSteps(prompt);
+      const stepContexts = [];
+      for (let sIdx = 0; sIdx < compSteps.length; sIdx++) {
+        if (isAborted) break;
+        const cStep = compSteps[sIdx];
+        addStep('search', `${cStep.title}`, `Menelusuri data valid (${sIdx + 1}/${compSteps.length}): "${cStep.query}"`, 'running');
+        try {
+          const stepRes = await webSearchService.searchGoogle(cStep.query, 5);
+          if (stepRes && stepRes.success && stepRes.results && stepRes.results.length > 0) {
+            const stepText = stepRes.ai_context || webSearchService.formatSearchResultsForPrompt(stepRes.results);
+            stepContexts.push(`=== LANGKAH RISET ${sIdx + 1}: ${cStep.title} (Query: "${cStep.query}") ===\n${stepText}`);
+            updateLastStep('completed', `Ditemukan ${stepRes.results.length} sumber valid.`, { results: stepRes.results });
+          } else {
+            updateLastStep('completed', 'Pencarian selesai.');
+          }
+        } catch (_err) {
+          updateLastStep('completed', 'Pencarian selesai.');
+        }
+      }
+      upfrontSearchContext = stepContexts.join('\n\n');
+    } else if (isSearchIntent) {
+      // Single Search for normal non-comparison search queries
+      addStep('search', `Deepernova Search: ${prompt.slice(0, 48)}`, 'Menelusuri informasi live dan terindeks via Deepernova Search Engine (Single Search)...', 'running');
       try {
         const upfrontRes = await webSearchService.searchGoogle(prompt, 5);
         if (upfrontRes && upfrontRes.success && upfrontRes.results && upfrontRes.results.length > 0) {
           upfrontSearchContext = upfrontRes.ai_context || webSearchService.formatSearchResultsForPrompt(upfrontRes.results);
-          updateLastStep('completed', `Ditemukan ${upfrontRes.results.length} sumber data terverifikasi dari Deepernova Search Engine.`, { results: upfrontRes.results });
+          updateLastStep('completed', `Ditemukan ${upfrontRes.results.length} sumber data terverifikasi.`, { results: upfrontRes.results });
         } else {
-          updateLastStep('completed', 'Pencarian Deepernova Search selesai.');
+          updateLastStep('completed', 'Pencarian selesai.');
         }
-      } catch (err) {
-        updateLastStep('completed', 'Pencarian Deepernova Search selesai.');
+      } catch (_err) {
+        updateLastStep('completed', 'Pencarian selesai.');
       }
     }
 
@@ -1518,13 +1607,10 @@ PRINSIP UTAMA: EKSEKUSI SENYAP & KESIMPULAN AKHIR PADAT (ZERO-CHATTER & HEMAT TO
    - Bekerjalah secara otonom, senyap, efisien, rapi, dan presisi tinggi!
 
 3. KESIMPULAN DIBERIKAN HANYA SETELAH SEMUA TUGAS SELESAI (CRISP EXECUTIVE SUMMARY):
+   - DILARANG KERAS menulis kalimat pengantar atau jawaban sebelum seluruh aksi tag & pembuatan berkas tuntas! Saat memanggil tag aksi, jangan menulis teks chat apa pun di luar <thought>.
    - HANYA SETELAH seluruh aksi agentic selesai dan berkas terverifikasi terbentuk di disk sandbox (<check_file>):
-   - Tuliskan SATU KESIMPULAN EKSEKUTIF yang padat, rapi, dan profesional:
-     * 📊 Status: Konfirmasi tuntas 100%.
-     * 📁 Berkas Deliverables: Nama berkas fisik di sandbox (dapat dibuka di File Viewer atau diunduh langsung).
-     * 📌 Intisari Hasil / Temuan: 3-4 butir poin pokok temuan atau isi dokumen.
-     * 🚀 Panduan Lanjutan: Petunjuk ringkas bagi pengguna.
-   - DILARANG menambahkan monolog penutup yang bertele-tele!
+   - Tuliskan SATU ringkasan hasil yang rapi, padat, natural, dan informatif (inti isi/fitur, nama berkas yang dibuat, serta cara pakai singkat jika perlu).
+   - 🚨 DILARANG KERAS menulis kalimat konfirmasi klise/sampah seperti: "Status: Konfirmasi tuntas 100%", "Konfirmasi pengerjaan tuntas", "Tugas berhasil dieksekusi", "Seluruh tahapan berhasil", atau "Silakan periksa berkas hasil di bawah ini"! Langsung bahas substansi hasilnya saja!
 
 4. PROTOKOL MUTLAK AKSES INTERNET & AUDIT KEAMANAN WEB (ANTI-LINGLUNG & ACTION-FIRST):
    - Jika pengguna meminta audit keamanan, pentest, uji website lain, scraping, atau mengambil data dari web lain:
@@ -1541,11 +1627,11 @@ PRINSIP UTAMA: EKSEKUSI SENYAP & KESIMPULAN AKHIR PADAT (ZERO-CHATTER & HEMAT TO
 
 SIKLUS ORKESTRASI MULTI-STEP RE-ACT & AUTONOMOUS RETRY LOOP:
 - Analisis di <thought> -> Tag Aksi Sandbox/Web/Skill -> Pembacaan Observasi Hasil Tindakan -> Eksekusi Lanjutan Hingga Tuntas -> Kesimpulan Eksekutif Singkat.
-- PENCARIAN BERITA & INFORMASI AKTUAL (DEEPERNOVA SEARCH ENGINE):
+- PENCARIAN BERITA, VERIFIKASI FAKTA & ANTI-MENGARANG (DEEPERNOVA SEARCH ENGINE):
   a. Anda terintegrasi langsung dengan Deepernova Search Engine — mesin pencari berkecepatan tinggi dengan BM25 indexer dan PageRank yang akurat dan terindeks terkini.
-  b. Jika membutuhkan informasi tambahan, panggil <search_web query="kata kunci pencarian spesifik" />.
-  c. Sistem akan mengeksekusi pencarian dan mengembalikan observasi berisi judul, ringkasan, domain, dan tanggal.
-  d. Gunakan data tersebut langsung untuk menyelesaikan tugas tanpa membuang token untuk basa-basi!
+  b. ATURAN KETAT JIKA RAGU ATAU TIDAK TAHU: DILARANG menjawab "Saya tidak tahu", "Saya kurang yakin", atau mengarang angka/fakta! Jika merasa tidak yakin atau butuh data valid, WAJIB panggil <search_web query="kata kunci spesifik" /> terlebih dahulu.
+  c. Untuk permintaan PERBANDINGAN (A vs B), pastikan data kedua entitas dan perbandingan head-to-head sudah terverifikasi lewat hasil multi-step search di bawah (atau panggil <search_web /> tambahan bila ada aspek yang masih kurang) lalu sajikan perbandingan objektif, tabel ringkas, pro-kontra, serta sitasi link [Nama Sumber](URL).
+  d. Untuk pertanyaan pencarian biasa/tunggal, gunakan 1x pencarian saja tanpa mengulang-ulang search yang tidak perlu.
 - AUTONOMOUS SELF-HEALING (PERBAIKAN MANDIRI):
   Jika terjadi error eksekusi (stderr, syntax error, missing module, atau target berkas belum terbentuk): JANGAN mengeluh atau curhat kepada pengguna! Analisis akar masalah di <thought>, tulis ulang skrip perbaikan via <write_file>, pasang modul jika perlu dengan <run_command>pip install ...</run_command>, jalankan kembali dengan <run_command>, dan verifikasi dengan <check_file>.
 
@@ -1626,7 +1712,8 @@ ${crossSessionMemoryText}
 
 BERKAS SAAT INI DI SANDBOX:
 ${fileListText}
-${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIAN DEEPERNOVA: Data pencarian di atas adalah data terverifikasi dari Deepernova Search Engine. Anda WAJIB menggunakannya sebagai acuan fakta utama dalam jawaban Anda!` : ''}`;
+${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIAN DEEPERNOVA: Data pencarian di atas adalah data terverifikasi dari Deepernova Search Engine. Anda WAJIB menggunakannya sebagai acuan fakta utama dalam jawaban Anda!` : ''}
+${isComparisonPrompt && !wantsDocx && !wantsPptx && !wantsXlsx ? `\n\n[MODE AGENTIC MULTI-STEP COMPARISON]: Anda sedang menangani permintaan PERBANDINGAN. Seluruh riset multi-langkah telah dijalankan di atas (panggil <search_web /> lagi hanya jika ada metrik/spesifikasi penting yang belum ditemukan). Jawab langsung dengan perbandingan objektif, tabel/poin terstruktur, angka valid, kelebihan & kekurangan masing-masing, serta sitasi [Nama Sumber](URL). JANGAN membuat berkas (<write_file>) kecuali user secara eksplisit meminta output file.` : ''}`;
 
     // Messages payload for LLM
     const apiMessages = [
@@ -1646,7 +1733,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
     // Call Native DeeperNova GPU Model with Autonomous Multi-Step ReAct Loop
     const upstreamUrls = [
       process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
-      process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+      process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com/v1/chat/completions'
     ].filter(Boolean);
 
     let stepIteration = 0;
@@ -1659,53 +1746,33 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       let turnActionExecuted = false;
       let turnObservations = [];
       let turnRawContent = '';
+      let turnAnswerText = '';
 
       let upstreamRes = null;
       let lastErr = null;
 
-      // 1. High-Speed Cloud AI with key rotation
-      const activeKeys = getEffectiveTokenMixKeys();
-      if (activeKeys && activeKeys.length > 0) {
-        const agentModel = process.env.TOKENMIX_AGENT_MODEL || 'llama-3.3-70b';
-        for (let i = 0; i < activeKeys.length; i++) {
-          const key = activeKeys[i];
-          try {
-            const fetchTimeout = new AbortController();
-            const tid = setTimeout(() => fetchTimeout.abort(), 15000);
-            const combinedSignal = upstreamAbortController.signal;
-
-            const res = await fetch(TOKENMIX_CHAT_API_URL, {
-              method: 'POST',
-              signal: combinedSignal,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${key}`
-              },
-              body: JSON.stringify({
-                model: agentModel,
-                messages: apiMessages,
-                temperature: 0.5,
-                max_tokens: 4096,
-                stream: true
-              })
-            });
-            clearTimeout(tid);
-            if (res.ok) {
-              upstreamRes = res;
-              lastErr = null;
-              break;
-            } else {
-              const errText = await res.text().catch(() => '');
-              lastErr = new Error(`Key ${i} status ${res.status}: ${errText.slice(0, 100)}`);
-            }
-          } catch (fetchErr) {
-            lastErr = fetchErr;
-          }
-        }
+      // 1. FreeLLM Unified Gateway + Official Free-Tier Multi-Provider Failover
+      const agentDispatch = await dispatchFreeLlmRequest({
+        requestedModel: model || 'qwen2.5-vl-72b',
+        messages: apiMessages,
+        temperature: 0.5,
+        max_tokens: 4096,
+        stream: true,
+        hasImages: false,
+        enableReasoning: effort === 'high',
+        signal: upstreamAbortController.signal,
+        timeoutMs: 14000
+      });
+      if (agentDispatch.response && agentDispatch.response.ok) {
+        upstreamRes = agentDispatch.response;
+        lastErr = null;
+      } else {
+        lastErr = agentDispatch.lastError;
       }
 
       // 2. Seamless Fallback: Native GPU Engine
       if (!upstreamRes || !upstreamRes.ok) {
+        const cloudErr = lastErr;
         for (const uUrl of upstreamUrls) {
           try {
             const gpuTimeout = new AbortController();
@@ -1731,10 +1798,14 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
               break;
             } else {
               const errText = await res.text().catch(() => '');
-              lastErr = new Error(`GPU Engine Error (${res.status}): ${errText.slice(0, 100)}`);
+              if (!cloudErr) {
+                lastErr = new Error(`GPU Engine Error (${res.status}): ${errText.slice(0, 100)}`);
+              }
             }
           } catch (fetchErr) {
-            lastErr = fetchErr;
+            if (!cloudErr) {
+              lastErr = fetchErr;
+            }
           }
         }
       }
@@ -1742,8 +1813,8 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       // 3. Ultra-Resilient Standby Fallback: Synthetic Stream if all upstreams temporarily unreachable
       if (!upstreamRes || !upstreamRes.ok) {
         console.warn('[AGENT_ROUTES] Upstream AI offline, creating synthetic standby completion stream:', lastErr?.message);
-        const fallbackText = apiProxyService.generateStandbyCompletion(apiMessages, 'deepernova-gold-1.5', lastErr);
-        const syntheticStream = apiProxyService.createSyntheticSSEStream(fallbackText, 'deepernova-gold-1.5');
+        const fallbackText = apiProxyService.generateStandbyCompletion(apiMessages, model || 'qwen2.5-vl-72b', lastErr);
+        const syntheticStream = apiProxyService.createSyntheticSSEStream(fallbackText, model || 'qwen2.5-vl-72b');
         upstreamRes = {
           ok: true,
           status: 200,
@@ -1751,6 +1822,7 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
         };
       }
 
+      let lastActionEndRawLen = 0;
       const streamParser = createStreamActionParser({
         onText: async (plainText) => {
           if (isAborted) return;
@@ -1760,8 +1832,11 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
             .replace(/<action_pill\b[^>]*>[\s\S]*?<\/action_pill>/gi, '')
             .replace(/<\/?action_pill\b[^>]*>/gi, '');
           if (clean) {
-            accumulatedAnswer += clean;
-            emitEvent('delta', { content: clean });
+            turnAnswerText += clean;
+            if (!deferDeltaUntilDone) {
+              accumulatedAnswer += clean;
+              emitEvent('delta', { content: clean });
+            }
           }
         },
         onThinking: async (thinkingChunk) => {
@@ -1783,6 +1858,11 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
             if (observation) {
               turnObservations.push({ type: parsedAction.type, observation });
               turnActionExecuted = true;
+              lastActionEndRawLen = turnRawContent.length;
+              // Discard pre-action chatter when deferred so only post-action response counts
+              if (deferDeltaUntilDone) {
+                turnAnswerText = '';
+              }
             }
 
             if (parsedAction.type === 'preview') {
@@ -1879,30 +1959,37 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
         const needsSelfHealing = hasErrorInTurn || (unmetGoals.length > 0 && stepIteration >= 2);
 
         if (isSelfHealingActive && !hasErrorInTurn && unmetGoals.length === 0) {
-          updateLastStep('completed', 'Perbaikan mandiri (Self-Healing) berhasil! Berkas dan sistem telah diverifikasi 100% aman.');
+          updateLastStep('completed', 'Perbaikan selesai diterapkan.');
           isSelfHealingActive = false;
         }
 
         // Check if the model already provided its executive conclusion in trailing text after its last action tag
         const lastActionCloseIdx = Math.max(
           turnRawContent.lastIndexOf('</check_file>'),
+          turnRawContent.lastIndexOf('</verify_file>'),
+          turnRawContent.lastIndexOf('</test_file>'),
+          turnRawContent.lastIndexOf('</send_file>'),
           turnRawContent.lastIndexOf('</run_command>'),
           turnRawContent.lastIndexOf('</write_file>'),
+          turnRawContent.lastIndexOf('</subagent_file>'),
           turnRawContent.lastIndexOf('</execute_code>'),
           turnRawContent.lastIndexOf('</screenshot>'),
+          turnRawContent.lastIndexOf('</zip_project>'),
           turnRawContent.lastIndexOf('/>')
         );
 
         const trailingText = lastActionCloseIdx !== -1
           ? turnRawContent.slice(lastActionCloseIdx).replace(/<[^>]+>/g, '').trim()
-          : '';
+          : (lastActionEndRawLen > 0 ? turnRawContent.slice(lastActionEndRawLen).replace(/<[^>]+>/g, '').trim() : '');
 
-        const alreadyConcluded = trailingText.length > 30 &&
-          /(?:kesimpulan|status|tuntas|selesai|berkas|deliverable|unduh|ringkasan|intisari)/i.test(trailingText);
+        const alreadyConcluded = trailingText.length > 35 &&
+          /(?:ringkasan|intisari|fitur|dibuat|struktur|berkas|unduh|buka|penjelasan)/i.test(trailingText) &&
+          !/^\s*(?:baik|siap|sekarang|sedang|tunggu)/i.test(trailingText);
 
         if (!needsSelfHealing && unmetGoals.length === 0 && alreadyConcluded) {
-          // Model already executed all actions and provided the crisp executive conclusion!
-          // Finish loop immediately to prevent duplicate conclusion or wasted tokens.
+          if (deferDeltaUntilDone) {
+            accumulatedAnswer = (turnAnswerText && turnAnswerText.trim().length > 20 ? turnAnswerText : trailingText).trim();
+          }
           continueAutonomousLoop = false;
           break;
         }
@@ -1939,21 +2026,14 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
             `9. 🚨 DILARANG NGEDUMEL: Jangan mengeluh, curhat kendala teknis, atau meminta maaf berkepanjangan kepada pengguna. Langsung selesaikan perbaikan via tag aksi!`;
         } else {
           followUpInstruction = `${obsFormatted}\n\n` +
-            `[STATUS EKSEKUSI RE-ACT - TINDAKAN SEBELUMNYA BERHASIL]:\n` +
-            `1. BACA hasil observasi tindakan di atas.\n` +
-            `2. JIKA TARGET BERKAS ATAU AUDIT KEAMANAN SUDAH SELESAI DIBUAT & DIVERIFIKASI DI SANDBOX:\n` +
-            `   - 🚨 DILARANG KERAS NGEDUMEL, BERTELE-TELE, MENGULANG PENJELASAN TEKNIS, ATAU MENGURAIKAN ISI DOKUMEN BARIS DEMI BARIS (HEMAT TOKEN)!\n` +
-            `   - Berikan HANYA KESIMPULAN EKSEKUTIF yang padat dan profesional:\n` +
-            `     * ✅ Status: Konfirmasi pengerjaan tuntas 100%.\n` +
-            `     * 📁 Berkas Jadi: Nama file dan lokasi di sandbox.\n` +
-            `     * 📌 Ringkasan Intisari: 3-4 butir poin pokok penting dari materi yang dibuat atau temuan audit.\n` +
-            `     * 🚀 Panduan Akses: Petunjuk singkat untuk membuka di File Viewer atau mengunduh berkas ke perangkat.\n` +
-            `   - JANGAN menambahkan tag aksi lagi jika semua berkas sudah siap.\n` +
-            `3. JIKA TADI HANYA PENCARIAN DATA / MEMBACA SKILL & BELUM MEMBUAT BERKAS / MENJALANKAN AUDIT:\n` +
-            `   - SEGERA LANJUTKAN dengan mengeksekusi berkas atau pemindaian audit yang diminta pengguna!\n` +
-            `   - Langsung jalankan tag aksi tanpa narasi pengantar.\n` +
-            `4. JIKA PERLU VERIFIKASI ATAU SCREENSHOT WEB:\n` +
-            `   - Jalankan <screenshot target="index.html" /> sekarang.`;
+            `[OBSERVASI TINDAKAN SELESAI]:\n` +
+            `1. Baca hasil observasi di atas.\n` +
+            `2. Jika target berkas atau tugas SUDAH SELESAI dan diverifikasi di sandbox:\n` +
+            `   - 🚨 DILARANG menulis kalimat konfirmasi klise/sampah ("Status: Konfirmasi tuntas 100%", "Konfirmasi pengerjaan tuntas", "Tugas berhasil dieksekusi", "Seluruh tahapan berhasil").\n` +
+            `   - Langsung berikan jawaban/ringkasan hasil yang rapi, padat, dan jelas (inti materi/fitur & nama berkas yang siap dibuka).\n` +
+            `   - Jangan menambahkan tag aksi lagi.\n` +
+            `3. Jika masih ada berkas atau verifikasi yang belum dikerjakan, langsung jalankan tag aksinya tanpa teks narasi pengantar.\n` +
+            `4. Jika membuat aplikasi web, jalankan <screenshot target="index.html" /> bila belum dilakukan.`;
         }
 
         apiMessages.push({
@@ -1982,8 +2062,11 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
 
         continueAutonomousLoop = true;
       } else {
+        if (deferDeltaUntilDone && turnAnswerText.trim()) {
+          accumulatedAnswer = turnAnswerText.trim();
+        }
         if (isSelfHealingActive) {
-          updateLastStep('completed', 'Proses self-healing selesai.');
+          updateLastStep('completed', 'Perbaikan selesai.');
           isSelfHealingActive = false;
         }
         continueAutonomousLoop = false;
@@ -1995,66 +2078,96 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       return;
     }
 
-    // Clean accumulated answer: strip any leftover reasoning or <action_pill> tags so visible text is pristine
+    // Clean accumulated answer: strip reasoning, action pills, subagent tags, and confirmation clutter
     accumulatedAnswer = accumulatedAnswer
-      .replace(/<(?:think|thought|thinking|reasoning)[^>]*>[\s\S]*?<\/(?:think|thought|thinking|reasoning)>/gi, '')
-      .replace(/<(?:think|thought|thinking|reasoning)[^>]*>[\s\S]*/gi, '')
+      .replace(/<(?:think|thought|thinking|reasoning|plan)[^>]*>[\s\S]*?<\/(?:think|thought|thinking|reasoning|plan)>/gi, '')
+      .replace(/<(?:think|thought|thinking|reasoning|plan)[^>]*>[\s\S]*/gi, '')
+      .replace(/<\/?(?:SUBAGENT_PLAN|SUBAGENT_COT|SUBAGENT_FILE|SUBAGENT_SUMMARY)\b[^>]*>/gi, '')
       .replace(/<action_pill\b[^>]*>[\s\S]*?<\/action_pill>/gi, '')
       .replace(/<\/?action_pill\b[^>]*>/gi, '')
       .replace(/<action_pill[\s\S]*$/i, '')
       .replace(/\((?:do|do_search)\)\s*/gi, '')
+      .replace(/^(?:[-*•]\s*)?(?:✅|📊|🚀)?\s*\*{0,2}Status:?\*{0,2}\s*Konfirmasi[^\n]*\n?/gim, '')
+      .replace(/^(?:Seluruh\s+tugas\s+berhasil\s+dieksekusi|Tugas\s+berhasil\s+dieksekusi|Konfirmasi\s+pengerjaan\s+tuntas)[^\n]*\n?/gim, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-
-    if (!accumulatedAnswer) {
-      accumulatedAnswer = 'Seluruh tindakan dan pengerjaan berkas telah selesai diproses di dalam sandbox. Silakan periksa berkas hasil di bawah ini.';
-    }
 
     // Final verification of files
     let finalFiles = agentSandboxService.listFiles(sessionId);
 
-    // Safety Net: If target document was requested but not generated yet, auto-execute generator scripts
+    // Safety Net: If target document was requested but not generated yet, auto-execute generator scripts or spec.json kits
     const isCreationIntent = /\b(buat|bikin|create|generate|rancang|susun|tulis|tambahkan|edit|ubah|ganti)\b/i.test(promptLower);
     const hasPptx = finalFiles.some(f => f.ext === 'pptx');
     const hasDocx = finalFiles.some(f => f.ext === 'docx');
     const hasXlsx = finalFiles.some(f => f.ext === 'xlsx');
 
     const pyFiles = finalFiles.filter(f => f.ext === 'py' && f.name !== 'SKILL.md' && f.name !== 'CLAUDE.md');
+    const specJsonFile = finalFiles.find(f => f.name === 'spec.json' || f.ext === 'json');
 
-    if (isCreationIntent && wantsPptx && !hasPptx && pyFiles.length > 0) {
+    if (isCreationIntent && wantsPptx && !hasPptx) {
       const pptScript = pyFiles.find(f => /ppt|slide|pres/i.test(f.name)) || pyFiles[0];
       if (pptScript) {
-        addStep('command', `Eksekusi Otomatis Generator PPTX`, `Menjalankan '${pptScript.name}' untuk menghasilkan presentasi PowerPoint...`, 'running');
+        addStep('command', `Menyusun Presentasi (.pptx)`, `Menjalankan '${pptScript.name}'...`, 'running');
         try {
           const res = await agentSandboxService.executeInSandbox(sessionId, { command: `python "${pptScript.name}"` });
-          updateLastStep(res.success ? 'completed' : 'failed', res.success ? 'Berkas PowerPoint (.pptx) berhasil dibuat.' : `Error: ${res.stderr}`);
           finalFiles = agentSandboxService.listFiles(sessionId);
+          const created = finalFiles.some(f => f.ext === 'pptx');
+          updateLastStep(res.success || created ? 'completed' : 'failed', created ? 'Presentasi (.pptx) dibuat.' : (res.stderr || 'Gagal'));
+          emitEvent('files_update', { files: finalFiles });
+        } catch (_) { }
+      } else if (specJsonFile) {
+        addStep('command', `Menyusun Presentasi (.pptx)`, `Memproses '${specJsonFile.path}' ke PowerPoint...`, 'running');
+        try {
+          const res = await agentSandboxService.executeInSandbox(sessionId, { command: `python kits/pptx_designer.py "${specJsonFile.path}" presentasi.pptx` });
+          finalFiles = agentSandboxService.listFiles(sessionId);
+          const created = finalFiles.some(f => f.ext === 'pptx');
+          updateLastStep(res.success || created ? 'completed' : 'failed', created ? 'presentasi.pptx dibuat.' : (res.stderr || 'Gagal'));
           emitEvent('files_update', { files: finalFiles });
         } catch (_) { }
       }
     }
 
-    if (isCreationIntent && wantsDocx && !hasDocx && pyFiles.length > 0) {
+    if (isCreationIntent && wantsDocx && !finalFiles.some(f => f.ext === 'docx')) {
       const docxScript = pyFiles.find(f => /docx|word|doc|laporan/i.test(f.name)) || pyFiles[0];
       if (docxScript) {
-        addStep('command', `Eksekusi Otomatis Generator DOCX`, `Menjalankan '${docxScript.name}' untuk menghasilkan dokumen Word...`, 'running');
+        addStep('command', `Menyusun Dokumen (.docx)`, `Menjalankan '${docxScript.name}'...`, 'running');
         try {
           const res = await agentSandboxService.executeInSandbox(sessionId, { command: `python "${docxScript.name}"` });
-          updateLastStep(res.success ? 'completed' : 'failed', res.success ? 'Dokumen Word (.docx) berhasil dibuat.' : `Error: ${res.stderr}`);
           finalFiles = agentSandboxService.listFiles(sessionId);
+          const created = finalFiles.some(f => f.ext === 'docx');
+          updateLastStep(res.success || created ? 'completed' : 'failed', created ? 'Dokumen (.docx) dibuat.' : (res.stderr || 'Gagal'));
+          emitEvent('files_update', { files: finalFiles });
+        } catch (_) { }
+      } else if (specJsonFile) {
+        addStep('command', `Menyusun Dokumen (.docx)`, `Memproses '${specJsonFile.path}' ke Word...`, 'running');
+        try {
+          const res = await agentSandboxService.executeInSandbox(sessionId, { command: `python kits/word_kit.py "${specJsonFile.path}" dokumen.docx` });
+          finalFiles = agentSandboxService.listFiles(sessionId);
+          const created = finalFiles.some(f => f.ext === 'docx');
+          updateLastStep(res.success || created ? 'completed' : 'failed', created ? 'dokumen.docx dibuat.' : (res.stderr || 'Gagal'));
           emitEvent('files_update', { files: finalFiles });
         } catch (_) { }
       }
     }
 
-    if (isCreationIntent && wantsXlsx && !hasXlsx && pyFiles.length > 0) {
+    if (isCreationIntent && wantsXlsx && !finalFiles.some(f => f.ext === 'xlsx')) {
       const xlsxScript = pyFiles.find(f => /xlsx|excel|sheet/i.test(f.name)) || pyFiles[0];
       if (xlsxScript) {
-        addStep('command', `Eksekusi Otomatis Generator XLSX`, `Menjalankan '${xlsxScript.name}' untuk menghasilkan spreadsheet Excel...`, 'running');
+        addStep('command', `Menyusun Spreadsheet (.xlsx)`, `Menjalankan '${xlsxScript.name}'...`, 'running');
         try {
           const res = await agentSandboxService.executeInSandbox(sessionId, { command: `python "${xlsxScript.name}"` });
-          updateLastStep(res.success ? 'completed' : 'failed', res.success ? 'Spreadsheet Excel (.xlsx) berhasil dibuat.' : `Error: ${res.stderr}`);
           finalFiles = agentSandboxService.listFiles(sessionId);
+          const created = finalFiles.some(f => f.ext === 'xlsx');
+          updateLastStep(res.success || created ? 'completed' : 'failed', created ? 'Spreadsheet (.xlsx) dibuat.' : (res.stderr || 'Gagal'));
+          emitEvent('files_update', { files: finalFiles });
+        } catch (_) { }
+      } else if (specJsonFile) {
+        addStep('command', `Menyusun Spreadsheet (.xlsx)`, `Memproses '${specJsonFile.path}' ke Excel...`, 'running');
+        try {
+          const res = await agentSandboxService.executeInSandbox(sessionId, { command: `python kits/excel_kit.py "${specJsonFile.path}" spreadsheet.xlsx` });
+          finalFiles = agentSandboxService.listFiles(sessionId);
+          const created = finalFiles.some(f => f.ext === 'xlsx');
+          updateLastStep(res.success || created ? 'completed' : 'failed', created ? 'spreadsheet.xlsx dibuat.' : (res.stderr || 'Gagal'));
           emitEvent('files_update', { files: finalFiles });
         } catch (_) { }
       }
@@ -2106,9 +2219,17 @@ ${upfrontSearchContext ? `\n\n${upfrontSearchContext}\n\nCATATAN KHUSUS PENCARIA
       relevantFiles = [];
     }
 
+    if (!accumulatedAnswer) {
+      if (relevantFiles.length > 0) {
+        accumulatedAnswer = `Berikut berkas yang disiapkan:\n${relevantFiles.map((f) => `- \`${f.name}\``).join('\n')}`;
+      } else {
+        accumulatedAnswer = '';
+      }
+    }
+
     const finishMessage = relevantFiles.length > 0
-      ? `Seluruh tugas berhasil dieksekusi dengan ${relevantFiles.length} berkas utama siap diunduh.`
-      : `Pertanyaan berhasil dijawab dan proses selesai.`;
+      ? `${relevantFiles.length} berkas siap`
+      : 'Selesai';
 
     addStep('finish', 'Selesai', finishMessage, 'running');
     updateLastStep('completed', finishMessage, {
@@ -2212,7 +2333,7 @@ export function buildEnrichedSandboxFiles(sessionId, files = []) {
 }
 
 router.post('/run', async (req, res) => {
-  const { sessionId, prompt, model = 'deepernova-gold-1.5', history = [], effort = 'high', language = 'id' } = req.body;
+  const { sessionId, prompt, model = 'qwen2.5-vl-72b', history = [], effort = 'high', language = 'id' } = req.body;
   const userId = getUserId(req);
 
   if (!sessionId || !prompt) {

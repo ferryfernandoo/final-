@@ -1,6 +1,6 @@
 /**
  * DeeperNova API Routes
- * OpenAI-compatible proxy endpoints powered by TokenMix Meta AI backend
+ * OpenAI-compatible proxy endpoints powered by FreeLLM AI Gateway
  * Includes 1,000,000 Free Token Quota tracking
  */
 
@@ -98,8 +98,8 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
               } else {
                 try {
                   const parsed = JSON.parse(dataStr);
-                  parsed.model = requestedModel || 'deepernova-gold-1.5';
-                  parsed.owned_by = 'deepernova';
+                  parsed.model = requestedModel || 'qwen2.5-vl-72b';
+                  parsed.owned_by = 'freellmapi';
                   if (parsed.usage?.total_tokens) {
                     totalTokensFromStream = parsed.usage.total_tokens;
                   }
@@ -119,8 +119,8 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
 
         responseStream.on('end', () => {
           // If usage chunk was not sent by upstream, estimate tokens (4 chars/token)
-          const consumedTokens = totalTokensFromStream > 0 
-            ? totalTokensFromStream 
+          const consumedTokens = totalTokensFromStream > 0
+            ? totalTokensFromStream
             : Math.max(10, Math.ceil((JSON.stringify(req.body.messages || []).length + generatedTextLen) / 4));
 
           if (auth.isDbKey) {
@@ -138,7 +138,7 @@ router.post('/chat/completions', apiKeyMiddleware, async (req, res) => {
                 auth.keyRecord?.id || null,
                 auth.user?.id || null,
                 '/v1/chat/completions',
-                requestedModel || 'deepernova-gold-1.5',
+                requestedModel || 'qwen2.5-vl-72b',
                 Math.ceil(JSON.stringify(req.body.messages || []).length / 4),
                 Math.ceil(generatedTextLen / 4),
                 consumedTokens,
@@ -285,8 +285,8 @@ router.get('/admin/stats', apiKeyMiddleware, async (req, res) => {
  */
 router.post('/test', apiKeyMiddleware, async (req, res) => {
   try {
-    const prompt = req.body.prompt || 'Halo DeeperNova Gold 1.5, perkenalkan dirimu secara singkat.';
-    const model = req.body.model || 'deepernova-gold-1.5';
+    const prompt = req.body.prompt || 'Halo, perkenalkan model AI yang sedang berjalan secara singkat.';
+    const model = req.body.model || 'qwen2.5-vl-72b';
 
     const startTime = Date.now();
     const result = await apiProxyService.chatCompletions(req.apiKey, {
@@ -322,7 +322,7 @@ router.post('/test', apiKeyMiddleware, async (req, res) => {
 router.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'DeeperNova Gold 1.5 API Gateway',
+    service: 'FreeLLM Cloud AI Gateway',
     version: '1.5.0',
     timestamp: new Date().toISOString()
   });
@@ -333,9 +333,9 @@ router.get('/health', (req, res) => {
  */
 router.get('/docs', (req, res) => {
   res.json({
-    name: 'DeeperNova Gold 1.5 API',
+    name: 'FreeLLM Cloud AI API',
     version: '1.5.0',
-    description: 'High-speed cloud AI inference API powered by DeeperNova Gold 1.5 with 1 Million Free Tokens',
+    description: 'High-speed OpenAI-compatible AI gateway powered by real FreeLLM models with 1 Million Free Tokens',
     base_url: 'https://api.deepernova.id/v1',
     endpoints: {
       'POST /v1/chat/completions': 'OpenAI-compatible chat completion endpoint',
@@ -345,9 +345,12 @@ router.get('/docs', (req, res) => {
       'POST /v1/test': 'Interactive API test endpoint'
     },
     models: [
-      { id: 'deepernova-silicon-1.4', description: 'Ultra-fast multimodal vision & instant response engine (DeeperNova Silicon 1.4)' },
-      { id: 'deepernova-gold-1.5', description: 'Flagship multimodal vision & ultra-fast cloud AI (128K context)' },
-      { id: 'deepernova-gold-1.5-pro', description: 'Deep reasoning & structured coding engine (70B)' }
+      { id: 'qwen2.5-vl-72b', description: 'Qwen 2.5 VL 72B — Ultra-fast multimodal text & vision (~1.2s)' },
+      { id: 'nemotron-3-ultra-550b', description: 'NVIDIA Nemotron 3 Ultra 550B — 800K context high-capacity model (~1.1s)' },
+      { id: 'nemotron-3.5-lightning', description: 'NVIDIA Nemotron 3.5 Lightning — 838K context fast model (~1.4s)' },
+      { id: 'north-mini-code', description: 'Cohere North Mini Code — Instant coding & logic model (~0.8s)' },
+      { id: 'free-router', description: 'FreeRouter Auto — Fastest automatic FreeLLM router (~1.0s)' },
+      { id: 'nemotron-3.5-super-vl', description: 'NVIDIA Nemotron 3.5 Super VL — Deep analytical & long context' }
     ],
     free_quota: '1,000,000 input & output tokens per account'
   });

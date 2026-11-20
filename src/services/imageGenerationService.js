@@ -1,6 +1,6 @@
 /**
  * Image Generation Service
- * Handles image generation using TokenMix API (imagen-4-fast)
+ * Handles image generation via FreeLLM Image Gateway
  */
 
 import { API_BASE_URL } from '../apiConfig';
@@ -23,7 +23,7 @@ const fetchWithTimeout = (url, options, timeoutMs = 180000) => {
 
 class ImageGenerationService {
   /**
-   * Generate or edit image using TokenMix API through backend proxy
+   * Generate or edit image using FreeLLM Image Gateway through backend proxy
    * @param {string} prompt - Detailed image description/prompt
    * @param {string} size - Image size (1024x1024, 512x512, etc.)
    * @param {string} sessionId - Chat session ID for persistence

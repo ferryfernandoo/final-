@@ -14,14 +14,14 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
   const [showCreateKeyModal, setShowCreateKeyModal] = useState(false);
   const [showFullKeyModal, setShowFullKeyModal] = useState(false);
   const [copiedText, setCopiedText] = useState('');
-  
+
   // Documentation Tab State
   const [docsSection, setDocsSection] = useState('ai'); // 'ai' or 'search'
   const [activeTab, setActiveTab] = useState('getting-started');
   const [codeLanguage, setCodeLanguage] = useState('javascript');
   const [searchCodeLanguage, setSearchCodeLanguage] = useState('javascript');
   const [searchAuthMode, setSearchAuthMode] = useState('no-key'); // 'no-key' (Bebas Tanpa API Key) or 'with-key' (Dengan API Key)
-  
+
   const [navOpen, setNavOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [selectedKeyFull, setSelectedKeyFull] = useState('');
@@ -60,8 +60,8 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
 
   // Interactive Live Hit Tester State
   const [testKeyId, setTestKeyId] = useState('');
-  const [testModel, setTestModel] = useState('deepernova-gold-1.5');
-  const [testPrompt, setTestPrompt] = useState('Halo DeeperNova Gold 1.5! Berikan 3 tips belajar coding yang efektif.');
+  const [testModel, setTestModel] = useState('qwen2.5-vl-72b');
+  const [testPrompt, setTestPrompt] = useState('Halo Qwen 2.5 VL 72B! Berikan 3 tips belajar coding yang efektif.');
   const [testingApi, setTestingApi] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
@@ -100,7 +100,7 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
         if (data.tokenQuota !== undefined) setTokenQuota(data.tokenQuota);
         if (data.tokensUsed !== undefined) setTokensUsed(data.tokensUsed);
         if (data.remainingTokens !== undefined) setRemainingTokens(data.remainingTokens);
-        
+
         if (data.keys && data.keys.length > 0 && !testKeyId) {
           const activeKey = data.keys.find(k => k.isActive) || data.keys[0];
           setTestKeyId(activeKey.id);
@@ -378,8 +378,8 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
 
           <div className="nav-right-cluster">
             <div className="api-nav-actions">
-              <button 
-                className="btn-back-home desktop-only-btn" 
+              <button
+                className="btn-back-home desktop-only-btn"
                 onClick={() => onNavigate?.('landing')}
                 title="Kembali ke Beranda Utama"
               >
@@ -403,9 +403,9 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
               )}
             </div>
 
-            <button 
-              className="nav-toggle" 
-              onClick={() => setNavOpen(prev => !prev)} 
+            <button
+              className="nav-toggle"
+              onClick={() => setNavOpen(prev => !prev)}
               aria-label="Toggle navigation menu"
             >
               {navOpen ? '✕' : '☰'}
@@ -413,26 +413,26 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
           </div>
 
           <div className={`api-nav-menu ${navOpen ? 'open' : 'collapsed'}`}>
-            <button 
-              className={`api-nav-btn ${currentPage === 'landing' ? 'active' : ''}`} 
+            <button
+              className={`api-nav-btn ${currentPage === 'landing' ? 'active' : ''}`}
               onClick={() => { setCurrentPage('landing'); setNavOpen(false); }}
             >
               🏠 Beranda Portal API
             </button>
-            <button 
-              className={`api-nav-btn ${currentPage === 'docs' ? 'active' : ''}`} 
+            <button
+              className={`api-nav-btn ${currentPage === 'docs' ? 'active' : ''}`}
               onClick={() => { setCurrentPage('docs'); setNavOpen(false); }}
             >
               📖 Dokumentasi API
             </button>
-            <button 
-              className={`api-nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`} 
+            <button
+              className={`api-nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`}
               onClick={() => { setCurrentPage('dashboard'); setNavOpen(false); }}
             >
               🔑 Dashboard & Keys
             </button>
-            <button 
-              className={`api-nav-btn ${currentPage === 'usage' ? 'active' : ''}`} 
+            <button
+              className={`api-nav-btn ${currentPage === 'usage' ? 'active' : ''}`}
               onClick={() => { setCurrentPage('usage'); setNavOpen(false); }}
             >
               📊 Laporan Usage & Grafik
@@ -440,8 +440,8 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
 
             {/* Mobile Menu Bottom Navigation */}
             <div className="mobile-menu-divider"></div>
-            <button 
-              className="api-nav-btn mobile-back-home-btn" 
+            <button
+              className="api-nav-btn mobile-back-home-btn"
               onClick={() => { onNavigate?.('landing'); setNavOpen(false); }}
             >
               ⬅️ Kembali ke Beranda Utama
@@ -486,7 +486,7 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
                 <span className="gradient-text">Mesin Pencari Berkecepatan Tinggi</span>
               </h1>
               <p className="hero-subtitle">
-                Hubungkan aplikasi web, mobile, bot, dan backend Anda ke model AI <strong>DeeperNova Gold 1.5</strong> via direct Cloudflare REST API serta <strong>DeeperNova Search Engine API</strong> sub-20ms. Gratis 1.000.000 Token.
+                Hubungkan aplikasi web, mobile, bot, dan backend Anda ke model AI nyata (<strong>Qwen 2.5 VL 72B</strong>, <strong>Nemotron 3 Ultra 550B</strong>, <strong>North Mini Code</strong>) via direct REST API serta <strong>Search Engine API</strong>. Gratis 1.000.000 Token.
               </p>
 
               <div className="hero-cta-group">
@@ -505,13 +505,13 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
               <div className="platform-pillars-grid">
                 <div className="pillar-card ai-pillar">
                   <div className="pillar-icon">🌟</div>
-                  <h3>DeeperNova Gold 1.5 AI API</h3>
-                  <p>Inference cloud ultra-cepat dengan arsitektur multimodal vision dan penalaran mendalam.</p>
+                  <h3>FreeLLM Cloud AI API</h3>
+                  <p>Inference cloud ultra-cepat dengan model Qwen 2.5 VL 72B, NVIDIA Nemotron 3 Ultra 550B, Lightning, &amp; Cohere North Mini Code.</p>
                   <ul className="pillar-list">
                     <li>✓ Direct Cloudflare REST API (Tembak langsung tanpa library OpenAI)</li>
-                    <li>✓ Jendela Konteks Luas 128.000 Token</li>
+                    <li>✓ Jendela Konteks hingga 838.000 Token</li>
                     <li>✓ Dukungan Streaming Real-Time (SSE)</li>
-                    <li>✓ Model: Gold 1.5 & Gold 1.5 Pro (70B)</li>
+                    <li>✓ Model: qwen2.5-vl-72b, nemotron-3-ultra-550b, north-mini-code</li>
                   </ul>
                   <button className="btn-pillar" onClick={() => { setDocsSection('ai'); setCurrentPage('docs'); }}>
                     Dokumentasi AI API ➔
@@ -548,8 +548,8 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
                     <span></span><span></span><span></span>
                   </div>
                   <span className="code-box-title">Direct Cloudflare REST API (JavaScript / Fetch)</span>
-                  <button 
-                    className="copy-btn-snippet" 
+                  <button
+                    className="copy-btn-snippet"
                     onClick={() => copyToClipboard(`const response = await fetch("${publicApiBaseUrl}/v1/chat/completions", {
   method: "POST",
   headers: {
@@ -557,8 +557,8 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
     "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
   },
   body: JSON.stringify({
-    model: "deepernova-gold-1.5",
-    messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
+    model: "qwen2.5-vl-72b",
+    messages: [{ role: "user", content: "Halo, perkenalkan model ini singkat saja." }]
   })
 });
 
@@ -576,8 +576,8 @@ console.log(data.choices[0].message.content);`, 'quick-snippet')}
     "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
   },
   body: JSON.stringify({
-    model: "deepernova-gold-1.5",
-    messages: [{ role: "user", content: "Halo DeeperNova Gold 1.5!" }]
+    model: "qwen2.5-vl-72b",
+    messages: [{ role: "user", content: "Halo, perkenalkan model ini singkat saja." }]
   })
 });
 
@@ -656,7 +656,7 @@ console.log(data.choices[0].message.content);`}</code>
               <div className="chart-canvas-container">
                 <div className="chart-bars-row">
                   {chartDays.map((item, idx) => {
-                    const heightPercent = maxTokensInChart > 0 
+                    const heightPercent = maxTokensInChart > 0
                       ? Math.max(8, Math.round((item.tokens / maxTokensInChart) * 100))
                       : 8;
 
@@ -668,8 +668,8 @@ console.log(data.choices[0].message.content);`}</code>
                           {item.requests} Request
                         </div>
                         <div className="chart-bar-track">
-                          <div 
-                            className="chart-bar-fill" 
+                          <div
+                            className="chart-bar-fill"
                             style={{ height: `${heightPercent}%` }}
                           ></div>
                         </div>
@@ -694,7 +694,7 @@ console.log(data.choices[0].message.content);`}</code>
               <div className="chart-canvas-container">
                 <div className="chart-bars-row">
                   {chartDays.map((item, idx) => {
-                    const heightPercent = maxRequestsInChart > 0 
+                    const heightPercent = maxRequestsInChart > 0
                       ? Math.max(8, Math.round((item.requests / maxRequestsInChart) * 100))
                       : 8;
 
@@ -705,8 +705,8 @@ console.log(data.choices[0].message.content);`}</code>
                           {item.requests} Request Berhasil
                         </div>
                         <div className="chart-bar-track">
-                          <div 
-                            className="chart-bar-fill requests-fill" 
+                          <div
+                            className="chart-bar-fill requests-fill"
                             style={{ height: `${heightPercent}%` }}
                           ></div>
                         </div>
@@ -786,13 +786,13 @@ console.log(data.choices[0].message.content);`}</code>
 
               {/* Sub-Tabs: AI vs Search Engine */}
               <div className="docs-platform-selector">
-                <button 
+                <button
                   className={`docs-platform-btn ${docsSection === 'ai' ? 'active' : ''}`}
                   onClick={() => setDocsSection('ai')}
                 >
-                  🌟 DeeperNova Gold 1.5 AI API
+                  🌟 FreeLLM Cloud AI API
                 </button>
-                <button 
+                <button
                   className={`docs-platform-btn ${docsSection === 'search' ? 'active' : ''}`}
                   onClick={() => setDocsSection('search')}
                 >
@@ -814,9 +814,9 @@ console.log(data.choices[0].message.content);`}</code>
                 <div className="docs-body">
                   {activeTab === 'getting-started' && (
                     <section className="docs-section">
-                      <h3>1. Memulai Integrasi DeeperNova Gold 1.5</h3>
+                      <h3>1. Memulai Integrasi FreeLLM Cloud AI</h3>
                       <p>
-                        DeeperNova Gold 1.5 menggunakan arsitektur <strong>Direct Cloudflare REST API</strong>. Anda dapat langsung menembak endpoint resmi dari backend, aplikasi web, bot, atau script tanpa perlu menginstal library OpenAI pihak ketiga.
+                        Layanan menggunakan arsitektur <strong>Direct OpenAI-Compatible REST API</strong>. Anda dapat langsung menembak endpoint resmi dari backend, aplikasi web, bot, atau script ke model <code>qwen2.5-vl-72b</code>, <code>nemotron-3-ultra-550b</code>, <code>north-mini-code</code>, atau <code>free-router</code>.
                       </p>
 
                       <div className="base-url-card">
@@ -843,10 +843,10 @@ const response = await fetch("${publicApiBaseUrl}/v1/chat/completions", {
     "Authorization": "Bearer YOUR_DEEPERNOVA_API_KEY"
   },
   body: JSON.stringify({
-    model: "deepernova-gold-1.5",
+    model: "qwen2.5-vl-72b",
     messages: [
-      { role: "system", content: "Kamu adalah asisten cerdas DeeperNova." },
-      { role: "user", content: "Halo DeeperNova Gold 1.5!" }
+      { role: "system", content: "Kamu adalah asisten AI yang cepat dan tepat." },
+      { role: "user", content: "Halo Qwen 2.5 VL 72B!" }
     ],
     temperature: 0.7
   })
@@ -866,10 +866,10 @@ headers = {
     "Authorization": f"Bearer {os.environ.get('DEEPERNOVA_API_KEY', 'YOUR_DEEPERNOVA_API_KEY')}"
 }
 payload = {
-    "model": "deepernova-gold-1.5",
+    "model": "qwen2.5-vl-72b",
     "messages": [
-        {"role": "system", "content": "Kamu adalah asisten cerdas DeeperNova."},
-        {"role": "user", "content": "Halo DeeperNova Gold 1.5!"}
+        {"role": "system", "content": "Kamu adalah asisten AI yang cepat dan tepat."},
+        {"role": "user", "content": "Halo Qwen 2.5 VL 72B!"}
     ],
     "temperature": 0.7
 }
@@ -883,9 +883,9 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
   -H "Authorization: Bearer YOUR_DEEPERNOVA_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "deepernova-gold-1.5",
+    "model": "qwen2.5-vl-72b",
     "messages": [
-      {"role": "user", "content": "Halo DeeperNova Gold 1.5!"}
+      {"role": "user", "content": "Halo Qwen 2.5 VL 72B!"}
     ]
   }'`}</code></pre>
                         )}
@@ -897,7 +897,7 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
                     <section className="docs-section">
                       <h3>2. Endpoint Chat Completions (<code>POST /v1/chat/completions</code>)</h3>
                       <p>Mendukung percakapan teks, streaming real-time (SSE), serta parameter standar industri.</p>
-                      
+
                       <div className="param-table-card">
                         <h4>Parameter Request:</h4>
                         <div className="table-responsive">
@@ -913,7 +913,7 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
                               <tr>
                                 <td><code>model</code></td>
                                 <td>string</td>
-                                <td><code>deepernova-silicon-1.4</code>, <code>deepernova-gold-1.5</code> atau <code>deepernova-gold-1.5-pro</code></td>
+                                <td><code>qwen2.5-vl-72b</code>, <code>nemotron-3-ultra-550b</code>, <code>nemotron-3.5-lightning</code>, <code>north-mini-code</code>, <code>free-router</code>, atau <code>nemotron-3.5-super-vl</code></td>
                               </tr>
                               <tr>
                                 <td><code>messages</code></td>
@@ -944,37 +944,37 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
 
                   {activeTab === 'models' && (
                     <section className="docs-section">
-                      <h3>3. Model DeeperNova Cloud AI yang Tersedia</h3>
+                      <h3>3. Model FreeLLM Aktif yang Tersedia</h3>
                       <div className="models-catalog-grid">
                         <div className="model-catalog-card">
-                          <span className="catalog-badge silicon" style={{ background: 'linear-gradient(135deg, #06b6d4, #0284c7)' }}>SILICON 1.4</span>
-                          <h4>deepernova-silicon-1.4</h4>
-                          <p>Model generasi baru super cepat dengan penalaran multimodal vision dan latensi respons ultra instan.</p>
+                          <span className="catalog-badge silicon" style={{ background: 'linear-gradient(135deg, #06b6d4, #0284c7)' }}>QWEN 72B</span>
+                          <h4>qwen2.5-vl-72b</h4>
+                          <p>Model multimodal Qwen 2.5 VL 72B untuk teks dan vision dengan respons cepat (~1.2 detik) tanpa jeda berpikir.</p>
                           <div className="catalog-specs">
-                            <span>Konteks: 128.000 Token</span>
                             <span>Vision: Aktif</span>
+                            <span>Kecepatan: ~1.2s</span>
                             <span>Biaya: Kuota Gratis 1M</span>
                           </div>
                         </div>
 
                         <div className="model-catalog-card">
-                          <span className="catalog-badge">FLAGSHIP</span>
-                          <h4>deepernova-gold-1.5</h4>
-                          <p>Model multimodal vision & ultra-fast reasoning berkecepatan tinggi dengan konteks 128K. Ideal untuk percakapan, analisis dokumen, dan tugas umum.</p>
+                          <span className="catalog-badge">550B • 800K</span>
+                          <h4>nemotron-3-ultra-550b</h4>
+                          <p>NVIDIA Nemotron 3 Ultra 550B berkapasitas besar untuk penalaran mendalam dan konteks hingga 800K token.</p>
                           <div className="catalog-specs">
-                            <span>Konteks: 128.000 Token</span>
-                            <span>Vision: Aktif</span>
+                            <span>Konteks: 800K Token</span>
+                            <span>Kecepatan: ~1.1s</span>
                             <span>Biaya: Kuota Gratis 1M</span>
                           </div>
                         </div>
 
                         <div className="model-catalog-card">
-                          <span className="catalog-badge pro">REASONING & CODE</span>
-                          <h4>deepernova-gold-1.5-pro</h4>
-                          <p>Model 70B parameter dengan penalaran matematis mendalam, arsitektur coding kompleks, dan analisis logika tingkat tinggi.</p>
+                          <span className="catalog-badge pro">CODE &amp; LIGHTNING</span>
+                          <h4>north-mini-code / nemotron-3.5-lightning</h4>
+                          <p>Model cepat khusus coding (Cohere North Mini Code ~0.8s) dan pemrosesan dokumen panjang NVIDIA Nemotron 3.5 Lightning (838K).</p>
                           <div className="catalog-specs">
-                            <span>Konteks: 128.000 Token</span>
-                            <span>Coding: Ahli</span>
+                            <span>Konteks: 204K–838K</span>
+                            <span>Coding: Instan</span>
                             <span>Biaya: Kuota Gratis 1M</span>
                           </div>
                         </div>
@@ -1041,13 +1041,13 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
                         Pilih Mode Autentikasi Contoh Kode:
                       </span>
                       <div className="search-auth-switcher">
-                        <button 
+                        <button
                           className={`search-auth-btn ${searchAuthMode === 'no-key' ? 'active' : ''}`}
                           onClick={() => setSearchAuthMode('no-key')}
                         >
                           🟢 Mode Bebas (Tanpa API Key - Anonymous)
                         </button>
-                        <button 
+                        <button
                           className={`search-auth-btn with-key ${searchAuthMode === 'with-key' ? 'active with-key' : ''}`}
                           onClick={() => setSearchAuthMode('with-key')}
                         >
@@ -1055,7 +1055,7 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
                         </button>
                       </div>
                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 14px' }}>
-                        {searchAuthMode === 'no-key' 
+                        {searchAuthMode === 'no-key'
                           ? '⚡ Mode Bebas: Panggil endpoint langsung tanpa header Authorization atau query key. Otomatis dilayani sebagai Anonymous Free User.'
                           : '🚀 Mode API Key: Gunakan header Authorization: Bearer <KEY> atau demo key \'dn_live_free_public_demo\' untuk alokasi bandwidth prioritas QoS.'}
                       </p>
@@ -1541,9 +1541,12 @@ curl -X GET "${publicApiBaseUrl}/api/v1/images?q=ai+indonesia&limit=8" \\
                     onChange={(e) => setTestModel(e.target.value)}
                     className="form-select"
                   >
-                    <option value="deepernova-silicon-1.4">⚡ DeeperNova Silicon 1.4 (Ultra Fast & Vision)</option>
-                    <option value="deepernova-gold-1.5">🌟 DeeperNova Gold 1.5 (Flagship Fast & Vision)</option>
-                    <option value="deepernova-gold-1.5-pro">🧠 DeeperNova Gold 1.5 Pro (Deep Reasoning 70B & Code)</option>
+                    <option value="qwen2.5-vl-72b">⚡ Qwen 2.5 VL 72B (Multimodal Vision &amp; Fast ~1.2s)</option>
+                    <option value="nemotron-3-ultra-550b">🧠 Nemotron 3 Ultra 550B (800K High Capacity ~1.1s)</option>
+                    <option value="nemotron-3.5-lightning">⚡ Nemotron 3.5 Lightning (Ultra-Long 838K ~1.4s)</option>
+                    <option value="north-mini-code">💻 North Mini Code (Instant Coding &amp; Logic ~0.8s)</option>
+                    <option value="free-router">🔀 FreeRouter Auto (Fastest Auto Model ~1.0s)</option>
+                    <option value="nemotron-3.5-super-vl">🔬 Nemotron 3.5 Super VL (Deep Analysis 800K ~1.7s)</option>
                   </select>
                 </div>
               </div>
@@ -1594,7 +1597,7 @@ curl -X GET "${publicApiBaseUrl}/api/v1/images?q=ai+indonesia&limit=8" \\
 
                   {testResult.success ? (
                     <div>
-                      <div className="result-label">RESPONS DARI DEEPERNOVA GOLD 1.5:</div>
+                      <div className="result-label">RESPONS MODEL AI:</div>
                       <div className="result-content-body">
                         {testResult.reply}
                       </div>
@@ -1632,7 +1635,7 @@ curl -X GET "${publicApiBaseUrl}/api/v1/images?q=ai+indonesia&limit=8" \\
               ) : apiKeys.length === 0 ? (
                 <div className="empty-state-card">
                   <h4>Belum ada API Key</h4>
-                  <p>Klik tombol di bawah untuk membuat kunci pertama Anda dan mulai menggunakan DeeperNova Gold 1.5.</p>
+                  <p>Klik tombol di bawah untuk membuat kunci pertama Anda dan mulai menggunakan API model AI gratis berkecepatan tinggi.</p>
                   <button className="btn-primary" onClick={() => setShowCreateKeyModal(true)}>
                     Buat Kunci Sekarang
                   </button>

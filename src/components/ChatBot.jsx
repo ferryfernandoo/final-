@@ -21,6 +21,8 @@ import {
   PERSONALITIES,
   DEFAULT_PERSONALITY,
   DEEPERNOVA_MODELS,
+  isSubAgentForbiddenModel,
+  sanitizeSelectedModelId,
   SUGGESTION_PROMPTS_POOL,
   RANDOM_GREETINGS,
   RANDOM_HINTS,
@@ -56,6 +58,7 @@ import { ChatPrimaryModals, ChatSecondaryModals, ChatAgenticRightPanel } from '.
 import {
   parseSubAgentFlag,
   detectExplicitSubAgentUserIntent,
+  isComparisonSearchRequest,
   buildDefaultIntroText,
   hasPartialSubAgentTag,
   stripSubAgentFlags,
@@ -436,9 +439,14 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const [showModelMenu, setShowModelMenu] = useState(false); // Show/hide model selection dropdown
   const [selectedModel, setSelectedModel] = useState(() => {
     try {
-      return localStorage.getItem('deepernova_selected_model') || 'deepernova-gold-1.5';
+      const saved = localStorage.getItem('deepernova_selected_model') || 'qwen2.5-vl-72b';
+      const clean = sanitizeSelectedModelId(saved);
+      if (clean !== saved) {
+        localStorage.setItem('deepernova_selected_model', clean);
+      }
+      return clean;
     } catch (e) {
-      return 'deepernova-gold-1.5';
+      return 'qwen2.5-vl-72b';
     }
   });
   const [isReasoningEnabled, setIsReasoningEnabled] = useState(() => {
@@ -481,7 +489,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   const currentModelObj = useMemo(() => {
     return DEEPERNOVA_MODELS.find(m => m.id === selectedModel) || DEEPERNOVA_MODELS[0];
   }, [selectedModel]);
-  const isReasoningCapable = currentModelObj?.supportsReasoning === true && !currentModelObj?.id?.toLowerCase().includes('gold');
+  const isReasoningCapable = currentModelObj?.supportsReasoning === true;
 
   const [showSourcesModal, setShowSourcesModal] = useState(false); // Show sources modal
   const [showSidebarMoreMenu, setShowSidebarMoreMenu] = useState(false); // Meta AI sidebar More menu
@@ -4118,7 +4126,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          model: 'deepernova-2.3-pro',
+          model: 'north-mini-code',
           messages: [{ role: 'user', content: titlePrompt }],
           temperature: 0.3,
           max_tokens: 15,
@@ -4230,7 +4238,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     };
 
-    const interval = setInterval(updateStreamingText, 32);
+    const interval = setInterval(updateStreamingText, 18);
     streamingIntervalRef.current = interval;
   };
 
@@ -5800,7 +5808,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       sender: 'bot',
       timestamp: new Date(),
       isStreaming: true,
-      modelName: currentModelObj?.name || 'DeeperNova Gold 1.5',
+      modelName: currentModelObj?.name || 'Qwen 2.5 VL 72B',
     };
 
     const updatedConversationHistory = [...messages, userMessageForChat];
@@ -5893,11 +5901,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
 
     // Autonomous Agentic Mode direct execution inside Chatbot Biasa (skips intermediate /api/chat delay for build/code/Office/ZIP tasks)
+    // Strictly disabled for models that forbid Sub-Agent (e.g. grok-4.6)
     if (
       isAgenticMode &&
+      !isSubAgentForbiddenModel(selectedModel) &&
       imagesToPass.length === 0 &&
       typeof handleSubAgentActionRef.current === 'function' &&
-      detectExplicitSubAgentUserIntent(cleanUserText, attachedFilesForTurn, true)
+      detectExplicitSubAgentUserIntent(cleanUserText, attachedFilesForTurn, true, selectedModel)
     ) {
       clearLoadingPhaseTimers();
       triggeredAgentTasksRef.current.add(placeholderId);
@@ -5909,7 +5919,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         chatHistory: updatedConversationHistory,
         conversationId: activeConvId || currentConversationId,
         attachedFiles: attachedFilesForTurn,
-        model: selectedModel || 'deepernova-2.3-pro',
+        model: selectedModel || 'qwen2.5-vl-72b',
         introText: ''
       });
       return;
@@ -6071,7 +6081,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       const startSmoothStreamer = () => {
         if (!smoothStreamTimer) {
-          smoothStreamTimer = setInterval(flushSmoothTick, 32);
+          smoothStreamTimer = setInterval(flushSmoothTick, 18);
           smoothStreamTimerRef.current = smoothStreamTimer;
         }
       };
@@ -6097,7 +6107,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           return;
         }
 
-        // Handle live reasoning chunk from DeepSeek / Boron
+        // Handle live reasoning chunk from FreeLLM / Reasoning Engine
         if (typeof chunk === 'object' && chunk.type === 'reasoning') {
           targetReasoningText += chunk.content;
           triggerWebSearchIfNeeded(placeholderId, targetReasoningText);
@@ -6185,13 +6195,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       streamDone = true;
       startSmoothStreamer();
 
-      // Let the 32ms AgentChat-cadence timer finish draining smoothly without rushing
+      // Fast smooth drain at 18ms frames until visual text catches up cleanly
       startSmoothStreamer();
       let drainSafetyLimit = 0;
-      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 1200) {
+      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 300) {
         if (abortController.signal.aborted || isUserStoppedRef.current) break;
         drainSafetyLimit++;
-        await new Promise((r) => setTimeout(r, 32));
+        await new Promise((r) => setTimeout(r, 18));
       }
 
       if (smoothStreamTimer) {
@@ -6205,15 +6215,22 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       fullText = targetFullText;
 
       // Pre-check if AI emitted a Sub-Agent Orchestrator flag in rawText/fullText
-      const preCheckSubAgent = parseSubAgentFlag(
-        `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`,
-        lastSentUserInputTextRef.current || fullMessage || '',
-        userLanguage
-      );
-      if (preCheckSubAgent && preCheckSubAgent.introText) {
-        fullText = preCheckSubAgent.introText;
+      const preCheckSubAgent = !isSubAgentForbiddenModel(selectedModel)
+        ? parseSubAgentFlag(
+          `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`,
+          lastSentUserInputTextRef.current || fullMessage || '',
+          userLanguage
+        )
+        : null;
+      if (isSubAgentForbiddenModel(selectedModel)) {
+        fullText = stripSubAgentFlags(fullText);
         displayedFullText = fullText;
         targetFullText = fullText;
+      } else if (preCheckSubAgent) {
+        // Defer conversational answer until Sub-Agent finishes work cleanly
+        fullText = '';
+        displayedFullText = '';
+        targetFullText = '';
       }
 
       // GUARANTEE: NEVER FORGET TO RESPOND AFTER REASONING OR ON EMPTY STREAM
@@ -6224,7 +6241,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           fullText = extractResponseFromReasoning(reasoningSource);
         }
         if (!fullText || !fullText.trim()) {
-          console.warn('[ChatBot] Stream finished completely empty. Generating guaranteed Boron 1.1 response...');
+          console.warn('[ChatBot] Stream finished completely empty. Generating guaranteed DeeperNova AI response...');
           fullText = generateInstantBoronResponse(lastSentUserInputTextRef.current || '');
         }
         displayedFullText = fullText;
@@ -6285,6 +6302,25 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         // Trigger search immediately — this will handle its own cleanup
         triggerWebSearchIfNeeded(placeholderId, combinedForSearchCheck);
         // Skip ALL normal completion cleanup — search flow handles it
+        return;
+      }
+
+      // Auto-search safety net: if the AI admitted not knowing / uncertainty instead of searching,
+      // automatically run a web search on the user's question so the user still gets a valid answer.
+      const latestPromptForUncertainty = (lastSentUserInputTextRef.current || '').trim();
+      const isEngineOfflineMsg = /engine AI DeeperNova saat ini sedang sibuk|API key upstream|sedang sibuk|tidak dapat memproses permintaan Anda saat ini/i.test(fullText || '');
+      const isTrivialGreetingPrompt = /^(?:hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|tes|test|ping|ok|oke|makasih|terima\s+kasih|thanks)[!?. ]*$/i.test(latestPromptForUncertainty);
+      const aiAdmittedNotKnowing =
+        !isEngineOfflineMsg &&
+        !isTrivialGreetingPrompt &&
+        latestPromptForUncertainty.length >= 4 &&
+        imagesToPass.length === 0 &&
+        !triggeredSearchRequestsRef.current.has(placeholderId) &&
+        /(?:maaf[,\s]+(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:tahu|mengetahui|yakin|memiliki\s+(?:informasi|data|akses))|(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:yakin|tahu\s+pasti|memiliki\s+(?:data|informasi)\s+(?:terbaru|terkini|valid))|pengetahuan\s+(?:saya|aku)\s+(?:hanya\s+)?(?:sampai|terbatas)|tidak\s+dapat\s+memverifikasi|i\s+(?:do\s+not|don't)\s+know|i(?:'m|\s+am)\s+not\s+(?:sure|certain)|beyond\s+my\s+knowledge(?:\s+cutoff)?|no\s+access\s+to\s+real-?time)/i.test(fullText || '');
+
+      if (aiAdmittedNotKnowing) {
+        console.log('[ChatBot] 🔍 AI expressed uncertainty — auto-triggering web search fallback.');
+        triggerWebSearchIfNeeded(placeholderId, `[SEARCH_REQUEST: ${latestPromptForUncertainty.slice(0, 180)}]`);
         return;
       }
 
@@ -6365,49 +6401,45 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // ============================================================
       const userPromptForSubAgent = lastSentUserInputTextRef.current || fullMessage || '';
       const combinedSubAgentSource = `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`;
-      let parsedSubAgent = isAgenticMode
+      const subAgentAllowed = isAgenticMode && !isSubAgentForbiddenModel(selectedModel);
+      let parsedSubAgent = subAgentAllowed
         ? parseSubAgentFlag(combinedSubAgentSource, userPromptForSubAgent, userLanguage)
         : null;
 
-      if (isAgenticMode && !parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent, attachedFilesForTurn, true)) {
-        const cleanedOpening = stripSubAgentFlags(fullText || '').trim();
-        const shortOpening = cleanedOpening
-          ? cleanedOpening.split(/\n\n/).slice(0, 2).join('\n\n').slice(0, 420).trim()
-          : buildDefaultIntroText(userPromptForSubAgent, userLanguage);
+      if (subAgentAllowed && !parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent, attachedFilesForTurn, true, selectedModel)) {
         parsedSubAgent = {
           triggered: true,
           flagTag: `[SUBAGENT_ORCHESTRATE: ${userPromptForSubAgent.slice(0, 180)}]`,
           taskDescription: userPromptForSubAgent,
-          introText: shortOpening || buildDefaultIntroText(userPromptForSubAgent, userLanguage),
+          introText: '',
         };
       }
 
       let pendingAutoSubAgent = null;
       if (
+        subAgentAllowed &&
         parsedSubAgent &&
         (parsedSubAgent.triggered || parsedSubAgent.hasFlag) &&
         !triggeredAgentTasksRef.current.has(placeholderId)
       ) {
         triggeredAgentTasksRef.current.add(placeholderId);
-        const introConversationalText =
-          parsedSubAgent.introText || buildDefaultIntroText(parsedSubAgent.taskDescription, userLanguage);
 
         console.log(
           `[ChatBot] 🤖 Agentic Sub-Agent auto-executing for task (${parsedSubAgent.flagTag})`
         );
 
         pendingAutoSubAgent = {
-          status: 'awaiting_confirmation',
-          currentStage: 0,
-          elapsedSec: '0.0',
+          status: 'running',
+          currentStage: 1,
+          elapsedSec: '0.1',
           flagTag: parsedSubAgent.flagTag,
           taskDescription: parsedSubAgent.taskDescription,
           userPrompt: userPromptForSubAgent,
           chatHistory: updatedConversationHistory,
           conversationId: activeConvId || currentConversationId,
           attachedFiles: attachedFilesForTurn,
-          model: selectedModel || 'deepernova-2.3-pro',
-          introText: introConversationalText,
+          model: selectedModel || 'qwen2.5-vl-72b',
+          introText: '',
           planText: '',
           plannedFiles: [],
           cotText: '',
@@ -6422,8 +6454,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             m.id === placeholderId
               ? {
                 ...m,
-                text: introConversationalText,
-                isStreaming: false,
+                text: '',
+                isStreaming: true,
                 isThinking: false,
                 subAgentData: pendingAutoSubAgent,
               }
@@ -6541,28 +6573,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           (err.message && /failed to fetch|network|offline|load failed|timeout/i.test(err.message));
 
         const hasAnyContent = !!(fullText || rawText || displayedFullText);
-        const isLocalBoron = selectedModel === 'deepernova-boron-1.1' || selectedModel?.toLowerCase()?.includes('boron');
-
-        // For local Boron model, NEVER erase the bot message on load issues! Provide immediate friendly answer
-        if (!hasAnyContent && isLocalBoron) {
-          const emergencyFallback = generateInstantBoronResponse(lastSentUserInputTextRef.current || '');
-
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === placeholderId
-                ? {
-                  ...m,
-                  text: emergencyFallback,
-                  isStreaming: false,
-                  isThinking: false
-                }
-                : m
-            )
-          );
-          setConvLoading(false);
-          setLoading(false);
-          isProcessingRef.current = false;
-        } else if (!hasAnyContent && (isNetworkErr || autoRetryCountRef.current >= MAX_AUTO_RETRY)) {
+        if (!hasAnyContent && (isNetworkErr || autoRetryCountRef.current >= MAX_AUTO_RETRY)) {
           // Rollback: restore input text to input field
           setInputValue(lastSentUserInputTextRef.current || fullMessage || '');
 
@@ -6823,11 +6834,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       const isGuestMode = Boolean(isGuest || !isAuthenticated || !user);
-      console.log(`[ChatBot] Executing web search (isGuestMode: ${isGuestMode}): "${searchQuery}"`);
+      const allowMultiStepComparison = isComparisonSearchRequest(userPrompt || searchQuery);
+      console.log(`[ChatBot] Executing web search (isGuestMode: ${isGuestMode}, multiStep: ${allowMultiStepComparison}): "${searchQuery}"`);
       const searchData = await executeWebSearch(searchQuery, {
         isGuest: isGuestMode,
         limit: 16,
         includeImages: true,
+        allowMultiStep: allowMultiStepComparison,
         userPrompt,
         language: userLanguage
       });
@@ -7333,11 +7346,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             clearInterval(searchTypingTimer);
             searchTypingTimer = null;
           }
-        }, 32);
+        }, 18);
       };
 
       await processStreamingResponse(botResponse, (chunk) => {
-        // 1. Handle live reasoning chunk from reasoning models (Boron 1.1 / Doubao / DeepSeek)
+        // 1. Handle live reasoning chunk from reasoning models
         if (typeof chunk === 'object' && chunk.type === 'reasoning') {
           if (!searchReasoningStartTime) {
             searchReasoningStartTime = Date.now();
@@ -7607,7 +7620,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               clearInterval(searchTypingTimer);
               searchTypingTimer = null;
             }
-          }, 32);
+          }, 18);
         };
 
         await processStreamingResponse(botResponse, (chunk) => {
@@ -8132,7 +8145,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 clearInterval(recallTypingTimer);
                 recallTypingTimer = null;
               }
-            }, 32);
+            }, 18);
           };
 
           await processStreamingResponse(botResponse, (chunk) => {
@@ -8352,7 +8365,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(msgId, initialText + accumulatedRetryText);
             }
-          }, 32);
+          }, 18);
         };
 
         await processStreamingResponse(response, (chunk) => {
@@ -8425,7 +8438,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               typingTimerRef.current = null;
               finishStreaming(placeholderId, accumulatedFullRetryText);
             }
-          }, 32);
+          }, 18);
         };
 
         await processStreamingResponse(response, (chunk) => {
@@ -8541,7 +8554,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             typingTimerRef.current = null;
             finishStreaming(msgId, initialText + accumulatedAutoRetryText);
           }
-        }, 32);
+        }, 18);
       };
 
       await processStreamingResponse(response, (chunk) => {
@@ -8704,6 +8717,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
 
     if (action === 'confirm' && subAgentMeta) {
+      if (isSubAgentForbiddenModel(subAgentMeta.model || activeModel)) {
+        return;
+      }
       const {
         attachedFiles: rawAttachedFiles = [],
         chatHistory: passedHistory = null,
@@ -8768,7 +8784,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           attachedFiles: rawAttachedFiles,
           effort: sanitizedMeta.effort || 'high',
           language: lang || 'id',
-          model: sanitizedMeta.model || activeModel || 'deepernova-2.3-pro',
+          model: sanitizedMeta.model || activeModel || 'qwen2.5-vl-72b',
           abortSignal: subAgentController.signal,
           onUpdate: (liveSubAgentState) => {
             setMessages((prev) =>
@@ -9379,7 +9395,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   <span className="slow-processing-text">
                     {localModelProgress.isLoading ? (
                       <span style={{ color: '#ea580c', fontWeight: 600 }}>
-                        ⚡ {localModelProgress.statusText || `Memuat AI Boron 1.1 (${localModelProgress.pct}%)...`}
+                        ⚡ {localModelProgress.statusText || `Memuat Engine AI (${localModelProgress.pct}%)...`}
                       </span>
                     ) : (
                       <>

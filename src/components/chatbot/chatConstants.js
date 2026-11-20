@@ -175,124 +175,163 @@ export const DEFAULT_PERSONALITY = 'friendly';
 
 export const DEEPERNOVA_MODELS = [
   {
-    id: 'deepernova-gold-1.5',
-    name: 'DeeperNova Gold 1.5',
-    shortName: 'Gold 1.5',
-    tag: 'Flagship',
-    tagEn: 'Flagship',
-    speed: 'Flagship Fast',
-    speedEn: 'Flagship Fast',
-    icon: 'fa-solid fa-star',
-    color: '#f59e0b',
-    bgColor: 'rgba(245, 158, 11, 0.12)',
-    badge: 'GOLD 1.5',
-    sub: 'Multimodal vision & penalaran cerdas',
-    subEn: 'Multimodal vision & smart reasoning',
-    desc: 'Multimodal vision & penalaran cerdas',
-    descEn: 'Multimodal vision & smart reasoning',
-    supportsVision: true,
-    supportsReasoning: false,
-    isLocalOffline: false
-  },
-  {
-    id: 'deepernova-silicon-1.4',
-    name: 'DeeperNova Silicon 1.4',
-    shortName: 'Silicon 1.4',
-    tag: 'Flash • Vision',
-    tagEn: 'Flash • Vision',
-    speed: 'Flash • Vision',
-    speedEn: 'Flash • Vision',
-    icon: 'fa-solid fa-microchip',
+    id: 'qwen2.5-vl-72b',
+    name: 'Qwen 2.5 VL 72B',
+    shortName: 'Qwen 2.5 72B',
+    tag: '72B • Vision',
+    tagEn: '72B • Vision',
+    speed: '~1.2s • Vision',
+    speedEn: '~1.2s • Vision',
+    icon: 'fa-solid fa-bolt',
     color: '#06b6d4',
     bgColor: 'rgba(6, 182, 212, 0.12)',
-    badge: 'SILICON 1.4',
-    sub: 'Multimodal vision cerdas & respons ultra cepat',
-    subEn: 'Smart multimodal vision & ultra-fast response',
-    desc: 'Multimodal vision cerdas & respons ultra cepat',
-    descEn: 'Smart multimodal vision & ultra-fast response',
+    badge: 'QWEN 72B',
+    sub: 'Multimodal teks & gambar 72B super cepat tanpa jeda',
+    subEn: 'Ultra-fast 72B multimodal text & vision',
+    desc: 'Multimodal teks & gambar 72B super cepat tanpa jeda',
+    descEn: 'Ultra-fast 72B multimodal text & vision',
     supportsVision: true,
     supportsReasoning: false,
     isLocalOffline: false
   },
   {
-    id: 'deepernova-boron-1.1',
-    name: 'DeeperNova Boron 1.1',
-    shortName: 'Boron 1.1',
-    tag: 'Turbo',
-    tagEn: 'Turbo',
-    speed: 'Fast Turbo',
-    speedEn: 'Fast Turbo',
-    icon: 'fa-solid fa-bolt',
-    color: '#ea580c',
-    bgColor: 'rgba(234, 88, 12, 0.12)',
-    badge: 'TURBO',
-    sub: 'Latensi ultra rendah & dialog lincah',
-    subEn: 'Ultra-low latency & agile conversation',
-    desc: 'Latensi ultra rendah & dialog lincah',
-    descEn: 'Ultra-low latency & agile conversation',
+    id: 'nemotron-3-ultra-550b',
+    name: 'Nemotron 3 Ultra 550B',
+    shortName: 'Nemotron 550B',
+    tag: '550B • 800K',
+    tagEn: '550B • 800K',
+    speed: '~1.1s • 550B',
+    speedEn: '~1.1s • 550B',
+    icon: 'fa-solid fa-brain',
+    color: '#10b981',
+    bgColor: 'rgba(16, 185, 129, 0.12)',
+    badge: '550B',
+    sub: 'NVIDIA Nemotron 3 Ultra 550B cepat & konteks 800K',
+    subEn: 'NVIDIA Nemotron 3 Ultra 550B fast & 800K context',
+    desc: 'NVIDIA Nemotron 3 Ultra 550B cepat & konteks 800K',
+    descEn: 'NVIDIA Nemotron 3 Ultra 550B fast & 800K context',
     supportsVision: true,
     supportsReasoning: true,
     isLocalOffline: false
   },
   {
-    id: 'deepernova-gold-1.5-pro',
-    name: 'DeeperNova Gold 1.5 Pro',
-    shortName: 'Gold 1.5 Pro',
-    tag: '70B Pro',
-    tagEn: '70B Pro',
-    speed: 'Reasoning 70B',
-    speedEn: 'Reasoning 70B',
-    icon: 'fa-solid fa-brain',
+    id: 'nemotron-3.5-lightning',
+    name: 'Nemotron 3.5 Lightning',
+    shortName: 'Lightning',
+    tag: 'Lightning • 838K',
+    tagEn: 'Lightning • 838K',
+    speed: '~1.4s • 838K',
+    speedEn: '~1.4s • 838K',
+    icon: 'fa-solid fa-gauge-high',
     color: '#8b5cf6',
     bgColor: 'rgba(139, 92, 246, 0.12)',
-    badge: '70B PRO',
-    sub: 'Penalaran mendalam, analisis & coding',
-    subEn: 'Deep reasoning, complex logic & code',
-    desc: 'Penalaran mendalam, analisis & coding',
-    descEn: 'Deep reasoning, complex logic & code',
+    badge: 'LIGHTNING',
+    sub: 'NVIDIA Nemotron 3.5 Lightning cepat & konteks 838K',
+    subEn: 'NVIDIA Nemotron 3.5 Lightning fast & 838K context',
+    desc: 'NVIDIA Nemotron 3.5 Lightning cepat & konteks 838K',
+    descEn: 'NVIDIA Nemotron 3.5 Lightning fast & 838K context',
+    supportsVision: true,
+    supportsReasoning: true,
+    isLocalOffline: false
+  },
+  {
+    id: 'north-mini-code',
+    name: 'North Mini Code',
+    shortName: 'North Code',
+    tag: 'Instan • Code',
+    tagEn: 'Instant • Code',
+    speed: '~0.8s • Instan',
+    speedEn: '~0.8s • Instant',
+    icon: 'fa-solid fa-code',
+    color: '#f59e0b',
+    bgColor: 'rgba(245, 158, 11, 0.12)',
+    badge: 'CODE',
+    sub: 'Cohere North Mini Code tercepat untuk coding & logika (~0.8s)',
+    subEn: 'Cohere North Mini Code ultra-fast for coding & logic (~0.8s)',
+    desc: 'Cohere North Mini Code tercepat untuk coding & logika (~0.8s)',
+    descEn: 'Cohere North Mini Code ultra-fast for coding & logic (~0.8s)',
     supportsVision: true,
     supportsReasoning: false,
     isLocalOffline: false
   },
   {
-    id: 'deepernova-2.3-pro',
-    name: 'Deepernova 2.3 Pro',
-    shortName: 'Pro 2.3',
-    tag: 'Analisis',
-    tagEn: 'Analysis',
-    speed: 'Logika Tinggi',
-    speedEn: 'High Logic',
-    icon: 'fa-solid fa-microscope',
-    color: '#10b981',
-    bgColor: 'rgba(16, 185, 129, 0.12)',
-    badge: 'PRO',
-    sub: 'Penalaran logika bisnis & analisis data',
-    subEn: 'Business logic reasoning and deep analysis',
-    desc: 'Penalaran logika bisnis & analisis data',
-    descEn: 'Business logic reasoning and deep analysis',
+    id: 'free-router',
+    name: 'FreeRouter Auto',
+    shortName: 'FreeRouter',
+    tag: 'Auto • Fast',
+    tagEn: 'Auto • Fast',
+    speed: '~1.0s • Auto',
+    speedEn: '~1.0s • Auto',
+    icon: 'fa-solid fa-shuffle',
+    color: '#3b82f6',
+    bgColor: 'rgba(59, 130, 246, 0.12)',
+    badge: 'AUTO',
+    sub: 'Router otomatis FreeLLM memilih endpoint gratis tercepat',
+    subEn: 'FreeLLM auto-router picks the fastest available free model',
+    desc: 'Router otomatis FreeLLM memilih endpoint gratis tercepat',
+    descEn: 'FreeLLM auto-router picks the fastest available free model',
     supportsVision: true,
+    supportsReasoning: false,
     isLocalOffline: false
   },
   {
-    id: 'deepernova-4.6-giga',
-    name: 'Deepernova 4.6 Giga',
-    shortName: 'Giga 4.6',
-    tag: 'Giga',
-    tagEn: 'Giga',
-    speed: 'Skala Besar',
-    speedEn: 'Large Scale',
-    icon: 'fa-solid fa-rocket',
-    color: '#3b82f6',
-    bgColor: 'rgba(59, 130, 246, 0.12)',
-    badge: 'GIGA',
-    sub: 'Pemrosesan komputasi kapasitas maksimal',
-    subEn: 'Max capability model for large scale',
-    desc: 'Pemrosesan komputasi kapasitas maksimal',
-    descEn: 'Max capability model for large scale',
+    id: 'nemotron-3.5-super-vl',
+    name: 'Nemotron 3.5 Super VL',
+    shortName: 'Nemotron Super',
+    tag: '800K • Analisis',
+    tagEn: '800K • Analysis',
+    speed: '~1.7s • 800K',
+    speedEn: '~1.7s • 800K',
+    icon: 'fa-solid fa-microchip',
+    color: '#ec4899',
+    bgColor: 'rgba(236, 72, 153, 0.12)',
+    badge: 'SUPER',
+    sub: 'NVIDIA Nemotron 3.5 Super VL untuk analisis mendalam & dokumen panjang',
+    subEn: 'NVIDIA Nemotron 3.5 Super VL for deep analysis & long context',
+    desc: 'NVIDIA Nemotron 3.5 Super VL untuk analisis mendalam & dokumen panjang',
+    descEn: 'NVIDIA Nemotron 3.5 Super VL for deep analysis & long context',
     supportsVision: true,
+    supportsReasoning: true,
     isLocalOffline: false
   }
 ];
+
+export const AVAILABLE_MODELS = DEEPERNOVA_MODELS;
+export const DEFAULT_MODEL_ID = 'qwen2.5-vl-72b';
+
+const LEGACY_MODEL_REDIRECTS = {
+  'deepernova-boron-1.1': 'qwen2.5-vl-72b',
+  'deepernova-gold-1.5': 'qwen2.5-vl-72b',
+  'deepernova-silicon-1.4': 'nemotron-3.5-lightning',
+  'deepernova-gold-1.5-pro': 'nemotron-3-ultra-550b',
+  'deepernova-2.3-pro': 'north-mini-code',
+  'deepernova-4.6-giga': 'nemotron-3-ultra-550b',
+  'grok-4.6': 'free-router',
+  'grok': 'free-router'
+};
+
+export const sanitizeSelectedModelId = (modelId = '') => {
+  const normalized = String(modelId || '').trim();
+  const lower = normalized.toLowerCase();
+  if (!normalized || lower.includes('boron')) {
+    return DEFAULT_MODEL_ID;
+  }
+  if (LEGACY_MODEL_REDIRECTS[lower]) {
+    return LEGACY_MODEL_REDIRECTS[lower];
+  }
+  const exact = DEEPERNOVA_MODELS.find((m) => m.id === normalized);
+  if (exact) return exact.id;
+  const ci = DEEPERNOVA_MODELS.find((m) => m.id.toLowerCase() === lower);
+  return ci ? ci.id : DEFAULT_MODEL_ID;
+};
+
+export const isSubAgentForbiddenModel = (modelId = '') => {
+  const normalized = String(modelId || '').toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes('grok-4.6')) return true;
+  const found = DEEPERNOVA_MODELS.find((m) => String(m.id || '').toLowerCase() === normalized);
+  return Boolean(found?.forbidSubAgent);
+};
 
 export const SUGGESTION_PROMPTS_POOL = [
   {
@@ -818,25 +857,18 @@ export const getMessageAttachedFiles = (message) => {
 };
 
 /**
- * Smooth, elegant character-by-character typewriter animation engine:
- * Delivers responses at an ergonomic, readable cadence (~40-50 chars/sec)
- * with silky-smooth progressive pacing, never rushing like a blur and never popping chunky blocks.
- */
-/**
- * Match AI Agent's smooth character pacing (calm 1-3 chars per 32ms tick while streaming, up to 4 chars on drain)
+ * Smooth & snappy character streaming cadence:
+ * Fluid animated typing synchronized with live FreeLLM token bursts without artificial lag.
  */
 export const getSmoothTypingStep = (diff, isFinished = false) => {
   if (diff <= 0) return 0;
 
-  let step = 1;
-  if (diff <= 80) step = 1;
-  else if (diff <= 220) step = 2;
-  else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
-
   if (isFinished) {
-    step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
+    return Math.min(diff, Math.max(8, Math.ceil(diff / 5)));
   }
 
-  return Math.min(diff, step);
+  if (diff <= 14) return 2;
+  if (diff <= 50) return 4;
+  return Math.min(diff, Math.max(6, Math.ceil(diff / 9)));
 };
 

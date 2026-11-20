@@ -3,7 +3,7 @@ import localAiService from '../services/localAiService';
 
 export default function ModelLoaderScreen({ onComplete, onSkip }) {
   const [progress, setProgress] = useState(0);
-  const [statusText, setStatusText] = useState('Menghubungkan ke Engine DeeperNova Boron 1.1...');
+  const [statusText, setStatusText] = useState('Menghubungkan ke Engine DeeperNova AI...');
   const [loadedMb, setLoadedMb] = useState(0);
   const [totalMb, setTotalMb] = useState(491);
   const [isReady, setIsReady] = useState(false);
@@ -17,7 +17,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
     if (localAiService.isReady) {
       setProgress(100);
       setLoadedMb(491);
-      setStatusText('✅ Engine DeeperNova Boron 1.1 100% Siap!');
+      setStatusText('✅ Engine DeeperNova AI 100% Siap!');
       setIsReady(true);
       const timer = setTimeout(() => {
         if (isMounted) onComplete?.();
@@ -47,7 +47,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
         if (!isMounted) return;
         setProgress(100);
         setLoadedMb(491);
-        setStatusText('✅ Engine DeeperNova Boron 1.1 100% Siap!');
+        setStatusText('✅ Engine DeeperNova AI 100% Siap!');
         setIsReady(true);
         // Automatically enter after a short delay so user sees the 100% success state
         setTimeout(() => {
@@ -56,7 +56,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
       })
       .catch((err) => {
         if (!isMounted) return;
-        console.warn('[ModelLoaderScreen] On-device Boron loading note:', err.message);
+        console.warn('[ModelLoaderScreen] On-device AI loading note:', err.message);
         setHasError(true);
         setErrorMessage(
           'Engine dialihkan ke Akselerasi DeeperNova Cloud untuk performa optimal dan hemat RAM.'
@@ -184,7 +184,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
               background: isReady ? '#10b981' : '#ea580c',
               boxShadow: isReady ? '0 0 8px #10b981' : '0 0 8px #ea580c'
             }} />
-            DeeperNova Boron 1.1 • On-Device
+            DeeperNova AI • Cloud Ready
           </div>
 
           <h2 style={{
@@ -196,7 +196,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>
-            Menyiapkan DeeperNova Gold 1.5
+            Menyiapkan Mesin AI FreeLLM
           </h2>
 
           <p style={{
@@ -206,7 +206,7 @@ export default function ModelLoaderScreen({ onComplete, onSkip }) {
             maxWidth: '320px',
             lineHeight: '1.5'
           }}>
-            Menghubungkan ke infrastruktur cloud DeeperNova Gold 1.5 berkecepatan tinggi untuk pengalaman chat instan.
+            Menghubungkan ke gateway model AI berkecepatan tinggi (Qwen 2.5 VL, Nemotron Ultra, North Code) untuk pengalaman chat instan.
           </p>
         </div>
 

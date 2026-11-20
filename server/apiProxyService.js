@@ -2,12 +2,12 @@
  * DeeperNova API Proxy Service
  * - Handles real API keys stored in SQLite database (api_keys & users tables)
  * - 1 Million Free Tokens balance tracking per user
- * - Proxies requests to TokenMix Meta AI backend (llama-4-maverick & llama-3.3-70b)
- * - Rebrands all responses to DeeperNova Gold 1.5 & DeeperNova Gold 1.5 Pro
+ * - Routes requests through FreeLLM Gateway (tashfeenahmed/freellmapi) & official free-tier providers
  * - OpenAI-compatible API format (v1/chat/completions, v1/models, v1/balance)
  */
 
 import fetch from 'node-fetch';
+import fs from 'fs';
 import { apiKeyDb, userDb, apiLogDb } from './database.js';
 import { apiKeyManager } from './apiKeyManager.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,29 +19,366 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+const ENV_FILE_PATH = path.join(__dirname, '..', '.env');
+dotenv.config({ path: ENV_FILE_PATH });
 
-const sanitizeTokenKey = (k) => k ? String(k).trim().replace(/^s+(sk-)/i, '$1') : '';
+const sanitizeApiKey = (k) => (k ? String(k).trim() : '');
+const DEFAULT_FREELLM_CHAT_URL = 'http://127.0.0.1:3005/v1/chat/completions';
 
-// SECURITY: No hardcoded keys. All TokenMix keys MUST come from .env (gitignored)
-// via TOKENMIX_API_KEYS / TOKENMIX_API_KEY / TOKENMIX_SECONDARY_API_KEY / TOKENMIX_FALLBACK_API_KEY.
-export const HARDCODED_TOKENMIX_KEYS = [];
+let activeProxyTargetIndex = 0;
+const keyCooldownUntilMap = new Map();
+let lastEnvMtimeMs = 0;
+let lastLoadedTargetSignature = '';
 
-export function getEffectiveTokenMixKeys() {
-  const raw = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-  return Array.from(new Set([
-    ...raw,
-    process.env.TOKENMIX_API_KEY,
-    process.env.TOKENMIX_SECONDARY_API_KEY,
-    process.env.TOKENMIX_FALLBACK_API_KEY,
-    ...HARDCODED_TOKENMIX_KEYS
-  ].filter(Boolean).map(sanitizeTokenKey)));
+function reloadEnvIfChanged() {
+  try {
+    if (!fs.existsSync(ENV_FILE_PATH)) return;
+    const stat = fs.statSync(ENV_FILE_PATH);
+    if (stat.mtimeMs && stat.mtimeMs !== lastEnvMtimeMs) {
+      lastEnvMtimeMs = stat.mtimeMs;
+      dotenv.config({ path: ENV_FILE_PATH, override: true });
+    }
+  } catch (_) { }
 }
 
-export const TOKENMIX_API_KEYS = getEffectiveTokenMixKeys();
-export const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
-let activeProxyKeyIndex = 0;
-const exhaustedTokenMixKeys = new Set();
+function splitEnvKeys(raw) {
+  return String(raw || '')
+    .split(',')
+    .map(sanitizeApiKey)
+    .filter(Boolean);
+}
+
+export function getFreeLlmGatewayUrl() {
+  reloadEnvIfChanged();
+  return (process.env.FREELLM_API_URL || DEFAULT_FREELLM_CHAT_URL).trim();
+}
+
+export function getFreeLlmImageConfig() {
+  const gatewayUrl = getFreeLlmGatewayUrl();
+  let gatewayOrigin = 'http://127.0.0.1:3005';
+  try {
+    gatewayOrigin = new URL(gatewayUrl).origin;
+  } catch (_) { }
+
+  const gatewayKeys = Array.from(new Set([
+    ...splitEnvKeys(process.env.FREELLM_API_KEYS),
+    sanitizeApiKey(process.env.FREELLM_API_KEY)
+  ].filter(Boolean)));
+
+  return {
+    generationsUrl: (process.env.FREELLM_IMAGE_GENERATIONS_URL || `${gatewayOrigin}/v1/images/generations`).trim(),
+    editsUrl: (process.env.FREELLM_IMAGE_EDITS_URL || `${gatewayOrigin}/v1/images/edits`).trim(),
+    keys: gatewayKeys
+  };
+}
+
+export function getEffectiveFreeLlmTargets() {
+  reloadEnvIfChanged();
+  const gatewayUrl = getFreeLlmGatewayUrl();
+  const gatewayKeys = Array.from(new Set([
+    ...splitEnvKeys(process.env.FREELLM_API_KEYS),
+    sanitizeApiKey(process.env.FREELLM_API_KEY),
+    sanitizeApiKey(process.env.FREELLM_SECONDARY_API_KEY),
+    sanitizeApiKey(process.env.FREELLM_FALLBACK_API_KEY)
+  ].filter(Boolean)));
+
+  const targets = [];
+  gatewayKeys.forEach((apiKey, i) => {
+    targets.push({
+      id: `freellmapi_${i}`,
+      platform: 'freellmapi',
+      label: 'FreeLLMAPI Gateway',
+      url: gatewayUrl,
+      apiKey,
+      extraHeaders: {}
+    });
+  });
+
+  const directProviders = [
+    { env: 'GROQ_API_KEY', platform: 'groq', label: 'Groq Free Tier', url: 'https://api.groq.com/openai/v1/chat/completions' },
+    { env: 'GEMINI_API_KEY', platform: 'gemini', label: 'Google AI Studio', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' },
+    { env: 'OPENROUTER_API_KEY', platform: 'openrouter', label: 'OpenRouter Free', url: 'https://openrouter.ai/api/v1/chat/completions', extraHeaders: { 'HTTP-Referer': 'https://deepernova.com', 'X-Title': 'DeeperNova AI' } },
+    { env: 'CEREBRAS_API_KEY', platform: 'cerebras', label: 'Cerebras Cloud', url: 'https://api.cerebras.ai/v1/chat/completions' },
+    { env: 'MISTRAL_API_KEY', platform: 'mistral', label: 'Mistral Free Tier', url: 'https://api.mistral.ai/v1/chat/completions' },
+    { env: 'NVIDIA_API_KEY', platform: 'nvidia', label: 'NVIDIA NIM', url: 'https://integrate.api.nvidia.com/v1/chat/completions' },
+    { env: 'GITHUB_MODELS_TOKEN', platform: 'github', label: 'GitHub Models', url: 'https://models.inference.ai.azure.com/chat/completions' }
+  ];
+
+  for (const p of directProviders) {
+    const keys = splitEnvKeys(process.env[p.env]);
+    keys.forEach((apiKey, i) => {
+      targets.push({
+        id: `${p.platform}_${i}`,
+        platform: p.platform,
+        label: p.label,
+        url: p.url,
+        apiKey,
+        extraHeaders: p.extraHeaders || {}
+      });
+    });
+  }
+
+  const sig = targets.map(t => `${t.id}:${t.url}:${t.apiKey}`).join('|');
+  if (sig !== lastLoadedTargetSignature) {
+    lastLoadedTargetSignature = sig;
+    keyCooldownUntilMap.clear();
+  }
+  return targets;
+}
+
+export function getEffectiveFreeLlmKeys() {
+  return getEffectiveFreeLlmTargets().map(t => t.apiKey);
+}
+
+function targetCooldownKey(target) {
+  if (!target) return '';
+  if (typeof target === 'string') return target;
+  return `${target.platform || 'freellmapi'}:${target.apiKey || ''}`;
+}
+
+export function markFreeLlmTargetError(target, status = 500) {
+  const k = targetCooldownKey(target);
+  if (!k) return;
+  let durationMs = 15000;
+  if (status === 429) durationMs = 45000;
+  else if (status === 401 || status === 402 || status === 403) durationMs = 120000;
+  keyCooldownUntilMap.set(k, Date.now() + durationMs);
+}
+
+export function clearFreeLlmTargetCooldown(target) {
+  const k = targetCooldownKey(target);
+  if (k) keyCooldownUntilMap.delete(k);
+}
+
+export function getOrderedFreeLlmTargets(startIdx = 0) {
+  const targets = getEffectiveFreeLlmTargets();
+  if (targets.length === 0) return [];
+  const now = Date.now();
+  const ordered = [];
+  for (let i = 0; i < targets.length; i++) {
+    const idx = (startIdx + i) % targets.length;
+    ordered.push({ target: targets[idx], index: idx });
+  }
+  const healthy = ordered.filter(({ target }) => (keyCooldownUntilMap.get(targetCooldownKey(target)) || 0) <= now);
+  return healthy.length > 0 ? healthy : ordered;
+}
+
+export function getUpstreamModelPlan(requestedModel = '', options = {}) {
+  const {
+    hasImages = false,
+    enableReasoning = false,
+    fastDefaultModel = 'qwen2.5-vl-72b'
+  } = options || {};
+  const raw = String(requestedModel || '').trim();
+  const lower = raw.toLowerCase();
+  const customEnvModel = (process.env.FREELLM_CHAT_MODEL || '').trim();
+  const hasCustomDefault = Boolean(customEnvModel && customEnvModel !== 'auto' && !customEnvModel.toLowerCase().includes('deepseek'));
+
+  const isGrok = lower.includes('grok-4.6') || lower === 'grok';
+  const isVisionReq = hasImages || lower.includes('image') || (lower === 'qwen2.5-vl-72b' && hasImages);
+
+  const FAST_POOL = ['qwen2.5-vl-72b', 'free-router', 'north-mini-code', 'nemotron-3.5-lightning', 'nemotron-3-ultra-550b'];
+  const REAL_DIRECT_MODELS = new Set([
+    'qwen2.5-vl-72b',
+    'nemotron-3-ultra-550b',
+    'nemotron-3.5-lightning',
+    'north-mini-code',
+    'free-router',
+    'nemotron-3.5-super-vl',
+    'dots3-note-preview',
+    'gpt-oss-120b',
+    'gpt-oss-20b',
+    'llama-3.3-70b',
+    'mistral-small-3.2-24b',
+    'auto',
+    'auto:balanced',
+    'auto:smart'
+  ]);
+
+  let tier = 'qwen2.5-vl-72b';
+  let gatewayModels;
+  if (isVisionReq) {
+    tier = 'vision';
+    gatewayModels = ['qwen2.5-vl-72b', 'auto'];
+  } else if (REAL_DIRECT_MODELS.has(lower)) {
+    tier = lower;
+    gatewayModels = [lower, ...FAST_POOL];
+  } else if (lower.includes('4.6-giga') || lower.includes('giga') || (lower.includes('gold') && lower.includes('pro'))) {
+    tier = 'nemotron-3-ultra-550b';
+    gatewayModels = ['nemotron-3-ultra-550b', 'nemotron-3.5-lightning', 'qwen2.5-vl-72b', 'free-router'];
+  } else if (lower.includes('2.3-pro') || lower.includes('2.3') || lower.includes('code')) {
+    tier = 'north-mini-code';
+    gatewayModels = ['north-mini-code', 'free-router', 'qwen2.5-vl-72b', 'nemotron-3.5-lightning'];
+  } else if (lower.includes('silicon') || lower.includes('flash') || lower.includes('lightning')) {
+    tier = 'nemotron-3.5-lightning';
+    gatewayModels = ['nemotron-3.5-lightning', 'qwen2.5-vl-72b', 'north-mini-code', 'free-router'];
+  } else if (isGrok) {
+    tier = 'free-router';
+    gatewayModels = ['free-router', 'nemotron-3-ultra-550b', 'qwen2.5-vl-72b'];
+  } else {
+    tier = enableReasoning ? 'nemotron-3-ultra-550b' : 'qwen2.5-vl-72b';
+    const baseModels = enableReasoning
+      ? ['nemotron-3-ultra-550b', 'nemotron-3.5-super-vl', 'qwen2.5-vl-72b', 'free-router']
+      : ['qwen2.5-vl-72b', 'free-router', 'north-mini-code', 'nemotron-3.5-lightning'];
+    gatewayModels = hasCustomDefault ? [customEnvModel, ...baseModels] : baseModels;
+    if (!enableReasoning && fastDefaultModel && !gatewayModels.includes(fastDefaultModel)) {
+      gatewayModels.unshift(fastDefaultModel);
+    }
+  }
+
+  gatewayModels = Array.from(new Set(gatewayModels));
+  const isSmart = lower.includes('550b') || lower.includes('super') || isGrok || enableReasoning;
+  const modelsByPlatform = {
+    freellmapi: gatewayModels,
+    groq: isVisionReq
+      ? ['meta-llama/llama-4-maverick-17b-128e-instruct', 'meta-llama/llama-4-scout-17b-16e-instruct']
+      : ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
+    gemini: isSmart ? ['gemini-2.5-flash'] : ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
+    openrouter: ['openrouter/free', 'meta-llama/llama-3.3-70b-instruct:free'],
+    cerebras: isSmart ? ['llama-3.3-70b'] : ['llama3.1-8b', 'llama-3.3-70b'],
+    mistral: isSmart ? ['mistral-large-latest', 'mistral-small-latest'] : ['mistral-small-latest'],
+    nvidia: isVisionReq ? ['meta/llama-3.2-90b-vision-instruct'] : ['meta/llama-3.3-70b-instruct'],
+    github: isSmart ? ['gpt-4o', 'gpt-4o-mini'] : ['gpt-4o-mini']
+  };
+
+  return {
+    isGrok,
+    tier,
+    primaryModel: gatewayModels[0],
+    candidateModels: gatewayModels,
+    modelsByPlatform
+  };
+}
+
+export async function dispatchFreeLlmRequest({
+  requestedModel = 'qwen2.5-vl-72b',
+  messages = [],
+  temperature = 0.6,
+  max_tokens = 4096,
+  stream = false,
+  hasImages = false,
+  enableReasoning = false,
+  signal = null,
+  presence_penalty,
+  frequency_penalty,
+  timeoutMs = null
+} = {}) {
+  const orderedTargets = getOrderedFreeLlmTargets(activeProxyTargetIndex);
+  if (orderedTargets.length === 0) {
+    return {
+      response: null,
+      modelUsed: null,
+      platformUsed: null,
+      lastError: new Error('No FreeLLM API keys configured. Configure FREELLM_API_KEY (FreeLLMAPI :3005) or provider key in .env.')
+    };
+  }
+
+  const plan = getUpstreamModelPlan(requestedModel, { hasImages, enableReasoning });
+  const deadTargets = new Set();
+  let lastError = null;
+
+  for (const { target, index } of orderedTargets) {
+    const targetKey = `${target.id}:${target.apiKey}`;
+    if (deadTargets.has(targetKey)) continue;
+
+    const candidateModels = plan.modelsByPlatform[target.platform] || plan.candidateModels;
+    for (const modelToTry of candidateModels) {
+      if (signal?.aborted) {
+        return { response: null, modelUsed: null, platformUsed: null, clientAborted: true, lastError };
+      }
+
+      const attemptAbort = new AbortController();
+      let attemptTimedOut = false;
+      const onParentAbort = () => attemptAbort.abort();
+      if (signal) signal.addEventListener('abort', onParentAbort, { once: true });
+
+      const effectiveTimeout = timeoutMs || (
+        (plan.isGrok || modelToTry.includes('smart') || modelToTry.includes('550b') || modelToTry.includes('120b') || modelToTry.includes('397b'))
+          ? 14000
+          : 8500
+      );
+      const timer = setTimeout(() => {
+        attemptTimedOut = true;
+        attemptAbort.abort();
+      }, effectiveTimeout);
+
+      try {
+        const effectiveMaxTokens = target.platform === 'freellmapi'
+          ? Math.max(Number(max_tokens) || 4096, 1024)
+          : max_tokens;
+        const bodyPayload = {
+          model: modelToTry,
+          messages,
+          temperature,
+          max_tokens: effectiveMaxTokens,
+          stream: Boolean(stream)
+        };
+        if (target.platform === 'freellmapi' && presence_penalty !== undefined) {
+          bodyPayload.presence_penalty = presence_penalty;
+        }
+        if (target.platform === 'freellmapi' && frequency_penalty !== undefined) {
+          bodyPayload.frequency_penalty = frequency_penalty;
+        }
+
+        const resp = await fetch(target.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${target.apiKey}`,
+            ...(target.extraHeaders || {})
+          },
+          signal: attemptAbort.signal,
+          body: JSON.stringify(bodyPayload)
+        });
+
+        clearTimeout(timer);
+        if (signal) signal.removeEventListener('abort', onParentAbort);
+
+        if (resp.ok) {
+          clearFreeLlmTargetCooldown(target);
+          activeProxyTargetIndex = (index + 1) % Math.max(1, getEffectiveFreeLlmTargets().length);
+          const routedVia = resp.headers?.get?.('x-routed-via') || `${target.platform}/${modelToTry}`;
+          console.log(`[FREELLM] ✅ Responded via ${routedVia} (requested=${requestedModel})`);
+          return {
+            response: resp,
+            modelUsed: modelToTry,
+            platformUsed: routedVia,
+            lastError: null
+          };
+        }
+
+        const errText = await resp.text().catch(() => '');
+        const status = resp.status;
+        if (status === 401 || status === 403) {
+          markFreeLlmTargetError(target, status);
+          deadTargets.add(targetKey);
+        } else if (status === 402 || status === 429) {
+          markFreeLlmTargetError(target, status);
+        }
+        lastError = new Error(`${target.platform} model ${modelToTry} status ${status}: ${errText.slice(0, 160)}`);
+        console.warn(`[FREELLM] ⚠️ ${lastError.message}`);
+
+        // Invalid credentials for this target: jump to next provider/key immediately
+        if (status === 401 || status === 403) break;
+      } catch (err) {
+        clearTimeout(timer);
+        if (signal) signal.removeEventListener('abort', onParentAbort);
+        if (signal?.aborted) {
+          return { response: null, modelUsed: null, platformUsed: null, clientAborted: true, lastError: err };
+        }
+        lastError = err;
+        console.warn(`[FREELLM] ${attemptTimedOut ? '⏱️ Timeout' : '⚠️ Error'} on ${target.platform}/${modelToTry}: ${err.message}`);
+      }
+    }
+  }
+
+  return {
+    response: null,
+    modelUsed: null,
+    platformUsed: null,
+    lastError: lastError || new Error('All FreeLLM routes currently unavailable')
+  };
+}
 
 class ApiProxyService {
   constructor() {
@@ -94,7 +431,7 @@ class ApiProxyService {
           userId: customer.id
         };
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // 3. Fallback to default developer & guest public keys
     const validPublicKeys = [
@@ -122,25 +459,15 @@ class ApiProxyService {
   /**
    * Resolve target Native GPU model from requested model name
    */
-  resolveTargetModel(modelName = '') {
-    const lower = (modelName || '').toLowerCase();
-    if (lower.includes('pure') || lower.includes('reason') || lower.includes('deep')) {
-      return 'llama-3.3-70b';
-    }
-    if (lower.includes('vision') || lower.includes('maverick') || lower.includes('image')) {
-      return 'llama-4-maverick';
-    }
-    if (lower.includes('smart') || lower.includes('70b') || lower.includes('pro')) {
-      return 'llama-3.3-70b';
-    }
-    return 'doubao-seed-2.0-lite';
+  resolveTargetModel(modelName = '', options = {}) {
+    return getUpstreamModelPlan(modelName, options).primaryModel;
   }
 
   /**
-   * Intelligent Standby Engine for DeeperNova Gold 1.5
-   * Provides high-quality responses if upstream AI quota is exhausted or undergoing maintenance.
+   * Intelligent Standby Engine for DeeperNova AI
+   * Reports key/quota diagnostics transparently when upstream credentials fail or are disabled.
    */
-  generateStandbyCompletion(messages, requestedModel = 'deepernova-gold-1.5', upstreamError = null) {
+  generateStandbyCompletion(messages, requestedModel = 'qwen2.5-vl-72b', upstreamError = null) {
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
     const userPrompt = (
       typeof lastUserMsg?.content === 'string'
@@ -152,16 +479,27 @@ class ApiProxyService {
 
     const lower = userPrompt.toLowerCase();
 
-    // Deteksi apakah kegagalan upstream disebabkan oleh kehabisan kuota / saldo (HTTP 402 Insufficient Balance)
     const errText = String(
       (typeof upstreamError === 'string' ? upstreamError : '') ||
       upstreamError?.message ||
       upstreamError?.body ||
       ''
     ).toLowerCase();
-    const isQuotaExhausted = Boolean(upstreamError?.status === 402 || errText.includes('402') || errText.includes('insufficient') || errText.includes('balance'));
+    const isNoKeys = errText.includes('no freellm api keys configured');
+    const isKeyInvalid = Boolean(upstreamError?.status === 401 || upstreamError?.status === 403 || errText.includes('status 401') || errText.includes('status 403') || errText.includes('invalid api key') || errText.includes('api key is disabled'));
+    const isQuotaExhausted = Boolean(upstreamError?.status === 402 || upstreamError?.status === 429 || errText.includes('status 402') || errText.includes('status 429') || errText.includes('insufficient') || errText.includes('rate limit'));
 
-    // 0. Pertanyaan Meta Mengenai Status AI, TokenMix, Saldo, Kuota
+    if (isNoKeys) {
+      return 'Layanan AI belum memiliki API key FreeLLM aktif. Buka dashboard FreeLLMAPI (http://127.0.0.1:3005) atau isi FREELLM_API_KEY / key provider gratis (GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY) di file .env.';
+    }
+    if (isKeyInvalid) {
+      return 'Layanan AI belum dapat menjawab karena API key FreeLLM/provider tidak valid atau ditolak (401/403). Periksa FREELLM_API_KEY atau key provider aktif di FreeLLMAPI (http://127.0.0.1:3005).';
+    }
+    if (isQuotaExhausted) {
+      return 'Seluruh provider FreeLLM sedang mencapai batas limit permintaan sementara (429/402). Silakan coba kirim ulang beberapa detik lagi atau tambah provider cadangan di FreeLLMAPI.';
+    }
+
+    // 0. Pertanyaan Meta Mengenai Status AI, FreeLLM, Kuota
     // 1. Sapaan Singkat / Greetings
     if (
       (lower === 'halo' || lower === 'hai' || lower === 'hi' || lower === 'hello' || lower === 'hey') ||
@@ -189,7 +527,7 @@ class ApiProxyService {
       lower.includes('identitasmu') ||
       lower.includes('perkenalkan dirimu')
     ) {
-      return 'Saya adalah **DeeperNova Gold 1.5**, model kecerdasan buatan dari DeeperNova AI Indonesia yang ditenagai komputasi awan berkecepatan tinggi.';
+      return `Saya berjalan menggunakan model **${requestedModel}** melalui gateway FreeLLM platform DeeperNova AI.`;
     }
 
     // 4. Testing / Ping / Hit Test (Langsung to-the-point)
@@ -201,12 +539,12 @@ class ApiProxyService {
       lower.includes('test api') ||
       lower.includes('cek koneksi')
     ) {
-      return `API DeeperNova Gold 1.5 aktif dan siap digunakan (200 OK). Model: \`${requestedModel}\`.`;
+      return `API Gateway FreeLLM aktif dan siap digunakan (200 OK). Model aktif: \`${requestedModel}\`.`;
     }
 
     // 5. Kemampuan / Fitur
     if (lower.includes('bisa apa') || lower.includes('fitur kamu') || lower.includes('kemampuan')) {
-      return `Sebagai DeeperNova Gold 1.5, saya dapat membantu Anda dalam:
+      return `Menggunakan model **${requestedModel}**, saya dapat membantu Anda dalam:
 - **Pemrograman & Coding**: Menulis, menganalisis, dan memperbaiki kode (Python, JavaScript, SQL, HTML/CSS, dll).
 - **Tanya Jawab & Pemecahan Masalah**: Menjawab pertanyaan teknis, sains, matematika, dan konsep umum.
 - **Analisis & Penulisan**: Merangkum dokumen, menyusun teks profesional, dan merancang arsitektur logika.`;
@@ -328,7 +666,7 @@ curl -X POST "https://api.deepernova.id/v1/chat/completions" \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
-    "model": "deepernova-gold-1.5",
+    "model": "qwen2.5-vl-72b",
     "messages": [{"role": "user", "content": "Halo"}]
   }'
 \`\`\`
@@ -342,7 +680,7 @@ const response = await fetch('https://api.deepernova.id/v1/chat/completions', {
     'Authorization': 'Bearer YOUR_API_KEY'
   },
   body: JSON.stringify({
-    model: 'deepernova-gold-1.5',
+    model: 'qwen2.5-vl-72b',
     messages: [{ role: 'user', content: 'Halo' }]
   })
 });
@@ -367,7 +705,7 @@ console.log(data.choices[0].message.content);
     ) {
       return `\`\`\`javascript
 /**
- * Implementasi Solusi DeeperNova Gold 1.5
+ * Implementasi Solusi (${requestedModel || 'FreeLLM Model'})
  * Penanganan error, struktur modular, dan performa tinggi.
  */
 class SolutionHandler {
@@ -444,7 +782,7 @@ try {
   /**
    * Create synthetic Server-Sent Events (SSE) readable stream
    */
-  createSyntheticSSEStream(fullText, modelName = 'deepernova-gold-1.5') {
+  createSyntheticSSEStream(fullText, modelName = 'qwen2.5-vl-72b') {
     const reqId = 'chatcmpl-dn-' + uuidv4().substring(0, 12);
     const created = Math.floor(Date.now() / 1000);
 
@@ -528,8 +866,10 @@ try {
       };
     }
 
-    const requestedModel = requestBody.model || 'deepernova-gold-1.5';
-    const targetModel = this.resolveTargetModel(requestedModel);
+    const requestedModel = requestBody.model || 'qwen2.5-vl-72b';
+    const hasImages = Array.isArray(requestBody?.messages) && requestBody.messages.some(m => Array.isArray(m?.content) && m.content.some(c => c?.type === 'image_url'));
+    const modelPlan = getUpstreamModelPlan(requestedModel, { hasImages });
+    const targetModel = modelPlan.primaryModel;
 
     // Deep copy and prepare messages
     const outbound = JSON.parse(JSON.stringify(requestBody || {}));
@@ -537,10 +877,10 @@ try {
     outbound.stream = false;
     outbound.messages = Array.isArray(outbound.messages) ? outbound.messages : [];
 
-    // System prompt asserting DeeperNova Gold 1.5 identity with anti-basa-basi & adaptive length rules
+    // System prompt with transparent model naming & anti-basa-basi adaptive length rules
     const identityPrompt = {
       role: 'system',
-      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5.
+      content: `You are running on model ${targetModel} (served via DeeperNova AI platform). Always be honest if asked which model you are (${targetModel}).
 ATURAN KOMUNIKASI MUTLAK:
 1. JANGAN BASA-BASI: Dilarang menggunakan kalimat pembuka klise ("Tentu saja!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya", "Sebagai model AI...") dan dilarang menggunakan kalimat penutup basa-basi ("Semoga membantu!", "Ada hal lain yang ingin ditanyakan?"). Langsung masuk ke inti jawaban.
 2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan to-the-point (1-3 kalimat). Jangan bertele-tele.
@@ -552,58 +892,34 @@ ATURAN KOMUNIKASI MUTLAK:
       outbound.messages.unshift(identityPrompt);
     }
 
-    console.log(`[ApiProxyService] Processing request with model ${targetModel} for user ${auth.userId}`);
+    console.log(`[ApiProxyService] Processing request (${requestedModel} -> ${targetModel}) for user ${auth.userId}`);
 
     let responseData = null;
     let latencyMs = 0;
     let upstreamError = null;
     const startTime = Date.now();
 
-    // 1. High-Speed Cloud AI Engine with Key Rotation
-    if (TOKENMIX_API_KEYS.length > 0) {
-      for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
-        const idx = (activeProxyKeyIndex + count) % TOKENMIX_API_KEYS.length;
-        const activeKey = TOKENMIX_API_KEYS[idx];
-        if (exhaustedTokenMixKeys.has(activeKey)) continue;
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 12000);
-          const response = await fetch(TOKENMIX_CHAT_API_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${activeKey}`
-            },
-            body: JSON.stringify(outbound),
-            signal: controller.signal
-          });
-          clearTimeout(timeout);
-
-          if (response.ok) {
-            responseData = await response.json();
-            upstreamError = null;
-            activeProxyKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
-            break;
-          } else {
-            const errBody = await response.text().catch(() => '');
-            if (response.status === 402 || response.status === 401) {
-              exhaustedTokenMixKeys.add(activeKey);
-            }
-            console.warn(`[ApiProxyService] Key index ${idx} status ${response.status}: ${errBody.substring(0, 100)}`);
-            upstreamError = { status: response.status, body: errBody };
-          }
-        } catch (netErr) {
-          console.warn(`[ApiProxyService] Error key index ${idx}: ${netErr.message}`);
-          upstreamError = { status: 500, message: netErr.message };
-        }
-      }
+    // 1. FreeLLM Unified Gateway + Direct Official Free-Tier Multi-Provider Failover
+    const dispatchResult = await dispatchFreeLlmRequest({
+      requestedModel,
+      messages: outbound.messages,
+      temperature: outbound.temperature ?? 0.6,
+      max_tokens: outbound.max_tokens || 2048,
+      stream: false,
+      hasImages
+    });
+    if (dispatchResult.response && dispatchResult.response.ok) {
+      responseData = await dispatchResult.response.json();
+      upstreamError = null;
+    } else if (dispatchResult.lastError) {
+      upstreamError = { status: 503, message: dispatchResult.lastError.message };
     }
 
     // 2. Seamless Fallback: Native GPU Engine
     if (!responseData || !responseData.choices || responseData.choices.length === 0) {
       const nativeEndpoints = [
         process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
-        process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+        process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com/v1/chat/completions'
       ].filter(Boolean);
 
       for (const nativeUrl of nativeEndpoints) {
@@ -625,7 +941,7 @@ ATURAN KOMUNIKASI MUTLAK:
             console.log(`[ApiProxyService] ✅ Responded via Native GPU Engine (${nativeUrl})!`);
             break;
           }
-        } catch (nativeErr) {}
+        } catch (nativeErr) { }
       }
     }
 
@@ -700,10 +1016,10 @@ ATURAN KOMUNIKASI MUTLAK:
       apiKeyManager.trackUsage(userApiKey, totalTokens, `req_${Date.now()}`);
     }
 
-    // Rebrand response to DeeperNova Gold 1.5
-    responseData.model = requestedModel;
-    responseData.owned_by = 'deepernova';
-    responseData.system_fingerprint = 'fp_deepernova_gold_1_5';
+    // Attach gateway metadata while keeping honest model identifier
+    responseData.model = targetModel || requestedModel;
+    responseData.owned_by = 'freellmapi';
+    responseData.system_fingerprint = `fp_${String(responseData.model).replace(/[^a-zA-Z0-9]+/g, '_')}`;
     if (!responseData.usage) {
       responseData.usage = {
         prompt_tokens: promptTokens,
@@ -750,8 +1066,9 @@ ATURAN KOMUNIKASI MUTLAK:
       };
     }
 
-    const requestedModel = requestBody.model || 'deepernova-gold-1.5';
-    const targetModel = this.resolveTargetModel(requestedModel);
+    const requestedModel = requestBody.model || 'qwen2.5-vl-72b';
+    const hasImages = Array.isArray(requestBody?.messages) && requestBody.messages.some(m => Array.isArray(m?.content) && m.content.some(c => c?.type === 'image_url'));
+    const targetModel = this.resolveTargetModel(requestedModel, { hasImages });
 
     const outbound = JSON.parse(JSON.stringify(requestBody || {}));
     outbound.model = targetModel;
@@ -760,7 +1077,7 @@ ATURAN KOMUNIKASI MUTLAK:
 
     const identityPrompt = {
       role: 'system',
-      content: `You are DeeperNova Gold 1.5, the flagship artificial intelligence assistant created by DeeperNova AI Indonesia. Always identify yourself as DeeperNova Gold 1.5.
+      content: `You are running on model ${targetModel} (served via DeeperNova AI platform). Always be honest if asked which model you are (${targetModel}).
 ATURAN KOMUNIKASI MUTLAK:
 1. JANGAN BASA-BASI: Dilarang menggunakan kalimat pembuka klise ("Tentu saja!", "Pertanyaan yang bagus!", "Terima kasih atas pertanyaannya", "Sebagai model AI...") dan dilarang menggunakan kalimat penutup basa-basi ("Semoga membantu!", "Ada hal lain yang ingin ditanyakan?"). Langsung masuk ke inti jawaban.
 2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, ringkas, dan to-the-point (1-3 kalimat). Jangan bertele-tele.
@@ -775,51 +1092,26 @@ ATURAN KOMUNIKASI MUTLAK:
     let upstreamStream = null;
     let streamError = null;
 
-    // 1. High-Speed Cloud AI Streaming with Key Rotation
-    if (TOKENMIX_API_KEYS.length > 0) {
-      for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
-        const idx = (activeProxyKeyIndex + count) % TOKENMIX_API_KEYS.length;
-        const activeKey = TOKENMIX_API_KEYS[idx];
-        if (exhaustedTokenMixKeys.has(activeKey)) continue;
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 12000);
-          const response = await fetch(TOKENMIX_CHAT_API_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${activeKey}`
-            },
-            body: JSON.stringify(outbound),
-            signal: controller.signal
-          });
-          clearTimeout(timeout);
-
-          if (response.ok && response.body) {
-            upstreamStream = response.body;
-            activeProxyKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
-            streamError = null;
-            break;
-          } else {
-            const errBody = await response.text().catch(() => '');
-            if (response.status === 402 || response.status === 401) {
-              exhaustedTokenMixKeys.add(activeKey);
-            }
-            console.warn(`[ApiProxyService Stream] Key index ${idx} status ${response.status}: ${errBody.substring(0, 100)}`);
-            streamError = { status: response.status, body: errBody };
-          }
-        } catch (netErr) {
-          console.warn(`[ApiProxyService Stream] Error key index ${idx}: ${netErr.message}`);
-          streamError = { status: 500, message: netErr.message };
-        }
-      }
+    // 1. FreeLLM Unified Gateway + Direct Official Free-Tier Multi-Provider Failover
+    const streamDispatch = await dispatchFreeLlmRequest({
+      requestedModel,
+      messages: outbound.messages,
+      temperature: outbound.temperature ?? 0.6,
+      max_tokens: outbound.max_tokens || 2048,
+      stream: true,
+      hasImages
+    });
+    if (streamDispatch.response && streamDispatch.response.body) {
+      upstreamStream = streamDispatch.response.body;
+    } else if (streamDispatch.lastError) {
+      streamError = { status: 503, message: streamDispatch.lastError.message };
     }
 
     // 2. Fallback to Native GPU Engine
     if (!upstreamStream) {
       const nativeEndpoints = [
         process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
-        process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+        process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com/v1/chat/completions'
       ].filter(Boolean);
 
       for (const nativeUrl of nativeEndpoints) {
@@ -841,7 +1133,7 @@ ATURAN KOMUNIKASI MUTLAK:
             console.log(`[ApiProxyService Stream] ✅ Streaming via Native GPU Engine (${nativeUrl})!`);
             break;
           }
-        } catch (nativeErr) {}
+        } catch (nativeErr) { }
       }
     }
 
@@ -881,44 +1173,64 @@ ATURAN KOMUNIKASI MUTLAK:
       object: 'list',
       data: [
         {
-          id: 'deepernova-silicon-1.4',
+          id: 'qwen2.5-vl-72b',
           object: 'model',
           created: 1735689600,
-          owned_by: 'deepernova',
+          owned_by: 'qwen',
           permission: [],
-          root: 'deepernova-silicon-1.4',
+          root: 'qwen2.5-vl-72b',
           parent: null,
-          description: 'Ultra-fast multimodal vision & instant response engine (DeeperNova Silicon 1.4)'
+          description: 'Qwen 2.5 VL 72B — Ultra-fast multimodal text & vision (~1.2s)'
         },
         {
-          id: 'deepernova-gold-1.5',
+          id: 'nemotron-3-ultra-550b',
           object: 'model',
           created: 1735689600,
-          owned_by: 'deepernova',
+          owned_by: 'nvidia',
           permission: [],
-          root: 'deepernova-gold-1.5',
+          root: 'nemotron-3-ultra-550b',
           parent: null,
-          description: 'Flagship multimodal vision & ultra-fast cloud AI (128K context)'
+          description: 'NVIDIA Nemotron 3 Ultra 550B — 800K context high-capacity model (~1.1s)'
         },
         {
-          id: 'deepernova-gold-1.5-pro',
+          id: 'nemotron-3.5-lightning',
           object: 'model',
           created: 1735689600,
-          owned_by: 'deepernova',
+          owned_by: 'nvidia',
           permission: [],
-          root: 'deepernova-gold-1.5-pro',
+          root: 'nemotron-3.5-lightning',
           parent: null,
-          description: 'Deep reasoning & structured coding engine (70B parameters)'
+          description: 'NVIDIA Nemotron 3.5 Lightning — 838K ultra-long context fast model (~1.4s)'
         },
         {
-          id: 'deepernova-boron-1.1',
+          id: 'north-mini-code',
           object: 'model',
           created: 1735689600,
-          owned_by: 'deepernova',
+          owned_by: 'cohere',
           permission: [],
-          root: 'deepernova-boron-1.1',
+          root: 'north-mini-code',
           parent: null,
-          description: 'Cloud turbo fast response model'
+          description: 'Cohere North Mini Code — Instant response for coding & logic (~0.8s)'
+        },
+        {
+          id: 'free-router',
+          object: 'model',
+          created: 1735689600,
+          owned_by: 'freellmapi',
+          permission: [],
+          root: 'free-router',
+          parent: null,
+          description: 'FreeRouter Auto — Automatically selects the fastest free model (~1.0s)'
+        },
+        {
+          id: 'nemotron-3.5-super-vl',
+          object: 'model',
+          created: 1735689600,
+          owned_by: 'nvidia',
+          permission: [],
+          root: 'nemotron-3.5-super-vl',
+          parent: null,
+          description: 'NVIDIA Nemotron 3.5 Super VL — Deep analytical & long-context engine'
         }
       ]
     };

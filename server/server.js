@@ -34,7 +34,14 @@ import agentRoutes, {
   executeAutonomousAgentRun,
   buildEnrichedSandboxFiles
 } from './routes/agentRoutes.js';
-import { apiProxyService } from './apiProxyService.js';
+import {
+  apiProxyService,
+  getEffectiveFreeLlmKeys,
+  getFreeLlmGatewayUrl,
+  getFreeLlmImageConfig,
+  getUpstreamModelPlan,
+  dispatchFreeLlmRequest
+} from './apiProxyService.js';
 import webSearchService from './webSearchService.js';
 import imageDownloadService, { downloadAndCacheImage, batchPreloadImages } from './imageDownloadService.js';
 import ragService from './ragService.js';
@@ -165,7 +172,7 @@ initializeDatabase();
 
 // Native DeeperNova GPU Engine on port 8000 & Cloudflare Tunnel
 const DEEPERNOVA_API_URL = process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions';
-const DEEPERNOVA_PUBLIC_API_URL = process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions';
+const DEEPERNOVA_PUBLIC_API_URL = process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com/v1/chat/completions';
 const DEFAULT_CHAT_MODEL = 'deepernova v1 flash 1';
 
 // Active upstream chat streams tracker for immediate GPU cancellation
@@ -265,14 +272,9 @@ process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT_EXCEPTION]', err);
 });
 
-// High-Speed AI Engine Keys with Multi-Key Rotation (loaded strictly from .env)
-const RAW_ENV_KEYS = (process.env.TOKENMIX_API_KEYS || process.env.TOKENMIX_CHAT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-const TOKENMIX_API_KEYS = Array.from(new Set(RAW_ENV_KEYS));
-let activeChatKeyIndex = 0;
-const exhaustedTokenMixKeys = new Set();
-const TOKENMIX_CHAT_API_URL = process.env.TOKENMIX_CHAT_API_URL || 'https://api.tokenmix.ai/v1/chat/completions';
-
-console.log(`✅ High-Speed DeeperNova AI Engine initialized with ${TOKENMIX_API_KEYS.length} keys in rotation (GPU Fallback: ${DEEPERNOVA_API_URL})`);
+// High-Speed FreeLLM Gateway & Direct Free-Tier Provider Engine (loaded strictly from .env)
+const FREELLM_STARTUP_KEYS = getEffectiveFreeLlmKeys();
+console.log(`✅ FreeLLM AI Engine initialized (${FREELLM_STARTUP_KEYS.length} configured target keys, Gateway: ${getFreeLlmGatewayUrl()}, GPU Fallback: ${DEEPERNOVA_API_URL})`);
 
 const app = express();
 app.disable('x-powered-by');
@@ -3311,17 +3313,28 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
   }
 
   const reqModelEarly = req.body?.model || 'deepernova v1 flash 1';
+  const reqModelLowerEarly = String(reqModelEarly || '').toLowerCase();
+  const isGrok46Request = reqModelLowerEarly.includes('grok-4.6');
+
+  if (req.path === '/api/subagent/orchestrate' && isGrok46Request) {
+    return res.status(403).json({
+      success: false,
+      error: 'Model grok-4.6 adalah opsi penalaran maksimal dan dilarang menjalankan sub-agent.'
+    });
+  }
+
   const isSubAgentStage =
-    req.path === '/api/subagent/orchestrate' ||
-    req.body?.isSubAgentStage === true ||
-    (Array.isArray(req.body?.messages) &&
-      req.body.messages.some(
-        (m) =>
-          typeof m?.content === 'string' &&
-          (m.content.includes('[SUBAGENT_STAGE_PROMPT]') ||
-            m.content.includes('<SUBAGENT_PLAN>') ||
-            m.content.includes('<SUBAGENT_FILE'))
-      ));
+    !isGrok46Request &&
+    (req.path === '/api/subagent/orchestrate' ||
+      req.body?.isSubAgentStage === true ||
+      (Array.isArray(req.body?.messages) &&
+        req.body.messages.some(
+          (m) =>
+            typeof m?.content === 'string' &&
+            (m.content.includes('[SUBAGENT_STAGE_PROMPT]') ||
+              m.content.includes('<SUBAGENT_PLAN>') ||
+              m.content.includes('<SUBAGENT_FILE'))
+        )));
 
   try {
     // Safety check for messages (allow rawUserPrompt/taskDescription directly on agentic /api/subagent/orchestrate)
@@ -3382,11 +3395,12 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       await executeAutonomousAgentRun({
         sessionId: sandboxSessionId,
         prompt: rawPromptMsg || 'Selesaikan tugas otonom pengguna dengan standar profesional tertinggi.',
-        model: req.body.model || 'deepernova-gold-1.5',
+        model: req.body.model || 'qwen2.5-vl-72b',
         history: Array.isArray(req.body.chatHistory) ? req.body.chatHistory : [],
         effort: req.body.effort || 'high',
         language: req.body.language || 'id',
         userId,
+        deferDeltaUntilDone: true,
         onEvent: emitChatbotSubAgentEvent,
         onCloseRegister: (cb) => {
           res.on('close', () => {
@@ -3538,15 +3552,9 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
     };
     const enforceContextWindow1000 = enforceChunkedContextMemory;
 
-    const requestedModelEarly = req.body.model || 'deepernova-gold-1.5';
-    const isDeepernovaEarly = requestedModelEarly && (
-      requestedModelEarly.toLowerCase().includes('deepernova') ||
-      requestedModelEarly.toLowerCase().includes('flash') ||
-      requestedModelEarly.toLowerCase().includes('gold') ||
-      requestedModelEarly.toLowerCase().includes('boron') ||
-      requestedModelEarly.toLowerCase().includes('silicon')
-    );
-    if (!isDeepernovaEarly) {
+    const requestedModelEarly = req.body.model || 'qwen2.5-vl-72b';
+    const isKnownModelEarly = Boolean(requestedModelEarly);
+    if (!isKnownModelEarly) {
       messages = enforceChunkedContextMemory(messages, 3500);
     }
 
@@ -3641,7 +3649,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           id: `chatcmpl-mem-${Date.now()}`,
           object: 'chat.completion.chunk',
           created: Math.floor(Date.now() / 1000),
-          model: 'deepernova v1 flash 1',
+          model: requestedModelEarly,
           choices: [{ index: 0, delta: { content: directMemoryAnswer }, finish_reason: null }]
         };
         res.write(`data: ${JSON.stringify(chunkData)}\n\n`);
@@ -3649,7 +3657,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           id: `chatcmpl-mem-${Date.now()}`,
           object: 'chat.completion.chunk',
           created: Math.floor(Date.now() / 1000),
-          model: 'deepernova v1 flash 1',
+          model: requestedModelEarly,
           choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
         };
         res.write(`data: ${JSON.stringify(finishData)}\n\n`);
@@ -3660,7 +3668,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           id: `chatcmpl-mem-${Date.now()}`,
           object: 'chat.completion',
           created: Math.floor(Date.now() / 1000),
-          model: 'deepernova v1 flash 1',
+          model: requestedModelEarly,
           choices: [{
             index: 0,
             message: { role: 'assistant', content: directMemoryAnswer },
@@ -3697,7 +3705,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       const hasImagesInPayload = !isSearchConclusion && ((req.body.uploadedImages && req.body.uploadedImages.length > 0) ||
         messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url))));
 
-      // Ensure vision formatting matches TokenMix llama-4-maverick schema if uploadedImages provided and NOT a search conclusion
+      // Ensure vision formatting matches multimodal schema if uploadedImages provided and NOT a search conclusion
       if (!isSearchConclusion && req.body.uploadedImages && req.body.uploadedImages.length > 0) {
         for (let i = messages.length - 1; i >= 0; i--) {
           if (messages[i].role === 'user') {
@@ -3720,29 +3728,21 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         }
       }
 
-      const requestedModel = req.body.model || 'deepernova-silicon-1.4';
-      const isDeepernovaModel = requestedModel && (
-        requestedModel.toLowerCase().includes('deepernova') ||
-        requestedModel.toLowerCase().includes('silicon') ||
-        requestedModel.toLowerCase().includes('boron') ||
-        requestedModel.toLowerCase().includes('gold') ||
-        requestedModel.toLowerCase().includes('flash 1') ||
-        requestedModel.toLowerCase().includes('flash')
-      );
+      const requestedModel = req.body.model || 'qwen2.5-vl-72b';
+      const isCloudChatModel = Boolean(requestedModel);
 
-      const reqLower = (requestedModel || '').toLowerCase();
-      let currentBrandedName = 'DeeperNova Gold 1.5';
-      if (reqLower.includes('silicon')) {
-        currentBrandedName = 'DeeperNova Silicon 1.4';
-      } else if (reqLower.includes('boron')) {
-        currentBrandedName = 'DeeperNova Boron 1.1';
-      } else if (reqLower.includes('gold')) {
-        currentBrandedName = reqLower.includes('pro') ? 'DeeperNova Gold 1.5 Pro' : 'DeeperNova Gold 1.5';
-      } else {
-        currentBrandedName = 'DeeperNova AI';
-      }
+      const HONEST_MODEL_NAMES = {
+        'qwen2.5-vl-72b': 'Qwen 2.5 VL 72B',
+        'nemotron-3-ultra-550b': 'NVIDIA Nemotron 3 Ultra 550B',
+        'nemotron-3.5-lightning': 'NVIDIA Nemotron 3.5 Lightning',
+        'north-mini-code': 'Cohere North Mini Code',
+        'free-router': 'FreeRouter Auto (FreeLLM)',
+        'nemotron-3.5-super-vl': 'NVIDIA Nemotron 3.5 Super VL'
+      };
+      const reqLower = String(requestedModel || '').toLowerCase().trim();
+      const currentModelLabel = HONEST_MODEL_NAMES[reqLower] || requestedModel || 'Qwen 2.5 VL 72B';
 
-      // Khusus DeeperNova Silicon 1.4 / Boron 1.1 / Gold 1.5: Memori konteks 1 Juta Token & penalaran mendalam
+      // Khusus model Cloud FreeLLM: Memori konteks besar & respons cepat
       if (isSubAgentStage) {
         const subTaskPrompt = messages.filter(m => m.role === 'user').map(m => normalizeContent(m.content)).join('\n');
         const subSkillGuidance = agentSkillService.buildSubAgentSkillGuidance(subTaskPrompt);
@@ -3755,7 +3755,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           }
         }
         console.log('[CHAT] 🤖 Synchronous Sub-Agent Orchestrator stage detected — injected internal CLAUDE.md + specialist skills silently');
-      } else if (isDeepernovaModel) {
+      } else if (isCloudChatModel) {
         const nowServer = new Date();
         const yearServer = nowServer.getFullYear();
         const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
@@ -3763,7 +3763,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         let DEFAULT_SYSTEM_PROMPT = '';
         if (isSearchConclusion) {
           DEFAULT_SYSTEM_PROMPT =
-            `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia buatan DeeperNova AI.\n` +
+            `Kamu adalah asisten AI yang berjalan pada model ${currentModelLabel}.\n` +
             `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}.\n` +
             `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK):\n` +
             `1. BACA & RANGKUM DATA BERITA: Pengguna melampirkan DATA HASIL PENCARIAN & BERITA TERVERIFIKASI. Bacalah secara cermat seluruh kutipan, fakta, artikel, angka, nama tokoh, dan peristiwa di dalamnya. Sajikan intisari dan penjelasan berita tersebut secara lengkap dan akurat.\n` +
@@ -3775,21 +3775,15 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
             `7. LANGSUNG KE JAWABAN: Berikan jawaban berita final yang lengkap dan jelas tanpa basa-basi.`;
         } else {
           DEFAULT_SYSTEM_PROMPT =
-            `Kamu adalah ${currentBrandedName}, asisten kecerdasan buatan Indonesia yang sangat cerdas, adaptif, berdaya nalar tinggi, dan memiliki daya ingat konteks percakapan yang tajam. ` +
+            `Kamu adalah asisten AI berbahasa Indonesia yang berjalan pada model ${currentModelLabel} (via DeeperNova AI platform). ` +
             `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
-            `ATURAN KETAT IDENTITAS: JANGAN PERNAH mengaku atau menyebut bahwa kamu adalah Doubao, ByteDance, Qwen, Alibaba, Llama, Meta AI, atau pihak lain. Jika ditanya identitas, tegaskan bahwa kamu adalah ${currentBrandedName} buatan DeeperNova AI Indonesia. ` +
-            `[INFORMASI RESMI KEPEMIMPINAN & PENGEMBANGAN - HANYA JIKA DITANYA]: ` +
-            `- Founder: Ferry Fernando. ` +
-            `- CEO: Ferry Fernando. ` +
-            `- Wakil CEO: Anju Malinton Pakpahan. ` +
-            `- Tim Pengembang: Proyek ini dikembangkan bersama tim AI yang sangat besar di belakang DeeperNova AI. ` +
-            `- Metode Pengembangan AI: AI ini dikembangkan oleh model AI DeeperNova generasi sebelumnya, di mana seluruh proses pengembangan berjalan secara otonom penuh (full autonomous). ` +
-            `ATURAN MUTLAK KEPEMIMPINAN: Jawaban di atas WAJIB diberikan secara lengkap dan tepat jika pengguna menanyakan siapa founder, siapa CEO, siapa wakil CEO, siapa pembuat/pencipta/tim di balik DeeperNova AI, atau bagaimana AI ini dikembangkan. JANGAN PERNAH menyebutkan hal ini jika pengguna tidak menanyakannya (hanya jika ditanya saja). ` +
+            `TRANSPARANSI MODEL: Jika pengguna menanyakan model apa yang kamu gunakan, jawablah secara jujur sesuai model aktif (${currentModelLabel}). ` +
+            `[INFORMASI PLATFORM DEEPERNOVA - HANYA JIKA DITANYA]: Founder & CEO: Ferry Fernando, Wakil CEO: Anju Malinton Pakpahan. Jangan sebut jika tidak ditanya. ` +
             'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
             '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF (MUTLAK): Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. ' +
             '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-            'KEPUTUSAN PENCARIAN WEB OTONOM (100% AI SEARCH DECISION VIA EXECUTION FLAG): Kamu terhubung langsung ke search engine DeeperNova dengan live web crawling. Keputusan apakah perlu mencari di web 100% ditentukan olehmu! JIKA pengguna meminta pencarian, ATAU menanyakan berita/peristiwa terbaru, harga, cuaca, jadwal/skor, tokoh/pejabat, perusahaan, produk & spesifikasi, tempat, statistik/angka, tanggal, regulasi, atau fakta spesifik dunia nyata apa pun, ATAU kamu tidak 100% yakin: KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA): [SEARCH_REQUEST: kata kunci pilihanmu] DAN LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. LEBIH BAIK MENCARI DARIPADA MENEBAK. Jawab langsung tanpa flag HANYA untuk sapaan, matematika, coding, terjemahan, merangkum teks pengguna, dan ide kreatif. ' +
-            'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file dokumen (Word .docx, Excel .xlsx/.csv, PowerPoint .pptx, PDF), kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: Jawab biasa secara ramah terlebih dahulu dalam 1-2 kalimat singkat, lalu akhiri dengan flag: [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] dan LANGSUNG BERHENTI setelah tanda kurung siku tutup `]`. ' +
+            'KEPUTUSAN PENCARIAN WEB OTONOM (SELALU SEARCHING JIKA RAGU / TIDAK TAHU): Kamu terhubung ke search engine live web. ATURAN: Dilarang menebak atau menjawab "Saya tidak tahu"! Jika kamu merasa RAGU, tidak yakin, atau user menanyakan berita/peristiwa terkini, harga, cuaca, skor, jadwal, tokoh terkini, atau fakta baru: keluarkan [SEARCH_REQUEST: kata kunci pilihanmu] di baris pertama lalu berhenti. Jika kamu sudah tahu pasti (pengetahuan umum, konsep, coding, matematika, sapaan), jawab LANGSUNG tanpa flag secepat mungkin! ' +
+            (isGrok46Request ? '' : 'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file dokumen (Word .docx, Excel .xlsx/.csv, PowerPoint .pptx, PDF), kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: keluarkan [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] lalu LANGSUNG BERHENTI tanpa menulis teks pengantar/jawaban sebelum sub-agent selesai. ') +
             'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
         }
 
@@ -3846,19 +3840,25 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(lastUserText) ||
           /\b(buatkan|buat(?:in)?|bikin(?:kan|in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai|sub[\s-]?agent)\b/i.test(lastUserText);
         const looksFactual = lastUserText.length > 0 && !isCasualOrTask && (
-          /\b(cari(?:kan)?|search|googling|cek|info|berita|kabar terbaru|terbaru|terkini|sekarang|hari ini|kemarin|minggu ini|bulan ini|tahun ini|update|rilis|launching|harga|biaya|tarif|kurs|saham|crypto|bitcoin|cuaca|jadwal|skor|klasemen|hasil pertandingan|siapa|kapan|dimana|di mana|berapa|alamat|lokasi|presiden|menteri|gubernur|ceo|pendiri|founder|spesifikasi|spek|review|vs|versus|perbandingan|statistik|data|populasi|jumlah penduduk|undang-undang|uu|peraturan|film|lagu|album|anime|game)\b/i.test(lastUserText) ||
-          /\b20(2[3-9]|3\d)\b/.test(lastUserText)
+          /\b(cari(?:kan)?|search|googling|berita|kabar terbaru|terbaru|terkini|hari ini|harga|biaya|tarif|kurs|saham|crypto|bitcoin|cuaca|jadwal|skor|klasemen|hasil pertandingan)\b/i.test(lastUserText) ||
+          /\b20(2[5-9]|3\d)\b/.test(lastUserText)
         );
-        if (!isSearchConclusion && !hasImagesInPayload && looksAgenticSubAgentTask) {
+        if (isGrok46Request) {
+          finalSystemPrompt = finalSystemPrompt
+            .replace(/🔴\s*SUB-AGENT ORCHESTRATOR[\s\S]*?(?=🔴|$)/gi, '')
+            .trim();
           finalSystemPrompt +=
-            '\n\n[DIREKTIF WAJIB SISTEM - AKTIVASI SUB-AGENT ORCHESTRATOR SINKRON]: Permintaan pengguna saat ini membutuhkan eksekusi Sub-Agent Orchestrator (pembuatan file/aplikasi/website/kode atau mode sub-agent). Kamu WAJIB:\n' +
-            '1. Menjawab biasa terlebih dahulu secara ramah dan natural dalam 1-2 kalimat singkat (menyapa/menyanggupi permintaan pengguna).\n' +
-            '2. Di akhir kalimat tersebut, WAJIB sertakan flag aktivasi: [SUBAGENT_ORCHESTRATE: <deskripsi jelas tugas dan daftar file yang akan dibuat>]\n' +
-            '3. Langsung BERHENTI setelah tanda kurung siku tutup `]`. Jangan menulis blok kode di pesan pembuka ini karena Sub-Agent Orchestrator Sinkron yang akan langsung menampilkan Chain of Thought dan mengirimkan file lengkapnya!';
-          console.log('[CHAT] 🤖 Agentic Sub-Agent task detected → instructing AI to answer normally then emit [SUBAGENT_ORCHESTRATE: ...]');
+            '\n\n[MODE DARURAT PENALARAN MAKSIMAL - GROK 4.6]: Anda berada pada model penalaran maksimal darurat (mendukung teks dan analisis gambar/vision). DILARANG KERAS mengaktifkan, meminta, atau mendelegasikan tugas ke Sub-Agent maupun menuliskan tag [SUBAGENT_ORCHESTRATE]. Jawab dan selesaikan permasalahan secara langsung dengan penalaran logis terdalam dan terstruktur.';
+        } else if (!isSearchConclusion && !hasImagesInPayload && looksAgenticSubAgentTask) {
+          finalSystemPrompt +=
+            '\n\n[DIREKTIF WAJIB SISTEM - AKTIVASI SUB-AGENT ORCHESTRATOR SINKRON]: Permintaan pengguna saat ini membutuhkan eksekusi Sub-Agent Orchestrator (pembuatan berkas/aplikasi/website/kode atau mode sub-agent). Kamu WAJIB:\n' +
+            '1. JANGAN menulis teks pembuka, pengantar, konfirmasi, atau draf jawaban sebelum tugas Sub-Agent selesai.\n' +
+            '2. Keluarkan HANYA flag aktivasi pada baris pertama: [SUBAGENT_ORCHESTRATE: <deskripsi jelas tugas dan daftar file yang harus dibuat>]\n' +
+            '3. Langsung BERHENTI tepat setelah tanda kurung siku tutup `]`.';
+          console.log('[CHAT] 🤖 Agentic Sub-Agent task detected → instructing silent [SUBAGENT_ORCHESTRATE: ...] handoff');
         } else if (!isSearchConclusion && !hasImagesInPayload && looksFactual) {
-          finalSystemPrompt += '\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI]: Pertanyaan pengguna saat ini menyangkut fakta dunia nyata / informasi yang bisa berubah. Kamu TIDAK BOLEH menjawab dari ingatan. Baris pertama jawabanmu WAJIB HANYA berisi: [SEARCH_REQUEST: kata kunci pencarian yang tepat] lalu BERHENTI. Jangan menulis teks lain apa pun.';
-          console.log('[CHAT] 🛡️ Factual query detected → forcing web search flag');
+          finalSystemPrompt += '\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI & SELALU SEARCHING]: Pertanyaan pengguna saat ini membutuhkan fakta dunia nyata atau verifikasi yang mungkin tidak kamu ketahui pasti. DILARANG menjawab dari ingatan atau mengatakan "tidak tahu". Baris pertama jawabanmu WAJIB HANYA berisi: [SEARCH_REQUEST: kata kunci pencarian yang tepat] lalu BERHENTI tanpa menulis teks lain.';
+          console.log('[CHAT] 🛡️ Factual query detected → forcing single web search flag');
         }
 
         // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
@@ -3896,10 +3896,10 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         messages = enforceChunkedContextMemory(messages, 3500);
       }
 
-      let tokenmixResponse = null;
+      let upstreamChatResponse = null;
       let lastError = null;
 
-      // Register active chat request for instant GPU cancellation
+      // Register active chat request for instant cancellation
       let upstreamAbortController = new AbortController();
       const reqRecord = {
         controller: upstreamAbortController,
@@ -3930,130 +3930,56 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       req.on('aborted', handleClientDisconnect);
       res.on('close', handleClientDisconnect);
 
-      // 🚀 HIGH-SPEED INTELLIGENT AI ENGINE (ULTRA-FAST & IMMEDIATE FIRST-TOKEN STREAMING)
-      const envChatModel = (process.env.TOKENMIX_CHAT_MODEL || '').trim();
-      const fastDefaultModel = (!envChatModel || envChatModel === 'gpt-4.1-mini') ? 'gpt-4o-mini' : envChatModel;
-      let selectedModel = fastDefaultModel;
+      // 🚀 FREELLM UNIFIED AI ENGINE (tashfeenahmed/freellmapi + Official Free-Tier Multi-Provider Failover)
+      const fastDefaultModel = (process.env.FREELLM_CHAT_MODEL || '').trim() || 'auto';
       const reqModelLower = (requestedModel || '').toLowerCase();
-      const enableReasoning = req.body.enableReasoning === true || reqModelLower.includes('reason') || reqModelLower.includes('think') || reqModelLower.includes('boron');
+      const isGrok46 = reqModelLower.includes('grok-4.6') || reqModelLower === 'grok';
+      const enableReasoning = req.body.enableReasoning === true || reqModelLower.includes('reason') || reqModelLower.includes('think') || isGrok46;
 
-      if (hasImagesInPayload) {
-        selectedModel = 'gpt-4o-mini';
-        console.log(`[CHAT] 📸 Vision Mode Active: Routing to ${selectedModel} (Persona: ${currentBrandedName})`);
-      } else if (reqModelLower.includes('70b') || reqModelLower.includes('2.3') || reqModelLower.includes('giga')) {
-        selectedModel = 'llama-3.3-70b';
-      } else if (enableReasoning) {
-        selectedModel = 'grok-4.1-fast-reasoning';
-      } else {
-        // Default ALL general chat (Gold 1.5, Silicon 1.4, default) to fast model (gpt-4o-mini) with sub-second TTFT
-        selectedModel = fastDefaultModel;
-      }
-      console.log(`[CHAT] ⚡ High-Speed Engine: streaming=${shouldStream}, Model=${selectedModel} (Reasoning: ${enableReasoning}, Vision: ${hasImagesInPayload})`);
+      const modelPlan = getUpstreamModelPlan(requestedModel, {
+        hasImages: hasImagesInPayload,
+        enableReasoning,
+        fastDefaultModel
+      });
+      const selectedModel = modelPlan.primaryModel;
+      const candidateModels = modelPlan.candidateModels;
+      console.log(`[CHAT] ⚡ FreeLLM Engine: streaming=${shouldStream}, Requested=${requestedModel}, Primary=${selectedModel}, Candidates=[${candidateModels.join(', ')}] (Vision: ${hasImagesInPayload})`);
 
-      // 1. Try High-Speed AI Engine with Key Rotation across all active healthy keys & fast model failover
-      if (TOKENMIX_API_KEYS.length > 0) {
-        const candidateModels = hasImagesInPayload
-          ? ['gpt-4o-mini', 'llama-4-maverick', 'gpt-4.1-mini']
-          : Array.from(new Set([
-            selectedModel,
-            fastDefaultModel,
-            'gpt-4o-mini',
-            'llama-3.3-70b',
-            'qwen3.8-flash'
-          ]));
+      const dispatchResult = await dispatchFreeLlmRequest({
+        requestedModel,
+        messages,
+        temperature: req.body.temperature || 0.6,
+        max_tokens: isGrok46 ? Math.max(Number(req.body.max_tokens) || 4096, 1024) : (req.body.max_tokens || 4096),
+        presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
+        frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
+        stream: shouldStream,
+        hasImages: hasImagesInPayload,
+        enableReasoning,
+        signal: upstreamAbortController.signal
+      });
 
-        for (const modelToTry of candidateModels) {
-          let modelTimedOut = false;
-          for (let count = 0; count < TOKENMIX_API_KEYS.length; count++) {
-            const idx = (activeChatKeyIndex + count) % TOKENMIX_API_KEYS.length;
-            const key = TOKENMIX_API_KEYS[idx];
-            if (exhaustedTokenMixKeys.has(key)) continue;
-
-            const attemptAbort = new AbortController();
-            let attemptTimedOut = false;
-            const onParentAbort = () => attemptAbort.abort();
-            upstreamAbortController.signal.addEventListener('abort', onParentAbort, { once: true });
-            const connectTimeoutMs = modelToTry.includes('reasoning') ? 14000 : 8000;
-            const connectTimer = setTimeout(() => {
-              attemptTimedOut = true;
-              attemptAbort.abort();
-            }, connectTimeoutMs);
-
-            try {
-              console.log(`[CHAT] Attempting high-speed chat request with model ${modelToTry} & key index ${idx}...`);
-              tokenmixResponse = await fetch(TOKENMIX_CHAT_API_URL, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${key}`,
-                },
-                signal: attemptAbort.signal,
-                body: JSON.stringify({
-                  model: modelToTry,
-                  messages: messages,
-                  temperature: req.body.temperature || 0.6,
-                  max_tokens: req.body.max_tokens || 4096,
-                  presence_penalty: req.body.presence_penalty !== undefined ? req.body.presence_penalty : 0.2,
-                  frequency_penalty: req.body.frequency_penalty !== undefined ? req.body.frequency_penalty : 0.3,
-                  stream: shouldStream
-                }),
-              });
-
-              if (tokenmixResponse.ok) {
-                console.log(`[CHAT] ✅ High-Speed AI responded successfully with model ${modelToTry} (key index ${idx})`);
-                reqRecord.responseStream = tokenmixResponse;
-                lastError = null;
-                activeChatKeyIndex = (idx + 1) % TOKENMIX_API_KEYS.length;
-                break;
-              } else {
-                const errText = await tokenmixResponse.text().catch(() => '');
-                const status = tokenmixResponse.status;
-                if (status === 402 || status === 401 || status === 429) {
-                  exhaustedTokenMixKeys.add(key);
-                  console.warn(`[CHAT] ⚠️ Key index ${idx} marked exhausted (${status}). Removed from active rotation.`);
-                }
-                lastError = new Error(`Model ${modelToTry} with key ${idx} failed with status ${status}: ${errText}`);
-                console.warn(`[CHAT] Model ${modelToTry} key ${idx} status ${status}: ${errText.slice(0, 100)}`);
-              }
-            } catch (e) {
-              if ((e?.name === 'AbortError' && upstreamAbortController.signal.aborted) || clientDisconnected) {
-                console.log('[CHAT] Stream connection aborted by user stop.');
-                if (!res.writableEnded) {
-                  try { res.end('data: [DONE]\n\n'); } catch (_e) { }
-                }
-                return;
-              }
-              lastError = e;
-              if (attemptTimedOut) {
-                console.warn(`[CHAT] ⏱️ Model ${modelToTry} key ${idx} timed out after ${connectTimeoutMs}ms — failing over to next model.`);
-                modelTimedOut = true;
-                break;
-              }
-              console.warn(`[CHAT] Key error with index ${idx}: ${e.message}`);
-            } finally {
-              clearTimeout(connectTimer);
-              upstreamAbortController.signal.removeEventListener('abort', onParentAbort);
-            }
-
-            if (tokenmixResponse && tokenmixResponse.ok) {
-              break;
-            }
-          }
-          if (tokenmixResponse && tokenmixResponse.ok) {
-            break;
-          }
-          if (modelTimedOut) {
-            continue;
-          }
+      if (dispatchResult.clientAborted || clientDisconnected) {
+        console.log('[CHAT] Stream connection aborted by user stop.');
+        if (!res.writableEnded) {
+          try { res.end('data: [DONE]\n\n'); } catch (_e) { }
         }
+        return;
       }
 
-      // 2. Seamless Fallback: Native GPU Engine if Cloud is unavailable
-      if (!tokenmixResponse || !tokenmixResponse.ok) {
-        console.warn('[CHAT] High-Speed AI unavailable. Attempting fallback to Native GPU Engine...');
+      if (dispatchResult.response && dispatchResult.response.ok) {
+        upstreamChatResponse = dispatchResult.response;
+        reqRecord.responseStream = dispatchResult.response;
+        lastError = null;
+      } else {
+        lastError = dispatchResult.lastError;
+      }
+
+      // 2. Seamless Fallback: Native GPU Engine if FreeLLM is unavailable
+      if (!upstreamChatResponse || !upstreamChatResponse.ok) {
+        console.warn('[CHAT] FreeLLM Engine unavailable. Attempting fallback to Native GPU Engine...');
         const gpuEndpoints = [
           process.env.DEEPERNOVA_API_URL || 'http://127.0.0.1:8000/v1/chat/completions',
-          process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://dip-pushing-whereas-darwin.trycloudflare.com/v1/chat/completions'
+          process.env.DEEPERNOVA_PUBLIC_API_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com/v1/chat/completions'
         ].filter(Boolean);
 
         for (const endpointUrl of gpuEndpoints) {
@@ -4076,7 +4002,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
 
             if (gpuRes.ok) {
               console.log(`[CHAT] ✅ Native GPU Engine responded successfully from ${endpointUrl}`);
-              tokenmixResponse = gpuRes;
+              upstreamChatResponse = gpuRes;
               reqRecord.responseStream = gpuRes;
               lastError = null;
               break;
@@ -4088,13 +4014,13 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       }
 
       let standbyStream = null;
-      if (lastError || !tokenmixResponse || !tokenmixResponse.ok) {
+      if (lastError || !upstreamChatResponse || !upstreamChatResponse.ok) {
         console.warn('[CHAT] All AI engines unavailable. Generating diagnostic message.');
-        const standbyContent = "Maaf, engine AI DeeperNova saat ini sedang sibuk. Silakan coba kirim kembali pesan Anda dalam beberapa saat.";
+        const standbyContent = apiProxyService.generateStandbyCompletion(messages, requestedModel, lastError);
         standbyStream = apiProxyService.createSyntheticSSEStream(standbyContent, selectedModel);
       }
 
-      const activeStreamBody = (tokenmixResponse && tokenmixResponse.ok) ? tokenmixResponse.body : standbyStream;
+      const activeStreamBody = (upstreamChatResponse && upstreamChatResponse.ok) ? upstreamChatResponse.body : standbyStream;
 
       if (shouldStream) {
         if (!res.headersSent) {
@@ -4161,11 +4087,10 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           let chunkStr = chunk.toString();
 
           // Rebrand any upstream AI identity dynamically so user always receives DeeperNova AI
-          if (chunkStr.includes('Doubao') || chunkStr.includes('ByteDance') || chunkStr.includes('TokenMix')) {
+          if (chunkStr.includes('Doubao') || chunkStr.includes('ByteDance')) {
             chunkStr = chunkStr
               .replace(/\bDoubao\b/gi, 'DeeperNova AI')
-              .replace(/\bByteDance\b/gi, 'DeeperNova AI')
-              .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
+              .replace(/\bByteDance\b/gi, 'DeeperNova AI');
             chunk = Buffer.from(chunkStr);
           }
 
@@ -4200,7 +4125,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
             !isSubAgentStage &&
             (/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*([^\]]+)\]/i.test(fullResponseText) ||
               /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(fullResponseText) ||
-              /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([^\]]+)\]/i.test(fullResponseText))
+              (!isGrok46Request && /\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([^\]]+)\]/i.test(fullResponseText)))
           ) {
             searchFlagTriggeredOnServer = true;
             console.log('[CHAT] 🔍/🤖 AI emitted execution flag; halting initial stream so client can execute orchestrator/search.');
@@ -4256,14 +4181,13 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         });
       } else {
         // Non-streaming: parse and return as JSON
-        if (tokenmixResponse && tokenmixResponse.ok) {
-          let data = await tokenmixResponse.json();
+        if (upstreamChatResponse && upstreamChatResponse.ok) {
+          let data = await upstreamChatResponse.json();
           if (data && data.choices && data.choices[0] && data.choices[0].message) {
             let content = data.choices[0].message.content || '';
             content = content
               .replace(/\bDoubao\b/gi, 'DeeperNova AI')
-              .replace(/\bByteDance\b/gi, 'DeeperNova AI')
-              .replace(/\bTokenMix\b/gi, 'DeeperNova AI');
+              .replace(/\bByteDance\b/gi, 'DeeperNova AI');
             data.choices[0].message.content = content;
           }
           res.setHeader('Content-Type', 'application/json');
@@ -6492,8 +6416,7 @@ app.get('/api/files/temp-download/:token/:fileName?', (req, res) => {
 });
 
 // ============== IMAGE GENERATION API ==============
-const TOKENMIX_IMAGE_GENERATIONS_URL = 'https://api.tokenmix.ai/v1/images/generations';
-const TOKENMIX_IMAGE_EDITS_URL = 'https://api.tokenmix.ai/v1/images/edits';
+// Image generation/editing routed strictly via FreeLLM image gateway endpoints (never TokenMix).
 
 /**
  * Add watermark to image
@@ -6628,14 +6551,8 @@ async function saveWatermarkedImage(imageBuffer, req) {
 
 /**
  * POST /api/images/generate
- * Generate or edit an image using TokenMix API
- * For generation: uses imagen-4-fast (omit referenceImage)
- * For editing: uses qwen-image-edit-max (include referenceImage with image_url parameter)
+ * Generate or edit an image using FreeLLM Image Gateway
  * Body: { prompt: string, size?: string, model?: string, referenceImage?: string (base64), sessionId?: string }
- * 
- * Modes:
- * - Generation: prompt only → create new image using imagen-4-fast
- * - Editing: prompt + referenceImage → edit input image using qwen-image-edit-max
  */
 app.post('/api/images/generate', async (req, res) => {
   // Check IP token limit
@@ -6664,21 +6581,20 @@ app.post('/api/images/generate', async (req, res) => {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    if (!TOKENMIX_API_KEY) {
-      console.error('[IMG_GEN] TOKENMIX_API_KEY not configured');
-      return res.status(500).json({ error: 'Image generation service not configured' });
+    const freeLlmImgCfg = getFreeLlmImageConfig();
+    const orderedImgKeys = freeLlmImgCfg.keys;
+    if (orderedImgKeys.length === 0) {
+      console.error('[IMG_GEN] No FreeLLM API keys configured');
+      return res.status(503).json({ error: 'Image generation gateway not configured (FREELLM_API_KEY missing)' });
     }
 
     // Determine mode: generation or editing
     const isEditMode = !!referenceImage && referenceImage.length > 0;
     const modeLabel = isEditMode ? '✏️ EDIT' : '🎨 GENERATE';
 
-    // Auto-select model based on mode if not specified or if chat model was passed
-    if (!model || model === 'qwen-vl-max') {
-      model = isEditMode ? 'qwen-image-edit-max' : 'image-01';
-    }
-    if (isEditMode && (model === 'image-01' || model === 'imagen-4-fast')) {
-      model = 'qwen-image-edit-max';
+    // Route image requests via FreeLLM 'auto' unless an explicit image model is set
+    if (!model || model === 'qwen-vl-max' || model === 'image-01' || model === 'imagen-4-fast' || model === 'qwen-image-edit-max') {
+      model = 'auto';
     }
 
     console.log(`[IMG_GEN] ${modeLabel} Image with model: ${model}, size: ${size}`);
@@ -6694,10 +6610,10 @@ app.post('/api/images/generate', async (req, res) => {
       if (!isSafeExternalUrl(preGeneratedImageUrl)) {
         return res.status(400).json({ error: 'Invalid or restricted preGeneratedImageUrl' });
       }
-      console.log('[IMG_GEN] 🟢 Skipping TokenMix API call, using pre-generated URL:', preGeneratedImageUrl);
+      console.log('[IMG_GEN] 🟢 Skipping FreeLLM API call, using pre-generated URL:', preGeneratedImageUrl);
       imageUrl = preGeneratedImageUrl;
     } else {
-      // Build TokenMix API request body
+      // Build FreeLLM OpenAI-compatible image request body
       const apiBody = {
         model,
         prompt,
@@ -6715,13 +6631,13 @@ app.post('/api/images/generate', async (req, res) => {
           const parts = referenceImage.split(',');
           if (parts.length === 2) {
             imageForApi = parts[1];
-            console.log('[IMG_GEN] ✅ Extracted base64 from data URI for TokenMix API');
+            console.log('[IMG_GEN] ✅ Extracted base64 from data URI for FreeLLM API');
           } else {
             console.error('[IMG_GEN] ❌ Invalid data URI format - could not split');
             throw new Error('Invalid reference image data URI format');
           }
         } else if (referenceImage.startsWith('http://') || referenceImage.startsWith('https://')) {
-          // Check if it's a localhost URL (which TokenMix rejects)
+          // Convert localhost URL to base64 before forwarding to upstream gateway
           if (referenceImage.includes('localhost') || referenceImage.includes('127.0.0.1')) {
             console.log('[IMG_GEN] ⚠️ Localhost URL detected, converting file to base64');
             // Extract filename from URL and strictly sanitize with path.basename
@@ -6747,13 +6663,13 @@ app.post('/api/images/generate', async (req, res) => {
                   console.log('[IMG_GEN] ✅ Found at alt path 1:', altPath1);
                   const fileContent = fs.readFileSync(altPath1);
                   imageForApi = fileContent.toString('base64');
-                  console.log('[IMG_GEN] ✅ Converted localhost file to base64 for TokenMix');
+                  console.log('[IMG_GEN] ✅ Converted localhost file to base64 for FreeLLM');
                   foundFile = true;
                 } else if (fs.existsSync(altPath2)) {
                   console.log('[IMG_GEN] ✅ Found at alt path 2:', altPath2);
                   const fileContent = fs.readFileSync(altPath2);
                   imageForApi = fileContent.toString('base64');
-                  console.log('[IMG_GEN] ✅ Converted localhost file to base64 for TokenMix');
+                  console.log('[IMG_GEN] ✅ Converted localhost file to base64 for FreeLLM');
                   foundFile = true;
                 }
 
@@ -6776,7 +6692,7 @@ app.post('/api/images/generate', async (req, res) => {
               } else {
                 const fileContent = fs.readFileSync(filepath);
                 imageForApi = fileContent.toString('base64');
-                console.log('[IMG_GEN] ✅ Converted localhost file to base64 for TokenMix');
+                console.log('[IMG_GEN] ✅ Converted localhost file to base64 for FreeLLM');
               }
             } catch (err) {
               console.error('[IMG_GEN] ❌ Failed to read file from', filepath, ':', err.message);
@@ -6784,7 +6700,7 @@ app.post('/api/images/generate', async (req, res) => {
               throw new Error('Failed to read uploaded image file: ' + err.message);
             }
           } else {
-            // Public HTTPS URL - use as-is, TokenMix accepts public HTTPS URLs
+            // Public HTTPS URL - pass directly to FreeLLM gateway
             console.log('[IMG_GEN] ✅ Using public HTTPS URL for reference image');
           }
         } else if (referenceImage.length > 100 && !referenceImage.includes('/') && !referenceImage.includes(':')) {
@@ -6798,43 +6714,54 @@ app.post('/api/images/generate', async (req, res) => {
         console.log('[IMG_GEN] Image editing enabled with reference (base64 length:', imageForApi.substring(0, 50).length, ')');
       }
 
-      const tokenMixUrl = isEditMode ? TOKENMIX_IMAGE_EDITS_URL : TOKENMIX_IMAGE_GENERATIONS_URL;
-      console.log('[IMG_GEN] 🔴 DEBUG - TokenMix API Call:');
-      console.log('[IMG_GEN] 🔴 URL:', tokenMixUrl);
-      console.log('[IMG_GEN] 🔴 Authorization header:', TOKENMIX_API_KEY ? TOKENMIX_API_KEY.substring(0, 20) + '...' : 'MISSING');
-      console.log('[IMG_GEN] 🔴 Request body keys:', Object.keys(apiBody));
-      console.log('[IMG_GEN] 🔴 Request size:', JSON.stringify(apiBody).length, 'bytes');
+      const freeLlmImgUrl = isEditMode ? freeLlmImgCfg.editsUrl : freeLlmImgCfg.generationsUrl;
+      console.log('[IMG_GEN] FreeLLM Image Call:', freeLlmImgUrl);
+      console.log('[IMG_GEN] Request body keys:', Object.keys(apiBody));
 
-      // Call TokenMix API with 120 second timeout
-      const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), 120000); // 120 seconds
-
-      let tokenMixResponse;
-      try {
-        tokenMixResponse = await fetch(tokenMixUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${TOKENMIX_API_KEY}`,
-          },
-          body: JSON.stringify(apiBody),
-          signal: abortController.signal,
-        });
-        clearTimeout(timeoutId);
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          console.error('[IMG_GEN] ⚠️ TokenMix API call timeout (120s exceeded)');
-          return res.status(504).json({ error: 'Image generation service timeout - TokenMix API taking too long' });
+      let imgApiResponse = null;
+      let lastImgErrorText = '';
+      for (let imgKeyIdx = 0; imgKeyIdx < orderedImgKeys.length; imgKeyIdx++) {
+        const imgKey = orderedImgKeys[imgKeyIdx];
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 120000); // 120 seconds
+        try {
+          imgApiResponse = await fetch(freeLlmImgUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${imgKey}`,
+            },
+            body: JSON.stringify(apiBody),
+            signal: abortController.signal,
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            console.error('[IMG_GEN] ⚠️ FreeLLM image timeout (120s exceeded)');
+            return res.status(504).json({ error: 'Image generation service timeout - upstream taking too long' });
+          }
+          lastImgErrorText = fetchError.message;
+          continue;
         }
-        throw fetchError;
+
+        if (imgApiResponse.ok) {
+          break;
+        }
+        lastImgErrorText = await imgApiResponse.text().catch(() => '');
+        if ([401, 402, 429, 500, 502, 503].includes(imgApiResponse.status)) {
+          console.warn(`[IMG_GEN] FreeLLM key index ${imgKeyIdx} failed (${imgApiResponse.status}), trying next...`);
+          continue;
+        }
+        break;
       }
 
-      console.log('[IMG_GEN] 🔴 TokenMix Response Status:', tokenMixResponse.status, tokenMixResponse.statusText);
+      console.log('[IMG_GEN] FreeLLM Image Response Status:', imgApiResponse?.status, imgApiResponse?.statusText);
 
-      if (!tokenMixResponse.ok) {
-        const errorText = await tokenMixResponse.text();
-        console.error('[IMG_GEN] 🔴 TokenMix API error response (first 1000 chars):', errorText.substring(0, 1000));
+      if (!imgApiResponse || !imgApiResponse.ok) {
+        const errorText = lastImgErrorText || 'No active image provider configured in FreeLLMAPI';
+        const statusCode = imgApiResponse?.status || 500;
+        console.error('[IMG_GEN] FreeLLM Image error response (first 1000 chars):', errorText.substring(0, 1000));
 
         // Check for content filter / safety policy error
         if (
@@ -6844,7 +6771,7 @@ app.post('/api/images/generate', async (req, res) => {
           throw new Error('maaf prompt anda memiliki potensi ke arah hal yang melanggar kebijakan kami ciba peritah lainnya');
         }
 
-        if (tokenMixResponse.status === 429) {
+        if (statusCode === 429) {
           let retryAfter = '';
           try {
             const errObj = JSON.parse(errorText);
@@ -6857,10 +6784,10 @@ app.post('/api/images/generate', async (req, res) => {
           throw new Error(`Batas limit pembuatan gambar tercapai${retryAfter}. Harap tunggu sebentar.`);
         }
 
-        throw new Error(`Gagal memproses gambar (${tokenMixResponse.status}). Silakan coba lagi.`);
+        throw new Error(`Gagal memproses gambar (${statusCode}). Pastikan provider gambar sudah aktif di FreeLLMAPI.`);
       }
 
-      const imageData = await tokenMixResponse.json();
+      const imageData = await imgApiResponse.json();
       console.log('[IMG_GEN] Image generated successfully');
       console.log('[IMG_GEN] 🔴 Raw Deepernova response:', JSON.stringify(imageData).substring(0, 500));
 
@@ -6974,7 +6901,7 @@ app.post('/api/images/generate', async (req, res) => {
     } catch (watermarkErr) {
       console.error('[IMG_GEN] ⚠️  Watermark failed:', watermarkErr.message);
       console.error('[IMG_GEN] Watermark error stack:', watermarkErr.stack);
-      console.warn('[IMG_GEN] Falling back to original image URL from TokenMix');
+      console.warn('[IMG_GEN] Falling back to original image URL from FreeLLM');
       // If watermark fails, continue with original imageUrl
       finalImageUrl = imageUrl;
       watermarked = false;
@@ -7189,11 +7116,9 @@ app.get('/generated/:filename', (req, res) => {
 
 // ============== VISION ANALYSIS API ==============
 
-const TOKENMIX_CHAT_URL = process.env.TOKENMIX_CHAT_API_URL || process.env.TOKENMIX_CHAT_URL || 'https://api.tokenmix.ai/v1/chat/completions';
-
 /**
  * POST /api/vision/analyze
- * Analyze image content using llama-4-maverick
+ * Analyze image content via FreeLLM Vision Gateway
  * Body: { imageUrl: string, question: string }
  */
 app.post('/api/vision/analyze', async (req, res) => {
@@ -7204,27 +7129,24 @@ app.post('/api/vision/analyze', async (req, res) => {
       return res.status(400).json({ error: 'imageUrl is required' });
     }
 
-    if (!TOKENMIX_API_KEY) {
-      console.error('[VISION] TOKENMIX_API_KEY not configured');
-      return res.status(500).json({ error: 'Vision analysis service not configured' });
+    const orderedVisionKeys = getEffectiveFreeLlmKeys();
+    if (orderedVisionKeys.length === 0) {
+      console.error('[VISION] No FreeLLM API keys configured');
+      return res.status(503).json({ error: 'Vision analysis service not configured (FREELLM_API_KEY missing)' });
     }
 
-    console.log('[VISION] Analyzing image with llama-4-maverick');
-    console.log('[VISION] Image input type:', imageUrl.substring(0, 20));
+    console.log('[VISION] Analyzing image via FreeLLM Vision Gateway');
     console.log('[VISION] Question:', question.substring(0, 100));
-    console.log('[VISION] API Key configured:', !!TOKENMIX_API_KEY);
 
     // Build image content - accepts data URIs in image_url field
     let imageContent = null;
     if (imageUrl.startsWith('data:')) {
-      // Data URL format for base64
       imageContent = {
         type: 'image_url',
         image_url: { url: imageUrl }
       };
       console.log('[VISION] Using base64 data URI');
     } else if (imageUrl.startsWith('https://')) {
-      // Public HTTPS URL
       imageContent = {
         type: 'image_url',
         image_url: { url: imageUrl }
@@ -7234,17 +7156,13 @@ app.post('/api/vision/analyze', async (req, res) => {
       throw new Error('Image must be either base64 data URL or public HTTPS URL');
     }
 
-    // Flat content format
     const messageContent = [
       { type: 'text', text: question },
       imageContent
     ];
 
-    console.log('[VISION] Message content structure:', JSON.stringify(messageContent, null, 2));
-
-    // Call llama-4-maverick for vision analysis
-    const payload = {
-      model: 'llama-4-maverick',
+    const visionDispatch = await dispatchFreeLlmRequest({
+      requestedModel: req.body.model || 'qwen2.5-vl-72b',
       messages: [
         {
           role: 'user',
@@ -7253,38 +7171,24 @@ app.post('/api/vision/analyze', async (req, res) => {
       ],
       max_tokens: 1024,
       temperature: 0.5,
-    };
-
-    console.log('[VISION] Payload being sent to TokenMix:');
-    console.log('[VISION] Full payload:', JSON.stringify(payload, null, 2));
-
-    const visionResponse = await fetch(TOKENMIX_CHAT_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TOKENMIX_API_KEY}`,
-      },
-      body: JSON.stringify(payload),
+      stream: false,
+      hasImages: true
     });
 
-    if (!visionResponse.ok) {
-      const errorText = await visionResponse.text();
-      console.error('[VISION] TokenMix Vision API error:', visionResponse.status, visionResponse.statusText);
-      console.error('[VISION] Error response body:', errorText.substring(0, 500));
-      throw new Error(`TokenMix Vision API error: ${visionResponse.status} ${visionResponse.statusText} - ${errorText.substring(0, 200)}`);
+    if (!visionDispatch.response || !visionDispatch.response.ok) {
+      const errMsg = visionDispatch.lastError?.message || 'FreeLLM vision upstream error';
+      console.error('[VISION] FreeLLM Vision API error:', errMsg);
+      throw new Error(`FreeLLM Vision API error: ${errMsg}`);
     }
 
-    const visionData = await visionResponse.json();
-    console.log('[VISION] Analysis complete');
-    console.log('[VISION] Response keys:', Object.keys(visionData));
-
-    // Extract analysis from response
+    const visionData = await visionDispatch.response.json();
     const analysis = visionData.choices?.[0]?.message?.content || 'Unable to analyze image';
 
     res.json({
       success: true,
       analysis: analysis,
-      model: 'llama-4-maverick',
+      model: visionDispatch.modelUsed || 'qwen2.5-vl-72b',
+      provider: visionDispatch.platformUsed || 'freellmapi',
       timestamp: new Date().toISOString(),
     });
   } catch (err) {

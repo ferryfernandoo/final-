@@ -203,7 +203,7 @@ export function extractSearchResults(step) {
     if (urlMatch) {
       const url = urlMatch[1];
       let domain = '';
-      try { domain = new URL(url).hostname.replace(/^www\./i, ''); } catch (e) {}
+      try { domain = new URL(url).hostname.replace(/^www\./i, ''); } catch (e) { }
       const firstLine = b.split('\n')[0].replace(/^[\d+.-]\s*/, '').trim();
       const title = firstLine && !firstLine.startsWith('URL:') ? firstLine : (domain || 'Sumber Terverifikasi');
       items.push({
@@ -324,9 +324,9 @@ export function extractExecutionStepsAndCleanContent(rawContent, reasoning = '',
  * Shows a single quiet status line; click to expand steps if needed.
  * ============================================================================
  */
-export default function AgentExecutionTree({ 
-  steps = [], 
-  isStreaming = false, 
+export default function AgentExecutionTree({
+  steps = [],
+  isStreaming = false,
   startTime = null,
   duration = null,
   onSelectFile,
@@ -383,10 +383,10 @@ export default function AgentExecutionTree({
     <div className={`agent-execution-tree ${isTreeOpen ? 'is-open' : 'is-collapsed'}`}>
       <button
         type="button"
-        className="agent-tree-summary-row" 
+        className="agent-tree-summary-row"
         onClick={() => setIsTreeOpen(!isTreeOpen)}
-        title={isTreeOpen 
-          ? (currentLang === 'zh' ? "收起执行详情" : currentLang === 'en' ? "Hide execution steps" : "Sembunyikan rincian langkah") 
+        title={isTreeOpen
+          ? (currentLang === 'zh' ? "收起执行详情" : currentLang === 'en' ? "Hide execution steps" : "Sembunyikan rincian langkah")
           : (currentLang === 'zh' ? "查看 AI 执行链路详情" : currentLang === 'en' ? "View AI execution steps" : "Lihat rincian langkah kerja AI")}
       >
         <div className="agent-tree-summary-left">
@@ -422,7 +422,7 @@ export default function AgentExecutionTree({
 
             return (
               <div key={stepId} className="agent-tree-node">
-                <div 
+                <div
                   className={`agent-tree-node-row ${isExpanded ? 'is-open' : ''} ${isFailed ? 'is-failed' : ''}`}
                   onClick={() => detailText && setActiveStepId(isExpanded ? null : stepId)}
                 >
@@ -439,7 +439,7 @@ export default function AgentExecutionTree({
                         {searchResults.slice(0, 6).map((res, rIdx) => {
                           let domain = res.domain || '';
                           if (!domain && (res.url || res.link)) {
-                            try { domain = new URL(res.url || res.link).hostname.replace(/^www\./i, ''); } catch (e) {}
+                            try { domain = new URL(res.url || res.link).hostname.replace(/^www\./i, ''); } catch (e) { }
                           }
                           return (
                             <a
@@ -464,8 +464,8 @@ export default function AgentExecutionTree({
                     </pre>
 
                     <div className="agent-tree-drawer-actions">
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         className="agent-tree-copy-btn"
                         onClick={(e) => handleCopyText(e, detailText, stepId)}
                       >

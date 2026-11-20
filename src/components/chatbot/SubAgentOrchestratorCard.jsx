@@ -161,7 +161,7 @@ export const SubAgentOrchestratorCard = React.memo(({
     setTimeout(() => URL.revokeObjectURL(url), 15000);
   };
 
-  // 1. AWAITING USER CONFIRMATION (Always ask user before Sub-Agent activates)
+  // 1. AWAITING USER CONFIRMATION (Legacy fallback only)
   if (isAwaiting) {
     const taskPreview = (subAgentData.taskDescription || '').trim();
     return (
@@ -172,10 +172,7 @@ export const SubAgentOrchestratorCard = React.memo(({
           </div>
           <div className="subagent-confirm-text">
             <div className="subagent-confirm-title">
-              <span>{isEn ? 'Activate Sub-Agent?' : 'Aktifkan Sub-Agent?'}</span>
-              <span className="subagent-confirm-badge">
-                {isEn ? 'Confirmation' : 'Konfirmasi'}
-              </span>
+              <span>{isEn ? 'Run Sub-Agent?' : 'Jalankan Sub-Agent?'}</span>
             </div>
             {taskPreview && (
               <p className="subagent-confirm-desc">{taskPreview}</p>
@@ -189,7 +186,7 @@ export const SubAgentOrchestratorCard = React.memo(({
             className="subagent-btn-secondary"
             onClick={() => onSubAgentAction?.(message?.id, 'dismiss', subAgentData)}
           >
-            {isEn ? 'Skip, keep text only' : 'Lewati'}
+            {isEn ? 'Skip' : 'Lewati'}
           </button>
           <button
             type="button"
@@ -197,7 +194,7 @@ export const SubAgentOrchestratorCard = React.memo(({
             onClick={() => onSubAgentAction?.(message?.id, 'confirm', subAgentData)}
           >
             <i className="fa-solid fa-bolt" style={{ fontSize: '11px' }} />
-            <span>{isEn ? 'Activate & Run' : 'Aktifkan Sub-Agent'}</span>
+            <span>{isEn ? 'Run' : 'Jalankan'}</span>
           </button>
         </div>
       </div>
@@ -224,18 +221,25 @@ export const SubAgentOrchestratorCard = React.memo(({
   }
 
   // 3. RUNNING / COMPLETED / ERROR / ABORTED (Calm Minimal AI-Agent Pill + Expandable Tree)
-  const latestStep = thoughtSteps[thoughtSteps.length - 1];
+  const cleanSteps = useMemo(
+    () => thoughtSteps.filter((s) => s && !/^Mode Percakapan Langsung$/i.test(s.title || '')),
+    [thoughtSteps]
+  );
+  const displaySteps = cleanSteps.length > 0 ? cleanSteps : thoughtSteps;
+  const latestStep = displaySteps[displaySteps.length - 1];
   const pillLabel = isRunning
-    ? (activeWritingFile
-      ? (isEn ? `Writing ${activeWritingFile}...` : `Menulis ${activeWritingFile}...`)
-      : (latestStep?.title || (isEn ? 'Sub-Agent working...' : 'Sub-Agent bekerja...')))
+    ? (finalAnswer
+      ? (isEn ? 'Composing response...' : 'Menyusun jawaban...')
+      : activeWritingFile
+        ? (isEn ? `Writing ${activeWritingFile}...` : `Menulis ${activeWritingFile}...`)
+        : (latestStep?.title || (isEn ? 'Working...' : 'Mengerjakan tugas...')))
     : isCompleted
       ? (isEn
-        ? `Done • ${thoughtSteps.length} steps${files.length ? ` • ${files.length} files` : ''}`
-        : `Selesai • ${thoughtSteps.length} langkah${files.length ? ` • ${files.length} berkas` : ''}`)
+        ? `${displaySteps.length} steps${files.length ? ` • ${files.length} files` : ''}`
+        : `${displaySteps.length} langkah${files.length ? ` • ${files.length} berkas` : ''}`)
       : isAborted
-        ? (isEn ? 'Sub-Agent stopped' : 'Sub-Agent dihentikan')
-        : (isEn ? 'Sub-Agent interrupted' : 'Sub-Agent terganggu');
+        ? (isEn ? 'Stopped' : 'Dihentikan')
+        : (isEn ? 'Interrupted' : 'Terganggu');
 
   const stageNames = isEn
     ? ['Planner', 'Engineer', 'Verifier']
@@ -281,10 +285,10 @@ export const SubAgentOrchestratorCard = React.memo(({
         )}
       </div>
 
-      {/* Live Runtut Sequential Steps Preview While Running (unless full drawer is already open) */}
-      {isRunning && !isTreeExpanded && thoughtSteps.length > 0 && (
+      {/* Live Sequential Steps While Executing Tools/Files (collapses cleanly once finalAnswer starts) */}
+      {isRunning && !isTreeExpanded && !finalAnswer && displaySteps.length > 0 && (
         <div className="subagent-live-runner" aria-live="polite">
-          {thoughtSteps.slice(-3).map((step, idx, arr) => {
+          {displaySteps.slice(-3).map((step, idx, arr) => {
             const stepId = step.id || `live_${idx}`;
             const isLast = idx === arr.length - 1;
             const stepDone = step.status === 'done' || !isLast;
@@ -322,10 +326,10 @@ export const SubAgentOrchestratorCard = React.memo(({
           </div>
 
           <div className="subagent-step-list">
-            {thoughtSteps.map((step, idx) => {
+            {displaySteps.map((step, idx) => {
               const stepId = step.id || `step_${idx}`;
               const stepDone = isCompleted || step.status === 'done';
-              const stepRunning = isRunning && !stepDone && idx === thoughtSteps.length - 1;
+              const stepRunning = isRunning && !stepDone && idx === displaySteps.length - 1;
               const isStepOpen = expandedStepId === stepId;
               return (
                 <div key={stepId} className="subagent-step-item">

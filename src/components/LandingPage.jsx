@@ -787,7 +787,7 @@ const LandingPage = ({ onStartChat, onOpenOffice, onOpenUniverse, onOpenDrive, o
                 </div>
                 <p className="lp-stat-card-desc">
                   {currentLang === 'id'
-                    ? 'Akumulasi token inferensi model AI (Gold, Silicon, Boron) dan penalaran cerdas yang telah dikomputasi untuk publik.'
+                    ? 'Akumulasi token inferensi model AI (Qwen 2.5 VL, Nemotron 3 Ultra, Lightning, North Code) yang telah dikomputasi untuk publik.'
                     : 'Cumulative AI inference and reasoning tokens processed across all active models for public requests.'}
                 </p>
               </div>

@@ -1,6 +1,6 @@
 const FALLBACK_BACKEND_URL =
   (typeof globalThis !== 'undefined' && globalThis.process?.env?.PUBLIC_BACKEND_URL) ||
-  'https://avon-borough-jews-notes.trycloudflare.com';
+  'https://liberty-bracelet-mayor-gaps.trycloudflare.com';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

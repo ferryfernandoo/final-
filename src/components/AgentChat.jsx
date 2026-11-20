@@ -6,6 +6,7 @@ import AgentService from '../services/agentService';
 import { downloadFromUrl, downloadText } from '../services/universalDownloadService';
 import AgentExecutionTree, { extractExecutionStepsAndCleanContent, stripActionPillTags } from './AgentExecutionTree';
 import { detectLanguageSync, saveLanguage, LANGUAGE_OPTIONS } from '../utils/languageDetector';
+import { getSmoothTypingStep } from './chatbot/chatConstants';
 import FileViewer from './FileViewer';
 import './AgentChat.css';
 
@@ -703,36 +704,20 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
 
       let updated = false;
 
-      // 1. Smooth Reasoning Stream (Santai & Paced)
+      // 1. Smooth Reasoning Stream
       if (displayedReasoning.length < targetReasoning.length) {
         const diff = targetReasoning.length - displayedReasoning.length;
-        let step = 1;
-        if (diff <= 80) step = 1;
-        else if (diff <= 200) step = 2;
-        else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
-
-        if (isStreamDone) {
-          step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
-        }
-
+        const step = getSmoothTypingStep(diff, isStreamDone);
         displayedReasoning += targetReasoning.substr(displayedReasoning.length, step);
         updated = true;
       }
 
-      // 2. Smooth Main Content Stream (Santai, Halus, Tanpa Bocor Tag XML)
+      // 2. Smooth Main Content Stream (Cepat, Halus, Tanpa Bocor Tag XML)
       if (displayedContent.length < targetContent.length) {
         const cleanFullTarget = stripActionPillTags(targetContent);
         if (displayedContent.length < cleanFullTarget.length) {
           const diff = cleanFullTarget.length - displayedContent.length;
-          let step = 1;
-          if (diff <= 80) step = 1;
-          else if (diff <= 220) step = 2;
-          else step = Math.min(diff, Math.max(2, Math.min(3, Math.ceil(diff / 60))));
-
-          if (isStreamDone) {
-            step = Math.min(diff, Math.max(step, Math.min(4, Math.ceil(diff / 20))));
-          }
-
+          const step = getSmoothTypingStep(diff, isStreamDone);
           displayedContent += cleanFullTarget.substr(displayedContent.length, step);
           updated = true;
         }
@@ -770,7 +755,7 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
 
     const startSmoothTimer = () => {
       if (!smoothTimer) {
-        smoothTimer = setInterval(flushSmoothTyping, 32);
+        smoothTimer = setInterval(flushSmoothTyping, 18);
         smoothStreamTimerRef.current = smoothTimer;
       }
     };
@@ -779,7 +764,7 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
       await AgentService.runTask({
         sessionId: currentSessionId,
         prompt: textToSend,
-        model: 'deepernova-gold-1.5',
+        model: 'qwen2.5-vl-72b',
         history: messages,
         effort: agentEffort,
         language: userLanguage,

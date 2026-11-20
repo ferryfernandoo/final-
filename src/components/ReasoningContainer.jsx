@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 /**
- * ReasoningContainer - Minimalist Collapsible Box Holder for Boron 1.1 Reasoning Monologue
+ * ReasoningContainer - Minimalist Collapsible Box Holder for Reasoning Monologue
  */
 export default function ReasoningContainer({
   thought = '',
@@ -42,10 +42,10 @@ export default function ReasoningContainer({
   };
 
   const buttonLabel = isStreaming
-    ? 'Proses Penalaran Boron 1.1 (Menalar...)'
+    ? 'Proses Penalaran AI (Menalar...)'
     : duration
-      ? `Proses Penalaran Boron 1.1 (${duration}s)`
-      : 'Proses Penalaran Boron 1.1';
+      ? `Proses Penalaran AI (${duration}s)`
+      : 'Proses Penalaran AI';
 
   return (
     <div className="reasoning-completed-container">

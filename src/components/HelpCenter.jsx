@@ -3,35 +3,37 @@ import { registerBackHandler } from '../services/mobileNavigationService';
 import './HelpCenter.css';
 
 const HELP_DATA = [
-  // ==================== 1. MODEL AI & PENALARAN (DEEPERNOVA MODELS) ====================
+  // ==================== 1. MODEL AI & PENALARAN (FREELMM REAL MODELS) ====================
   {
     id: 'model-overview',
     category: 'models',
-    title: 'Mengenal Pilihan Model AI Deepernova: Gold 1.5, Silicon 1.4, dan Boron 1.1',
-    summary: 'Panduan memilih model neural AI Deepernova yang paling tepat untuk kebutuhan coding, penulisan dokumen ilmiah, analisis bisnis, atau obrolan santai.',
+    title: 'Mengenal Pilihan Model AI: Qwen 2.5 VL 72B, Nemotron 3 Ultra 550B, Lightning, & North Code',
+    summary: 'Panduan memilih model AI nyata berkecepatan tinggi melalui FreeLLM Gateway untuk coding, visi gambar, analisis dokumen besar, atau obrolan harian.',
     solution: [
-      'DeeperNova Gold 1.5 (Flagship Utama): Model berkecepatan tinggi dengan daya nalar tajam, multimodal vision, coding cerdas, dan memori konteks hingga 1 Juta Token. Sangat direkomendasikan untuk tugas harian, coding web, dan penyusunan dokumen.',
-      'DeeperNova Gold 1.5 Pro: Versi penalaran terkuat (Llama 3.3 70B Engine) yang dirancang khusus untuk memecahkan logika matematika kompleks, arsitektur software bertingkat, dan analisis data mendalam.',
-      'DeeperNova Silicon 1.4: Model inferensi super cepat berbasis ByteDance Seed Turbo yang sangat responsif untuk obrolan santai, penulisan kreatif, terjemahan bahasa, dan pencarian berita real-time.',
-      'DeeperNova Boron 1.1 (On-Device / Local AI): Model efisiensi tinggi yang siap berjalan di lingkungan lokal dengan latensi minimal dan privasi data mutlak.',
-      'Cara Mengganti Model: Di layar obrolan ChatBot, klik menu pilihan model di bilah atas untuk beralih model secara instan tanpa kehilangan riwayat obrolan.'
+      'Qwen 2.5 VL 72B (qwen2.5-vl-72b): Model multimodal teks dan analisis gambar (Vision) 72B berkecepatan tinggi (~1.2 detik) tanpa jeda berpikir internal.',
+      'Nemotron 3 Ultra 550B (nemotron-3-ultra-550b): Model NVIDIA berskala 550B dengan konteks 800K token untuk penalaran kompleks dan analisis mendalam (~1.1 detik).',
+      'Nemotron 3.5 Lightning (nemotron-3.5-lightning): Model cepat dengan jendela konteks ekstra luas hingga 838K token untuk file dan riwayat panjang (~1.4 detik).',
+      'North Mini Code (north-mini-code): Model Cohere super responsif (~0.8 detik) yang dioptimalkan khusus untuk pemrograman, logika teknis, dan generasi struktur cepat.',
+      'FreeRouter Auto (free-router): Router otomatis FreeLLM yang memilih model gratis tercepat dan paling sehat secara real-time (~1.0 detik).',
+      'Nemotron 3.5 Super VL (nemotron-3.5-super-vl): Model NVIDIA 800K token untuk analisis teks mendalam dan sintesis terstruktur.',
+      'Cara Mengganti Model: Di layar obrolan ChatBot, klik menu pilihan model di area input untuk beralih model secara instan tanpa kehilangan riwayat obrolan.'
     ],
-    tips: 'Untuk tugas membuat aplikasi di AI Agent atau pembuatan dokumen di AI Agent maupun Chatbot, gunakan DeeperNova Gold 1.5 karena memiliki kemampuan sintesis struktur berkas paling konsisten.',
-    keywords: 'pilihan model ai, deepernova gold 1.5, gold pro, silicon 1.4, boron 1.1, ganti model chat'
+    tips: 'Untuk kecepatan maksimal dan dukungan gambar, gunakan Qwen 2.5 VL 72B; untuk coding instan pilih North Mini Code; untuk dokumen sangat panjang pilih Nemotron 3 Ultra 550B.',
+    keywords: 'pilihan model ai, qwen2.5-vl-72b, nemotron-3-ultra-550b, nemotron-3.5-lightning, north-mini-code, free-router, nemotron-3.5-super-vl, freellm, ganti model chat'
   },
   {
     id: 'model-context-1m',
     category: 'models',
-    title: 'Kapasitas Memori Konteks 1 Juta Token: Cara Kerja dan Manfaatnya',
-    summary: 'Bagaimana Deepernova mampu mengingat obrolan panjang, membaca buku tebal, dan menganalisis kode puluhan ribu baris dalam satu sesi.',
+    title: 'Kapasitas Memori Konteks Besar: Cara Kerja dan Manfaatnya',
+    summary: 'Bagaimana platform mampu mengingat obrolan panjang, membaca dokumen besar, dan menganalisis kode puluhan ribu baris dalam satu sesi.',
     solution: [
-      '1 Juta Token setara dengan sekitar 3.000.000 karakter atau setara 800 halaman buku tebal yang bisa diproses sekaligus oleh AI.',
-      'Anda dapat melampirkan teks panjang, naskah makalah utuh, atau log error sistem yang sangat panjang tanpa takut AI lupa konteks awal.',
-      'AI tidak memotong pesan secara agresif; seluruh sejarah percakapan dalam sesi yang sama akan terus dirujuk saat Anda mengajukan pertanyaan lanjutan.',
-      'Jika percakapan sudah sangat panjang dan Anda ingin memulai topik yang sama sekali baru, disarankan menekan tombol "Obrolan Baru" (+) agar inferensi tetap gesit.'
+      'Model seperti Nemotron 3 Ultra 550B dan Nemotron 3.5 Lightning mendukung konteks hingga 800K+ token yang mampu memproses dokumen dan kode panjang dalam satu sesi.',
+      'Anda dapat melampirkan teks panjang, naskah makalah utuh, atau log error sistem tanpa takut AI lupa konteks awal.',
+      'AI tetap merujuk konteks percakapan aktif dalam sesi yang sama secara konsisten.',
+      'Jika ingin memulai topik baru sama sekali, tekan tombol "Obrolan Baru" (+) agar respons tetap sangat cepat.'
     ],
     tips: 'Jika ingin menganalisis dokumen besar, cukup salin atau lampirkan teksnya ke chat, lalu berikan instruksi spesifik seperti: "Buatkan ringkasan per bab dan daftar temuan penting".',
-    keywords: '1 juta token, kapasitas konteks, memori panjang, analisa dokumen tebal, token context'
+    keywords: '800k token, kapasitas konteks, memori panjang, analisa dokumen tebal, token context'
   },
   {
     id: 'model-reasoning-toggle',
@@ -39,10 +41,9 @@ const HELP_DATA = [
     title: 'Cara Menggunakan Mode Penalaran (Deep Reasoning / CoT)',
     summary: 'Kapan harus mengaktifkan mode pemikiran langkah-demi-langkah dan kapan mematikannya untuk jawaban instan to-the-point.',
     solution: [
-      'Mode Penalaran Aktif: AI akan berpikir secara mendalam (Chain-of-Thought) terlebih dahulu, menganalisis kemungkinan sudut pandang, memverifikasi rumus, lalu menyajikan kesimpulan matang.',
-      'Mode Penalaran Nonaktif: AI langsung memberikan jawaban tegas, padat, dan ringkas tanpa proses perenungan panjang di awal.',
-      'Cara Mengatur: Pada model yang mendukung (seperti DeeperNova Boron dan mode Pro), klik tombol "Mode Penalaran" / "Thinking" di panel input obrolan untuk mengaktifkan atau menonaktifkannya.',
-      'Catatan Khusus DeeperNova Gold: Tombol penalaran otomatis dioptimalkan agar Anda selalu mendapatkan respons secepat kilat tanpa jeda perenungan yang berlebihan.'
+      'Mode Penalaran Aktif: AI akan berpikir mendalam terlebih dahulu sebelum menyajikan kesimpulan matang (tersedia di model Nemotron).',
+      'Mode Penalaran Nonaktif (Default Cepat): AI langsung mengalirkan jawaban padat dan cepat seketika.',
+      'Cara Mengatur: Pada model yang mendukung penalaran, klik ikon penalaran di bilah input obrolan untuk mengaktifkan atau menonaktifkannya.'
     ],
     tips: 'Gunakan Mode Penalaran saat Anda membutuhkan verifikasi rumus matematika rumit, logika algoritma rekursif, atau analisis hukum/kebijakan publik.',
     keywords: 'mode penalaran, deep reasoning, thinking button, tombol pikir, chain of thought, cot'
@@ -115,11 +116,11 @@ const HELP_DATA = [
     solution: [
       'Endpoint URL: https://deepernova.com/api/chat',
       'Header Wajib: Content-Type: application/json dan Authorization: Bearer <API_KEY_ANDA>.',
-      'Body JSON: {"model": "deepernova-gold-1.5", "messages": [{"role": "user", "content": "Halo Deepernova!"}], "stream": false}',
-      'Contoh cURL:\ncurl -X POST https://deepernova.com/api/chat -H "Content-Type: application/json" -H "Authorization: Bearer dkn_xxx" -d \'{"model":"deepernova-gold-1.5","messages":[{"role":"user","content":"Halo!"}]}\'',
+      'Body JSON: {"model": "qwen2.5-vl-72b", "messages": [{"role": "user", "content": "Halo!"}], "stream": false}',
+      'Contoh cURL:\ncurl -X POST https://deepernova.com/api/chat -H "Content-Type: application/json" -H "Authorization: Bearer dkn_xxx" -d \'{"model":"qwen2.5-vl-72b","messages":[{"role":"user","content":"Halo!"}]}\'',
       'Dukungan Streaming: Ubah "stream": true untuk menerima Server-Sent Events (SSE) teks mengalir secara real-time.'
     ],
-    tips: 'Gunakan model "deepernova-gold-1.5" untuk performa terbaik atau "deepernova-silicon-1.4" untuk kecepatan inferensi super kilat.',
+    tips: 'Gunakan model "qwen2.5-vl-72b" untuk multimodal vision cepat, "north-mini-code" untuk coding instan, atau "nemotron-3-ultra-550b" untuk konteks panjang 800K.',
     keywords: 'post api chat, curl chat api, python deepernova api, streaming sse, endpoint llm'
   },
   {

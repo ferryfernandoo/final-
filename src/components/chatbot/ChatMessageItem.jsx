@@ -227,7 +227,7 @@ const ChatMessageItemComponent = ({
                   <span className="slow-processing-text">
                     {localModelProgress?.isLoading ? (
                       <span style={{ color: '#ea580c', fontWeight: 600 }}>
-                        ⚡ {localModelProgress.statusText || `Memuat Boron 1.1 (${localModelProgress.pct}%)...`}
+                        ⚡ {localModelProgress.statusText || `Memuat Engine AI (${localModelProgress.pct}%)...`}
                       </span>
                     ) : (
                       <>
