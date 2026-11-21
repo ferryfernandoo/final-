@@ -1,2 +1,11 @@
-export { config, default } from './serp-search.js';
+import handler from './serp-search.js';
+
+export const config = {
+  runtime: 'edge',
+};
+
+export default function googleSearchHandler(request) {
+  return handler(request);
+}
+
 

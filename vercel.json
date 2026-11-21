@@ -167,7 +167,7 @@
     },
     {
       "source": "/api/google-search",
-      "destination": "/api/google-search"
+      "destination": "/api/serp-search"
     },
     {
       "source": "/api/search",
