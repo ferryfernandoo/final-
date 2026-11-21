@@ -107,14 +107,18 @@ function sanitizeSearchQueryServer(rawQuery = '', fallbackPrompt = '') {
   return q || String(fallbackPrompt || '').slice(0, 120);
 }
 
-function cleanAssistantFinalText(raw = '') {
+function cleanAssistantStreamingText(raw = '') {
   return String(raw || '')
     .replace(/\bDoubao\b/gi, 'DeeperNova AI')
     .replace(/\bByteDance\b/gi, 'DeeperNova AI')
     .replace(/<\/?(?:think|reasoning|thought)>/gi, '')
     .replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*\]\s*/gi, '')
     .replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>\s*/gi, '')
-    .trim();
+    .trimStart();
+}
+
+function cleanAssistantFinalText(raw = '') {
+  return cleanAssistantStreamingText(raw).trim();
 }
 
 function formatBubbleDomainServer(rawDomain = '') {
@@ -420,13 +424,18 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
   const emitReasoning = (chunk) => {
     if (!chunk) return;
     if (!reasoningStartMs) reasoningStartMs = Date.now();
+    const prevLen = reasoningText.length;
     reasoningText += chunk;
     if (options.enableReasoning) {
       job.reasoningText = reasoningText;
       if (job.status !== 'streaming' && job.status !== 'searching') {
         job.status = 'thinking';
       }
-      broadcastJobEvent(job, 'reasoning_delta', { delta: chunk, reasoningText });
+      broadcastJobEvent(job, 'reasoning_delta', {
+        delta: chunk,
+        offset: prevLen,
+        reasoningLen: reasoningText.length
+      });
       flushJobToDb(job, false);
     }
   };
@@ -456,9 +465,21 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
     }
 
     job.status = 'streaming';
-    const cleanDelta = chunk.replace(/\bDoubao\b/gi, 'DeeperNova AI').replace(/\bByteDance\b/gi, 'DeeperNova AI');
-    job.text = cleanAssistantFinalText(rawText);
-    broadcastJobEvent(job, 'content_delta', { delta: cleanDelta, text: job.text });
+    const prevText = job.text || '';
+    const nextText = cleanAssistantStreamingText(rawText);
+    job.text = nextText;
+    if (nextText.startsWith(prevText)) {
+      const effectiveDelta = nextText.slice(prevText.length);
+      if (effectiveDelta) {
+        broadcastJobEvent(job, 'content_delta', {
+          delta: effectiveDelta,
+          offset: prevText.length,
+          textLen: nextText.length
+        });
+      }
+    } else {
+      broadcastJobEvent(job, 'content_delta', { text: nextText });
+    }
     flushJobToDb(job, false);
   };
 
@@ -877,13 +898,22 @@ export function subscribeToJobStream(jobId, caller, req, res) {
     return res.status(404).json({ success: false, error: 'Chat job not found or unauthorized' });
   }
 
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream; charset=utf-8',
-    'Cache-Control': 'no-cache, no-transform',
-    'Connection': 'keep-alive',
-    'X-Accel-Buffering': 'no'
-  });
-  res.write('retry: 2000\n\n: connected\n\n');
+  req.socket?.setNoDelay?.(true);
+  res.socket?.setNoDelay?.(true);
+
+  if (!res.headersSent) {
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+  }
+
+  // Push initial 2KB SSE comment padding so Cloudflare/HTTP2 edge proxies flush immediately at t=0
+  res.write(`: ${' '.repeat(2048)}\n\nretry: 2000\n\n: connected\n\n`);
   res.write(`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`);
   if (typeof res.flush === 'function') res.flush();
 

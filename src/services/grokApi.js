@@ -1618,6 +1618,8 @@ export const subscribeToServerChatJob = async (jobId, callbacks = {}, options = 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let accText = '';
+      let accReasoning = '';
 
       const handleEventBlock = (rawBlock) => {
         const lines = rawBlock.split(/\r?\n/);
@@ -1633,6 +1635,8 @@ export const subscribeToServerChatJob = async (jobId, callbacks = {}, options = 
         try { parsed = JSON.parse(rawData); } catch { return; }
 
         if (eventName === 'snapshot') {
+          if (typeof parsed?.text === 'string') accText = parsed.text;
+          if (typeof parsed?.reasoningText === 'string') accReasoning = parsed.reasoningText;
           callbacks.onSnapshot?.(parsed);
           if (['done', 'stopped', 'error'].includes(parsed?.status)) {
             dispatchTerminal(parsed);
@@ -1640,11 +1644,31 @@ export const subscribeToServerChatJob = async (jobId, callbacks = {}, options = 
         } else if (eventName === 'status') {
           callbacks.onStatus?.(parsed);
         } else if (eventName === 'search') {
+          accText = '';
+          accReasoning = '';
           callbacks.onSearch?.(parsed);
         } else if (eventName === 'reasoning_delta') {
-          callbacks.onReasoningDelta?.(parsed);
+          if (typeof parsed?.delta === 'string') {
+            if (typeof parsed?.offset === 'number' && accReasoning.length >= parsed.offset) {
+              accReasoning = accReasoning.slice(0, parsed.offset) + parsed.delta;
+            } else {
+              accReasoning += parsed.delta;
+            }
+          } else if (typeof parsed?.reasoningText === 'string') {
+            accReasoning = parsed.reasoningText;
+          }
+          callbacks.onReasoningDelta?.({ ...parsed, reasoningText: accReasoning });
         } else if (eventName === 'content_delta') {
-          callbacks.onContentDelta?.(parsed);
+          if (typeof parsed?.delta === 'string') {
+            if (typeof parsed?.offset === 'number' && accText.length >= parsed.offset) {
+              accText = accText.slice(0, parsed.offset) + parsed.delta;
+            } else {
+              accText += parsed.delta;
+            }
+          } else if (typeof parsed?.text === 'string') {
+            accText = parsed.text;
+          }
+          callbacks.onContentDelta?.({ ...parsed, text: accText });
         } else if (eventName === 'done') {
           terminal = true;
           callbacks.onDone?.(parsed);

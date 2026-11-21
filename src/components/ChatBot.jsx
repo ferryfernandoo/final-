@@ -2520,6 +2520,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
           setConversations(cleanedLoaded);
           switchingConvRef.current = true;
+          currentConversationIdRef.current = targetConv.id;
           setCurrentConversationId(targetConv.id);
           rememberConversationId(targetConv.id);
           setMessages(targetConv.messages || []);
@@ -2908,7 +2909,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
             setConversations((prev) => {
               const { convs } = applyServerJobsToConversationList(prev, matchingJobs);
               const updatedTarget = convs.find(c => String(c.id) === String(activeId));
-              if (updatedTarget && !isSendGeneratingRef.current) {
+              if (updatedTarget && !isSendGeneratingRef.current && !isProcessingRef.current && activeJobSubscriptionsRef.current.size === 0) {
                 setMessages(updatedTarget.messages || []);
               }
               return convs;
@@ -5918,7 +5919,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const {
       sessionId,
       assistantMessageId,
-      userMessageId = null,
       userPrompt = '',
       isPrivateTurn = false,
       enableReasoning = false,
@@ -5959,102 +5959,353 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       );
     };
 
+    const existingBotMsg =
+      (messagesRef.current || []).find(m => String(m.id) === String(assistantMessageId)) ||
+      (conversationsRef.current || []).flatMap(c => c.messages || []).find(m => String(m.id) === String(assistantMessageId));
+
+    let displayedFullText = existingBotMsg?.text ? String(existingBotMsg.text) : '';
+    let targetFullText = displayedFullText;
+    let targetReasoningText = enableReasoning && existingBotMsg?.reasoningText ? String(existingBotMsg.reasoningText) : '';
+    let displayedReasoningText = targetReasoningText;
+    let isReasoningActive = Boolean(enableReasoning && existingBotMsg?.isReasoning);
+    let reasoningStartMs = isReasoningActive ? Date.now() : null;
+    let reasoningDuration = existingBotMsg?.reasoningDuration || null;
+    let isSearchingActive = Boolean(existingBotMsg?.isSearching);
+    let latestSearchMeta = {
+      searchQuery: existingBotMsg?.searchQuery || null,
+      searchSources: Array.isArray(existingBotMsg?.searchSources) ? existingBotMsg.searchSources : [],
+      searchImages: Array.isArray(existingBotMsg?.searchImages) ? existingBotMsg.searchImages : [],
+      searchSteps: Array.isArray(existingBotMsg?.searchSteps) ? existingBotMsg.searchSteps : []
+    };
+
+    let smoothTimer = null;
+    let pendingDoneCtx = null;
+    let finalized = false;
+    let doneResolve = null;
+    const typingDonePromise = new Promise((resolve) => { doneResolve = resolve; });
+
+    const clearSmoothTyping = () => {
+      const activeTimer = smoothTimer;
+      if (activeTimer) {
+        clearInterval(activeTimer);
+        smoothTimer = null;
+      }
+      if (activeTimer && smoothStreamTimerRef.current === activeTimer) {
+        smoothStreamTimerRef.current = null;
+      }
+    };
+
+    const finalizeDone = (ctx) => {
+      if (finalized) return;
+      finalized = true;
+      clearSmoothTyping();
+      forgetPendingJob(jobId);
+      clearLoadingPhaseTimers();
+
+      const { finalJob, cleanedFinal, finalText, finalSources, finalImages, finalSteps, createdReminder } = ctx;
+      if (finalSources.length > 0 && currentConversationIdRef.current === sessionId) {
+        setFoundSources(finalSources);
+      }
+
+      if (/\[RECALL_MEMORY:\s*(.+?)\]/.test(finalText) && !isPrivateTurn) {
+        triggerRecallMemoryIfNeeded(assistantMessageId, finalText);
+        doneResolve?.();
+        return;
+      }
+
+      if (!isPrivateTurn) {
+        triggerMemoryActionsIfNeeded(assistantMessageId, finalText);
+      }
+
+      const subAgentAllowed = isAgenticMode && !isSubAgentForbiddenModel(selectedModel);
+      const parsedSubAgent = subAgentAllowed ? parseSubAgentFlag(finalText, userPrompt, userLanguage) : null;
+
+      currentStreamingTextRef.current = cleanedFinal;
+      syncUiBotPatch({
+        text: cleanedFinal,
+        reasoningText: enableReasoning ? (finalJob?.reasoningText || targetReasoningText || '') : undefined,
+        reasoningDuration: enableReasoning ? (finalJob?.reasoningDuration || reasoningDuration || null) : undefined,
+        isStreaming: false,
+        isThinking: false,
+        isSearching: false,
+        isReasoning: false,
+        isReasoningComplete: enableReasoning && Boolean(finalJob?.reasoningText || targetReasoningText),
+        searchQuery: finalJob?.searchQuery || null,
+        searchSources: finalSources,
+        searchImages: finalImages,
+        searchSteps: finalSteps,
+        ...(createdReminder ? { reminder: createdReminder } : {})
+      });
+
+      if (currentConversationIdRef.current === sessionId) {
+        finishStreaming(assistantMessageId, cleanedFinal, null);
+        triggerInlineImageIfNeeded(assistantMessageId, finalText);
+      } else {
+        setLoading(false);
+        setConvLoading(false);
+        setIsSendGenerating(false);
+        isSendGeneratingRef.current = false;
+        isProcessingRef.current = false;
+      }
+
+      if (
+        subAgentAllowed &&
+        parsedSubAgent &&
+        (parsedSubAgent.triggered || parsedSubAgent.hasFlag) &&
+        !triggeredAgentTasksRef.current.has(assistantMessageId) &&
+        typeof handleSubAgentActionRef.current === 'function'
+      ) {
+        triggeredAgentTasksRef.current.add(assistantMessageId);
+        handleSubAgentActionRef.current(assistantMessageId, 'confirm', {
+          status: 'running',
+          currentStage: 1,
+          elapsedSec: '0.1',
+          flagTag: parsedSubAgent.flagTag,
+          taskDescription: parsedSubAgent.taskDescription,
+          userPrompt,
+          chatHistory: updatedConversationHistory || messagesRef.current || [],
+          conversationId: sessionId,
+          attachedFiles: attachedFilesForTurn,
+          model: selectedModel || 'qwen2.5-vl-72b',
+          introText: '',
+          planText: '',
+          plannedFiles: [],
+          cotText: '',
+          thoughtSteps: [],
+          files: [],
+          activeWritingFile: null,
+          finalAnswer: ''
+        });
+      }
+
+      if (!isPrivateTurn) {
+        setTimeout(() => {
+          if (!aiTitledConversationsRef.current.has(sessionId)) {
+            generateChatTitle(sessionId);
+          }
+        }, 250);
+      }
+
+      doneResolve?.();
+    };
+
+    const flushTypingTick = () => {
+      if (finalized || subController.signal.aborted) {
+        clearSmoothTyping();
+        doneResolve?.();
+        return;
+      }
+
+      const isServerFinished = Boolean(pendingDoneCtx);
+      let updated = false;
+
+      if (enableReasoning && displayedReasoningText.length < targetReasoningText.length) {
+        const diff = targetReasoningText.length - displayedReasoningText.length;
+        const step = isServerFinished
+          ? Math.min(diff, Math.max(4, Math.ceil(diff / 9)))
+          : getSmoothTypingStep(diff, false);
+        displayedReasoningText += targetReasoningText.slice(displayedReasoningText.length, displayedReasoningText.length + step);
+        updated = true;
+      }
+
+      if (displayedFullText.length < targetFullText.length) {
+        const diff = targetFullText.length - displayedFullText.length;
+        const step = isServerFinished
+          ? Math.min(diff, Math.max(3, Math.ceil(diff / 11)))
+          : getSmoothTypingStep(diff, false);
+        displayedFullText += targetFullText.slice(displayedFullText.length, displayedFullText.length + step);
+        currentStreamingTextRef.current = displayedFullText;
+        updated = true;
+      }
+
+      if (updated) {
+        const now = Date.now();
+        if (now - lastScrollTickRef.current > 75) {
+          lastScrollTickRef.current = now;
+          smoothAutoScroll();
+        }
+        syncUiBotPatch({
+          text: displayedFullText,
+          reasoningText: enableReasoning ? displayedReasoningText : undefined,
+          reasoningDuration: enableReasoning ? reasoningDuration : undefined,
+          isSearching: false,
+          isThinking: false,
+          isReasoning: enableReasoning && isReasoningActive && displayedFullText.length === 0,
+          isReasoningComplete: enableReasoning && (!isReasoningActive || displayedFullText.length > 0) && Boolean(displayedReasoningText),
+          isStreaming: true,
+          ...latestSearchMeta
+        });
+      }
+
+      const doneReasoning = !enableReasoning || displayedReasoningText.length >= targetReasoningText.length;
+      const doneText = displayedFullText.length >= targetFullText.length;
+      if (pendingDoneCtx && doneReasoning && doneText) {
+        finalizeDone(pendingDoneCtx);
+      }
+    };
+
+    const startSmoothTyping = () => {
+      if (!smoothTimer && !finalized && !subController.signal.aborted) {
+        smoothTimer = setInterval(flushTypingTick, 18);
+        smoothStreamTimerRef.current = smoothTimer;
+      }
+    };
+
     try {
       await subscribeToServerChatJob(
         jobId,
         {
           onSnapshot: (snap) => {
-            if (!snap) return;
-            const isBusy = ['queued', 'searching', 'thinking', 'streaming'].includes(snap.status);
-            if (Array.isArray(snap.searchSources) && snap.searchSources.length > 0 && currentConversationIdRef.current === sessionId) {
-              setFoundSources(snap.searchSources);
+            if (!snap || finalized) return;
+            if (Array.isArray(snap.searchSources) && snap.searchSources.length > 0) {
+              latestSearchMeta = {
+                searchQuery: snap.searchQuery || null,
+                searchSources: snap.searchSources,
+                searchImages: Array.isArray(snap.searchImages) ? snap.searchImages : [],
+                searchSteps: Array.isArray(snap.searchSteps) ? snap.searchSteps : []
+              };
+              if (currentConversationIdRef.current === sessionId) {
+                setFoundSources(snap.searchSources);
+              }
+            } else {
+              latestSearchMeta = {
+                searchQuery: snap.searchQuery || latestSearchMeta.searchQuery,
+                searchSources: Array.isArray(snap.searchSources) ? snap.searchSources : latestSearchMeta.searchSources,
+                searchImages: Array.isArray(snap.searchImages) ? snap.searchImages : latestSearchMeta.searchImages,
+                searchSteps: Array.isArray(snap.searchSteps) ? snap.searchSteps : latestSearchMeta.searchSteps
+              };
             }
-            const cleanPartial = snap.text ? sanitizeStreamingText(snap.text) : '';
-            syncUiBotPatch({
-              text: cleanPartial,
-              reasoningText: enableReasoning ? (snap.reasoningText || '') : undefined,
-              reasoningDuration: enableReasoning ? (snap.reasoningDuration || null) : undefined,
-              isSearching: snap.status === 'searching',
-              isThinking: snap.status === 'thinking' && !cleanPartial,
-              isStreaming: isBusy && snap.status !== 'searching',
-              isReasoning: enableReasoning && snap.status === 'thinking',
-              isReasoningComplete: enableReasoning && Boolean(snap.reasoningText) && snap.status !== 'thinking',
-              searchQuery: snap.searchQuery || null,
-              searchSources: Array.isArray(snap.searchSources) ? snap.searchSources : [],
-              searchImages: Array.isArray(snap.searchImages) ? snap.searchImages : [],
-              searchSteps: Array.isArray(snap.searchSteps) ? snap.searchSteps : []
-            });
+
+            isSearchingActive = snap.status === 'searching';
+            if (enableReasoning && typeof snap.reasoningText === 'string' && snap.reasoningText.length > targetReasoningText.length) {
+              targetReasoningText = snap.reasoningText;
+              if (!reasoningStartMs) reasoningStartMs = Date.now();
+              isReasoningActive = snap.status === 'thinking' && !snap.text;
+              reasoningDuration = snap.reasoningDuration || reasoningDuration;
+            }
+
+            if (typeof snap.text === 'string' && snap.text.length > 0) {
+              const sanitizedSnap = sanitizeStreamingText(snap.text);
+              if (sanitizedSnap.length > targetFullText.length || !targetFullText) {
+                targetFullText = sanitizedSnap;
+              }
+              isReasoningActive = false;
+            }
+
+            const hasPendingChars =
+              displayedFullText.length < targetFullText.length ||
+              (enableReasoning && displayedReasoningText.length < targetReasoningText.length);
+
+            if (hasPendingChars) {
+              clearLoadingPhaseTimers();
+              if (currentConversationIdRef.current === sessionId && snap.status !== 'done') {
+                startSmoothTyping();
+              } else {
+                displayedFullText = targetFullText;
+                displayedReasoningText = targetReasoningText;
+                syncUiBotPatch({
+                  text: displayedFullText,
+                  reasoningText: enableReasoning ? displayedReasoningText : undefined,
+                  reasoningDuration: enableReasoning ? reasoningDuration : undefined,
+                  isSearching: isSearchingActive,
+                  isThinking: !isSearchingActive && snap.status === 'thinking' && !displayedFullText,
+                  isStreaming: ['queued', 'searching', 'thinking', 'streaming'].includes(snap.status) && !isSearchingActive,
+                  isReasoning: enableReasoning && snap.status === 'thinking',
+                  isReasoningComplete: enableReasoning && Boolean(displayedReasoningText) && snap.status !== 'thinking',
+                  ...latestSearchMeta
+                });
+              }
+            } else {
+              syncUiBotPatch({
+                text: displayedFullText,
+                reasoningText: enableReasoning ? displayedReasoningText : undefined,
+                reasoningDuration: enableReasoning ? reasoningDuration : undefined,
+                isSearching: isSearchingActive,
+                isThinking: !isSearchingActive && snap.status === 'thinking' && !displayedFullText,
+                isStreaming: ['queued', 'searching', 'thinking', 'streaming'].includes(snap.status) && !isSearchingActive,
+                isReasoning: enableReasoning && snap.status === 'thinking',
+                isReasoningComplete: enableReasoning && Boolean(displayedReasoningText) && snap.status !== 'thinking',
+                ...latestSearchMeta
+              });
+            }
           },
           onStatus: (st) => {
+            if (finalized) return;
             clearLoadingPhaseTimers();
+            isSearchingActive = st?.status === 'searching';
+            if (st?.searchQuery || Array.isArray(st?.searchSteps)) {
+              latestSearchMeta = {
+                ...latestSearchMeta,
+                ...(st?.searchQuery ? { searchQuery: st.searchQuery } : {}),
+                ...(Array.isArray(st?.searchSteps) ? { searchSteps: st.searchSteps } : {})
+              };
+            }
             syncUiBotPatch({
-              isSearching: st?.status === 'searching',
-              isThinking: st?.status === 'thinking',
-              isStreaming: st?.status !== 'searching',
-              ...(st?.searchQuery ? { searchQuery: st.searchQuery } : {}),
-              ...(Array.isArray(st?.searchSteps) ? { searchSteps: st.searchSteps } : {})
+              isSearching: isSearchingActive,
+              isThinking: !isSearchingActive && st?.status === 'thinking' && !displayedFullText,
+              isStreaming: !isSearchingActive,
+              ...latestSearchMeta
             });
           },
           onSearch: (sr) => {
+            if (finalized) return;
             clearLoadingPhaseTimers();
-            if (Array.isArray(sr?.searchSources) && sr.searchSources.length > 0 && currentConversationIdRef.current === sessionId) {
-              setFoundSources(sr.searchSources);
-            }
-            syncUiBotPatch({
-              isSearching: false,
-              isThinking: true,
-              isStreaming: true,
+            isSearchingActive = false;
+            targetFullText = '';
+            displayedFullText = '';
+            targetReasoningText = '';
+            displayedReasoningText = '';
+            latestSearchMeta = {
               searchQuery: sr?.searchQuery || null,
               searchSources: Array.isArray(sr?.searchSources) ? sr.searchSources : [],
               searchImages: Array.isArray(sr?.searchImages) ? sr.searchImages : [],
               searchSteps: Array.isArray(sr?.searchSteps) ? sr.searchSteps : []
+            };
+            if (latestSearchMeta.searchSources.length > 0 && currentConversationIdRef.current === sessionId) {
+              setFoundSources(latestSearchMeta.searchSources);
+            }
+            syncUiBotPatch({
+              text: '',
+              isSearching: false,
+              isThinking: true,
+              isStreaming: true,
+              ...latestSearchMeta
             });
           },
           onReasoningDelta: (d) => {
+            if (finalized) return;
             clearLoadingPhaseTimers();
             if (!enableReasoning) return;
-            syncUiBotPatch({
-              reasoningText: d?.reasoningText || '',
-              isReasoning: true,
-              isThinking: true,
-              isStreaming: true
-            });
+            isSearchingActive = false;
+            if (!reasoningStartMs) reasoningStartMs = Date.now();
+            isReasoningActive = true;
+            if (typeof d?.reasoningText === 'string') {
+              targetReasoningText = d.reasoningText;
+            }
+            startSmoothTyping();
           },
           onContentDelta: (d) => {
+            if (finalized) return;
             clearLoadingPhaseTimers();
-            const now = Date.now();
-            if (now - lastScrollTickRef.current > 85) {
-              lastScrollTickRef.current = now;
-              smoothAutoScroll();
+            isSearchingActive = false;
+            if (isReasoningActive) {
+              isReasoningActive = false;
+              if (reasoningStartMs && !reasoningDuration) {
+                reasoningDuration = Math.max(0.1, (Date.now() - reasoningStartMs) / 1000).toFixed(1);
+              }
             }
-            syncUiBotPatch({
-              text: sanitizeStreamingText(d?.text || ''),
-              isSearching: false,
-              isThinking: false,
-              isReasoning: false,
-              isStreaming: true
-            });
+            if (typeof d?.text === 'string') {
+              targetFullText = sanitizeStreamingText(d.text);
+            }
+            startSmoothTyping();
           },
           onDone: (finalJob) => {
-            forgetPendingJob(jobId);
+            if (finalized) return;
             clearLoadingPhaseTimers();
             let finalText = finalJob?.text || '';
-            const finalSources = Array.isArray(finalJob?.searchSources) ? finalJob.searchSources : [];
-            const finalImages = Array.isArray(finalJob?.searchImages) ? finalJob.searchImages : [];
-            const finalSteps = Array.isArray(finalJob?.searchSteps) ? finalJob.searchSteps : [];
-
-            if (finalSources.length > 0 && currentConversationIdRef.current === sessionId) {
-              setFoundSources(finalSources);
-            }
-
-            if (/\[RECALL_MEMORY:\s*(.+?)\]/.test(finalText) && !isPrivateTurn) {
-              triggerRecallMemoryIfNeeded(assistantMessageId, finalText);
-              return;
-            }
-
-            if (!isPrivateTurn) {
-              triggerMemoryActionsIfNeeded(assistantMessageId, finalText);
-            }
+            const finalSources = Array.isArray(finalJob?.searchSources) ? finalJob.searchSources : latestSearchMeta.searchSources;
+            const finalImages = Array.isArray(finalJob?.searchImages) ? finalJob.searchImages : latestSearchMeta.searchImages;
+            const finalSteps = Array.isArray(finalJob?.searchSteps) ? finalJob.searchSteps : latestSearchMeta.searchSteps;
 
             let createdReminder = null;
             const reminderMatch = finalText.match(/\[REMINDER_REQUEST:\s*(\{[\s\S]*?\})\]/);
@@ -6071,86 +6322,60 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               } catch (_) { }
             }
 
-            const subAgentAllowed = isAgenticMode && !isSubAgentForbiddenModel(selectedModel);
-            const parsedSubAgent = subAgentAllowed ? parseSubAgentFlag(finalText, userPrompt, userLanguage) : null;
-
             const cleanedFinal = cleanResponseText(finalText);
-            syncUiBotPatch({
-              text: cleanedFinal,
-              reasoningText: enableReasoning ? (finalJob?.reasoningText || '') : undefined,
-              reasoningDuration: enableReasoning ? (finalJob?.reasoningDuration || null) : undefined,
-              isStreaming: false,
-              isThinking: false,
-              isSearching: false,
-              isReasoning: false,
-              isReasoningComplete: enableReasoning && Boolean(finalJob?.reasoningText),
-              searchQuery: finalJob?.searchQuery || null,
-              searchSources: finalSources,
-              searchImages: finalImages,
-              searchSteps: finalSteps,
-              ...(createdReminder ? { reminder: createdReminder } : {})
-            });
+            if (enableReasoning && typeof finalJob?.reasoningText === 'string') {
+              targetReasoningText = finalJob.reasoningText;
+            }
+            isReasoningActive = false;
+            isSearchingActive = false;
+            targetFullText = cleanedFinal;
 
-            if (currentConversationIdRef.current === sessionId) {
-              finishStreaming(assistantMessageId, cleanedFinal, null);
-              triggerInlineImageIfNeeded(assistantMessageId, finalText);
+            const doneCtx = {
+              finalJob,
+              cleanedFinal,
+              finalText,
+              finalSources,
+              finalImages,
+              finalSteps,
+              createdReminder
+            };
+
+            const needsVisibleDrain =
+              currentConversationIdRef.current === sessionId &&
+              (displayedFullText.length < targetFullText.length ||
+                (enableReasoning && displayedReasoningText.length < targetReasoningText.length));
+
+            if (needsVisibleDrain) {
+              pendingDoneCtx = doneCtx;
+              startSmoothTyping();
             } else {
-              setLoading(false);
-              setConvLoading(false);
-              setIsSendGenerating(false);
-              isSendGeneratingRef.current = false;
-              isProcessingRef.current = false;
-            }
-
-            if (
-              subAgentAllowed &&
-              parsedSubAgent &&
-              (parsedSubAgent.triggered || parsedSubAgent.hasFlag) &&
-              !triggeredAgentTasksRef.current.has(assistantMessageId) &&
-              typeof handleSubAgentActionRef.current === 'function'
-            ) {
-              triggeredAgentTasksRef.current.add(assistantMessageId);
-              handleSubAgentActionRef.current(assistantMessageId, 'confirm', {
-                status: 'running',
-                currentStage: 1,
-                elapsedSec: '0.1',
-                flagTag: parsedSubAgent.flagTag,
-                taskDescription: parsedSubAgent.taskDescription,
-                userPrompt,
-                chatHistory: updatedConversationHistory || messagesRef.current || [],
-                conversationId: sessionId,
-                attachedFiles: attachedFilesForTurn,
-                model: selectedModel || 'qwen2.5-vl-72b',
-                introText: '',
-                planText: '',
-                plannedFiles: [],
-                cotText: '',
-                thoughtSteps: [],
-                files: [],
-                activeWritingFile: null,
-                finalAnswer: ''
-              });
-            }
-
-            if (!isPrivateTurn) {
-              setTimeout(() => {
-                if (!aiTitledConversationsRef.current.has(sessionId)) {
-                  generateChatTitle(sessionId);
-                }
-              }, 250);
+              displayedFullText = cleanedFinal;
+              displayedReasoningText = targetReasoningText;
+              finalizeDone(doneCtx);
             }
           },
           onStopped: () => {
+            finalized = true;
+            clearSmoothTyping();
             forgetPendingJob(jobId);
             clearLoadingPhaseTimers();
-            syncUiBotPatch({ isStreaming: false, isSearching: false, isThinking: false, isReasoning: false });
+            syncUiBotPatch({
+              text: displayedFullText || targetFullText,
+              isStreaming: false,
+              isSearching: false,
+              isThinking: false,
+              isReasoning: false
+            });
             setLoading(false);
             setConvLoading(false);
             setIsSendGenerating(false);
             isSendGeneratingRef.current = false;
             isProcessingRef.current = false;
+            doneResolve?.();
           },
           onError: (errJob) => {
+            finalized = true;
+            clearSmoothTyping();
             forgetPendingJob(jobId);
             clearLoadingPhaseTimers();
             const errTxt = `❌ ${errJob?.error || 'Gagal memproses jawaban dari server.'}`;
@@ -6160,11 +6385,21 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             setIsSendGenerating(false);
             isSendGeneratingRef.current = false;
             isProcessingRef.current = false;
+            doneResolve?.();
           }
         },
         { abortSignal: subController.signal }
       );
+
+      if (pendingDoneCtx && !finalized && !subController.signal.aborted) {
+        startSmoothTyping();
+        await typingDonePromise;
+      } else if (!finalized && !pendingDoneCtx) {
+        clearSmoothTyping();
+        doneResolve?.();
+      }
     } finally {
+      clearSmoothTyping();
       activeJobSubscriptionsRef.current.delete(jobId);
       if (abortControllerRef.current === subController) {
         abortControllerRef.current = null;
