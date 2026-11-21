@@ -942,11 +942,13 @@ export function subscribeToJobStream(jobId, caller, req, res) {
     }
   }, 12000);
 
-  // Disconnecting HTTP socket ONLY detaches this subscriber — NEVER stops the server job!
-  req.on('close', () => {
+  // Detach only when the SSE response socket actually closes (never on POST req body close)
+  const detachSubscriber = () => {
     clearInterval(keepalive);
     live.subscribers.delete(res);
-  });
+  };
+  res.on('close', detachSubscriber);
+  res.on('error', detachSubscriber);
 }
 
 export function stopChatJobs({ userId = null, deviceId = null, sessionId = null, jobId = null, clientIp = null } = {}) {

@@ -1607,9 +1607,14 @@ export const subscribeToServerChatJob = async (jobId, callbacks = {}, options = 
     const resp = await fetch(
       `${API_BASE_URL}/api/chat/jobs/${encodeURIComponent(jobId)}/stream?deviceId=${encodeURIComponent(deviceId)}`,
       {
-        method: 'GET',
+        method: 'POST',
         credentials: 'include',
-        headers: { 'x-device-id': deviceId },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId,
+          'Accept': 'text/event-stream'
+        },
+        body: '{}',
         signal: abortSignal || undefined
       }
     );

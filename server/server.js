@@ -3523,7 +3523,7 @@ app.get('/api/chat/jobs/:jobId', (req, res) => {
   return res.json({ success: true, job });
 });
 
-app.get('/api/chat/jobs/:jobId/stream', (req, res) => {
+app.all('/api/chat/jobs/:jobId/stream', (req, res) => {
   const callerUserId = (req.isAuthenticated && req.isAuthenticated() && req.user?.id) ? req.user.id : (req.user?.id || req.session?.userId || null);
   const deviceId = req.query.deviceId || req.headers['x-device-id'] || null;
   return subscribeToJobStream(req.params.jobId, { userId: callerUserId, deviceId }, req, res);
