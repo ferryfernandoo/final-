@@ -101,12 +101,17 @@ export default async function handler(req) {
     let lastProxyErr = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        const forwardHeaders = {
+          'Content-Type': 'application/json',
+          'x-device-id': req.headers.get('x-device-id') || body.deviceId || 'guest_device',
+        };
+        const incomingCookie = req.headers.get('cookie');
+        if (incomingCookie) {
+          forwardHeaders['cookie'] = incomingCookie;
+        }
         const proxyResp = await fetch(sameOriginUpstream, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-device-id': req.headers.get('x-device-id') || body.deviceId || 'guest_device',
-          },
+          headers: forwardHeaders,
           body: payloadStr,
         });
         if (proxyResp.ok) {

@@ -372,6 +372,37 @@ export function initializeDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_api_logs_user ON api_usage_logs(userId, createdAt)`);
 
+  // Persistent background AI chat jobs table (survives APK backgrounding, network drops, & reloads)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_jobs (
+      id TEXT PRIMARY KEY,
+      userId TEXT,
+      deviceId TEXT,
+      sessionId TEXT NOT NULL,
+      userMessageId TEXT,
+      assistantMessageId TEXT,
+      status TEXT NOT NULL DEFAULT 'queued',
+      model TEXT,
+      personality TEXT DEFAULT 'mentor',
+      language TEXT DEFAULT 'id',
+      isPrivate INTEGER DEFAULT 0,
+      userPrompt TEXT,
+      text TEXT DEFAULT '',
+      reasoningText TEXT DEFAULT '',
+      reasoningDuration TEXT,
+      searchQuery TEXT,
+      searchSources TEXT,
+      searchImages TEXT,
+      searchSteps TEXT,
+      error TEXT,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_jobs_session ON chat_jobs(sessionId, updatedAt)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_jobs_user ON chat_jobs(userId, updatedAt)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_jobs_device ON chat_jobs(deviceId, updatedAt)`);
+
   console.log('✅ Database initialized');
 }
 
@@ -528,6 +559,112 @@ export const messageDb = {
   deleteBySessionId: (sessionId) => {
     const stmt = db.prepare('DELETE FROM chat_messages WHERE sessionId = ?');
     stmt.run(sessionId);
+  }
+};
+
+function deserializeChatJob(row) {
+  if (!row) return null;
+  const parseJson = (raw, fallback) => {
+    if (!raw) return fallback;
+    try {
+      return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch {
+      return fallback;
+    }
+  };
+  return {
+    ...row,
+    isPrivate: Boolean(row.isPrivate),
+    searchSources: parseJson(row.searchSources, []),
+    searchImages: parseJson(row.searchImages, []),
+    searchSteps: parseJson(row.searchSteps, [])
+  };
+}
+
+export const chatJobDb = {
+  upsert: (job) => {
+    if (!job || !job.id) return null;
+    const now = Date.now();
+    const stmt = db.prepare(`
+      INSERT INTO chat_jobs (
+        id, userId, deviceId, sessionId, userMessageId, assistantMessageId,
+        status, model, personality, language, isPrivate, userPrompt,
+        text, reasoningText, reasoningDuration, searchQuery,
+        searchSources, searchImages, searchSteps, error, createdAt, updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        status = excluded.status,
+        text = excluded.text,
+        reasoningText = excluded.reasoningText,
+        reasoningDuration = excluded.reasoningDuration,
+        searchQuery = excluded.searchQuery,
+        searchSources = excluded.searchSources,
+        searchImages = excluded.searchImages,
+        searchSteps = excluded.searchSteps,
+        error = excluded.error,
+        updatedAt = excluded.updatedAt
+    `);
+    stmt.run(
+      String(job.id),
+      job.userId || null,
+      job.deviceId || null,
+      String(job.sessionId),
+      job.userMessageId ? String(job.userMessageId) : null,
+      job.assistantMessageId ? String(job.assistantMessageId) : null,
+      String(job.status || 'queued'),
+      job.model || null,
+      job.personality || 'mentor',
+      job.language || 'id',
+      job.isPrivate ? 1 : 0,
+      job.userPrompt || '',
+      job.text || '',
+      job.reasoningText || '',
+      job.reasoningDuration || null,
+      job.searchQuery || null,
+      job.searchSources ? JSON.stringify(job.searchSources) : null,
+      job.searchImages ? JSON.stringify(job.searchImages) : null,
+      job.searchSteps ? JSON.stringify(job.searchSteps) : null,
+      job.error || null,
+      Number(job.createdAt) || now,
+      Number(job.updatedAt) || now
+    );
+    return chatJobDb.findById(job.id);
+  },
+
+  findById: (id) => {
+    if (!id) return null;
+    const row = db.prepare('SELECT * FROM chat_jobs WHERE id = ?').get(String(id));
+    return deserializeChatJob(row);
+  },
+
+  findRecentForCaller: ({ userId = null, deviceId = null, sinceMs = 0, limit = 15 } = {}) => {
+    let rows = [];
+    if (userId) {
+      rows = db.prepare(`
+        SELECT * FROM chat_jobs
+        WHERE (userId = ? OR (userId IS NULL AND deviceId = ?)) AND updatedAt >= ?
+        ORDER BY updatedAt DESC
+        LIMIT ?
+      `).all(String(userId), deviceId ? String(deviceId) : '__none__', Number(sinceMs) || 0, limit);
+    } else if (deviceId) {
+      rows = db.prepare(`
+        SELECT * FROM chat_jobs
+        WHERE userId IS NULL AND deviceId = ? AND updatedAt >= ?
+        ORDER BY updatedAt DESC
+        LIMIT ?
+      `).all(String(deviceId), Number(sinceMs) || 0, limit);
+    }
+    return rows.map(deserializeChatJob);
+  },
+
+  deleteBySessionId: (sessionId) => {
+    db.prepare('DELETE FROM chat_jobs WHERE sessionId = ?').run(String(sessionId));
+  },
+
+  pruneOld: (maxAgeMs = 24 * 60 * 60 * 1000) => {
+    const cutoff = Date.now() - maxAgeMs;
+    db.prepare('DELETE FROM chat_jobs WHERE updatedAt < ?').run(cutoff);
   }
 };
 

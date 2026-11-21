@@ -1,5 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { sendMessageToGrok, processStreamingResponse } from '../services/grokApi';
+import {
+  sendMessageToGrok,
+  processStreamingResponse,
+  startServerChatJob,
+  subscribeToServerChatJob,
+  fetchActiveServerChatJobs,
+  fetchServerChatJobSnapshot
+} from '../services/grokApi';
 import localAiService, { extractResponseFromReasoning, generateInstantBoronResponse } from '../services/localAiService';
 import { memoryService } from '../services/memoryService';
 import { ragService } from '../services/ragService';
@@ -13,7 +20,7 @@ import { downloadText } from '../services/universalDownloadService';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
 import { executeWebSearch, buildGuaranteedReferenceSources, fetchImagesForQuery, sanitizeSearchQuery, detectUpfrontSearchIntent } from '../services/clientSearchService';
-import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
+import { initRealtimeSync, createTypewriter, getDeviceId } from '../services/realtimeSyncService';
 import { registerBackHandler } from '../services/mobileNavigationService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
 import {
@@ -68,15 +75,57 @@ import './ChatBot.css';
 
 export { DEEPERNOVA_MODELS, SUGGESTION_PROMPTS_POOL };
 
+const PENDING_JOBS_STORAGE_KEY = 'deepernova_pending_jobs';
+
+const readPendingJobsStorage = () => {
+  try {
+    const raw = localStorage.getItem(PENDING_JOBS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const cutoff = Date.now() - 30 * 60 * 1000;
+    return parsed.filter(j => j && j.jobId && j.sessionId && (Number(j.startedAt) || 0) >= cutoff);
+  } catch {
+    return [];
+  }
+};
+
+const rememberPendingJob = (entry) => {
+  if (!entry?.jobId || !entry?.sessionId) return;
+  try {
+    const list = readPendingJobsStorage().filter(j => j.jobId !== entry.jobId);
+    list.unshift({ ...entry, startedAt: entry.startedAt || Date.now() });
+    localStorage.setItem(PENDING_JOBS_STORAGE_KEY, JSON.stringify(list.slice(0, 10)));
+  } catch { }
+};
+
+const forgetPendingJob = (jobId) => {
+  if (!jobId) return;
+  try {
+    const list = readPendingJobsStorage().filter(j => j.jobId !== jobId);
+    localStorage.setItem(PENDING_JOBS_STORAGE_KEY, JSON.stringify(list));
+  } catch { }
+};
+
 const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdateUser, userLanguage: propLanguage, onLanguageChange }) => {
   // Conversations management
   const [conversations, setConversations] = useState([]);
+  const conversationsRef = useRef(conversations);
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
+  const currentConversationIdRef = useRef(currentConversationId);
+  useEffect(() => {
+    currentConversationIdRef.current = currentConversationId;
+  }, [currentConversationId]);
   const [messages, setMessages] = useState([]);
   const messagesRef = useRef(messages);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  const activeJobSubscriptionsRef = useRef(new Map());
+  const attachServerJobRef = useRef(null);
   const [inputValue, setInputValue] = useState('');
   const [aiMode, setAiMode] = useState('brainstorm'); // 'brainstorm' | 'agent'
   const [activeFile, setActiveFile] = useState(null); // null or { id, name, type, content }
@@ -2324,32 +2373,150 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     }
   };
 
-  // Load conversations on mount: restore active session or most recent conversation seamlessly
+  const applyServerJobsToConversationList = (baseConvs = [], jobs = []) => {
+    if (!Array.isArray(jobs) || jobs.length === 0) return { convs: baseConvs, activeJobsToResume: [] };
+    const nextConvs = Array.isArray(baseConvs) ? baseConvs.map(c => ({ ...c, messages: Array.isArray(c.messages) ? [...c.messages] : [] })) : [];
+    const activeJobsToResume = [];
+
+    for (const job of jobs) {
+      if (!job || !job.id || !job.sessionId) continue;
+      if (job.isPrivate) continue;
+
+      const isRunningJob = ['queued', 'searching', 'thinking', 'streaming'].includes(job.status);
+      if (isRunningJob) {
+        activeJobsToResume.push(job);
+      } else {
+        forgetPendingJob(job.id);
+      }
+
+      const convIdx = nextConvs.findIndex(c => String(c.id) === String(job.sessionId));
+      const convCreatedAt = job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString();
+      const convUpdatedAt = job.updatedAt ? new Date(job.updatedAt).toISOString() : convCreatedAt;
+      let targetConv = convIdx >= 0 ? nextConvs[convIdx] : {
+        id: job.sessionId,
+        title: (job.userPrompt || 'Obrolan AI').slice(0, 45).trim() || 'Obrolan AI',
+        messages: [],
+        isLoading: isRunningJob,
+        createdAt: convCreatedAt,
+        updatedAt: convUpdatedAt,
+        isPrivate: false
+      };
+
+      const msgs = [...(targetConv.messages || [])];
+      if (job.userPrompt) {
+        const hasUser = msgs.some(m => (job.userMessageId && m.id === job.userMessageId) || (m.sender === 'user' && (m.text || m.content) === job.userPrompt));
+        if (!hasUser) {
+          msgs.push({
+            id: job.userMessageId || `user_${job.createdAt || Date.now()}`,
+            sender: 'user',
+            text: job.userPrompt,
+            timestamp: new Date(job.createdAt || Date.now())
+          });
+        }
+      }
+
+      const botId = job.assistantMessageId || `bot_${job.id}`;
+      const existingBotIdx = msgs.findIndex(m => m && m.sender !== 'user' && (m.id === botId || String(m.id) === String(botId)));
+      const jobDisplayText = job.status === 'error'
+        ? (job.text || `❌ ${job.error || 'Terjadi kesalahan saat memproses jawaban.'}`)
+        : (job.text || '');
+
+      const builtBotMsg = {
+        ...(existingBotIdx >= 0 ? msgs[existingBotIdx] : {}),
+        id: botId,
+        sender: 'bot',
+        text: (existingBotIdx >= 0 && job.status === 'done' && (msgs[existingBotIdx].text || '').length >= jobDisplayText.length)
+          ? msgs[existingBotIdx].text
+          : jobDisplayText,
+        reasoningText: job.reasoningText || (existingBotIdx >= 0 ? msgs[existingBotIdx].reasoningText : ''),
+        reasoningDuration: job.reasoningDuration || (existingBotIdx >= 0 ? msgs[existingBotIdx].reasoningDuration : null),
+        searchQuery: job.searchQuery || (existingBotIdx >= 0 ? msgs[existingBotIdx].searchQuery : null),
+        searchSources: Array.isArray(job.searchSources) && job.searchSources.length > 0
+          ? job.searchSources
+          : (existingBotIdx >= 0 ? msgs[existingBotIdx].searchSources : []),
+        searchImages: Array.isArray(job.searchImages) && job.searchImages.length > 0
+          ? job.searchImages
+          : (existingBotIdx >= 0 ? msgs[existingBotIdx].searchImages : []),
+        searchSteps: Array.isArray(job.searchSteps) && job.searchSteps.length > 0
+          ? job.searchSteps
+          : (existingBotIdx >= 0 ? msgs[existingBotIdx].searchSteps : []),
+        isStreaming: isRunningJob && job.status !== 'searching',
+        isSearching: job.status === 'searching',
+        isThinking: job.status === 'thinking' && !jobDisplayText,
+        timestamp: new Date(job.updatedAt || Date.now())
+      };
+
+      if (existingBotIdx >= 0) {
+        msgs[existingBotIdx] = builtBotMsg;
+      } else {
+        msgs.push(builtBotMsg);
+      }
+
+      targetConv = {
+        ...targetConv,
+        messages: msgs,
+        isLoading: isRunningJob,
+        updatedAt: convUpdatedAt
+      };
+      if (convIdx >= 0) nextConvs[convIdx] = targetConv;
+      else nextConvs.unshift(targetConv);
+    }
+
+    nextConvs.sort((a, b) => parseConvTimestamp(b) - parseConvTimestamp(a));
+    return { convs: nextConvs, activeJobsToResume };
+  };
+
+  // Load conversations on mount: restore active session or most recent conversation seamlessly + resume active server jobs
   useEffect(() => {
     const loadConversations = async () => {
       try {
         console.log(`[ChatBot] Loading conversations. Auth: isAuth=${isAuthenticated}, isGuest=${isGuest}`);
-        const loaded = await ConversationPersistenceService.loadConversations(isAuthenticated, isGuest);
+        const [loaded, serverJobs] = await Promise.all([
+          ConversationPersistenceService.loadConversations(isAuthenticated, isGuest),
+          fetchActiveServerChatJobs().catch(() => [])
+        ]);
+
+        // Also check any locally tracked pending jobs missing from /active list (e.g. finished > 15m or guest recovery)
+        const jobMap = new Map();
+        for (const j of (Array.isArray(serverJobs) ? serverJobs : [])) {
+          if (j?.id) jobMap.set(j.id, j);
+        }
+        const localPending = readPendingJobsStorage();
+        if (localPending.length > 0) {
+          await Promise.allSettled(
+            localPending.filter(p => !jobMap.has(p.jobId)).slice(0, 4).map(async (p) => {
+              try {
+                const snap = await fetchServerChatJobSnapshot(p.jobId);
+                if (snap?.id) jobMap.set(snap.id, snap);
+              } catch {
+                forgetPendingJob(p.jobId);
+              }
+            })
+          );
+        }
 
         let cleanedLoaded = [];
         if (loaded && Array.isArray(loaded)) {
           cleanedLoaded = loaded.filter(c => c && c.id && Array.isArray(c.messages) && c.messages.length > 0);
-          // Sort conversations with most recent activity strictly at index 0
           cleanedLoaded.sort((a, b) => parseConvTimestamp(b) - parseConvTimestamp(a));
         }
 
+        const recovered = applyServerJobsToConversationList(cleanedLoaded, Array.from(jobMap.values()));
+        cleanedLoaded = recovered.convs;
+        const activeJobsToResume = recovered.activeJobsToResume;
+
         if (cleanedLoaded.length > 0) {
-          console.log(`[ChatBot] ✅ Loaded ${cleanedLoaded.length} past conversations`);
+          console.log(`[ChatBot] ✅ Loaded ${cleanedLoaded.length} past conversations (resumable server jobs: ${activeJobsToResume.length})`);
 
           let savedConvId = null;
           try {
             savedConvId = localStorage.getItem('chatbot_last_conversation');
           } catch (_e) { }
 
-          let targetConv = cleanedLoaded.find(c => String(c.id) === String(savedConvId));
-          if (!targetConv) {
-            targetConv = cleanedLoaded[0];
-          }
+          const runningJobConvId = activeJobsToResume[0]?.sessionId;
+          let targetConv = (runningJobConvId && cleanedLoaded.find(c => String(c.id) === String(runningJobConvId)))
+            || cleanedLoaded.find(c => String(c.id) === String(savedConvId))
+            || cleanedLoaded[0];
 
           setConversations(cleanedLoaded);
           switchingConvRef.current = true;
@@ -2359,11 +2526,32 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
           prevMessagesLengthRef.current = (targetConv.messages || []).length;
           const lastMsg = targetConv.messages && targetConv.messages.length > 0 ? targetConv.messages[targetConv.messages.length - 1] : null;
           prevLastMessageTextRef.current = lastMsg ? (lastMsg.text || lastMsg.content || '') : '';
+          if (lastMsg && Array.isArray(lastMsg.searchSources) && lastMsg.searchSources.length > 0) {
+            setFoundSources(lastMsg.searchSources);
+          }
           setCompactView(true);
           setIsPrivateChat(targetConv.isPrivate || false);
           setTimeout(() => {
             switchingConvRef.current = false;
           }, 300);
+
+          // Reattach seamlessly to any running server background jobs
+          if (activeJobsToResume.length > 0) {
+            setTimeout(() => {
+              for (const job of activeJobsToResume) {
+                if (typeof attachServerJobRef.current === 'function' && !activeJobSubscriptionsRef.current.has(job.id)) {
+                  attachServerJobRef.current(job.id, {
+                    sessionId: job.sessionId,
+                    userMessageId: job.userMessageId,
+                    assistantMessageId: job.assistantMessageId,
+                    userPrompt: job.userPrompt,
+                    isPrivateTurn: Boolean(job.isPrivate),
+                    enableReasoning: isReasoningCapable ? isReasoningEnabled : false
+                  });
+                }
+              }
+            }, 0);
+          }
         } else {
           // If 0 past conversations, create single initial conversation
           const newId = Date.now().toString();
@@ -2431,7 +2619,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
   // Keep the active conversation object in sync with the current messages state (skip during 22ms streaming ticks)
   useEffect(() => {
     if (!currentConversationId) return;
-    const isAnyStreaming = messages.some((m) => m && (m.isStreaming || m.isThinking));
+    const isAnyStreaming = messages.some((m) => m && (m.isStreaming || m.isThinking || m.isSearching));
     if (isAnyStreaming) return;
 
     const isSwitching = switchingConvRef.current;
@@ -2705,13 +2893,44 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       }
     });
 
-    // Catch-up polling cepat saat layar HP dibuka kembali
+    // Catch-up polling cepat saat layar HP / APK dibuka kembali
     const catchUpSync = async () => {
-      if (!isAuthenticated || isGuest || isSendGeneratingRef.current || isPrivateChatRef.current || switchingConvRef.current) return;
+      if (isPrivateChatRef.current || switchingConvRef.current) return;
       try {
-        const activeId = currentConversationId;
+        const activeId = currentConversationIdRef.current;
         if (isPrivateSession(activeId)) return;
-        const res = await fetch(`/api/realtime/sync-poll?activeSessionId=${encodeURIComponent(activeId || '')}`, {
+
+        // 1. Check any active or recently finished background jobs first (works for both Guest & Logged-in!)
+        const serverJobs = await fetchActiveServerChatJobs().catch(() => []);
+        if (Array.isArray(serverJobs) && serverJobs.length > 0) {
+          const matchingJobs = serverJobs.filter(j => !j.isPrivate && (!activeId || String(j.sessionId) === String(activeId) || ['queued', 'searching', 'thinking', 'streaming'].includes(j.status)));
+          if (matchingJobs.length > 0) {
+            setConversations((prev) => {
+              const { convs } = applyServerJobsToConversationList(prev, matchingJobs);
+              const updatedTarget = convs.find(c => String(c.id) === String(activeId));
+              if (updatedTarget && !isSendGeneratingRef.current) {
+                setMessages(updatedTarget.messages || []);
+              }
+              return convs;
+            });
+            for (const job of matchingJobs) {
+              if (['queued', 'searching', 'thinking', 'streaming'].includes(job.status) && !activeJobSubscriptionsRef.current.has(job.id)) {
+                attachServerJobRef.current?.(job.id, {
+                  sessionId: job.sessionId,
+                  userMessageId: job.userMessageId,
+                  assistantMessageId: job.assistantMessageId,
+                  userPrompt: job.userPrompt,
+                  isPrivateTurn: Boolean(job.isPrivate),
+                  enableReasoning: isReasoningCapable ? isReasoningEnabled : false
+                });
+              }
+            }
+            return;
+          }
+        }
+
+        if (!isAuthenticated || isGuest || isSendGeneratingRef.current || activeJobSubscriptionsRef.current.size > 0) return;
+        const res = await fetch(`/api/realtime/sync-poll?activeSessionId=${encodeURIComponent(activeId || '')}&deviceId=${encodeURIComponent(getDeviceId())}`, {
           credentials: 'include'
         });
         if (!res.ok) return;
@@ -2723,7 +2942,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
             if (!isSendGeneratingRef.current && data.activeMessages.length >= prev.length) {
               const prevLast = prev[prev.length - 1];
               const srvLast = data.activeMessages[data.activeMessages.length - 1];
-              if (!prevLast || prev.length !== data.activeMessages.length || (srvLast && prevLast.text !== srvLast.text)) {
+              if (!prevLast || prev.length !== data.activeMessages.length || (srvLast && (srvLast.text || '').length > (prevLast.text || '').length)) {
                 return data.activeMessages;
               }
             }
@@ -4733,16 +4952,35 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       abortControllerRef.current = null;
     }
 
+    // Abort all active background job subscribers cleanly
+    activeJobSubscriptionsRef.current.forEach((entry, jId) => {
+      try {
+        entry?.controller?.abort();
+      } catch (_) { }
+      forgetPendingJob(jId);
+    });
+    activeJobSubscriptionsRef.current.clear();
+
     // Explicitly notify server and Python backend to kill GPU token generation instantly
+    const stopBody = JSON.stringify({
+      sessionId: currentConversationIdRef.current || currentConversationId || null,
+      deviceId: getDeviceId()
+    });
     const stopUrls = [
       '/api/chat/stop',
       `${API_BASE_URL || ''}/api/chat/stop`,
       'http://localhost:3001/api/chat/stop',
       'http://127.0.0.1:8000/v1/chat/stop'
     ];
-    stopUrls.forEach(url => {
+    Array.from(new Set(stopUrls)).forEach(url => {
       try {
-        fetch(url, { method: 'POST', keepalive: true }).catch(() => { });
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: stopBody,
+          keepalive: true
+        }).catch(() => { });
       } catch (_e) { }
     });
 
@@ -5124,7 +5362,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
   // Remember active conversation ID and trigger one-time AI title generation after first exchange
   useEffect(() => {
     if (!currentConversationId) return;
-    const isAnyStreaming = messages.some((m) => m && (m.isStreaming || m.isThinking));
+    const isAnyStreaming = messages.some((m) => m && (m.isStreaming || m.isThinking || m.isSearching));
     if (isAnyStreaming) return;
 
     rememberConversationId(currentConversationId);
@@ -5672,6 +5910,272 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
    */
 
 
+  /**
+   * Subscribe / re-attach UI state cleanly to a server-side background chat job
+   * (used both on initial send AND when returning/reopening the APK mid-answer)
+   */
+  const attachToServerChatJob = async (jobId, opts = {}) => {
+    const {
+      sessionId,
+      assistantMessageId,
+      userMessageId = null,
+      userPrompt = '',
+      isPrivateTurn = false,
+      enableReasoning = false,
+      attachedFilesForTurn = [],
+      updatedConversationHistory = null,
+      abortController: externalAbortController = null
+    } = opts;
+
+    if (!jobId || !sessionId || !assistantMessageId) return;
+    if (activeJobSubscriptionsRef.current.has(jobId)) return;
+
+    const subController = externalAbortController || new AbortController();
+    abortControllerRef.current = subController;
+    abortControllersMapRef.current.set('current', subController);
+    abortControllersMapRef.current.set(sessionId, subController);
+    activeJobSubscriptionsRef.current.set(jobId, { controller: subController, sessionId });
+
+    const syncUiBotPatch = (patch) => {
+      if (currentConversationIdRef.current === sessionId) {
+        setMessages((prev) => {
+          const exists = prev.some(m => String(m.id) === String(assistantMessageId));
+          if (!exists) return prev;
+          return prev.map(m => (String(m.id) === String(assistantMessageId) ? { ...m, ...patch } : m));
+        });
+      }
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (String(c.id) !== String(sessionId)) return c;
+          const msgs = Array.isArray(c.messages) ? c.messages : [];
+          const hasBot = msgs.some(m => String(m.id) === String(assistantMessageId));
+          if (!hasBot) return c;
+          return {
+            ...c,
+            messages: msgs.map(m => (String(m.id) === String(assistantMessageId) ? { ...m, ...patch } : m)),
+            updatedAt: new Date().toISOString()
+          };
+        })
+      );
+    };
+
+    try {
+      await subscribeToServerChatJob(
+        jobId,
+        {
+          onSnapshot: (snap) => {
+            if (!snap) return;
+            const isBusy = ['queued', 'searching', 'thinking', 'streaming'].includes(snap.status);
+            if (Array.isArray(snap.searchSources) && snap.searchSources.length > 0 && currentConversationIdRef.current === sessionId) {
+              setFoundSources(snap.searchSources);
+            }
+            const cleanPartial = snap.text ? sanitizeStreamingText(snap.text) : '';
+            syncUiBotPatch({
+              text: cleanPartial,
+              reasoningText: enableReasoning ? (snap.reasoningText || '') : undefined,
+              reasoningDuration: enableReasoning ? (snap.reasoningDuration || null) : undefined,
+              isSearching: snap.status === 'searching',
+              isThinking: snap.status === 'thinking' && !cleanPartial,
+              isStreaming: isBusy && snap.status !== 'searching',
+              isReasoning: enableReasoning && snap.status === 'thinking',
+              isReasoningComplete: enableReasoning && Boolean(snap.reasoningText) && snap.status !== 'thinking',
+              searchQuery: snap.searchQuery || null,
+              searchSources: Array.isArray(snap.searchSources) ? snap.searchSources : [],
+              searchImages: Array.isArray(snap.searchImages) ? snap.searchImages : [],
+              searchSteps: Array.isArray(snap.searchSteps) ? snap.searchSteps : []
+            });
+          },
+          onStatus: (st) => {
+            clearLoadingPhaseTimers();
+            syncUiBotPatch({
+              isSearching: st?.status === 'searching',
+              isThinking: st?.status === 'thinking',
+              isStreaming: st?.status !== 'searching',
+              ...(st?.searchQuery ? { searchQuery: st.searchQuery } : {}),
+              ...(Array.isArray(st?.searchSteps) ? { searchSteps: st.searchSteps } : {})
+            });
+          },
+          onSearch: (sr) => {
+            clearLoadingPhaseTimers();
+            if (Array.isArray(sr?.searchSources) && sr.searchSources.length > 0 && currentConversationIdRef.current === sessionId) {
+              setFoundSources(sr.searchSources);
+            }
+            syncUiBotPatch({
+              isSearching: false,
+              isThinking: true,
+              isStreaming: true,
+              searchQuery: sr?.searchQuery || null,
+              searchSources: Array.isArray(sr?.searchSources) ? sr.searchSources : [],
+              searchImages: Array.isArray(sr?.searchImages) ? sr.searchImages : [],
+              searchSteps: Array.isArray(sr?.searchSteps) ? sr.searchSteps : []
+            });
+          },
+          onReasoningDelta: (d) => {
+            clearLoadingPhaseTimers();
+            if (!enableReasoning) return;
+            syncUiBotPatch({
+              reasoningText: d?.reasoningText || '',
+              isReasoning: true,
+              isThinking: true,
+              isStreaming: true
+            });
+          },
+          onContentDelta: (d) => {
+            clearLoadingPhaseTimers();
+            const now = Date.now();
+            if (now - lastScrollTickRef.current > 85) {
+              lastScrollTickRef.current = now;
+              smoothAutoScroll();
+            }
+            syncUiBotPatch({
+              text: sanitizeStreamingText(d?.text || ''),
+              isSearching: false,
+              isThinking: false,
+              isReasoning: false,
+              isStreaming: true
+            });
+          },
+          onDone: (finalJob) => {
+            forgetPendingJob(jobId);
+            clearLoadingPhaseTimers();
+            let finalText = finalJob?.text || '';
+            const finalSources = Array.isArray(finalJob?.searchSources) ? finalJob.searchSources : [];
+            const finalImages = Array.isArray(finalJob?.searchImages) ? finalJob.searchImages : [];
+            const finalSteps = Array.isArray(finalJob?.searchSteps) ? finalJob.searchSteps : [];
+
+            if (finalSources.length > 0 && currentConversationIdRef.current === sessionId) {
+              setFoundSources(finalSources);
+            }
+
+            if (/\[RECALL_MEMORY:\s*(.+?)\]/.test(finalText) && !isPrivateTurn) {
+              triggerRecallMemoryIfNeeded(assistantMessageId, finalText);
+              return;
+            }
+
+            if (!isPrivateTurn) {
+              triggerMemoryActionsIfNeeded(assistantMessageId, finalText);
+            }
+
+            let createdReminder = null;
+            const reminderMatch = finalText.match(/\[REMINDER_REQUEST:\s*(\{[\s\S]*?\})\]/);
+            if (reminderMatch) {
+              try {
+                const payload = JSON.parse(reminderMatch[1]);
+                createdReminder = reminderService.addReminder({
+                  title: payload.title || 'Pengingat',
+                  datetime: payload.datetime || new Date().toISOString(),
+                  type: payload.type || 'reminder',
+                  description: payload.description || 'Dibuat via AI Chatbot'
+                });
+                finalText = finalText.replace(/\[REMINDER_REQUEST:\s*\{[\s\S]*?\}\]\n*/g, '').trim();
+              } catch (_) { }
+            }
+
+            const subAgentAllowed = isAgenticMode && !isSubAgentForbiddenModel(selectedModel);
+            const parsedSubAgent = subAgentAllowed ? parseSubAgentFlag(finalText, userPrompt, userLanguage) : null;
+
+            const cleanedFinal = cleanResponseText(finalText);
+            syncUiBotPatch({
+              text: cleanedFinal,
+              reasoningText: enableReasoning ? (finalJob?.reasoningText || '') : undefined,
+              reasoningDuration: enableReasoning ? (finalJob?.reasoningDuration || null) : undefined,
+              isStreaming: false,
+              isThinking: false,
+              isSearching: false,
+              isReasoning: false,
+              isReasoningComplete: enableReasoning && Boolean(finalJob?.reasoningText),
+              searchQuery: finalJob?.searchQuery || null,
+              searchSources: finalSources,
+              searchImages: finalImages,
+              searchSteps: finalSteps,
+              ...(createdReminder ? { reminder: createdReminder } : {})
+            });
+
+            if (currentConversationIdRef.current === sessionId) {
+              finishStreaming(assistantMessageId, cleanedFinal, null);
+              triggerInlineImageIfNeeded(assistantMessageId, finalText);
+            } else {
+              setLoading(false);
+              setConvLoading(false);
+              setIsSendGenerating(false);
+              isSendGeneratingRef.current = false;
+              isProcessingRef.current = false;
+            }
+
+            if (
+              subAgentAllowed &&
+              parsedSubAgent &&
+              (parsedSubAgent.triggered || parsedSubAgent.hasFlag) &&
+              !triggeredAgentTasksRef.current.has(assistantMessageId) &&
+              typeof handleSubAgentActionRef.current === 'function'
+            ) {
+              triggeredAgentTasksRef.current.add(assistantMessageId);
+              handleSubAgentActionRef.current(assistantMessageId, 'confirm', {
+                status: 'running',
+                currentStage: 1,
+                elapsedSec: '0.1',
+                flagTag: parsedSubAgent.flagTag,
+                taskDescription: parsedSubAgent.taskDescription,
+                userPrompt,
+                chatHistory: updatedConversationHistory || messagesRef.current || [],
+                conversationId: sessionId,
+                attachedFiles: attachedFilesForTurn,
+                model: selectedModel || 'qwen2.5-vl-72b',
+                introText: '',
+                planText: '',
+                plannedFiles: [],
+                cotText: '',
+                thoughtSteps: [],
+                files: [],
+                activeWritingFile: null,
+                finalAnswer: ''
+              });
+            }
+
+            if (!isPrivateTurn) {
+              setTimeout(() => {
+                if (!aiTitledConversationsRef.current.has(sessionId)) {
+                  generateChatTitle(sessionId);
+                }
+              }, 250);
+            }
+          },
+          onStopped: () => {
+            forgetPendingJob(jobId);
+            clearLoadingPhaseTimers();
+            syncUiBotPatch({ isStreaming: false, isSearching: false, isThinking: false, isReasoning: false });
+            setLoading(false);
+            setConvLoading(false);
+            setIsSendGenerating(false);
+            isSendGeneratingRef.current = false;
+            isProcessingRef.current = false;
+          },
+          onError: (errJob) => {
+            forgetPendingJob(jobId);
+            clearLoadingPhaseTimers();
+            const errTxt = `❌ ${errJob?.error || 'Gagal memproses jawaban dari server.'}`;
+            syncUiBotPatch({ text: errTxt, isStreaming: false, isSearching: false, isThinking: false, isReasoning: false });
+            setLoading(false);
+            setConvLoading(false);
+            setIsSendGenerating(false);
+            isSendGeneratingRef.current = false;
+            isProcessingRef.current = false;
+          }
+        },
+        { abortSignal: subController.signal }
+      );
+    } finally {
+      activeJobSubscriptionsRef.current.delete(jobId);
+      if (abortControllerRef.current === subController) {
+        abortControllerRef.current = null;
+      }
+      if (abortControllersMapRef.current.get(sessionId) === subController) {
+        abortControllersMapRef.current.delete(sessionId);
+      }
+    }
+  };
+  attachServerJobRef.current = attachToServerChatJob;
+
   const handleSendMessage = async (e) => {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
@@ -5956,46 +6460,37 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // 🔍 UPFRONT FACTUAL SEARCH DETECTION (Anti-Hallucination):
-    // Automatically run web search before LLM generation whenever the prompt asks for
-    // real-world, current, news, entity, price, legal, or comparison facts.
-    if (imagesToPass.length === 0 && attachedFilesForTurn.length === 0) {
-      const upfrontSearchQuery = detectUpfrontSearchIntent(cleanUserText, userLanguage);
-      if (upfrontSearchQuery) {
-        clearLoadingPhaseTimers();
-        setConvLoading(true);
-        holdScrollRef.current = false;
-        isLockedToUserAskRef.current = true;
-        lockedUserMessageIdRef.current = userMessageForChat.id;
-        scrollToUserMessage(false);
-        triggeredSearchRequestsRef.current.add(placeholderId);
-        isSearchAbortedRef.current = false;
+    const streamingConversationId = activeConvId || currentConversationId;
+    if (streamingConversationId) {
+      currentConversationIdRef.current = streamingConversationId;
+    }
+    const isPrivateTurn = isPrivateSession(streamingConversationId);
+    const effectiveEnableReasoning = isReasoningCapable ? isReasoningEnabled : false;
 
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === placeholderId
-              ? {
-                ...msg,
-                text: '',
-                isStreaming: false,
-                isSearching: true,
-                searchQuery: upfrontSearchQuery,
-                searchResults: null,
-                searchSources: [],
-                searchSteps: [{ query: upfrontSearchQuery, isSearching: true, sources: [], images: [] }]
-              }
-              : msg
-          )
-        );
+    // Detect upfront web search intent so the UI immediately enters searching state
+    // while the entire search + LLM synthesis executes detached on the server.
+    const upfrontSearchQuery = (imagesToPass.length === 0 && attachedFilesForTurn.length === 0)
+      ? detectUpfrontSearchIntent(cleanUserText, userLanguage)
+      : null;
 
-        await executeSearchAndSynthesize({
-          messageId: placeholderId,
-          searchQuery: upfrontSearchQuery,
-          userPrompt: cleanUserText,
-          baseHistory: updatedConversationHistory
-        });
-        return;
-      }
+    if (upfrontSearchQuery) {
+      clearLoadingPhaseTimers();
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === placeholderId
+            ? {
+              ...msg,
+              text: '',
+              isStreaming: false,
+              isSearching: true,
+              searchQuery: upfrontSearchQuery,
+              searchResults: null,
+              searchSources: [],
+              searchSteps: [{ query: upfrontSearchQuery, isSearching: true, sources: [], images: [] }]
+            }
+            : msg
+        )
+      );
     }
 
     if (imagesToPass.length > 0 && !isReasoningImage) {
@@ -6004,8 +6499,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setReasoningDecision(null);
     }
 
-    // Status messages that change based on elapsed time - longer intervals for believability
-    // Pre-calculate random delays for consistency
     const statusMessages = [
       { time: 2000, msg: userLanguage === 'id' ? 'membaca pertanyaan...' : 'reading question...', randomDelay: (Math.random() - 0.5) * 800 },
       { time: 4000, msg: userLanguage === 'id' ? 'memproses konteks...' : 'processing context...', randomDelay: (Math.random() - 0.5) * 800 },
@@ -6019,7 +6512,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       { time: 28000, msg: userLanguage === 'zh' ? '正在完成响应...' : userLanguage === 'id' ? 'finalisasi respons...' : 'finalizing response...', randomDelay: (Math.random() - 0.5) * 800 },
     ];
 
-    // Set up status update interval
     if (statusUpdateIntervalRef.current) {
       clearInterval(statusUpdateIntervalRef.current);
     }
@@ -6028,583 +6520,142 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       if (streamingStartTimeRef.current) {
         const elapsed = Date.now() - streamingStartTimeRef.current;
         let matchedMsg = '';
-
         for (let i = statusMessages.length - 1; i >= 0; i--) {
-          // Use the pre-calculated random delay for consistency
           if (elapsed > statusMessages[i].time + statusMessages[i].randomDelay) {
             matchedMsg = statusMessages[i].msg;
             break;
           }
         }
-
         setLoadingStatusMsg(matchedMsg);
       }
-    }, 500); // Check every 500ms for smooth updates
+    }, 500);
 
+    isProcessingRef.current = true;
     setConvLoading(true);
     setError(null);
-    setIsScrolledUp(false); // Hide scroll button
+    setIsScrolledUp(false);
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     abortControllersMapRef.current.set('current', abortController);
-    if (activeConvId) {
-      abortControllersMapRef.current.set(activeConvId, abortController);
-    }
-    if (currentConversationId) {
-      abortControllersMapRef.current.set(currentConversationId, abortController);
+    if (streamingConversationId) {
+      abortControllersMapRef.current.set(streamingConversationId, abortController);
     }
 
-    // SCROLL PERTAMA - kunci bubble chat ask tepat di paling atas viewport
     holdScrollRef.current = false;
     isLockedToUserAskRef.current = true;
     lockedUserMessageIdRef.current = userMessageForChat.id;
     scrollToUserMessage(false);
 
-    let rawText = '';
-    let targetFullText = '';
-    let displayedFullText = '';
-    let fullText = '';
-    let targetReasoningText = '';
-    let hiddenReasoningFallback = '';
-    let displayedReasoningText = '';
-    let reasoningStartTime = null;
-    let reasoningEndTime = null;
-    let isReasoning = false;
-    let reasoningDuration = null;
+    let jobAcceptedOnServer = false;
 
     try {
-      // Send to Deepernova AI with conversation history for advanced context
-      // Use fullMessage (with file contents) instead of inputValue
-      // Capture conversationId NOW so it's used in streaming callback, not currentConversationId (which can change)
-      const streamingConversationId = activeConvId || currentConversationId;
-      const isPrivateTurn = isPrivateSession(streamingConversationId);
+      const startRes = await startServerChatJob({
+        message: fullMessage,
+        conversationHistory: updatedConversationHistory,
+        language: userLanguage,
+        conversationId: streamingConversationId,
+        personality: selectedPersonality,
+        deepernovaModel: selectedModel,
+        isGuest,
+        userName: userName || user?.name,
+        sessionMessageCount: sessionMessageCount + 1,
+        uploadedImages: imagesToPass,
+        enableReasoning: effectiveEnableReasoning,
+        enableWebSearch: true,
+        isPrivateMode: isPrivateTurn,
+        userMessageId: userMessageForChat.id,
+        assistantMessageId: placeholderId,
+        userPrompt: cleanUserText || fullMessage,
+        searchQuery: upfrontSearchQuery || null,
+        abortController
+      });
 
-      const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningCapable ? isReasoningEnabled : false, true, isPrivateTurn);
-      let streamDone = false;
-      currentStreamingTextRef.current = '';
-
-      let streamUsage = null;
-      let smoothStreamTimer = null;
-
-      const flushSmoothTick = () => {
-        // Bail immediately if aborted or if AI search flag was triggered
-        if (
-          abortController.signal.aborted ||
-          triggeredSearchRequestsRef.current.has(placeholderId) ||
-          triggeredRecallRequestsRef.current.has(placeholderId)
-        ) {
-          if (smoothStreamTimer) {
-            clearInterval(smoothStreamTimer);
-            smoothStreamTimer = null;
-            smoothStreamTimerRef.current = null;
-          }
-          return;
-        }
-        let updated = false;
-
-        // 1. Smoothly advance reasoning text
-        if (displayedReasoningText.length < targetReasoningText.length) {
-          const diff = targetReasoningText.length - displayedReasoningText.length;
-          const step = getSmoothTypingStep(diff, streamDone, displayedReasoningText.length, targetReasoningText.length);
-          displayedReasoningText += targetReasoningText.substr(displayedReasoningText.length, step);
-          updated = true;
-        }
-
-        // 2. Smoothly advance main content text using exact AgentChat cadence
-        if (displayedFullText.length < targetFullText.length) {
-          const diff = targetFullText.length - displayedFullText.length;
-          const step = getSmoothTypingStep(diff, streamDone);
-          displayedFullText += targetFullText.substr(displayedFullText.length, step);
-          currentStreamingTextRef.current = displayedFullText;
-          updated = true;
-        }
-
-        if (updated) {
-          // Smooth auto-scroll while generating if user is near bottom
-          const now = Date.now();
-          if (now - lastScrollTickRef.current > 75) {
-            lastScrollTickRef.current = now;
-            smoothAutoScroll();
-          }
-
-          // When stream is done AND display has caught up, mark as NOT streaming anymore
-          const stillFlushing = displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length;
-          const streamingFlag = streamDone ? stillFlushing : true;
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === placeholderId
-                ? {
-                  ...msg,
-                  text: displayedFullText,
-                  reasoningText: displayedReasoningText,
-                  reasoningDuration: reasoningDuration || msg.reasoningDuration,
-                  isReasoning: isReasoning,
-                  isReasoningComplete: !isReasoning && !!displayedReasoningText,
-                  isStreaming: streamingFlag,
-                  isThinking: isReasoning,
-                }
-                : msg
-            )
-          );
-        }
-      };
-
-      const startSmoothStreamer = () => {
-        if (!smoothStreamTimer) {
-          smoothStreamTimer = setInterval(flushSmoothTick, 18);
-          smoothStreamTimerRef.current = smoothStreamTimer;
-        }
-      };
-
-      // Process streaming response - chunks come in real-time
-      const streamResult = await processStreamingResponse(response, (chunk) => {
-        // Clear loading phase timers once tokens start streaming
-        clearLoadingPhaseTimers();
-        if (timeoutInternetCheckRef.current) {
-          clearTimeout(timeoutInternetCheckRef.current);
-          timeoutInternetCheckRef.current = null;
-        }
-
-        // Handle stepper-type updates (don't accumulate as text)
-        if (typeof chunk === 'object' && chunk.type === 'stepper') {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === placeholderId
-                ? { ...msg, stepperData: chunk.data }
-                : msg
-            )
-          );
-          return;
-        }
-
-        // Handle live reasoning chunk from FreeLLM / Reasoning Engine
-        if (typeof chunk === 'object' && chunk.type === 'reasoning') {
-          hiddenReasoningFallback += chunk.content;
-          triggerWebSearchIfNeeded(placeholderId, hiddenReasoningFallback);
-          if (triggeredSearchRequestsRef.current.has(placeholderId)) {
-            return;
-          }
-          if (!isReasoningEnabled) {
-            // When reasoning mode is OFF for this model, do not show reasoning box or stream reasoning text
-            return;
-          }
-          targetReasoningText += chunk.content;
-          if (!reasoningStartTime) {
-            reasoningStartTime = Date.now();
-            isReasoning = true;
-          }
-          startSmoothStreamer();
-          return;
-        }
-
-        // Handle regular text / content chunk with smooth fluid render
-        const textContent = typeof chunk === 'object' ? (chunk.type === 'content' ? chunk.content : '') : (typeof chunk === 'string' ? chunk : '');
-        if (textContent) {
-          if (isReasoning && !reasoningEndTime) {
-            reasoningEndTime = Date.now();
-            isReasoning = false;
-            reasoningDuration = Math.max(0.1, ((reasoningEndTime - reasoningStartTime) / 1000)).toFixed(1);
-          }
-
-          rawText += textContent;
-          targetFullText = sanitizeStreamingText(rawText);
-          triggerInlineImageIfNeeded(placeholderId, rawText);
-          triggerWebSearchIfNeeded(placeholderId, rawText);
-          if (!isPrivateSession(activeConvId)) {
-            triggerRecallMemoryIfNeeded(placeholderId, rawText);
-            triggerMemoryActionsIfNeeded(placeholderId, rawText);
-          }
-          if (triggeredSearchRequestsRef.current.has(placeholderId) || triggeredRecallRequestsRef.current.has(placeholderId)) {
-            return;
-          }
-          // Hold rendering while a (possibly split) search execution flag is still arriving, so raw
-          // "[SEARCH_REQUEST: ..." or "[EXECUTE_SEARCH: ..." is never flashed before the result bubbles.
-          const leadingText = rawText.trimStart();
-          const isPartialSearchTag =
-            /^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(leadingText) ||
-            /^<(?:s|se|sea|sear|searc|search)(?:_request)?(?:>[\s\S]*)?$/i.test(leadingText) && !/<\/search(?:_request)?>/i.test(leadingText) ||
-            /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*$/i.test(rawText);
-          if (isPartialSearchTag || hasPartialSubAgentTag(rawText)) {
-            return;
-          }
-          startSmoothStreamer();
-        }
-        // Do not auto-scroll here; keep the blank area stable while generating
-      }, abortController.signal);
-      streamUsage = streamResult?.usage || null;
-
-      // Ensure any search flag present in rawText or reasoning is triggered before finalizing
-      triggerWebSearchIfNeeded(placeholderId, rawText || targetReasoningText);
-
-      if (
-        abortController.signal.aborted ||
-        isUserStoppedRef.current ||
-        triggeredSearchRequestsRef.current.has(placeholderId) ||
-        triggeredRecallRequestsRef.current.has(placeholderId) ||
-        isSearchAbortedRef.current ||
-        isRecallAbortedRef.current
-      ) {
-        if (smoothStreamTimer) {
-          clearInterval(smoothStreamTimer);
-          smoothStreamTimer = null;
-          smoothStreamTimerRef.current = null;
-        }
-        if (
-          !isSearchAbortedRef.current &&
-          !isRecallAbortedRef.current &&
-          !triggeredSearchRequestsRef.current.has(placeholderId) &&
-          !triggeredRecallRequestsRef.current.has(placeholderId)
-        ) {
-          setConvLoading(false);
-          setLoading(false);
-          setLoadingPhase(null);
-          isProcessingRef.current = false;
-        }
-        return;
+      const resolvedSessionId = startRes?.sessionId || streamingConversationId;
+      const resolvedJobId = startRes?.jobId;
+      if (!resolvedJobId) {
+        throw new Error('Server did not return a valid job ID');
       }
 
-      streamDone = true;
-      startSmoothStreamer();
-
-      // Fast smooth drain at 18ms frames until visual text catches up cleanly
-      startSmoothStreamer();
-      let drainSafetyLimit = 0;
-      while ((displayedFullText.length < targetFullText.length || displayedReasoningText.length < targetReasoningText.length) && drainSafetyLimit < 300) {
-        if (abortController.signal.aborted || isUserStoppedRef.current) break;
-        drainSafetyLimit++;
-        await new Promise((r) => setTimeout(r, 18));
-      }
-
-      if (smoothStreamTimer) {
-        clearInterval(smoothStreamTimer);
-        smoothStreamTimer = null;
-        smoothStreamTimerRef.current = null;
-      }
-
-      displayedFullText = targetFullText;
-      displayedReasoningText = targetReasoningText;
-      fullText = targetFullText;
-
-      // Pre-check if AI emitted a Sub-Agent Orchestrator flag in rawText/fullText
-      const preCheckSubAgent = !isSubAgentForbiddenModel(selectedModel)
-        ? parseSubAgentFlag(
-          `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`,
-          lastSentUserInputTextRef.current || fullMessage || '',
-          userLanguage
-        )
-        : null;
-      if (isSubAgentForbiddenModel(selectedModel)) {
-        fullText = stripSubAgentFlags(fullText);
-        displayedFullText = fullText;
-        targetFullText = fullText;
-      } else if (preCheckSubAgent) {
-        // Defer conversational answer until Sub-Agent finishes work cleanly
-        fullText = '';
-        displayedFullText = '';
-        targetFullText = '';
-      }
-
-      // GUARANTEE: NEVER FORGET TO RESPOND AFTER REASONING OR ON EMPTY STREAM
-      if (!fullText || !fullText.trim()) {
-        const reasoningSource = (targetReasoningText || displayedReasoningText || hiddenReasoningFallback)?.trim();
-        if (reasoningSource) {
-          console.warn('[ChatBot] Stream finished with reasoning but empty text. Auto-synthesizing verified response...');
-          fullText = extractResponseFromReasoning(reasoningSource);
-        }
-        if (!fullText || !fullText.trim()) {
-          console.warn('[ChatBot] Stream finished completely empty. Generating guaranteed DeeperNova AI response...');
-          fullText = generateInstantBoronResponse(lastSentUserInputTextRef.current || '');
-        }
-        displayedFullText = fullText;
-        targetFullText = fullText;
-      }
-
-      if (reasoningStartTime && !reasoningDuration) {
-        const endTime = reasoningEndTime || Date.now();
-        reasoningDuration = Math.max(0.1, ((endTime - reasoningStartTime) / 1000)).toFixed(1);
-      }
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === placeholderId
-            ? {
-              ...msg,
-              text: fullText,
-              reasoningText: isReasoningEnabled ? (targetReasoningText || msg.reasoningText) : undefined,
-              reasoningDuration: isReasoningEnabled ? (reasoningDuration || msg.reasoningDuration) : undefined,
-              isReasoning: false,
-              isReasoningComplete: isReasoningEnabled ? !!(targetReasoningText || msg.reasoningText) : false,
-              isStreaming: false,
-              isThinking: false,
-            }
-            : msg
-        )
-      );
-
-      finishStreaming(placeholderId, fullText, streamUsage);
-      setConvLoading(false);
-      setLoading(false);
-      clearLoadingPhaseTimers();
-
-      // Ensure user ask bubble stays anchored at the top when generating completes
-      if (isLockedToUserAskRef.current && !holdScrollRef.current) {
-        lockUserAskToTop(true);
-        setTimeout(() => {
-          if (isLockedToUserAskRef.current && !holdScrollRef.current) {
-            lockUserAskToTop(true);
-          }
-        }, 60);
-      }
-
-      if (abortController.signal.aborted) {
-        return;
-      }
-
-      // ============================================================
-      // 🔍 CHECK FOR SEARCH FLAG BEFORE ANY CLEANUP
-      // This must happen FIRST so the search flow can take over
-      // and the normal cleanup doesn't interfere.
-      // ============================================================
-      const combinedForSearchCheck = `${rawText || ''}\n${fullText || ''}`;
-      const hasSearchFlag =
-        /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/i.test(combinedForSearchCheck) ||
-        /<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i.test(combinedForSearchCheck);
-      if (hasSearchFlag) {
-        // Trigger search immediately — this will handle its own cleanup
-        triggerWebSearchIfNeeded(placeholderId, combinedForSearchCheck);
-        // Skip ALL normal completion cleanup — search flow handles it
-        return;
-      }
-
-      // Auto-search safety net: if the AI admitted not knowing / uncertainty instead of searching,
-      // automatically run a web search on the user's question so the user still gets a valid answer.
-      const latestPromptForUncertainty = (lastSentUserInputTextRef.current || '').trim();
-      const isEngineOfflineMsg = /engine AI DeeperNova saat ini sedang sibuk|API key upstream|sedang sibuk|tidak dapat memproses permintaan Anda saat ini/i.test(fullText || '');
-      const isTrivialGreetingPrompt = /^(?:hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|tes|test|ping|ok|oke|makasih|terima\s+kasih|thanks)[!?. ]*$/i.test(latestPromptForUncertainty);
-      const isCodingPromptForUncertainty = /^(?:buatkan|bikinkan|tuliskan|perbaiki|fix|debug|refactor|terjemahkan|translate|hitung)\b/i.test(latestPromptForUncertainty) &&
-        !/\b(?:cari(?:kan)?|terbaru|berita|harga|2024|2025|2026)\b/i.test(latestPromptForUncertainty);
-      const aiAdmittedNotKnowing =
-        !isEngineOfflineMsg &&
-        !isTrivialGreetingPrompt &&
-        !isCodingPromptForUncertainty &&
-        latestPromptForUncertainty.length >= 4 &&
-        imagesToPass.length === 0 &&
-        !triggeredSearchRequestsRef.current.has(placeholderId) &&
-        /(?:maaf[,\s]+(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:tahu|mengetahui|yakin|memiliki\s+(?:informasi|data|akses))|(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:yakin|tahu\s+pasti|bisa\s+memastikan|memiliki\s+(?:data|informasi|akses)\s+(?:terbaru|terkini|valid|real-?time|internet))|pengetahuan\s+(?:saya|aku)\s+(?:hanya\s+)?(?:sampai|terbatas)|keterbatasan\s+pengetahuan|tidak\s+(?:dapat|bisa)\s+(?:memverifikasi|mengakses\s+(?:informasi\s+terkini|internet|data\s+real-?time))|informasi\s+(?:terbaru|terkini)\s+belum\s+tersedia|data\s+real-?time\s+tidak\s+tersedia|cek\s+situs\s+resmi|periksa\s+sumber\s+resmi|i\s+(?:do\s+not|don't)\s+(?:know|have\s+access)|i(?:'m|\s+am)\s+not\s+(?:sure|certain)|beyond\s+my\s+knowledge(?:\s+cutoff)?|cannot\s+(?:verify|access\s+real-?time)|no\s+access\s+to\s+real-?time)/i.test(fullText || '');
-
-      if (aiAdmittedNotKnowing) {
-        console.log('[ChatBot] 🔍 AI expressed uncertainty — auto-triggering web search fallback.');
-        triggerWebSearchIfNeeded(placeholderId, `[SEARCH_REQUEST: ${latestPromptForUncertainty.slice(0, 180)}]`);
-        return;
-      }
-
-      // ============================================================
-      // 🧠 CHECK FOR RECALL MEMORY FLAG BEFORE ANY CLEANUP
-      // ============================================================
-      const hasRecallFlag = /\[RECALL_MEMORY:\s*(.+?)\]/.test(fullText);
-      if (hasRecallFlag) {
-        triggerRecallMemoryIfNeeded(placeholderId, fullText);
-        return;
-      }
-
-      // ============================================================
-      // 🧠 CHECK FOR AUTONOMOUS MEMORY ACTIONS BEFORE CLEANUP
-      // ============================================================
-      triggerMemoryActionsIfNeeded(placeholderId, fullText);
-
-      // ============================================================
-      // ⏰ CHECK FOR AI REMINDER/ALARM/CALENDAR FLAG
-      // ============================================================
-      console.log('[ChatBot] Full AI response text:', fullText);
-      console.log('[ChatBot] Contains REMINDER_REQUEST?', fullText.includes('REMINDER_REQUEST'));
-      const reminderMatch = fullText.match(/\[REMINDER_REQUEST:\s*(\{[\s\S]*?\})\]/);
-      console.log('[ChatBot] reminderMatch result:', reminderMatch);
-      let createdReminder = null;
-      if (reminderMatch) {
-        try {
-          const payload = JSON.parse(reminderMatch[1]);
-          console.log('[ChatBot] Parsed reminder payload:', payload);
-          createdReminder = reminderService.addReminder({
-            title: payload.title || 'Pengingat',
-            datetime: payload.datetime || new Date().toISOString(),
-            type: payload.type || 'reminder',
-            description: payload.description || 'Dibuat via AI Chatbot'
-          });
-          console.log('[ChatBot] Created reminder:', createdReminder);
-          fullText = fullText.replace(/\[REMINDER_REQUEST:\s*\{[\s\S]*?\}\]\n*/g, '').trim();
-        } catch (e) {
-          console.error('[ChatBot] Error parsing REMINDER_REQUEST flag:', e);
-        }
-      } else {
-        // Fallback: If AI did not output tag, check if user's prompt had explicit reminder/alarm intent
-        const userPromptText = lastSentUserInputTextRef.current || '';
-        const fallbackIntent = reminderService.parseReminderIntent(userPromptText);
-        if (fallbackIntent) {
-          createdReminder = reminderService.addReminder({
-            title: fallbackIntent.title,
-            datetime: fallbackIntent.datetime,
-            type: fallbackIntent.type,
-            description: fallbackIntent.description || 'Dibuat via AI Chatbot'
-          });
-          console.log('[ChatBot] Created reminder via fallback intent:', createdReminder);
-        }
-      }
-
-      // finishStreaming already executed at line ~7276
-
-      if (createdReminder) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === placeholderId ? { ...msg, reminder: createdReminder } : msg
-          )
-        );
-      }
-
-
-
-      // Keep view stable with user ask bubble peacefully at the top
-
-
-
-      // ============================================================
-      // 🤖 SYNCHRONOUS SUB-AGENT ORCHESTRATOR (FLAG-TRIGGERED)
-      // Flow:
-      // 1. AI answers normally first ("jawab biasa" -> introText)
-      // 2. AI emits flag [SUBAGENT_ORCHESTRATE: <task_description>] (or user explicitly requested sub-agent/file deliverables)
-      // 3. Synchronous Agent Orchestrator runs in-place with live Chain of Thought (CoT) and delivers downloadable/previewable files
-      // ============================================================
-      const userPromptForSubAgent = lastSentUserInputTextRef.current || fullMessage || '';
-      const combinedSubAgentSource = `${rawText || ''}\n${fullText || ''}\n${targetReasoningText || ''}`;
-      const subAgentAllowed = isAgenticMode && !isSubAgentForbiddenModel(selectedModel);
-      let parsedSubAgent = subAgentAllowed
-        ? parseSubAgentFlag(combinedSubAgentSource, userPromptForSubAgent, userLanguage)
-        : null;
-
-      if (subAgentAllowed && !parsedSubAgent && detectExplicitSubAgentUserIntent(userPromptForSubAgent, attachedFilesForTurn, true, selectedModel)) {
-        parsedSubAgent = {
-          triggered: true,
-          flagTag: `[SUBAGENT_ORCHESTRATE: ${userPromptForSubAgent.slice(0, 180)}]`,
-          taskDescription: userPromptForSubAgent,
-          introText: '',
-        };
-      }
-
-      let pendingAutoSubAgent = null;
-      if (
-        subAgentAllowed &&
-        parsedSubAgent &&
-        (parsedSubAgent.triggered || parsedSubAgent.hasFlag) &&
-        !triggeredAgentTasksRef.current.has(placeholderId)
-      ) {
-        triggeredAgentTasksRef.current.add(placeholderId);
-
-        console.log(
-          `[ChatBot] 🤖 Agentic Sub-Agent auto-executing for task (${parsedSubAgent.flagTag})`
-        );
-
-        pendingAutoSubAgent = {
-          status: 'running',
-          currentStage: 1,
-          elapsedSec: '0.1',
-          flagTag: parsedSubAgent.flagTag,
-          taskDescription: parsedSubAgent.taskDescription,
-          userPrompt: userPromptForSubAgent,
-          chatHistory: updatedConversationHistory,
-          conversationId: activeConvId || currentConversationId,
-          attachedFiles: attachedFilesForTurn,
-          model: selectedModel || 'qwen2.5-vl-72b',
-          introText: '',
-          planText: '',
-          plannedFiles: [],
-          cotText: '',
-          thoughtSteps: [],
-          files: [],
-          activeWritingFile: null,
-          finalAnswer: '',
-        };
-
-        setMessages((prevMessages) =>
-          prevMessages.map((m) =>
-            m.id === placeholderId
-              ? {
-                ...m,
-                text: '',
-                isStreaming: true,
-                isThinking: false,
-                subAgentData: pendingAutoSubAgent,
-              }
-              : m
-          )
-        );
-      }
-
-      // finishStreaming already called at drain completion (line ~7231) — no duplicate call needed
-
-      setAnimatingMessages((prev) => ({ ...prev, [placeholderId]: false }));
-      setLastMessage(null);
-      setLoading(false);
-      setConvLoading(false); // Mark this conversation as done loading
-      setIsSendGenerating(false);
-      isSendGeneratingRef.current = false;
-      isProcessingRef.current = false;
-      clearLoadingPhaseTimers();
-      abortControllerRef.current = null;
-      // Clean up conversation-specific abort controller
-      if (currentConversationId) {
-        abortControllersMapRef.current.delete(currentConversationId);
-      }
-
-      if (pendingAutoSubAgent && typeof handleSubAgentActionRef.current === 'function') {
-        handleSubAgentActionRef.current(placeholderId, 'confirm', pendingAutoSubAgent);
-      }
-
-      // Immediate save after response completes (strictly skipped in Private Chat)
-      const saveAfterResponse = async () => {
-        if (isPrivateSession(activeConvId)) return;
-        console.log(`[ChatBot] Saving conversation after response completed`);
-        await ConversationPersistenceService.saveConversations(conversations, isAuthenticated, isGuest);
-      };
-      if (!isPrivateSession(activeConvId)) {
-        setTimeout(() => saveAfterResponse(), 100);
-      }
-
-      // Clear uploaded files and images, then minimize image queue
-      setTimeout(() => {
-        setUploadedFiles([]);
-        setUploadedImages([]);
-        setAttachmentQueueMinimized(true);
-        // Also clear from localStorage
-        if (currentConversationId && !isPrivateSession(currentConversationId)) {
-          localStorage.removeItem(`deepernova_images_${currentConversationId}`);
-        }
-      }, 200);
-
-      // Keep view stable without inserting previous-messages button layout shifts
-      // (Compact view is managed only when explicitly toggled)
-
-      // Only trigger inline image generation when the assistant explicitly emits an IMAGE_REQUEST tag.
-      const textForImageTrigger = fullText;
-      triggerInlineImageIfNeeded(placeholderId, textForImageTrigger);
-
-      // Process memories and generate title only for non-private rooms
-      const titleConvId = activeConvId || currentConversationId;
-      if (!isPrivateSession(titleConvId)) {
-        memoryService.processConversation([...messages, userMessageForChat], titleConvId, userLanguage);
-
-        setTimeout(() => {
-          if (titleConvId) {
-            if (!aiTitledConversationsRef.current.has(titleConvId)) {
-              generateChatTitle(titleConvId);
-            }
-            // Load sources for display
-            loadSourcesForConversation(titleConvId);
-          }
-        }, 500);
-      }
-
-      // Reset auto-retry counter on success
+      jobAcceptedOnServer = true;
       autoRetryCountRef.current = 0;
+
+      if (resolvedSessionId) {
+        currentConversationIdRef.current = resolvedSessionId;
+        if (resolvedSessionId !== currentConversationId) {
+          lastLoadedConversationIdRef.current = resolvedSessionId;
+          setCurrentConversationId(resolvedSessionId);
+        }
+        abortControllersMapRef.current.set(resolvedSessionId, abortController);
+      }
+
+      if (!isPrivateTurn) {
+        rememberPendingJob({
+          jobId: resolvedJobId,
+          sessionId: resolvedSessionId,
+          userMessageId: userMessageForChat.id,
+          assistantMessageId: placeholderId,
+          userPrompt: cleanUserText || fullMessage,
+          startedAt: Date.now()
+        });
+
+        const initialBotForState = upfrontSearchQuery
+          ? {
+            ...botMessage,
+            text: '',
+            isStreaming: false,
+            isSearching: true,
+            searchQuery: upfrontSearchQuery,
+            searchResults: null,
+            searchSources: [],
+            searchSteps: [{ query: upfrontSearchQuery, isSearching: true, sources: [], images: [] }]
+          }
+          : botMessage;
+        const nextMsgsForConv = [...updatedConversationHistory, initialBotForState];
+        const firstUser = nextMsgsForConv.find(m => m.sender === 'user' || m.role === 'user');
+        const fallbackTitle = firstUser ? (firstUser.text || firstUser.content || '').slice(0, 32) : 'Obrolan AI';
+
+        setConversations((prevConvs) => {
+          const prevArr = Array.isArray(prevConvs) ? prevConvs : [];
+          const existing = prevArr.find(c => String(c.id) === String(resolvedSessionId));
+          const updatedConv = existing
+            ? {
+              ...existing,
+              messages: nextMsgsForConv,
+              isLoading: true,
+              updatedAt: new Date().toISOString()
+            }
+            : {
+              id: resolvedSessionId,
+              title: fallbackTitle,
+              messages: nextMsgsForConv,
+              isLoading: true,
+              updatedAt: new Date().toISOString()
+            };
+          const updatedList = [updatedConv, ...prevArr.filter(c => String(c.id) !== String(resolvedSessionId))];
+          conversationsRef.current = updatedList;
+          if (!ConversationPersistenceService.shouldUseBackendStorage(isAuthenticated, isGuest)) {
+            ConversationPersistenceService.saveToLocalStorage(updatedList);
+          }
+          return updatedList;
+        });
+
+        try {
+          memoryService.processConversation([...messages, userMessageForChat], resolvedSessionId, userLanguage);
+        } catch (_memErr) { }
+      }
+
+      await attachToServerChatJob(resolvedJobId, {
+        sessionId: resolvedSessionId,
+        assistantMessageId: placeholderId,
+        userMessageId: userMessageForChat.id,
+        userPrompt: cleanUserText || fullMessage,
+        isPrivateTurn,
+        enableReasoning: effectiveEnableReasoning,
+        attachedFilesForTurn,
+        updatedConversationHistory,
+        abortController
+      });
     } catch (err) {
       if (statusUpdateIntervalRef.current) {
         clearInterval(statusUpdateIntervalRef.current);
@@ -6618,8 +6669,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       const isAborted = isUserStoppedRef.current ||
         abortController?.signal?.aborted ||
-        err.name === 'AbortError' ||
-        (err.message && /abort|cancel/i.test(err.message));
+        err?.name === 'AbortError' ||
+        (err?.message && /abort|cancel/i.test(err.message));
 
       if (isAborted) {
         if (
@@ -6628,12 +6679,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           triggeredSearchRequestsRef.current.has(placeholderId) ||
           triggeredRecallRequestsRef.current.has(placeholderId)
         ) {
-          // DON'T reset the flag here — the search/recall flow will handle it
           return;
-        }
-        if (autoRetryTimeoutRef.current) {
-          clearTimeout(autoRetryTimeoutRef.current);
-          autoRetryTimeoutRef.current = null;
         }
         autoRetryCountRef.current = 0;
         partialMessageIdRef.current = null;
@@ -6643,69 +6689,55 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         setLoadingPhase(null);
         showErrorBanner(userLanguage === 'id' ? 'Permintaan dihentikan.' : 'Request stopped.');
         return;
-      } else {
-        const isNetworkErr = !navigator.onLine ||
-          (err.message && /failed to fetch|network|offline|load failed|timeout/i.test(err.message));
+      }
 
-        const hasAnyContent = !!(fullText || rawText || displayedFullText);
-        if (!hasAnyContent && (isNetworkErr || autoRetryCountRef.current >= MAX_AUTO_RETRY)) {
-          // Rollback: restore input text to input field
-          setInputValue(lastSentUserInputTextRef.current || fullMessage || '');
+      if (!jobAcceptedOnServer) {
+        // Server did not receive the job yet: restore user input and roll back optimistic bubbles
+        setInputValue(lastSentUserInputTextRef.current || fullMessage || '');
+        if (placeholderId || lastSentUserMessageIdRef.current) {
+          setMessages((prev) =>
+            prev.filter((m) => m.id !== placeholderId && m.id !== lastSentUserMessageIdRef.current)
+          );
+        }
 
-          // Remove bot placeholder and user message from conversation history
-          if (placeholderId || lastSentUserMessageIdRef.current) {
-            setMessages((prev) =>
-              prev.filter((m) => m.id !== placeholderId && m.id !== lastSentUserMessageIdRef.current)
-            );
-          }
-
-          // Show blurred popup connection error modal
+        if (err?.tokenLimitError || err?.status === 429) {
+          showAlert(
+            err?.message || (
+              userLanguage === 'id'
+                ? '⚠️ Batas penggunaan token tercapai. Silakan coba lagi nanti.'
+                : '⚠️ Token limit reached. Please try again later.'
+            ),
+            'error',
+            5000
+          );
+        } else {
           setConnectionErrorMessage(
             userLanguage === 'id'
               ? 'Pesan Anda tidak terkirim karena masalah koneksi internet. Teks Anda telah dikembalikan ke kolom input.'
               : 'Your message was not sent due to network connection issues. Your text has been restored to the input box.'
           );
           setShowConnectionErrorModal(true);
-
-          autoRetryCountRef.current = 0;
-          setConvLoading(false);
-          isProcessingRef.current = false; // Clear lock only when giving up
-        } else if (hasAnyContent) {
-          // Content was partially received, just finalize what we have without deleting!
-          finishStreaming(placeholderId, fullText || rawText || displayedFullText);
-          setConvLoading(false);
-          setLoading(false);
-          isProcessingRef.current = false;
-        } else {
-          // Auto-retry with exponential backoff
-          if (placeholderId) {
-            partialMessageIdRef.current = placeholderId;
-          }
-          autoRetryCountRef.current += 1;
-          const delayMs = 1000 * autoRetryCountRef.current; // 1s, 2s, 3s
-
-          console.log(`[Auto-Retry] Attempt ${autoRetryCountRef.current}/${MAX_AUTO_RETRY} in ${delayMs}ms`);
-
-          // Clear any existing timeout
-          if (autoRetryTimeoutRef.current) {
-            clearTimeout(autoRetryTimeoutRef.current);
-          }
-
-          autoRetryTimeoutRef.current = setTimeout(() => {
-            console.log(`[Auto-Retry] Retrying now...`);
-            handleRetryAuto();
-          }, delayMs);
-
-          setConvLoading(false);
-          setError(null);
-          return;
         }
+
+        autoRetryCountRef.current = 0;
+        setConvLoading(false);
+        setLoading(false);
+        setIsSendGenerating(false);
+        isSendGeneratingRef.current = false;
+        isProcessingRef.current = false;
+      } else {
+        // Once the server has accepted the background job, never show offline rollback modal on transient socket drops
+        console.warn('[ChatBot] Server job accepted; keeping optimistic message active:', err?.message || err);
       }
       abortControllerRef.current = null;
-      if (currentConversationId) {
-        abortControllersMapRef.current.delete(currentConversationId);
+      if (streamingConversationId) {
+        abortControllersMapRef.current.delete(streamingConversationId);
       }
     } finally {
+      if (statusUpdateIntervalRef.current) {
+        clearInterval(statusUpdateIntervalRef.current);
+        statusUpdateIntervalRef.current = null;
+      }
       clearLoadingPhaseTimers();
       if (timeoutInternetCheckRef.current) {
         clearTimeout(timeoutInternetCheckRef.current);

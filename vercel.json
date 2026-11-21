@@ -142,6 +142,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/chat/jobs/:path*",
+      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/chat/jobs/:path*"
+    },
+    {
+      "source": "/api/chat/jobs",
+      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/chat/jobs"
+    },
+    {
       "source": "/api/chat",
       "destination": "/api/chat"
     },
@@ -151,7 +159,7 @@
     },
     {
       "source": "/api/chat/stop",
-      "destination": "/api/chat/stop"
+      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/chat/stop"
     },
     {
       "source": "/api/ping",

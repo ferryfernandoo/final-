@@ -638,226 +638,250 @@ export const sanitizeAndFormatHistory = (conversationHistory = [], currentMessag
   return alternating;
 };
 
-// Function untuk call backend proxy
-const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'qwen2.5-vl-72b', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
+// Shared payload builder for both direct /api/chat and resilient background jobs (/api/chat/jobs/start)
+export const buildBackendChatPayload = ({
+  message,
+  conversationHistory = [],
+  language = 'id',
+  personality = DEFAULT_PERSONALITY,
+  deepernovaModel = 'qwen2.5-vl-72b',
+  userName = '',
+  sessionMessageCount = 0,
+  uploadedImages = [],
+  globalMemory = '',
+  conversationId = null,
+  isGuest = true,
+  enableReasoning = false,
+  enableWebSearch = true,
+  isPrivateMode = false
+}) => {
   const isPrivateSession = Boolean(isPrivateMode || String(conversationId || '').startsWith('private_'));
-  try {
-    const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
-    const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
+  const systemHistoryMsg = conversationHistory.find(msg => msg.sender === 'system');
+  const systemHistoryText = systemHistoryMsg ? systemHistoryMsg.text : '';
 
-    // Build messages untuk backend
-    const isSearchConclusion = typeof message === 'string' && (
-      message.includes('HASIL PENCARIAN WEB') ||
-      message.includes('HASIL PENCARIAN & BERITA') ||
-      message.includes('RINGKASAN HASIL PENCARIAN') ||
-      message.includes('RINGKASAN AI GOOGLE') ||
-      message.includes('WEB SEARCH RESULTS') ||
-      message.includes('[INSTRUKSI SISTEM:')
+  const isSearchConclusion = typeof message === 'string' && (
+    message.includes('HASIL PENCARIAN WEB') ||
+    message.includes('HASIL PENCARIAN & BERITA') ||
+    message.includes('RINGKASAN HASIL PENCARIAN') ||
+    message.includes('RINGKASAN AI GOOGLE') ||
+    message.includes('WEB SEARCH RESULTS') ||
+    message.includes('[INSTRUKSI SISTEM:')
+  );
+
+  const effectiveHistory = isSearchConclusion
+    ? []
+    : (Array.isArray(conversationHistory)
+      ? conversationHistory.filter(msg => msg && !msg.isSearching && (msg.text || msg.content || msg.fullPrompt))
+      : []);
+
+  const contextMessages = sanitizeAndFormatHistory(effectiveHistory, message);
+
+  const nowTime = new Date();
+  const formattedTodayId = nowTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let userMessageContent;
+  const safeUploadedImages = isSearchConclusion ? [] : (Array.isArray(uploadedImages) ? uploadedImages : []);
+  const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
+
+  const cleanTextMessage = typeof message === 'string' ? message.trim() : (message || '');
+
+  if (validImageUrls.length > 0) {
+    console.log(`📸 Backend proxy vision mode: sending ${validImageUrls.length} image(s)`);
+    userMessageContent = [
+      { type: 'text', text: cleanTextMessage },
+      ...validImageUrls.map(imgUrl => ({
+        type: 'image_url',
+        image_url: { url: imgUrl }
+      }))
+    ];
+  } else {
+    userMessageContent = cleanTextMessage;
+  }
+
+  const normalizedRequestModel = normalizeDeepernovaModel(deepernovaModel || 'qwen2.5-vl-72b');
+  const mLower = normalizedRequestModel.toLowerCase();
+  const isGrok46Model = false;
+  const isFlashModel = Boolean(normalizedRequestModel);
+
+  const privateCandidBlock = isPrivateSession
+    ? (language === 'id'
+      ? '\n\n[MODE OBROLAN PRIVAT]: Sesi ini sementara dan terisolasi penuh dari riwayat/memori pengguna. Jawablah secara jujur, blak-blakan, lugas, langsung ke inti, objektif, dan tanpa basa-basi atau menggurui untuk diskusi terbuka yang aman dan wajar, sambil tetap mematuhi prinsip keselamatan terhadap konten berbahaya atau ilegal.'
+      : '\n\n[PRIVATE CHAT MODE]: This session is ephemeral and completely isolated from saved history/memory. Respond candidly, directly, objectively, and without preachy lecturing or unnecessary filler for benign/open discussions, while upholding safety principles against harmful or illegal content.')
+    : '';
+
+  let systemPromptContent;
+  let finalMessages;
+
+  if (isFlashModel) {
+    let memoryBlock = '';
+    if (!isPrivateSession) {
+      if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
+        try {
+          memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
+        } catch (e) { }
+      }
+      if (!memoryBlock && globalMemory) {
+        memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
+      }
+    }
+
+    const timeInfo = language === 'id'
+      ? `[WAKTU REAL-TIME SEKARANG]: Tahun ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayId}.`
+      : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
+
+    const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
+      ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (ANTI-HALUSINASI MUTLAK):\n' +
+      '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler.\n' +
+      '- ATURAN MUTLAK:\n' +
+      '  * DILARANG KERAS mengarang angka, tanggal, harga, persentase, nama pejabat, nomor pasal/regulasi, URL, atau kejadian dari hafalan yang bisa saja usang atau salah (HALUSINASI DILARANG KERAS)!\n' +
+      '  * DILARANG menjawab "Saya tidak tahu", "Maaf informasi saya terbatas", atau "Silakan cek situs resmi".\n' +
+      '  * Kapan pun user menanyakan fakta dunia nyata, berita, peristiwa terkini, harga, kurs, tokoh, aturan/UU, perbandingan produk, jadwal, atau fakta yang butuh verifikasi: WAJIB keluarkan HANYA baris pertama [SEARCH_REQUEST: <topik spesifik 2-6 kata>] (contoh: `[SEARCH_REQUEST: berita kebakaran hutan terbaru 2026]`) lalu LANGSUNG BERHENTI setelah `]`.\n' +
+      '  * JAWAB LANGSUNG TANPA FLAG HANYA jika pertanyaan berupa sapaan, matematika murni, menulis/debug kode mandiri, terjemahan, atau konsep dasar yang 100% statis dan pasti.'
+      : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (STRICT ANTI-HALLUCINATION):\n' +
+      '- You are directly connected to DeeperNova Search Engine & Live Web Crawler.\n' +
+      '- MANDATORY RULE:\n' +
+      '  * STRICTLY FORBIDDEN to fabricate numbers, dates, prices, statistics, current officials, laws, URLs, or events from memory.\n' +
+      '  * STRICTLY FORBIDDEN to reply "I don\'t know", "My knowledge is limited", or "Please check official sites".\n' +
+      '  * Whenever the user asks about real-world facts, news, prices, people, rules, product comparisons, schedules, or anything uncertain: output ONLY [SEARCH_REQUEST: <2-6 specific topic keywords>] on line 1 (e.g. `[SEARCH_REQUEST: forest fire news 2026]`) and STOP IMMEDIATELY after `]`.\n' +
+      '  * ANSWER DIRECTLY WITHOUT SEARCH ONLY for greetings, pure math, standalone code/debugging, translation, or 100% static fundamental concepts.'
     );
 
-    // Isolate conversation history for search conclusion so previous chat turns NEVER distract the search synthesis
-    const effectiveHistory = isSearchConclusion
-      ? []
-      : (Array.isArray(conversationHistory)
-        ? conversationHistory.filter(msg => msg && !msg.isSearching && (msg.text || msg.content || msg.fullPrompt))
-        : []);
-
-    // Clean and sanitize history so there are no empty messages or duplicate consecutive user turns
-    const contextMessages = sanitizeAndFormatHistory(effectiveHistory, message);
-
-    // Backend URL
-    const apiBaseUrl = API_BASE_URL;
-    console.log('[GROK_API] Connecting to API:', apiBaseUrl);
-
-    const nowTime = new Date();
-    const formattedTodayId = nowTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-    const formattedTodayEn = nowTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-
-    let userMessageContent;
-    const safeUploadedImages = isSearchConclusion ? [] : (Array.isArray(uploadedImages) ? uploadedImages : []);
-    const validImageUrls = safeUploadedImages.map(getValidVisionImageUrl).filter(Boolean);
-
-    const cleanTextMessage = typeof message === 'string' ? message.trim() : (message || '');
-
-    if (validImageUrls.length > 0) {
-      console.log(`📸 Backend proxy vision mode: sending ${validImageUrls.length} image(s)`);
-      userMessageContent = [
-        { type: 'text', text: cleanTextMessage },
-        ...validImageUrls.map(imgUrl => ({
-          type: 'image_url',
-          image_url: {
-            url: imgUrl
-          }
-        }))
-      ];
-    } else {
-      userMessageContent = cleanTextMessage;
-    }
-
-    const normalizedRequestModel = normalizeDeepernovaModel(deepernovaModel || 'qwen2.5-vl-72b');
-    const mLower = normalizedRequestModel.toLowerCase();
-    const isGrok46Model = false;
-    const isFlashModel = Boolean(normalizedRequestModel);
-
-    const privateCandidBlock = isPrivateSession
+    const visionInstruction = validImageUrls.length > 0
       ? (language === 'id'
-        ? '\n\n[MODE OBROLAN PRIVAT]: Sesi ini sementara dan terisolasi penuh dari riwayat/memori pengguna. Jawablah secara jujur, blak-blakan, lugas, langsung ke inti, objektif, dan tanpa basa-basi atau menggurui untuk diskusi terbuka yang aman dan wajar, sambil tetap mematuhi prinsip keselamatan terhadap konten berbahaya atau ilegal.'
-        : '\n\n[PRIVATE CHAT MODE]: This session is ephemeral and completely isolated from saved history/memory. Respond candidly, directly, objectively, and without preachy lecturing or unnecessary filler for benign/open discussions, while upholding safety principles against harmful or illegal content.')
+        ? '\n\nKEMAMPUAN VISION (MUTLAK):\n' +
+        '- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n' +
+        '- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n' +
+        '- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!'
+        : '\n\nVISION CAPABILITY (MANDATORY):\n' +
+        '- The user has attached image(s). You have full visual perception.\n' +
+        '- Thoroughly and accurately analyze and describe the image according to user inquiry.\n' +
+        '- NEVER claim you cannot see images or ask to re-upload!')
       : '';
 
-    let systemPromptContent;
-    let finalMessages;
+    const HONEST_MODEL_LABELS = {
+      'qwen2.5-vl-72b': 'Qwen 2.5 VL 72B',
+      'nemotron-3-ultra-550b': 'NVIDIA Nemotron 3 Ultra 550B',
+      'nemotron-3.5-lightning': 'NVIDIA Nemotron 3.5 Lightning',
+      'north-mini-code': 'Cohere North Mini Code',
+      'free-router': 'FreeRouter Auto (FreeLLM)',
+      'nemotron-3.5-super-vl': 'NVIDIA Nemotron 3.5 Super VL'
+    };
+    const modelNameLabel = HONEST_MODEL_LABELS[mLower] || normalizedRequestModel || 'Qwen 2.5 VL 72B';
 
-    if (isFlashModel) {
-      // 1. Dapatkan memori profil aktif & rangkuman percakapan dari chatbot (isolasi penuh saat mode privat)
-      let memoryBlock = '';
-      if (!isPrivateSession) {
-        if (memoryService && typeof memoryService.getActiveMemoryProfile === 'function') {
-          try {
-            memoryBlock = memoryService.getActiveMemoryProfile(language, 6);
-          } catch (e) { }
-        }
-        if (!memoryBlock && globalMemory) {
-          memoryBlock = '\n\n[MEMORI GLOBAL PENGGUNA]:\n' + globalMemory;
-        }
-      }
+    const activePersonalityKey = (personality || DEFAULT_PERSONALITY).toLowerCase();
+    const activePersonalityObj = PERSONALITIES[activePersonalityKey] || PERSONALITIES[DEFAULT_PERSONALITY] || PERSONALITIES.friendly;
+    const personalitySystemAppend = activePersonalityObj?.systemPromptAppend || '';
 
-      const timeInfo = language === 'id'
-        ? `[WAKTU REAL-TIME SEKARANG]: Tahun ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayId}.`
-        : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
-
-      const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
-        ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (ANTI-HALUSINASI MUTLAK):\n' +
-        '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler.\n' +
-        '- ATURAN MUTLAK:\n' +
-        '  * DILARANG KERAS mengarang angka, tanggal, harga, persentase, nama pejabat, nomor pasal/regulasi, URL, atau kejadian dari hafalan yang bisa saja usang atau salah (HALUSINASI DILARANG KERAS)!\n' +
-        '  * DILARANG menjawab "Saya tidak tahu", "Maaf informasi saya terbatas", atau "Silakan cek situs resmi".\n' +
-        '  * Kapan pun user menanyakan fakta dunia nyata, berita, peristiwa terkini, harga, kurs, tokoh, aturan/UU, perbandingan produk, jadwal, atau fakta yang butuh verifikasi: WAJIB keluarkan HANYA baris pertama [SEARCH_REQUEST: <topik spesifik 2-6 kata>] (contoh: `[SEARCH_REQUEST: berita kebakaran hutan terbaru 2026]`) lalu LANGSUNG BERHENTI setelah `]`.\n' +
-        '  * JAWAB LANGSUNG TANPA FLAG HANYA jika pertanyaan berupa sapaan, matematika murni, menulis/debug kode mandiri, terjemahan, atau konsep dasar yang 100% statis dan pasti.'
-        : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (STRICT ANTI-HALLUCINATION):\n' +
-        '- You are directly connected to DeeperNova Search Engine & Live Web Crawler.\n' +
-        '- MANDATORY RULE:\n' +
-        '  * STRICTLY FORBIDDEN to fabricate numbers, dates, prices, statistics, current officials, laws, URLs, or events from memory.\n' +
-        '  * STRICTLY FORBIDDEN to reply "I don\'t know", "My knowledge is limited", or "Please check official sites".\n' +
-        '  * Whenever the user asks about real-world facts, news, prices, people, rules, product comparisons, schedules, or anything uncertain: output ONLY [SEARCH_REQUEST: <2-6 specific topic keywords>] on line 1 (e.g. `[SEARCH_REQUEST: forest fire news 2026]`) and STOP IMMEDIATELY after `]`.\n' +
-        '  * ANSWER DIRECTLY WITHOUT SEARCH ONLY for greetings, pure math, standalone code/debugging, translation, or 100% static fundamental concepts.'
-      );
-
-      const visionInstruction = validImageUrls.length > 0
-        ? (language === 'id'
-          ? '\n\nKEMAMPUAN VISION (MUTLAK):\n' +
-          '- Pengguna telah melampirkan gambar. Kamu memiliki kemampuan visual dan analisis gambar secara penuh.\n' +
-          '- Analisis dan jelaskan gambar tersebut secara akurat, detail, dan langsung sesuai pertanyaan pengguna.\n' +
-          '- DILARANG KERAS mengatakan bahwa kamu tidak bisa melihat gambar atau meminta pengguna mengunggah ulang!'
-          : '\n\nVISION CAPABILITY (MANDATORY):\n' +
-          '- The user has attached image(s). You have full visual perception.\n' +
-          '- Thoroughly and accurately analyze and describe the image according to user inquiry.\n' +
-          '- NEVER claim you cannot see images or ask to re-upload!')
-        : '';
-
-      const HONEST_MODEL_LABELS = {
-        'qwen2.5-vl-72b': 'Qwen 2.5 VL 72B',
-        'nemotron-3-ultra-550b': 'NVIDIA Nemotron 3 Ultra 550B',
-        'nemotron-3.5-lightning': 'NVIDIA Nemotron 3.5 Lightning',
-        'north-mini-code': 'Cohere North Mini Code',
-        'free-router': 'FreeRouter Auto (FreeLLM)',
-        'nemotron-3.5-super-vl': 'NVIDIA Nemotron 3.5 Super VL'
-      };
-      const modelNameLabel = HONEST_MODEL_LABELS[mLower] || normalizedRequestModel || 'Qwen 2.5 VL 72B';
-
-      const grok46DirectDirective = '';
-
-      const activePersonalityKey = (personality || DEFAULT_PERSONALITY).toLowerCase();
-      const activePersonalityObj = PERSONALITIES[activePersonalityKey] || PERSONALITIES[DEFAULT_PERSONALITY] || PERSONALITIES.friendly;
-      const personalitySystemAppend = activePersonalityObj?.systemPromptAppend || '';
-
-      if (isSearchConclusion) {
-        // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
-        systemPromptContent =
-          `Kamu adalah asisten AI yang berjalan pada model ${modelNameLabel} melalui platform DeeperNova AI.\n` +
-          `${personalitySystemAppend}\n\n` +
-          timeInfo + '\n' +
-          `TRANSPARANSI MODEL: Jika ditanya model apa yang berjalan, jawablah dengan jujur bahwa kamu menggunakan model ${modelNameLabel}.\n` +
-          'ATURAN UTAMA GAYA KOMUNIKASI:\n' +
-          '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, seru, jangan kaku/baku). Jika Friendly, bicaralah sangat ramah, hangat, dan manis. Jika Formal, bicaralah resmi dan profesional. Jika Cute, bicaralah imut dan ceria. Jika Witty, berikan sentuhan humor cerdas.\n' +
-          '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
-          '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
-          searchInstruction +
-          visionInstruction +
-          grok46DirectDirective +
-          privateCandidBlock +
-          (!enableReasoning && !isGrok46Model ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
-          (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
-          (memoryBlock ? ('\n' + memoryBlock) : '');
-      } else {
-        systemPromptContent =
-          `Kamu adalah asisten AI cerdas yang berjalan pada model ${modelNameLabel} melalui platform DeeperNova AI.\n` +
-          `${personalitySystemAppend}\n\n` +
-          timeInfo + '\n' +
-          `TRANSPARANSI MODEL: Jika ditanya model apa yang sedang kamu gunakan, jawablah jujur sesuai model aktif (${modelNameLabel}).\n` +
-          'ATURAN SIKAP & GAYA KOMUNIKASI (MUTLAK):\n' +
-          '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (gunakan panggilan luwes aku-kamu, santai, asyik, jangan kaku atau baku seperti buku pelajaran). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. Jika Witty, selipkan kecerdasan dan humor. Jika Cute, gunakan ekspresi imut, ceria, dan penuh energi.\n' +
-          '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai gaya kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
-          '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
-          searchInstruction +
-          visionInstruction +
-          grok46DirectDirective +
-          privateCandidBlock +
-          (!enableReasoning && !isGrok46Model ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
-          (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
-          (memoryBlock ? ('\n' + memoryBlock) : '');
-      }
-
-      // 2. Susun riwayat dialog masa lalu (past dialogue turns) secara bersih tanpa menduplikasi pesan user saat ini
-      const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
-
-      // Jika item terakhir di conversationHistory adalah user message yang baru saja diketik, pisahkan agar tidak dobel
-      let pastTurns = [];
-      if (rawHistory.length > 0) {
-        const lastItem = rawHistory[rawHistory.length - 1];
-        const isLastItemUser = (lastItem.sender === 'user' || lastItem.role === 'user');
-        const historyPool = isLastItemUser ? rawHistory.slice(0, -1) : rawHistory;
-
-        pastTurns = historyPool
-          .filter(m => m && !m.isSearching && (m.text || m.content))
-          .filter(m => {
-            const txt = (m.text || m.content || '').trim();
-            return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt);
-          })
-          .map(m => ({
-            role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
-            content: (m.text || m.content || '').trim()
-          }))
-          .filter(m => m.content.length > 0);
-      }
-
-      // Pastikan susunan peran bergantian (alternating) jika ada pesan berturut-turut
-      const cleanPastTurns = [];
-      for (const turn of pastTurns) {
-        if (cleanPastTurns.length > 0 && cleanPastTurns[cleanPastTurns.length - 1].role === turn.role) {
-          cleanPastTurns[cleanPastTurns.length - 1].content += '\n' + turn.content;
-        } else {
-          cleanPastTurns.push({ ...turn });
-        }
-      }
-
-      // Simpan hingga 30 turn percakapan terakhir (15+ dialog lengkap)
-      // Untuk sintesis pencarian web (isSearchConclusion), ISOLIR penuh agar model 100% fokus pada hasil pencarian terbaru
-      const activeTurns = isSearchConclusion ? [] : cleanPastTurns.slice(-30);
-
-      finalMessages = [
-        { role: 'system', content: systemPromptContent },
-        ...activeTurns,
-        { role: 'user', content: userMessageContent }
-      ];
+    if (isSearchConclusion) {
+      systemPromptContent =
+        `Kamu adalah asisten AI yang berjalan pada model ${modelNameLabel} melalui platform DeeperNova AI.\n` +
+        `${personalitySystemAppend}\n\n` +
+        timeInfo + '\n' +
+        `TRANSPARANSI MODEL: Jika ditanya model apa yang berjalan, jawablah dengan jujur bahwa kamu menggunakan model ${modelNameLabel}.\n` +
+        'ATURAN UTAMA GAYA KOMUNIKASI:\n' +
+        '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas.\n' +
+        '2. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Jawab tuntas topik ini tanpa mengaitkan percakapan lama yang tidak relevan.\n' +
+        visionInstruction +
+        privateCandidBlock +
+        (!enableReasoning && !isGrok46Model ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam.') +
+        (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
+        (memoryBlock ? ('\n' + memoryBlock) : '');
     } else {
-      systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, isPrivateSession ? '' : globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '') + (isPrivateSession ? privateCandidBlock : '');
-      finalMessages = [
-        { role: 'system', content: systemPromptContent },
-        ...contextMessages,
-        { role: 'user', content: userMessageContent }
-      ];
+      systemPromptContent =
+        `Kamu adalah asisten AI cerdas yang berjalan pada model ${modelNameLabel} melalui platform DeeperNova AI.\n` +
+        `${personalitySystemAppend}\n\n` +
+        timeInfo + '\n' +
+        `TRANSPARANSI MODEL: Jika ditanya model apa yang sedang kamu gunakan, jawablah jujur sesuai model aktif (${modelNameLabel}).\n` +
+        'ATURAN SIKAP & GAYA KOMUNIKASI (MUTLAK):\n' +
+        '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (gunakan panggilan luwes aku-kamu, santai, asyik, jangan kaku atau baku seperti buku pelajaran). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. Jika Witty, selipkan kecerdasan dan humor. Jika Cute, gunakan ekspresi imut, ceria, dan penuh energi.\n' +
+        '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai gaya kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
+        '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
+        searchInstruction +
+        visionInstruction +
+        privateCandidBlock +
+        (!enableReasoning && !isGrok46Model ? '\n[MODE PENALARAN: NONAKTIF]: Langsung berikan jawaban to-the-point tanpa proses penalaran bertele-tele.' : '\n[MODE PENALARAN: AKTIF]: Berikan penalaran mendalam langkah demi langkah sebelum menyimpulkan jawaban.') +
+        (userName ? ('\n[NAMA PENGGUNA]: ' + userName) : '') +
+        (memoryBlock ? ('\n' + memoryBlock) : '');
     }
+
+    const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
+    let pastTurns = [];
+    if (rawHistory.length > 0) {
+      const lastItem = rawHistory[rawHistory.length - 1];
+      const isLastItemUser = (lastItem.sender === 'user' || lastItem.role === 'user');
+      const historyPool = isLastItemUser ? rawHistory.slice(0, -1) : rawHistory;
+
+      pastTurns = historyPool
+        .filter(m => m && !m.isSearching && (m.text || m.content))
+        .filter(m => {
+          const txt = (m.text || m.content || '').trim();
+          return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt);
+        })
+        .map(m => ({
+          role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
+          content: (m.text || m.content || '').trim()
+        }))
+        .filter(m => m.content.length > 0);
+    }
+
+    const cleanPastTurns = [];
+    for (const turn of pastTurns) {
+      if (cleanPastTurns.length > 0 && cleanPastTurns[cleanPastTurns.length - 1].role === turn.role) {
+        cleanPastTurns[cleanPastTurns.length - 1].content += '\n' + turn.content;
+      } else {
+        cleanPastTurns.push({ ...turn });
+      }
+    }
+
+    const activeTurns = isSearchConclusion ? [] : cleanPastTurns.slice(-30);
+    finalMessages = [
+      { role: 'system', content: systemPromptContent },
+      ...activeTurns,
+      { role: 'user', content: userMessageContent }
+    ];
+  } else {
+    systemPromptContent = buildContextualPrompt(conversationHistory, language, message, null, personality, userName, sessionMessageCount, isPrivateSession ? '' : globalMemory) + (!isSearchConclusion && systemHistoryText ? `\n\n${systemHistoryText}` : '') + (isPrivateSession ? privateCandidBlock : '');
+    finalMessages = [
+      { role: 'system', content: systemPromptContent },
+      ...contextMessages,
+      { role: 'user', content: userMessageContent }
+    ];
+  }
+
+  return {
+    model: normalizedRequestModel,
+    messages: finalMessages,
+    uploadedImages: validImageUrls,
+    enableReasoning: Boolean(enableReasoning || isGrok46Model),
+    temperature: isFlashModel ? 0.35 : 0.5,
+    max_tokens: isFlashModel ? 4096 : 512,
+    presence_penalty: isFlashModel ? 0.1 : 0.2,
+    frequency_penalty: isFlashModel ? 0.2 : 0.3,
+    isPrivateSession
+  };
+};
+
+// Function untuk call backend proxy
+const sendMessageViaBackend = async (message, conversationHistory = [], language = 'id', personality = DEFAULT_PERSONALITY, abortController = null, deepernovaModel = 'qwen2.5-vl-72b', userName = '', sessionMessageCount = 0, uploadedImages = [], globalMemory = '', conversationId = null, isGuest = true, enableReasoning = false, enableWebSearch = true, isPrivateMode = false) => {
+  try {
+    const apiBaseUrl = API_BASE_URL;
+    const built = buildBackendChatPayload({
+      message,
+      conversationHistory,
+      language,
+      personality,
+      deepernovaModel,
+      userName,
+      sessionMessageCount,
+      uploadedImages,
+      globalMemory,
+      conversationId,
+      isGuest,
+      enableReasoning,
+      enableWebSearch,
+      isPrivateMode
+    });
 
     const MAX_RETRIES = 2;
     let response = null;
@@ -873,22 +897,22 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
               'Content-Type': 'application/json',
               'x-device-id': deviceId,
             },
-            credentials: isGuest ? 'omit' : 'include', // Omit cookies for guests to prevent cross-origin cookie rejection
+            credentials: isGuest ? 'omit' : 'include',
             signal: abortController?.signal,
             body: JSON.stringify({
-              model: normalizedRequestModel,
+              model: built.model,
               sessionId: conversationId || null,
               conversationId: conversationId || null,
               deviceId,
               language: language || (typeof localStorage !== 'undefined' ? localStorage.getItem('deepernova_language') : null) || 'id',
               personality: personality || 'mentor',
-              messages: finalMessages,
-              uploadedImages: validImageUrls,
-              enableReasoning: Boolean(enableReasoning || isGrok46Model),
-              temperature: isFlashModel ? 0.35 : 0.5,
-              max_tokens: isFlashModel ? 4096 : 512,
-              presence_penalty: isFlashModel ? 0.1 : 0.2,
-              frequency_penalty: isFlashModel ? 0.2 : 0.3,
+              messages: built.messages,
+              uploadedImages: built.uploadedImages,
+              enableReasoning: built.enableReasoning,
+              temperature: built.temperature,
+              max_tokens: built.max_tokens,
+              presence_penalty: built.presence_penalty,
+              frequency_penalty: built.frequency_penalty,
               stream: true,
               stream_options: { include_usage: true },
             }),
@@ -1406,5 +1430,318 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
 
   return { fullText, usage: streamUsage };
 };
+
+// ============================================================
+// SERVER-SIDE BACKGROUND CHAT JOB CLIENT & RECOVERY SUBSCRIBER
+// ============================================================
+
+export const startServerChatJob = async ({
+  message,
+  conversationHistory = [],
+  language = 'id',
+  conversationId = null,
+  personality = DEFAULT_PERSONALITY,
+  deepernovaModel = 'qwen2.5-vl-72b',
+  isGuest = true,
+  userName = '',
+  sessionMessageCount = 0,
+  uploadedImages = [],
+  enableReasoning = false,
+  enableWebSearch = true,
+  isPrivateMode = false,
+  userMessageId = null,
+  assistantMessageId = null,
+  userPrompt = '',
+  searchQuery = null,
+  abortController = null
+}) => {
+  const isPrivateSession = Boolean(isPrivateMode || String(conversationId || '').startsWith('private_'));
+  let globalMemory = '';
+  if (!isPrivateSession) {
+    try {
+      globalMemory = localStorage.getItem('guest_global_memory') || '';
+    } catch (_) { }
+  }
+
+  const built = buildBackendChatPayload({
+    message,
+    conversationHistory,
+    language,
+    personality,
+    deepernovaModel,
+    userName,
+    sessionMessageCount,
+    uploadedImages,
+    globalMemory,
+    conversationId,
+    isGuest,
+    enableReasoning,
+    enableWebSearch,
+    isPrivateMode
+  });
+
+  const deviceId = getDeviceId();
+  const payload = {
+    model: built.model,
+    sessionId: conversationId || null,
+    conversationId: conversationId || null,
+    userMessageId: userMessageId || null,
+    assistantMessageId: assistantMessageId || null,
+    userPrompt: userPrompt || (typeof message === 'string' ? message : ''),
+    searchQuery: searchQuery || null,
+    deviceId,
+    language: language || (typeof localStorage !== 'undefined' ? localStorage.getItem('deepernova_language') : null) || 'id',
+    personality: personality || 'mentor',
+    messages: built.messages,
+    uploadedImages: built.uploadedImages,
+    enableReasoning: built.enableReasoning,
+    enableWebSearch: Boolean(enableWebSearch),
+    isPrivate: isPrivateSession,
+    temperature: built.temperature,
+    max_tokens: built.max_tokens
+  };
+
+  let lastErr = null;
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    try {
+      const resp = await fetchWithTimeout(
+        `${API_BASE_URL}/api/chat/jobs/start`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-id': deviceId
+          },
+          credentials: 'include',
+          signal: abortController?.signal,
+          body: JSON.stringify(payload)
+        },
+        15000
+      );
+
+      if (!resp.ok) {
+        let errJson = null;
+        try { errJson = await resp.json(); } catch (_) { }
+        if (errJson?.isTokenLimitError) {
+          const limitErr = new Error(errJson.error || `API Error: ${resp.status}`);
+          limitErr.isTokenLimitError = true;
+          limitErr.resetTime = errJson.resetTime || null;
+          limitErr.usedTokens = errJson.usedTokens || 2000000;
+          throw limitErr;
+        }
+        if (resp.status >= 500 && attempt < 2) {
+          await new Promise(r => setTimeout(r, 900 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(errJson?.error || `HTTP ${resp.status}`);
+      }
+
+      return await resp.json();
+    } catch (err) {
+      lastErr = err;
+      if (err?.name === 'AbortError' || err?.isTokenLimitError) throw err;
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 900 * (attempt + 1)));
+        continue;
+      }
+    }
+  }
+  throw lastErr || new Error('Gagal memulai tugas AI di server.');
+};
+
+export const fetchServerChatJobSnapshot = async (jobId) => {
+  const deviceId = getDeviceId();
+  const resp = await fetchWithTimeout(
+    `${API_BASE_URL}/api/chat/jobs/${encodeURIComponent(jobId)}?deviceId=${encodeURIComponent(deviceId)}`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'x-device-id': deviceId }
+    },
+    10000
+  );
+  if (!resp.ok) {
+    throw new Error(`Job snapshot HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  return data?.job || null;
+};
+
+export const fetchActiveServerChatJobs = async () => {
+  const deviceId = getDeviceId();
+  const resp = await fetchWithTimeout(
+    `${API_BASE_URL}/api/chat/jobs/active?deviceId=${encodeURIComponent(deviceId)}`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'x-device-id': deviceId }
+    },
+    10000
+  );
+  if (!resp.ok) return [];
+  const data = await resp.json();
+  return Array.isArray(data?.jobs) ? data.jobs : [];
+};
+
+export const subscribeToServerChatJob = async (jobId, callbacks = {}, options = {}) => {
+  const { abortSignal = null } = options;
+  const deviceId = getDeviceId();
+  let terminal = false;
+
+  const dispatchTerminal = (jobData) => {
+    if (!jobData || terminal) return;
+    if (jobData.status === 'done') {
+      terminal = true;
+      callbacks.onDone?.(jobData);
+    } else if (jobData.status === 'stopped') {
+      terminal = true;
+      callbacks.onStopped?.(jobData);
+    } else if (jobData.status === 'error') {
+      terminal = true;
+      callbacks.onError?.(jobData);
+    }
+  };
+
+  // Phase 1: Live SSE stream attachment
+  try {
+    const resp = await fetch(
+      `${API_BASE_URL}/api/chat/jobs/${encodeURIComponent(jobId)}/stream?deviceId=${encodeURIComponent(deviceId)}`,
+      {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'x-device-id': deviceId },
+        signal: abortSignal || undefined
+      }
+    );
+
+    if (resp.ok && resp.body) {
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      const handleEventBlock = (rawBlock) => {
+        const lines = rawBlock.split(/\r?\n/);
+        let eventName = 'message';
+        const dataLines = [];
+        for (const line of lines) {
+          if (line.startsWith('event:')) eventName = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+        }
+        const rawData = dataLines.join('\n');
+        if (!rawData || rawData === '[DONE]') return;
+        let parsed = null;
+        try { parsed = JSON.parse(rawData); } catch { return; }
+
+        if (eventName === 'snapshot') {
+          callbacks.onSnapshot?.(parsed);
+          if (['done', 'stopped', 'error'].includes(parsed?.status)) {
+            dispatchTerminal(parsed);
+          }
+        } else if (eventName === 'status') {
+          callbacks.onStatus?.(parsed);
+        } else if (eventName === 'search') {
+          callbacks.onSearch?.(parsed);
+        } else if (eventName === 'reasoning_delta') {
+          callbacks.onReasoningDelta?.(parsed);
+        } else if (eventName === 'content_delta') {
+          callbacks.onContentDelta?.(parsed);
+        } else if (eventName === 'done') {
+          terminal = true;
+          callbacks.onDone?.(parsed);
+        } else if (eventName === 'stopped') {
+          terminal = true;
+          callbacks.onStopped?.(parsed);
+        } else if (eventName === 'error') {
+          terminal = true;
+          callbacks.onError?.(parsed);
+        }
+      };
+
+      try {
+        while (!terminal && !abortSignal?.aborted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let sepIdx;
+          while ((sepIdx = buffer.indexOf('\n\n')) !== -1) {
+            const block = buffer.slice(0, sepIdx);
+            buffer = buffer.slice(sepIdx + 2);
+            if (block.trim()) handleEventBlock(block);
+          }
+        }
+      } finally {
+        try { reader.releaseLock(); } catch (_) { }
+      }
+    }
+  } catch (streamErr) {
+    if (abortSignal?.aborted) {
+      return { aborted: true };
+    }
+    // Mobile app sleep / APK switch-away / transient gateway drop -> seamlessly resume via background polling
+    console.warn(`[ServerJob:${jobId}] Stream paused (${streamErr?.message}); switching to auto-resume polling.`);
+  }
+
+  if (terminal || abortSignal?.aborted) {
+    return { done: terminal, aborted: Boolean(abortSignal?.aborted) };
+  }
+
+  // Phase 2: Resilient visibility-aware polling until server job reaches terminal state
+  const pollDeadline = Date.now() + 5 * 60 * 1000;
+  let wakeupResolve = null;
+  const triggerWake = () => {
+    if (wakeupResolve) {
+      const fn = wakeupResolve;
+      wakeupResolve = null;
+      fn();
+    }
+  };
+  const onVis = () => {
+    if (typeof document === 'undefined' || document.visibilityState === 'visible') triggerWake();
+  };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVis);
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', triggerWake);
+    window.addEventListener('online', triggerWake);
+  }
+  const onAbortWake = () => triggerWake();
+  abortSignal?.addEventListener?.('abort', onAbortWake, { once: true });
+
+  try {
+    while (!terminal && !abortSignal?.aborted && Date.now() < pollDeadline) {
+      try {
+        const snap = await fetchServerChatJobSnapshot(jobId);
+        if (snap) {
+          callbacks.onSnapshot?.(snap);
+          if (['done', 'stopped', 'error'].includes(snap.status)) {
+            dispatchTerminal(snap);
+            break;
+          }
+        }
+      } catch (_pollErr) {
+        // Keep silently retrying while offline or suspended in background
+      }
+      if (terminal || abortSignal?.aborted) break;
+      await new Promise((resolve) => {
+        wakeupResolve = resolve;
+        setTimeout(() => {
+          if (wakeupResolve === resolve) {
+            wakeupResolve = null;
+            resolve();
+          }
+        }, 1200);
+      });
+    }
+  } finally {
+    abortSignal?.removeEventListener?.('abort', onAbortWake);
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVis);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('focus', triggerWake);
+      window.removeEventListener('online', triggerWake);
+    }
+  }
+
+  return { done: terminal, aborted: Boolean(abortSignal?.aborted) };
+};
+
 
 

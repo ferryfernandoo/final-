@@ -24,7 +24,8 @@ import XLSX from 'xlsx';
 import fetch from 'node-fetch';
 import session from 'express-session';
 import passport, { hashPassword, comparePassword } from './auth.js';
-import { initializeDatabase, userDb, sessionDb, messageDb, apiKeyDb, artifactDb, imageDb, uploadedImageDb, memoryDb, globalMemoryDb, checkRateLimiting, cloudDb } from './database.js';
+import { initializeDatabase, userDb, sessionDb, messageDb, chatJobDb, apiKeyDb, artifactDb, imageDb, uploadedImageDb, memoryDb, globalMemoryDb, checkRateLimiting, cloudDb } from './database.js';
+import { initChatJobService, startChatJob, subscribeToJobStream, getJobSnapshot, listActiveOrRecentJobs, stopChatJobs } from './chatJobService.js';
 import db from './database.js';
 import { SQLiteSessionStore } from './sessionStore.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -1167,6 +1168,10 @@ app.get('/api/realtime/sync-poll', (req, res) => {
       success: true,
       serverTime: Date.now(),
       sessions,
+      activeJobs: listActiveOrRecentJobs({
+        userId,
+        deviceId: req.query.deviceId || req.headers['x-device-id'] || null
+      }),
       activeMessages: activeMessages.map(m => ({
         id: m.id,
         sender: m.role === 'user' ? 'user' : 'bot',
@@ -3279,12 +3284,265 @@ app.delete('/api/cloud/files/:id', requireCloudAuth, (req, res) => {
 });
 
 
+// Initialize server background chat job runner
+initChatJobService({
+  db,
+  sessionDb,
+  messageDb,
+  chatJobDb,
+  webSearchService,
+  batchPreloadImages,
+  apiProxyService,
+  dispatchFreeLlmRequest,
+  broadcastUserSync,
+  humanizeError
+});
+
+// Shared helper to prepare messages (vision, personality, language, anti-hallucination, context window)
+function prepareServerChatMessages(reqBody, rawMessages) {
+  let messages = JSON.parse(JSON.stringify(Array.isArray(rawMessages) ? rawMessages : []));
+  const normalizeContent = (content) => {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return content.map(item => (typeof item === 'string' ? item : (item?.text || item?.image_url?.url || ''))).filter(Boolean).join(' ');
+    }
+    return String(content || '');
+  };
+
+  let userQuery = reqBody?.userPrompt ? String(reqBody.userPrompt) : '';
+  if (!userQuery) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userQuery = normalizeContent(messages[i].content);
+        break;
+      }
+    }
+  }
+
+  const isSearchConclusion = reqBody?.enableWebSearch === false || reqBody?.skipWebSearch === true || messages.some(m => {
+    const c = normalizeContent(m.content);
+    return c.includes('DATA HASIL PENCARIAN') || c.includes('HASIL PENCARIAN WEB') || c.includes('Hasil Penelusuran Web Teratas') || c.includes('Sumber Berita Berbagai Media') || c.includes('[INSTRUKSI SISTEM:');
+  });
+
+  const hasImagesInPayload = !isSearchConclusion && (
+    (Array.isArray(reqBody?.uploadedImages) && reqBody.uploadedImages.length > 0) ||
+    messages.some(m => Array.isArray(m.content) && m.content.some(c => c && (c.type === 'image_url' || c.image_url)))
+  );
+
+  if (!isSearchConclusion && Array.isArray(reqBody?.uploadedImages) && reqBody.uploadedImages.length > 0) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        const currentContent = messages[i].content;
+        const contentArray = [];
+        if (typeof currentContent === 'string') {
+          contentArray.push({ type: 'text', text: currentContent });
+        } else if (Array.isArray(currentContent)) {
+          contentArray.push(...currentContent);
+        }
+        for (const img of reqBody.uploadedImages) {
+          const imgUrl = typeof img === 'string' ? img : (img.dataUrl || img.publicUrl || img.imageUrl || img.url);
+          if (imgUrl && !contentArray.some(c => c?.image_url?.url === imgUrl)) {
+            contentArray.push({ type: 'image_url', image_url: { url: imgUrl } });
+          }
+        }
+        messages[i].content = contentArray;
+        break;
+      }
+    }
+  }
+
+  const requestedModel = reqBody?.model || 'qwen2.5-vl-72b';
+  const reqModelLower = String(requestedModel || '').toLowerCase().trim();
+  const isGrok46Request = reqModelLower.includes('grok-4.6');
+  const HONEST_MODEL_NAMES = {
+    'qwen2.5-vl-72b': 'Qwen 2.5 VL 72B',
+    'nemotron-3-ultra-550b': 'NVIDIA Nemotron 3 Ultra 550B',
+    'nemotron-3.5-lightning': 'NVIDIA Nemotron 3.5 Lightning',
+    'north-mini-code': 'Cohere North Mini Code',
+    'free-router': 'FreeRouter Auto (FreeLLM)',
+    'nemotron-3.5-super-vl': 'NVIDIA Nemotron 3.5 Super VL'
+  };
+  const currentModelLabel = HONEST_MODEL_NAMES[reqModelLower] || requestedModel || 'Qwen 2.5 VL 72B';
+
+  const nowServer = new Date();
+  const yearServer = nowServer.getFullYear();
+  const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
+
+  let DEFAULT_SYSTEM_PROMPT = '';
+  if (isSearchConclusion) {
+    DEFAULT_SYSTEM_PROMPT =
+      `Kamu adalah asisten AI yang berjalan pada model ${currentModelLabel}.\n` +
+      `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}.\n` +
+      `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK): Gunakan hanya fakta dari hasil pencarian, langsung jawab tanpa berterima kasih, sertakan sitasi link [Nama Sumber](URL).`;
+  } else {
+    DEFAULT_SYSTEM_PROMPT =
+      `Kamu adalah asisten AI berbahasa Indonesia yang berjalan pada model ${currentModelLabel} (via DeeperNova AI platform). ` +
+      `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
+      `KEPUTUSAN PENCARIAN WEB OTONOM (ANTI-HALUSINASI): Jika user menanyakan fakta dunia nyata, berita, harga, kurs, tokoh, aturan, jadwal, atau hal yang belum 100% pasti, keluarkan HANYA [SEARCH_REQUEST: topik nyata] di baris pertama lalu berhenti.`;
+  }
+
+  const clientSystemMsg = messages.find(m => m.role === 'system');
+  let finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
+
+  const SERVER_PERSONALITY_PROMPTS = {
+    casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab (gunakan aku-kamu, jangan kaku).',
+    friendly: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - FRIENDLY / RAMAH & HANGAT]:\n- Bersikap ramah, hangat, bersahabat, santun dan luwes.',
+    witty: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - WITTY / CERDAS & HUMORIS]:\n- Cerdas, humoris dengan analogi segar.',
+    cute: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CUTE / GEMAS & RAMAH]:\n- Manis, imut, ceria dengan emoji pas.',
+    formal: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - FORMAL / PROFESIONAL & RESMI]:\n- Profesional, rapi, santun dan resmi.',
+    toxic: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - TOXIC EXTREME]:\n- Lugaskan gaya brutal.',
+    mentor: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - MENTOR / BIJAKSANA & MEMBIMBING]:\n- Sabar, bijaksana, mendidik dengan hangat.'
+  };
+  const effectivePersonality = (reqBody?.personality || 'friendly').toLowerCase();
+  if (SERVER_PERSONALITY_PROMPTS[effectivePersonality] && !finalSystemPrompt.includes('ARAHAN KEPRIBADIAN MUTLAK')) {
+    finalSystemPrompt = SERVER_PERSONALITY_PROMPTS[effectivePersonality] + '\n\n' + finalSystemPrompt;
+  }
+
+  const reqLanguage = (reqBody?.language || 'id').toLowerCase();
+  if (reqLanguage === 'en' && !finalSystemPrompt.includes('STRICT ENGLISH LANGUAGE REQUIREMENT')) {
+    finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT ENGLISH LANGUAGE REQUIREMENT]: You MUST respond entirely in English.';
+  } else if (reqLanguage === 'zh' && !finalSystemPrompt.includes('STRICT CHINESE LANGUAGE REQUIREMENT')) {
+    finalSystemPrompt += '\n\n[MANDATORY SYSTEM DIRECTIVE - STRICT CHINESE LANGUAGE REQUIREMENT]: 你必须全程使用中文回答。';
+  } else if (reqLanguage === 'id' && !finalSystemPrompt.includes('BAHASA INDONESIA')) {
+    finalSystemPrompt += '\n\n[DIREKTIF SISTEM MUTLAK - BAHASA INDONESIA]: Jawab selalu dalam Bahasa Indonesia yang alami dan mengalir.';
+  }
+
+  if (hasImagesInPayload && !finalSystemPrompt.includes('KEMAMPUAN VISION')) {
+    finalSystemPrompt += '\n\nKEMAMPUAN VISION (MUTLAK): Pengguna melampirkan gambar; analisis gambar secara akurat dan langsung.';
+  }
+
+  const MAX_1M_CHARS = 3000000;
+  let runningChars = 0;
+  const cleanHistory = [];
+  if (isSearchConclusion) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'system') continue;
+      cleanHistory.push({ role: 'user', content: normalizeContent(messages[i].content) });
+      break;
+    }
+  } else {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === 'system') continue;
+      const mText = normalizeContent(m.content);
+      if (runningChars + mText.length <= MAX_1M_CHARS) {
+        cleanHistory.unshift({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: Array.isArray(m.content) ? m.content : mText
+        });
+        runningChars += mText.length;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return {
+    preparedMessages: [{ role: 'system', content: finalSystemPrompt }, ...cleanHistory],
+    userQuery,
+    hasImagesInPayload,
+    isSearchConclusion,
+    isGrok46Request
+  };
+}
+
+// Background Server Chat Jobs API: runs AI & web search detached from client socket
+app.post('/api/chat/jobs/start', express.json({ limit: '50mb' }), (req, res) => {
+  try {
+    const clientIp = getClientIp(req);
+    const ipStatus = checkIpTokenLimit(clientIp);
+    if (ipStatus.isLimited) {
+      return res.status(429).json({
+        success: false,
+        error: 'Maaf, batas token penggunaan untuk IP Anda telah tercapai. Penggunaan token akan di-reset dalam 4 jam.',
+        isTokenLimitError: true,
+        resetTime: ipStatus.resetTime,
+        usedTokens: ipStatus.usedTokens,
+        maxLimit: IP_MAX_TOKEN_LIMIT
+      });
+    }
+
+    const body = req.body || {};
+    const callerUserId = (req.isAuthenticated && req.isAuthenticated() && req.user?.id) ? req.user.id : (req.user?.id || req.session?.userId || null);
+    const deviceId = req.headers['x-device-id'] || body.deviceId || null;
+
+    if (!Array.isArray(body.messages) || body.messages.length === 0) {
+      return res.status(400).json({ success: false, error: 'messages array is required' });
+    }
+
+    const prep = prepareServerChatMessages(body, body.messages);
+    const job = startChatJob({
+      userId: callerUserId,
+      deviceId,
+      clientIp,
+      sessionId: body.sessionId || body.conversationId || `conv_${Date.now()}`,
+      userMessageId: body.userMessageId || `user_${Date.now()}`,
+      assistantMessageId: body.assistantMessageId || `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userPrompt: body.userPrompt || prep.userQuery,
+      preparedMessages: prep.preparedMessages,
+      model: body.model || 'qwen2.5-vl-72b',
+      personality: body.personality || 'mentor',
+      language: body.language || req.cookies?.deepernova_language || 'id',
+      enableReasoning: Boolean(body.enableReasoning),
+      enableWebSearch: body.enableWebSearch !== false && !prep.isGrok46Request,
+      searchQuery: body.searchQuery || null,
+      hasImages: prep.hasImagesInPayload,
+      isPrivate: Boolean(body.isPrivate || String(body.sessionId || body.conversationId || '').startsWith('private_')),
+      temperature: body.temperature ?? 0.5,
+      max_tokens: body.max_tokens ?? 4096
+    });
+
+    return res.json({
+      success: true,
+      jobId: job.id,
+      sessionId: job.sessionId,
+      userMessageId: job.userMessageId,
+      assistantMessageId: job.assistantMessageId,
+      status: job.status
+    });
+  } catch (err) {
+    console.error('[ChatJobStart] Error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/chat/jobs/active', (req, res) => {
+  const callerUserId = (req.isAuthenticated && req.isAuthenticated() && req.user?.id) ? req.user.id : (req.user?.id || req.session?.userId || null);
+  const deviceId = req.query.deviceId || req.headers['x-device-id'] || null;
+  const jobs = listActiveOrRecentJobs({ userId: callerUserId, deviceId });
+  return res.json({ success: true, jobs });
+});
+
+app.get('/api/chat/jobs/:jobId', (req, res) => {
+  const callerUserId = (req.isAuthenticated && req.isAuthenticated() && req.user?.id) ? req.user.id : (req.user?.id || req.session?.userId || null);
+  const deviceId = req.query.deviceId || req.headers['x-device-id'] || null;
+  const job = getJobSnapshot(req.params.jobId, { userId: callerUserId, deviceId });
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job not found' });
+  }
+  return res.json({ success: true, job });
+});
+
+app.get('/api/chat/jobs/:jobId/stream', (req, res) => {
+  const callerUserId = (req.isAuthenticated && req.isAuthenticated() && req.user?.id) ? req.user.id : (req.user?.id || req.session?.userId || null);
+  const deviceId = req.query.deviceId || req.headers['x-device-id'] || null;
+  return subscribeToJobStream(req.params.jobId, { userId: callerUserId, deviceId }, req, res);
+});
+
 // Explicit Stop/Cancel endpoint to immediately halt GPU token generation (scoped to caller user/session/IP)
 app.post('/api/chat/stop', express.json(), async (req, res) => {
   const callerUserId = req.user?.id || req.session?.userId || null;
   const callerIp = getClientIp(req);
   const callerSessionId = req.body?.sessionId || req.body?.conversationId || null;
-  let stoppedCount = 0;
+  const callerDeviceId = req.body?.deviceId || req.headers['x-device-id'] || null;
+  const callerJobId = req.body?.jobId || null;
+  let stoppedCount = stopChatJobs({
+    userId: callerUserId,
+    deviceId: callerDeviceId,
+    sessionId: callerSessionId,
+    jobId: callerJobId,
+    clientIp: callerIp
+  });
 
   for (const item of Array.from(activeUpstreamRequests)) {
     const isSameSession = callerSessionId && item.sessionId && item.sessionId === callerSessionId;
@@ -3944,14 +4202,8 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       const handleClientDisconnect = () => {
         if (res.writableEnded) return;
         if (res.destroyed || (res.socket && res.socket.destroyed)) {
+          // Detach socket forwarding only; keep upstream AI generation running so /api/conversations & sync finish cleanly!
           clientDisconnected = true;
-          activeUpstreamRequests.delete(reqRecord);
-          try {
-            if (upstreamAbortController) upstreamAbortController.abort();
-            if (reqRecord.responseStream && reqRecord.responseStream.body && typeof reqRecord.responseStream.body.destroy === 'function') {
-              reqRecord.responseStream.body.destroy();
-            }
-          } catch (_e) { }
         }
       };
 

@@ -36,7 +36,7 @@ const getApiBaseUrl = () => {
   }
 
   // Persistent production fallback
-  return 'https://deepernova.com';
+  return 'https://www.deepernova.com';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
