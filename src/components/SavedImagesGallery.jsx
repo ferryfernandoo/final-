@@ -4,25 +4,31 @@ import './SavedImagesGallery.css';
 import { getSavedImages, deleteSavedImage, downloadImageDirectly } from '../services/imageStorageService';
 
 const GalleryItem = ({ image, onClick, userLanguage }) => {
+  const [loaded, setLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
 
+  if (!image?.imageUrl || isError) {
+    return null;
+  }
+
   return (
-    <div 
-      className={`gallery-item ${isError ? 'broken' : ''}`}
+    <div
+      className="gallery-item"
       onClick={onClick}
+      style={loaded ? undefined : { position: 'fixed', width: '1px', height: '1px', opacity: 0, overflow: 'hidden', pointerEvents: 'none', left: '-9999px' }}
     >
-      {isError ? (
-        <div className="broken-image-placeholder">
-          <span style={{ fontSize: '20px', marginBottom: '4px' }}>⚠️</span>
-          <span>{userLanguage === 'zh' ? '图片损坏' : userLanguage === 'id' ? 'Gambar Rusak' : 'Broken Image'}</span>
-        </div>
-      ) : (
-        <img 
-          src={image.imageUrl} 
-          alt={userLanguage === 'zh' ? '已保存图片' : userLanguage === 'id' ? 'Gambar tersimpan' : 'Saved image'} 
-          onError={() => setIsError(true)}
-        />
-      )}
+      <img
+        src={image.imageUrl}
+        alt={loaded ? (userLanguage === 'zh' ? '已保存图片' : userLanguage === 'id' ? 'Gambar tersimpan' : 'Saved image') : ''}
+        onLoad={(e) => {
+          if (e.currentTarget.naturalWidth === 0) {
+            setIsError(true);
+          } else {
+            setLoaded(true);
+          }
+        }}
+        onError={() => setIsError(true)}
+      />
     </div>
   );
 };

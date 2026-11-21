@@ -3848,14 +3848,20 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
               /\b(file|berkas|zip|website|web\s*app|landing\s*page|aplikasi|app|dashboard|portofolio|portfolio|kalkulator|game|script|kode|code|backend|api|endpoint|bot|scraper|crawler|project|proyek|html|css|javascript|react|python|node|docx?|word|xlsx?|excel|spreadsheet|csv|pptx?|powerpoint|presentasi|presentation|deck|slide|pdf|laporan|proposal|invoice|grafik|chart)\b/i.test(lastUserText) &&
               !/\b(gambar|foto|ilustrasi|lukisan|logo|poster|avatar|wallpaper)\b/i.test(lastUserText)));
 
-        // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual dan WAJIBKAN pencarian web
-        const isCasualOrTask =
+        // 🛡️ ANTI-HALUSINASI: deteksi pertanyaan faktual / entitas / waktu nyata dan WAJIBKAN pencarian web
+        const isDeepernovaSelfQuery = /\bdeepernova\b/i.test(lastUserText) && !/\b(?:cari(?:kan)?|berita|update|terbaru|search)\b/i.test(lastUserText);
+        const isPureCodeConceptOrTask =
           looksAgenticSubAgentTask ||
+          isDeepernovaSelfQuery ||
           /^(hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|makasih|terima kasih|thanks|ok|oke|sip|mantap|wkwk|haha)\b[\s!?.]*$/i.test(lastUserText) ||
-          /\b(buatkan|buat(?:in)?|bikin(?:kan|in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai|sub[\s-]?agent)\b/i.test(lastUserText);
-        const looksFactual = lastUserText.length > 0 && !isCasualOrTask && (
-          /\b(cari(?:kan)?|search|googling|berita|kabar terbaru|terbaru|terkini|hari ini|harga|biaya|tarif|kurs|saham|crypto|bitcoin|cuaca|jadwal|skor|klasemen|hasil pertandingan)\b/i.test(lastUserText) ||
-          /\b20(2[5-9]|3\d)\b/.test(lastUserText)
+          /\b(buatkan|buat(?:in)?|bikin(?:kan|in)?|tuliskan|tulis(?:in)?|terjemahkan|translate|rangkum(?:kan)?|ringkas(?:kan)?|perbaiki|fix|debug|refactor|hitung(?:kan)?|kode|code|coding|script|function|fungsi|puisi|cerpen|pantun|essay|esai|sub[\s-]?agent)\b/i.test(lastUserText) ||
+          (/^(?:apa\s+itu|jelaskan|bagaimana\s+cara)\b/i.test(lastUserText) &&
+            /\b(?:javascript|typescript|python|react|html|css|sql|java|golang|rust|php|node\.?js|git|docker|regex|algoritma|oop|variabel|array|loop|json)\b/i.test(lastUserText) &&
+            !/\b(?:terbaru|terkini|rilis|versi|hari ini|202[4-9])\b/i.test(lastUserText));
+        const looksFactual = lastUserText.length > 0 && !isPureCodeConceptOrTask && (
+          /\b(cari(?:kan)?|search|googling|browsing|cek\s+fakta|benarkah|apakah\s+benar|berita|kabar|update|informasi|terbaru|terkini|hari ini|saat ini|sekarang|kemarin|tahun ini|bulan ini|minggu ini|viral|trending|harga|biaya|tarif|kurs|nilai\s+tukar|saham|ihsg|crypto|bitcoin|emas|bbm|dolar|rupiah|cuaca|suhu|bmkg|gempa|banjir|tsunami|erupsi|kebakaran|jadwal|skor|klasemen|hasil pertandingan|timnas|liga|motogp|f1|presiden|wapres|menteri|gubernur|bupati|walikota|kapolri|panglima|ceo|pendiri|pemilik|spesifikasi|spek|review|perbandingan|vs|versus|bandingkan|bedanya|undang-undang|uu\s+no|pasal|peraturan|pp\s+no|perpres|cpns|pppk|snbt|utbk|beasiswa|bansos|pajak|ppn|rilis|tayang|populasi|ibukota|terbaik|terbesar|terkaya|tertinggi)\b/i.test(lastUserText) ||
+          /^(?:siapa|siapakah|kapan|kapankah|dimana|di mana|berapa|berapakah|apa kabar terbaru|who is|who was|when did|where is|how much|how many)\b/i.test(lastUserText) ||
+          /\b20(2[4-9]|3\d)\b/.test(lastUserText)
         );
         if (isGrok46Request) {
           finalSystemPrompt = finalSystemPrompt
@@ -3877,8 +3883,10 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
             .replace(/[?!.]+$/, '')
             .trim()
             .slice(0, 80) || lastUserText.slice(0, 80);
-          finalSystemPrompt += `\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI & SELALU SEARCHING]: Pertanyaan pengguna saat ini membutuhkan fakta dunia nyata atau verifikasi yang mungkin tidak kamu ketahui pasti. DILARANG menjawab dari ingatan atau mengatakan "tidak tahu". Baris pertama jawabanmu WAJIB HANYA berisi tag pencarian dengan topik nyata (contoh: [SEARCH_REQUEST: ${derivedSearchTopic}]) lalu BERHENTI tanpa menulis teks lain. DILARANG menulis teks generik seperti "kata kunci pencarian" secara harfiah.`;
+          finalSystemPrompt += `\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI & SELALU SEARCHING]: Pertanyaan pengguna saat ini membutuhkan fakta dunia nyata atau data terbaru dari internet. DILARANG KERAS mengarang, menebak angka/tanggal/nama dari ingatan, atau menjawab "tidak tahu". Baris pertama jawabanmu WAJIB HANYA berisi tag pencarian dengan topik nyata (contoh: [SEARCH_REQUEST: ${derivedSearchTopic}]) lalu BERHENTI tanpa menulis teks lain.`;
           console.log('[CHAT] 🛡️ Factual query detected → forcing single web search flag');
+        } else if (!isSearchConclusion && !hasImagesInPayload) {
+          finalSystemPrompt += '\n\n[ATURAN ANTI-HALUSINASI KETAT]: Jika di tengah pertanyaan kamu perlu menyebut angka statistik, harga, jabatan, tanggal kejadian, atau aturan terkini yang TIDAK 100% pasti kamu ketahui, JANGAN mengarang — langsung keluarkan [SEARCH_REQUEST: <topik nyata>] di baris pertama dan berhenti.';
         }
 
         // Mendukung kapasitas memori konteks hingga 1 Juta Token (~3.000.000 karakter)
@@ -7364,12 +7372,13 @@ app.get('/api/images/download/:imageId', async (req, res) => {
 app.post('/api/images/cache-batch', express.json({ limit: '2mb' }), async (req, res) => {
   try {
     const urls = Array.isArray(req.body?.urls) ? req.body.urls : [];
-    if (urls.length > 0) {
-      batchPreloadImages(urls).catch(() => { });
+    if (urls.length === 0) {
+      return res.json({ success: true, count: 0, validUrls: [], failedUrls: [] });
     }
-    return res.json({ success: true, count: urls.length });
+    const { validUrls = [], failedUrls = [] } = await batchPreloadImages(urls, { timeoutMs: 3200 });
+    return res.json({ success: true, count: validUrls.length, validUrls, failedUrls });
   } catch (err) {
-    return res.json({ success: false, error: err.message });
+    return res.json({ success: false, error: err.message, validUrls: [], failedUrls: [] });
   }
 });
 
@@ -7377,7 +7386,7 @@ app.post('/api/images/cache-batch', express.json({ limit: '2mb' }), async (req, 
  * GET /api/images/proxy & /api/images/proxy-download
  * Dedicated Server-Side Image Downloader & Disk Cache Relay:
  * Downloads external images on the server with anti-hotlink bypass,
- * caches them locally on disk, and serves them with immutable caching so images NEVER fail!
+ * caches them locally on disk, and fails cleanly (404) if not a real image.
  */
 app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) => {
   try {
@@ -7395,7 +7404,7 @@ app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) =>
       return res.status(400).json({ error: 'Invalid URL format' });
     }
     if (!parsedUrl.hostname || !parsedUrl.hostname.includes('.') || parsedUrl.hostname.endsWith('.') ||
-        /\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(imageUrl)) {
+      /\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(imageUrl)) {
       return res.status(400).json({ error: 'Invalid or non-image URL' });
     }
 
@@ -7405,7 +7414,10 @@ app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) =>
     }
 
     const titleHint = (req.query.title || '').trim();
-    const imgData = await downloadAndCacheImage(imageUrl, titleHint);
+    const imgData = await downloadAndCacheImage(imageUrl, titleHint, { timeoutMs: 6000 });
+    if (!imgData || !imgData.buffer || imgData.isFallback) {
+      return res.status(404).json({ error: 'Image unavailable' });
+    }
 
     let fileExtension = '.jpg';
     if (imgData.contentType.includes('png')) fileExtension = '.png';
@@ -7426,7 +7438,7 @@ app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) =>
 
     res.send(imgData.buffer);
   } catch (err) {
-    res.status(500).json({ error: 'Proxy download failed: ' + err.message });
+    res.status(404).json({ error: 'Image unavailable: ' + err.message });
   }
 });
 

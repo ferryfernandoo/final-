@@ -12,7 +12,7 @@ import { saveImageToGallery, downloadImageDirectly } from '../services/imageStor
 import { downloadText } from '../services/universalDownloadService';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, buildGuaranteedReferenceSources, fetchImagesForQuery, sanitizeSearchQuery } from '../services/clientSearchService';
+import { executeWebSearch, buildGuaranteedReferenceSources, fetchImagesForQuery, sanitizeSearchQuery, detectUpfrontSearchIntent } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import { registerBackHandler } from '../services/mobileNavigationService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
@@ -5956,9 +5956,47 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // 🔍 AI SEARCH DECISION VIA EXECUTION FLAG:
-    // Web search is 100% decided by the AI itself by emitting [EXECUTE_SEARCH: ...] or [SEARCH_REQUEST: ...].
-    // No client-side upfront heuristic interception is performed here.
+    // 🔍 UPFRONT FACTUAL SEARCH DETECTION (Anti-Hallucination):
+    // Automatically run web search before LLM generation whenever the prompt asks for
+    // real-world, current, news, entity, price, legal, or comparison facts.
+    if (imagesToPass.length === 0 && attachedFilesForTurn.length === 0) {
+      const upfrontSearchQuery = detectUpfrontSearchIntent(cleanUserText, userLanguage);
+      if (upfrontSearchQuery) {
+        clearLoadingPhaseTimers();
+        setConvLoading(true);
+        holdScrollRef.current = false;
+        isLockedToUserAskRef.current = true;
+        lockedUserMessageIdRef.current = userMessageForChat.id;
+        scrollToUserMessage(false);
+        triggeredSearchRequestsRef.current.add(placeholderId);
+        isSearchAbortedRef.current = false;
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === placeholderId
+              ? {
+                ...msg,
+                text: '',
+                isStreaming: false,
+                isSearching: true,
+                searchQuery: upfrontSearchQuery,
+                searchResults: null,
+                searchSources: [],
+                searchSteps: [{ query: upfrontSearchQuery, isSearching: true, sources: [], images: [] }]
+              }
+              : msg
+          )
+        );
+
+        await executeSearchAndSynthesize({
+          messageId: placeholderId,
+          searchQuery: upfrontSearchQuery,
+          userPrompt: cleanUserText,
+          baseHistory: updatedConversationHistory
+        });
+        return;
+      }
+    }
 
     if (imagesToPass.length > 0 && !isReasoningImage) {
       setReasoningImages(imagesToPass);
@@ -6344,13 +6382,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       const latestPromptForUncertainty = (lastSentUserInputTextRef.current || '').trim();
       const isEngineOfflineMsg = /engine AI DeeperNova saat ini sedang sibuk|API key upstream|sedang sibuk|tidak dapat memproses permintaan Anda saat ini/i.test(fullText || '');
       const isTrivialGreetingPrompt = /^(?:hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|tes|test|ping|ok|oke|makasih|terima\s+kasih|thanks)[!?. ]*$/i.test(latestPromptForUncertainty);
+      const isCodingPromptForUncertainty = /^(?:buatkan|bikinkan|tuliskan|perbaiki|fix|debug|refactor|terjemahkan|translate|hitung)\b/i.test(latestPromptForUncertainty) &&
+        !/\b(?:cari(?:kan)?|terbaru|berita|harga|2024|2025|2026)\b/i.test(latestPromptForUncertainty);
       const aiAdmittedNotKnowing =
         !isEngineOfflineMsg &&
         !isTrivialGreetingPrompt &&
+        !isCodingPromptForUncertainty &&
         latestPromptForUncertainty.length >= 4 &&
         imagesToPass.length === 0 &&
         !triggeredSearchRequestsRef.current.has(placeholderId) &&
-        /(?:maaf[,\s]+(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:tahu|mengetahui|yakin|memiliki\s+(?:informasi|data|akses))|(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:yakin|tahu\s+pasti|memiliki\s+(?:data|informasi)\s+(?:terbaru|terkini|valid))|pengetahuan\s+(?:saya|aku)\s+(?:hanya\s+)?(?:sampai|terbatas)|tidak\s+dapat\s+memverifikasi|i\s+(?:do\s+not|don't)\s+know|i(?:'m|\s+am)\s+not\s+(?:sure|certain)|beyond\s+my\s+knowledge(?:\s+cutoff)?|no\s+access\s+to\s+real-?time)/i.test(fullText || '');
+        /(?:maaf[,\s]+(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:tahu|mengetahui|yakin|memiliki\s+(?:informasi|data|akses))|(?:saya|aku)\s+(?:tidak|kurang|belum)\s+(?:yakin|tahu\s+pasti|bisa\s+memastikan|memiliki\s+(?:data|informasi|akses)\s+(?:terbaru|terkini|valid|real-?time|internet))|pengetahuan\s+(?:saya|aku)\s+(?:hanya\s+)?(?:sampai|terbatas)|keterbatasan\s+pengetahuan|tidak\s+(?:dapat|bisa)\s+(?:memverifikasi|mengakses\s+(?:informasi\s+terkini|internet|data\s+real-?time))|informasi\s+(?:terbaru|terkini)\s+belum\s+tersedia|data\s+real-?time\s+tidak\s+tersedia|cek\s+situs\s+resmi|periksa\s+sumber\s+resmi|i\s+(?:do\s+not|don't)\s+(?:know|have\s+access)|i(?:'m|\s+am)\s+not\s+(?:sure|certain)|beyond\s+my\s+knowledge(?:\s+cutoff)?|cannot\s+(?:verify|access\s+real-?time)|no\s+access\s+to\s+real-?time)/i.test(fullText || '');
 
       if (aiAdmittedNotKnowing) {
         console.log('[ChatBot] 🔍 AI expressed uncertainty — auto-triggering web search fallback.');
@@ -7036,15 +7077,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         } catch (_imgErr) { }
       }
 
-      // Pre-warm server disk cache by pre-downloading candidate images in background
+      // Verify candidate images actually download cleanly on server BEFORE passing them to UI or LLM
+      let verifiedImages = [];
       if (uniqueImages.length > 0) {
         try {
           const prewarmUrls = uniqueImages
-            .slice(0, 6)
+            .slice(0, 8)
             .map(i => i.url)
             .filter(u => {
               if (!u || typeof u !== 'string') return false;
-              if (/\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(u)) return false;
+              if (/\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\/|favicons\?sz=/i.test(u)) return false;
               try {
                 const parsed = new URL(u);
                 return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname.includes('.');
@@ -7053,13 +7095,29 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               }
             });
           if (prewarmUrls.length > 0) {
-            fetch('/api/images/cache-batch', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ urls: prewarmUrls })
-            }).catch(() => { });
+            const imgVerifyCtrl = new AbortController();
+            const imgVerifyTimer = setTimeout(() => imgVerifyCtrl.abort(), 4000);
+            try {
+              const cacheResp = await fetch(`${API_BASE_URL}/api/images/cache-batch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ urls: prewarmUrls }),
+                signal: imgVerifyCtrl.signal
+              });
+              if (cacheResp.ok) {
+                const cacheData = await cacheResp.json();
+                if (Array.isArray(cacheData?.validUrls)) {
+                  const validSet = new Set(cacheData.validUrls);
+                  verifiedImages = uniqueImages.filter(img => validSet.has(img.url));
+                }
+              }
+            } finally {
+              clearTimeout(imgVerifyTimer);
+            }
           }
-        } catch (_) { }
+        } catch (_) {
+          verifiedImages = [];
+        }
       }
 
       // Map sources using uniqueImages for fallback thumbnails
@@ -7138,16 +7196,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           label: 'Riset Topik Utama & Berita Terkini',
           isSearching: false,
           sources: sources.slice(0, 4),
-          images: uniqueImages.slice(0, 3)
+          images: verifiedImages.slice(0, 3)
         });
         searchFacets.forEach((f, idx) => {
-          const facetImgs = uniqueImages.filter(img => img.facetTopic === f.topic);
+          const facetImgs = verifiedImages.filter(img => img.facetTopic === f.topic);
           updatedSteps.push({
             query: f.query,
             label: f.label,
             isSearching: false,
             sources: sources.slice(4 + idx * 3, 4 + (idx + 1) * 3),
-            images: (facetImgs.length > 0 ? facetImgs : uniqueImages.slice(3 + idx * 2)).slice(0, 3)
+            images: (facetImgs.length > 0 ? facetImgs : verifiedImages.slice(3 + idx * 2)).slice(0, 3)
           });
         });
       } else {
@@ -7156,11 +7214,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           label: 'Riset Komprehensif (DeeperNova & Google)',
           isSearching: false,
           sources: sources,
-          images: uniqueImages.slice(0, 8)
+          images: verifiedImages.slice(0, 8)
         });
       }
 
-      // Update message state with sources and images (keep text strictly empty while preparing)
+      // Update message state with sources and strictly verified images
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === messageId) {
@@ -7172,7 +7230,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               searchQuery: searchQuery,
               searchResults: resultsList,
               searchSources: sources,
-              searchImages: uniqueImages.slice(0, 10),
+              searchImages: verifiedImages.slice(0, 10),
               searchSteps: updatedSteps
             };
           }
@@ -7244,24 +7302,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         conclusionPrompt += `--- RINGKASAN INTISARI PENCARIAN ---\n${aiOverviewText}\n\n`;
       }
 
-      // 🌟 Extract and inject Verified Real Images for Contextual Inline Embedding
-      if (uniqueImages.length > 0) {
-        const topImages = uniqueImages.slice(0, 5);
-        conclusionPrompt += `--- DAFTAR FOTO & GAMBAR TERVERIFIKASI DARI INTERNET ---\n` +
-          `Sistem telah menemukan foto-foto nyata dari internet terkait pencarian ini:\n` +
+      // 🌟 Extract and inject ONLY Verified Real Images (already confirmed downloadable)
+      if (verifiedImages.length > 0) {
+        const topImages = verifiedImages.slice(0, 5);
+        conclusionPrompt += `--- DAFTAR FOTO TERVERIFIKASI (SUDAH SIAP TAMPIL) ---\n` +
           topImages.map((img, idx) => {
             const cleanTitle = (img.title || searchQuery).replace(/[\[\]]/g, '').trim();
-            return `[Foto #${idx + 1}] Judul/Topik: "${cleanTitle}" | URL: ${img.url}`;
+            return `[Foto #${idx + 1}] "${cleanTitle}" | URL: ${img.url}`;
           }).join('\n') +
-          `\n\n📌 ATURAN WAJIB MENAMPILKAN GAMBAR FOTO & TEKS DAMPINGAN (SIDE-BY-SIDE):\n` +
-          `1. WAJIB SISIPKAN 2 HINGGA 4 FOTO RELEVAN dari daftar di atas langsung di dalam penjelasanmu menggunakan format Markdown Gambar: ![Keterangan Singkat](URL_Foto) (WAJIB selalu ada tanda seru ! di paling depan tanda kurung siku).\n` +
-          `2. DILARANG KERAS menuliskan foto sebagai link teks biasa seperti [Foto](URL) atau [Encrypted](URL) atau menuliskan deretan URL mentah di dalam teks!\n` +
-          `3. DILARANG membuat sitasi atau bubble untuk domain gambar seperti 'encrypted-tbn0' atau 'gstatic'. Sitasi [Nama Web](URL) HANYA untuk web artikel berita/informasi (seperti Detik, Kompas, Wikipedia).\n` +
-          `4. LETAKKAN FOTO TEPAT DI BAWAH SUBJUDUL TOPIK (###) LALU LANGSUNG TULISKAN PARAGRAF PENJELASAN BERKAITAN:\n` +
-          `   - Contoh jika membahas jenis kopi: letakkan foto kopi di bawah subjudul kopi, lalu tulis penjelasan kopi di sampingnya.\n` +
-          `   - Contoh jika membahas efek rasa kantuk/ngantuk: letakkan foto orang mengantuk di bawah subjudul rasa kantuk, lalu tulis penjelasan mekanisme kantuk di sampingnya.\n` +
-          `5. FORMAT DAMPINGAN OTOMATIS: Frontend telah diprogram untuk otomatis mengecilkan foto dan mem-float foto ke sebelah kanan, sehingga paragraf teks penjelasan yang kamu tulis akan mengalir rapi di sebelah gambar (teks dan gambar berdampingan) tanpa memenuhi layar!\n` +
-          `6. DILARANG MENGARANG URL SENDIRI! HANYA gunakan URL yang tertera pada daftar "[Foto #...]" di atas.\n\n`;
+          `\n\n📌 ATURAN FOTO:\n` +
+          `- Boleh sisipkan 1-${Math.min(4, topImages.length)} foto relevan dari daftar URL di atas memakai \`![Keterangan](URL_Foto)\` tepat di bawah subjudul terkait.\n` +
+          `- DILARANG mengarang URL gambar di luar daftar di atas atau menuliskan \`[Foto](URL)\` tanpa \`!\`.\n\n`;
+      } else {
+        conclusionPrompt += `--- CATATAN MEDIA ---\n- Tidak ada foto terverifikasi yang dapat dimuat. DILARANG menyisipkan sintaks gambar \`![...](...)\` maupun mengarang URL gambar.\n\n`;
       }
 
       // Check if user is asking for comparison (e.g. A vs B, bandingkan X dan Y)
@@ -7274,8 +7327,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
       conclusionPrompt += `--- PANDUAN JAWABAN PENCARIAN ---
 - Bersikaplah ramah, santun, dan langsung mulai jawaban di paragraf pertama (JANGAN berterima kasih atas hasil pencarian; tahun sekarang ${currentYear}, tanggal ${dateFormattedId}).
+- STRICT ANTI-HALUSINASI: Hanya nyatakan fakta, angka, tanggal, nama tokoh, dan detail yang BENAR-BENAR ada pada DATA HASIL PENCARIAN WEB di atas. DILARANG mengarang detail yang tidak tertulis di sumber; jika ada detail yang belum disebut sumber, katakan apa adanya.
 - Awali 1-2 kalimat ringkasan inti, gunakan subjudul \`###\`, buat poin berjudul **tebal**, pisahkan paragraf dengan blank line, dan tebalkan angka/tanggal penting.
-- Sajikan penjelasan lengkap, informatif, dan mengalir dengan sitasi link ringkas \`[Nama Web](URL)\` di akhir kalimat penting (dilarang membuat sitasi untuk URL gambar).
+- Sajikan penjelasan lengkap dan mengalir dengan sitasi link ringkas \`[Nama Web](URL)\` di akhir kalimat penting (dilarang membuat sitasi untuk URL gambar).
 - Fokus HANYA pada pertanyaan "${userQuery}" di atas dan data web ini; dilarang mengaitkan topik lama atau memicu [SEARCH_REQUEST]/[EXECUTE_SEARCH] lagi.`;
 
       const activePersonalityAppend = PERSONALITIES[selectedPersonality]?.systemPromptAppend || '';
@@ -7363,7 +7417,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                     searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : sources,
                     searchSteps: (msg.searchSteps && msg.searchSteps.length > 0)
                       ? msg.searchSteps.map(s => ({ ...s, isSearching: false, sources: (s.sources && s.sources.length > 0) ? s.sources : sources }))
-                      : [{ query: searchQuery, isSearching: false, sources: sources, images: uniqueImages.slice(0, 6) }],
+                      : [{ query: searchQuery, isSearching: false, sources: sources, images: verifiedImages.slice(0, 6) }],
                     reasoningText: searchReasoningText || msg.reasoningText,
                     reasoningDuration: searchReasoningDuration || msg.reasoningDuration,
                     isReasoning: isSearchReasoning,
@@ -7516,7 +7570,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               isReasoning: false,
               isReasoningComplete: !!(searchReasoningText || msg.reasoningText),
               searchSources: (msg.searchSources && msg.searchSources.length > 0) ? msg.searchSources : finalizedSources,
-              searchSteps: (msg.searchSteps && msg.searchSteps.length > 0) ? msg.searchSteps : [{ query: searchQuery, isSearching: false, sources: finalizedSources, images: uniqueImages.slice(0, 6) }]
+              searchSteps: (msg.searchSteps && msg.searchSteps.length > 0) ? msg.searchSteps : [{ query: searchQuery, isSearching: false, sources: finalizedSources, images: verifiedImages.slice(0, 6) }]
             }
             : msg
         );
@@ -9397,10 +9451,19 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                       }}
                     >
                       {logo.type === 'image' ? (
-                        <img src={logo.value} alt={logo.label} />
-                      ) : (
-                        <span>{logo.value}</span>
-                      )}
+                        <img
+                          src={logo.value}
+                          alt={logo.label}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fb = e.currentTarget.nextElementSibling;
+                            if (fb) fb.style.display = 'inline';
+                          }}
+                        />
+                      ) : null}
+                      <span style={{ display: logo.type === 'image' ? 'none' : 'inline' }}>
+                        {logo.type === 'image' ? ((logo.label || 'S').charAt(0).toUpperCase()) : logo.value}
+                      </span>
                     </button>
                   );
                 })}

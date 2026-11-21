@@ -272,11 +272,25 @@ const SafeMarkdownFigure = React.memo(({
   handleImageClick,
   userLanguage
 }) => {
-  const [failed, setFailed] = useState(false);
+  const [imgState, setImgState] = useState({ src: resolvedSrc, status: 'loading' });
   const figRef = useRef(null);
+  const imgRef = useRef(null);
+
+  const activeStatus = imgState.src === resolvedSrc ? imgState.status : 'loading';
+  const loaded = activeStatus === 'loaded';
+  const failed = activeStatus === 'failed';
 
   useEffect(() => {
-    setFailed(false);
+    const rafId = requestAnimationFrame(() => {
+      const img = imgRef.current;
+      if (!img || !img.complete) return;
+      if (img.naturalWidth > 0) {
+        setImgState((prev) => (prev.src === resolvedSrc && prev.status === 'loaded' ? prev : { src: resolvedSrc, status: 'loaded' }));
+      } else {
+        setImgState({ src: resolvedSrc, status: 'failed' });
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
   }, [resolvedSrc]);
 
   if (!resolvedSrc || failed) {
@@ -301,30 +315,46 @@ const SafeMarkdownFigure = React.memo(({
         }
       }
     } catch (_) {}
-    setFailed(true);
+    setImgState({ src: resolvedSrc, status: 'failed' });
   };
 
   const handleLoad = (e) => {
     if (e.currentTarget && e.currentTarget.naturalWidth === 0) {
       handleError();
+      return;
     }
+    setImgState({ src: resolvedSrc, status: 'loaded' });
   };
 
   return (
-    <figure ref={figRef} className="inline-markdown-figure">
+    <figure
+      ref={figRef}
+      className="inline-markdown-figure"
+      style={loaded ? undefined : {
+        position: 'fixed',
+        width: '1px',
+        height: '1px',
+        opacity: 0,
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        left: '-9999px'
+      }}
+    >
       <img
+        ref={imgRef}
         src={resolvedSrc}
-        alt={cleanAlt || 'Foto'}
+        alt={loaded ? (cleanAlt || 'Foto') : ''}
         className="inline-markdown-image"
-        loading="lazy"
+        loading="eager"
+        decoding="async"
         referrerPolicy="no-referrer"
-        onClick={() => handleImageClick?.(resolvedSrc, cleanAlt || 'Image')}
+        onClick={() => loaded && handleImageClick?.(resolvedSrc, cleanAlt || 'Image')}
         onLoad={handleLoad}
         onError={handleError}
         style={{ cursor: 'pointer' }}
         title={userLanguage === 'id' ? 'Klik untuk memperbesar foto' : 'Click to enlarge photo'}
       />
-      {hasCaption && (
+      {loaded && hasCaption && (
         <figcaption className="inline-markdown-caption">{cleanAlt}</figcaption>
       )}
     </figure>
@@ -593,6 +623,13 @@ export const formatMessageContent = ({
             alt=""
             className="inline-citation-favicon"
             loading="lazy"
+            onLoad={(e) => {
+              if (e.currentTarget.naturalWidth === 0) {
+                e.currentTarget.style.display = 'none';
+                const fallback = e.currentTarget.parentElement?.querySelector('.inline-citation-fallback-icon');
+                if (fallback) fallback.style.display = 'inline-block';
+              }
+            }}
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const fallback = e.currentTarget.parentElement?.querySelector('.inline-citation-fallback-icon');

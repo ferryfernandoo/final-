@@ -92,8 +92,9 @@ export function normalizeImageUrl(rawUrl) {
 /**
  * Download an external image with resilient anti-hotlink strategies and disk cache
  */
-export async function downloadAndCacheImage(rawUrl, titleHint = '') {
+export async function downloadAndCacheImage(rawUrl, titleHint = '', options = {}) {
   const imageUrl = normalizeImageUrl(rawUrl);
+  const timeoutMs = Number(options?.timeoutMs) > 0 ? Number(options.timeoutMs) : 6500;
   if (!imageUrl) {
     throw new Error('Missing image URL');
   }
@@ -115,7 +116,11 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
 
   // 1. Check in-memory hot cache (<0.1ms)
   if (memoryCache.has(hash)) {
-    return memoryCache.get(hash);
+    const memHit = memoryCache.get(hash);
+    if (memHit && !memHit.isFallback && memHit.buffer?.length > 150) {
+      return memHit;
+    }
+    memoryCache.delete(hash);
   }
 
   // 2. Check persistent disk cache (<2ms)
@@ -123,19 +128,24 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
     if (fs.existsSync(binFile) && fs.existsSync(metaFile)) {
       const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
       const buffer = fs.readFileSync(binFile);
-      if (buffer.length > 0) {
+      const isFakeSvg =
+        String(meta.contentType || '').includes('svg') &&
+        buffer.slice(0, 800).toString('utf8').includes('Pratinjau visual terverifikasi');
+      if (buffer.length > 150 && !meta.isFallback && !isFakeSvg) {
         const result = {
           buffer,
           contentType: meta.contentType || 'image/jpeg',
           contentLength: buffer.length,
           cached: true
         };
-        // Populate memory cache
         if (memoryCache.size < MAX_MEM_CACHE_ITEMS) {
           memoryCache.set(hash, result);
         }
         return result;
       }
+      // Remove stale/fake fallback entries from disk cache
+      try { fs.unlinkSync(binFile); } catch (_) {}
+      try { fs.unlinkSync(metaFile); } catch (_) {}
     }
   } catch (e) {
     console.warn('[ImageDownloadService] Disk cache read error, re-fetching:', e.message);
@@ -145,7 +155,6 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
   // Build URL variations: for Wikimedia, also prepare original un-thumbed URL
   const urlVariants = [imageUrl];
   if (parsedUrl.hostname.includes('wikimedia.org') && imageUrl.includes('/thumb/')) {
-    // Convert /wikipedia/commons/thumb/a/b/file.jpg/640px-file.jpg -> /wikipedia/commons/a/b/file.jpg
     const unthumbed = imageUrl.replace('/thumb/', '/').replace(/\/[^\/]+$/, '');
     if (unthumbed !== imageUrl) {
       urlVariants.push(unthumbed);
@@ -176,7 +185,7 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
         }
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 7500);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         const resp = await fetch(targetUrl, {
           headers,
@@ -189,20 +198,24 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
           const arrayBuf = await resp.arrayBuffer();
           const buffer = Buffer.from(arrayBuf);
 
-          if (buffer.length > 50) {
-            // Validate image type via magic bytes
-            let detectedType = detectImageMime(buffer);
+          if (buffer.length > 150) {
+            const detectedType = detectImageMime(buffer);
             const serverType = (resp.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+            const headLower = buffer.slice(0, 200).toString('utf8').trim().toLowerCase();
+            const looksLikeHtmlOrJson =
+              headLower.startsWith('<!doctype') ||
+              headLower.startsWith('<html') ||
+              headLower.startsWith('<head') ||
+              headLower.startsWith('{') ||
+              headLower.startsWith('[');
 
-            // If server claims it is text/html or application/json, reject unless magic bytes prove it's an image
-            if (!detectedType && (serverType.includes('html') || serverType.includes('json'))) {
-              lastError = new Error(`Response was not an image (got ${serverType})`);
+            if (!detectedType && (looksLikeHtmlOrJson || !serverType.startsWith('image/'))) {
+              lastError = new Error(`Response was not a valid image (got ${serverType || 'unknown'})`);
               continue;
             }
 
             const finalContentType = detectedType || serverType || 'image/jpeg';
 
-            // Save to persistent disk cache
             try {
               fs.writeFileSync(binFile, buffer);
               fs.writeFileSync(metaFile, JSON.stringify({
@@ -228,6 +241,7 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
 
             return result;
           }
+          lastError = new Error(`Image binary too small (${buffer.length} bytes)`);
         } else {
           lastError = new Error(`HTTP ${resp.status} with strategy ${st.name}`);
         }
@@ -237,46 +251,50 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
     }
   }
 
-  // 4. Fallback: Generate elegant SVG placeholder so the user NEVER receives a broken image
-  console.warn(`[ImageDownloadService] ⚠️ All download strategies failed for ${imageUrl.slice(0, 60)}:`, lastError?.message);
-  const fallbackSvgText = generateFallbackSvg(titleHint || 'Foto Web');
-  const fallbackBuffer = Buffer.from(fallbackSvgText, 'utf8');
-
-  return {
-    buffer: fallbackBuffer,
-    contentType: 'image/svg+xml; charset=utf-8',
-    contentLength: fallbackBuffer.length,
-    cached: false,
-    isFallback: true
-  };
+  // Never serve a fake placeholder image: throw so broken images are hidden cleanly
+  const failMsg = lastError?.message || `Failed to download valid image from ${imageUrl.slice(0, 60)}`;
+  console.warn(`[ImageDownloadService] ⚠️ Image unavailable (${imageUrl.slice(0, 60)}):`, failMsg);
+  throw new Error(failMsg);
 }
 
 /**
- * Preload batch of candidate image URLs concurrently in the background
+ * Preload batch of candidate image URLs concurrently and report strictly verified URLs
  */
-export async function batchPreloadImages(urls = []) {
-  if (!Array.isArray(urls) || urls.length === 0) return [];
-  const valid = urls
+export async function batchPreloadImages(urls = [], options = {}) {
+  if (!Array.isArray(urls) || urls.length === 0) {
+    return { validUrls: [], failedUrls: [] };
+  }
+  const timeoutMs = Number(options?.timeoutMs) > 0 ? Number(options.timeoutMs) : 3200;
+  const valid = [...new Set(urls)]
     .filter(u => {
       if (typeof u !== 'string') return false;
       if (!u.startsWith('http://') && !u.startsWith('https://')) return false;
-      if (/\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(u)) return false;
+      if (/\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\/|favicons\?sz=/i.test(u)) return false;
       try {
         return new URL(u).hostname.includes('.');
       } catch {
         return false;
       }
     })
-    .slice(0, 10);
+    .slice(0, 8);
 
-  const promises = valid.map(u => 
-    downloadAndCacheImage(u).catch(e => {
-      console.warn(`[ImageDownloadService] Background pre-cache failed for ${u.slice(0, 45)}:`, e.message);
-      return null;
+  const validUrls = [];
+  const failedUrls = [];
+
+  await Promise.allSettled(
+    valid.map(async (u) => {
+      try {
+        const res = await downloadAndCacheImage(u, '', { timeoutMs });
+        if (res && res.buffer && res.buffer.length > 150 && !res.isFallback) {
+          validUrls.push(u);
+          return;
+        }
+      } catch (_) { }
+      failedUrls.push(u);
     })
   );
 
-  return Promise.allSettled(promises);
+  return { validUrls, failedUrls };
 }
 
 export default {

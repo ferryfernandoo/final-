@@ -727,24 +727,20 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         : `[CURRENT REAL-TIME CLOCK]: Year ${nowTime.getFullYear()}, ${nowTime.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', weekday: 'long' })}, ${formattedTodayEn}.`;
 
       const searchInstruction = (!enableWebSearch || isSearchConclusion) ? '' : (language === 'id'
-        ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (ANTI-HALUSINASI & JIKA RAGU SELALU SEARCHING):\n' +
-        '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler. Keputusan mencari 100% di tanganmu!\n' +
-        '- ATURAN MUTLAK (JIKA MERASA TIDAK TAHU / RAGU → SELALU SEARCHING):\n' +
-        '  * DILARANG KERAS menjawab "Saya tidak tahu", "Saya kurang yakin", "Maaf informasi saya terbatas", atau mengarang jawaban saat kamu tidak 100% yakin!\n' +
-        '  * Kapan pun user menanyakan sesuatu dan kamu merasa TIDAK TAHU, RAGU, atau butuh verifikasi fakta terkini (berita, harga, tokoh, regulasi, spesifikasi, angka, peristiwa, istilah asing, fakta baru): WAJIB usahakan SELALU SEARCHING terlebih dahulu!\n' +
-        '  * Untuk pertanyaan pencarian normal: cukup lakukan 1x pencarian tunggal (single search) dengan format HANYA di baris pertama (TANPA TEKS LAIN). Ganti isi di dalam kurung dengan TOPIK NYATA dari pertanyaan user (contoh: `[SEARCH_REQUEST: berita kebakaran hutan terbaru 2026]`). DILARANG KERAS menulis kalimat instruksi/placeholder:\n' +
-        '    [SEARCH_REQUEST: <tulis 2-6 kata topik nyata dari pertanyaan user>]\n' +
-        '    lalu LANGSUNG BERHENTI setelah `]`.\n' +
-        '  * JAWAB LANGSUNG TANPA FLAG HANYA jika kamu yakin 100% (sapaan/obrolan santai, matematika dasar, menulis/merapikan kode mandiri, menerjemahkan, merangkum teks dari user).'
-        : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (NEVER GUESS / ALWAYS SEARCH WHEN UNSURE):\n' +
+        ? '\n\n🔴 KEPUTUSAN PENCARIAN WEB OTONOM (ANTI-HALUSINASI MUTLAK):\n' +
+        '- Kamu terhubung langsung ke DeeperNova Search Engine & Live Web Crawler.\n' +
+        '- ATURAN MUTLAK:\n' +
+        '  * DILARANG KERAS mengarang angka, tanggal, harga, persentase, nama pejabat, nomor pasal/regulasi, URL, atau kejadian dari hafalan yang bisa saja usang atau salah (HALUSINASI DILARANG KERAS)!\n' +
+        '  * DILARANG menjawab "Saya tidak tahu", "Maaf informasi saya terbatas", atau "Silakan cek situs resmi".\n' +
+        '  * Kapan pun user menanyakan fakta dunia nyata, berita, peristiwa terkini, harga, kurs, tokoh, aturan/UU, perbandingan produk, jadwal, atau fakta yang butuh verifikasi: WAJIB keluarkan HANYA baris pertama [SEARCH_REQUEST: <topik spesifik 2-6 kata>] (contoh: `[SEARCH_REQUEST: berita kebakaran hutan terbaru 2026]`) lalu LANGSUNG BERHENTI setelah `]`.\n' +
+        '  * JAWAB LANGSUNG TANPA FLAG HANYA jika pertanyaan berupa sapaan, matematika murni, menulis/debug kode mandiri, terjemahan, atau konsep dasar yang 100% statis dan pasti.'
+        : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (STRICT ANTI-HALLUCINATION):\n' +
         '- You are directly connected to DeeperNova Search Engine & Live Web Crawler.\n' +
-        '- MANDATORY RULE (IF UNSURE OR DON\'T KNOW → ALWAYS SEARCH):\n' +
-        '  * STRICTLY FORBIDDEN to reply "I don\'t know", "I am not sure", "My knowledge is limited", or guess when uncertain!\n' +
-        '  * Whenever the user asks anything and you feel unsure, lack current facts, or need verification (news, prices, people, rules, specs, numbers, recent events, unfamiliar terms): ALWAYS search first!\n' +
-        '  * For normal search queries, emit ONE single search flag on the first line (NO other text) with REAL topic keywords extracted from the user prompt (example: `[SEARCH_REQUEST: forest fire news 2026]` — NEVER output literal placeholder text):\n' +
-        '    [SEARCH_REQUEST: <2-6 real topic keywords from user question>]\n' +
-        '    and STOP IMMEDIATELY after `]`.\n' +
-        '  * ANSWER DIRECTLY WITHOUT SEARCH ONLY when 100% certain (greetings, pure math, standalone code, translation, summarizing provided text).'
+        '- MANDATORY RULE:\n' +
+        '  * STRICTLY FORBIDDEN to fabricate numbers, dates, prices, statistics, current officials, laws, URLs, or events from memory.\n' +
+        '  * STRICTLY FORBIDDEN to reply "I don\'t know", "My knowledge is limited", or "Please check official sites".\n' +
+        '  * Whenever the user asks about real-world facts, news, prices, people, rules, product comparisons, schedules, or anything uncertain: output ONLY [SEARCH_REQUEST: <2-6 specific topic keywords>] on line 1 (e.g. `[SEARCH_REQUEST: forest fire news 2026]`) and STOP IMMEDIATELY after `]`.\n' +
+        '  * ANSWER DIRECTLY WITHOUT SEARCH ONLY for greetings, pure math, standalone code/debugging, translation, or 100% static fundamental concepts.'
       );
 
       const visionInstruction = validImageUrls.length > 0

@@ -121,8 +121,13 @@ export function detectUpfrontSearchIntent(promptText, language = 'id') {
   }
 
   // Ignore casual greetings, conversational fillers, and AI self-identity / memory queries
-  const isGreetingOrSelfOnly = /^(?:halo|hai|hi|hello|hey|hei|p|tes|test|ping|pagi|siang|sore|malam|selamat\s+(?:pagi|siang|sore|malam)|apa\s+kabar|gimana\s+kabar(?:nya|mu)?|assalamu['a]?laikum|terima\s+kasih|makasih|thanks|thank\s+you|ok|oke|sip|siap|mantap|keren|good|nice|bye|dadah|siapa\s+(?:kamu|anda|namamu|nama\s+kamu|pembuatmu|yang\s+membuatmu|penciptamu)|kamu\s+siapa|apakah\s+kamu\s+ai|siapa\s+nama(?:ku|saya)|ingat\s+(?:aku|saya|namaku)|tadi\s+kita\s+bahas\s+apa)\b[?.!]*$/i.test(text);
+  const isGreetingOrSelfOnly = /^(?:(?:halo|hai|hi|hello|hey|hei|selamat\s+(?:pagi|siang|sore|malam)|pagi|siang|sore|malam|assalamu['a]?laikum)\s*,?\s*)*(?:apa\s+kabar(?:\s*(?:kamu|anda|nih|bro|kak|bang|hari\s+ini))?|gimana\s+kabar(?:nya|mu)?|how\s+are\s+you|siapa\s+(?:kamu|anda|namamu|nama\s+kamu|pembuatmu|yang\s+membuatmu|penciptamu|ceo\s+deepernova|founder\s+deepernova|pendiri\s+deepernova)|kamu\s+siapa|apakah\s+kamu\s+ai|siapa\s+nama(?:ku|saya)|ingat\s+(?:aku|saya|namaku)|tadi\s+kita\s+bahas\s+apa|terima\s+kasih|makasih|thanks|thank\s+you|p|tes|test|ping|ok|oke|sip|siap|mantap|keren|good|nice|bye|dadah)?(?:\s*(?:bro|kak|bang|min|ya|yah|dong))?[?.!\s]*$/i.test(text);
   if (isGreetingOrSelfOnly) return null;
+
+  // Ignore pure DeeperNova self-identity questions unless user explicitly asks to search news
+  if (/\bdeepernova\b/i.test(text) && !/\b(?:cari(?:kan)?|search|googling|berita|update|terbaru)\b/i.test(text)) {
+    return null;
+  }
 
   // Ignore personal memory statements ("namaku budi", "aku tinggal di...", "ingat ya...")
   if (/^(?:nama(?:ku|\s+saya)|panggil\s+(?:aku|saya)|aku\s+tinggal\s+di|saya\s+tinggal\s+di|hobi(?:ku|\s+saya)|ingat\s+ya|tolong\s+ingat|catat\s+ya)\b/i.test(text)) {
@@ -130,8 +135,11 @@ export function detectUpfrontSearchIntent(promptText, language = 'id') {
   }
 
   // Ignore pure math equations or pure coding/writing/translation instructions unless explicitly asking for web search
+  const isExplicitWebKeyword = /\b(?:cari(?:kan)?|search|browsing|googling|cek\s+fakta|benarkah|apakah\s+benar|web|internet|berita|terbaru|terkini|hari\s+ini|rilis|versi\s+terbaru|harga|2024|2025|2026|2027)\b/i.test(text);
   const isCodingMathOrCreative = /^(?:buatkan\s+(?:kode|fungsi|komponen|script|class|program|website|aplikasi|game|puisi|cerpen|pantun|surat|email|essay|makalah|file|dokumen|gambar|foto|logo)|bikin(?:kan)?\s+(?:kode|fungsi|program|website|aplikasi|puisi|cerpen|gambar|foto|file|dokumen)|tulis(?:kan)?\s+(?:kode|fungsi|program|puisi|cerita|surat)|perbaiki\s+(?:kode|script|kalimat|bug)|terjemahkan|translate|rangkum(?:kan)?\s+teks|hitung(?:lah)?|berapa\s+hasil\s+(?:dari\s+)?[\d\s+\-*/^()]+|\d+\s*[+\-*/^]\s*\d+)/i.test(text);
-  if (isCodingMathOrCreative && !/\b(?:cari(?:kan)?|search|browsing|googling|web|internet|berita|terbaru|hari ini|2025|2026)\b/i.test(text)) {
+  const isPureProgrammingConcept = /^(?:apa\s+itu|apakah\s+itu|jelaskan(?:\s+tentang)?|bagaimana\s+cara\s+(?:kerja|menggunakan)?)\b/i.test(text) &&
+    /\b(?:javascript|typescript|python|react|vue|angular|svelte|node\.?js|java|c\+\+|c#|golang|rust|php|ruby|html|css|sql|nosql|mongodb|mysql|postgres|docker|kubernetes|git|regex|algoritma|algorithm|struktur\s+data|oop|mvc|rest\s+api|graphql|async|await|promise|recursion|rekursi|variabel|variable|loop|array|function|fungsi)\b/i.test(text);
+  if ((isCodingMathOrCreative || isPureProgrammingConcept) && !isExplicitWebKeyword) {
     return null;
   }
 
@@ -147,35 +155,35 @@ export function detectUpfrontSearchIntent(promptText, language = 'id') {
   };
 
   // 1. Explicit Search Requests (Indonesian & English)
-  const explicitSearchMatch = text.match(/^(?:(?:halo|hai|bro|kak|bang|tolong|mohon|coba|bisa)\s+)*(?:cari(?:kan)?|searching|search(?:\s+for)?|googling|browsing|cek(?:kan)?|temukan|carikan\s+info(?:rmasi)?|info(?:rmasi)?\s+(?:terbaru|terkini|tentang|mengenai|seputar)|look\s+up|find(?:\s+info(?:\s+about)?)?)\b\s*(.+)/i);
+  const explicitSearchMatch = text.match(/^(?:(?:halo|hai|bro|kak|bang|tolong|mohon|coba|bisa)\s+)*(?:cari(?:kan)?|searching|search(?:\s+for)?|googling|browsing|cek(?:kan)?(?:\s+(?:fakta|info|kebenaran))?|temukan|carikan\s+info(?:rmasi)?|info(?:rmasi)?\s+(?:terbaru|terkini|tentang|mengenai|seputar)|look\s+up|find(?:\s+info(?:\s+about)?)?)\b\s*(.+)/i);
   if (explicitSearchMatch && explicitSearchMatch[1]) {
-    const q = cleanExtractedQuery(explicitSearchMatch[1]);
+    const q = sanitizeSearchQuery(cleanExtractedQuery(explicitSearchMatch[1]), text);
     if (q.length >= 2) return q;
   }
 
   // Also match trailing "cari di web / cari di internet / tolong cari"
-  if (/\b(?:cari(?:kan)?\s+di\s+(?:web|internet|google)|tolong\s+cari(?:kan)?|coba\s+cari(?:kan)?|search\s+on\s+the\s+web)\b/i.test(text)) {
-    const q = cleanExtractedQuery(text.replace(/\b(?:cari(?:kan)?\s+di\s+(?:web|internet|google)|tolong\s+cari(?:kan)?|coba\s+cari(?:kan)?|search\s+on\s+the\s+web)\b/gi, ''));
+  if (/\b(?:cari(?:kan)?\s+di\s+(?:web|internet|google)|tolong\s+cari(?:kan)?|coba\s+cari(?:kan)?|search\s+on\s+the\s+web|cek\s+di\s+(?:internet|google|web))\b/i.test(text)) {
+    const q = sanitizeSearchQuery(cleanExtractedQuery(text.replace(/\b(?:cari(?:kan)?\s+di\s+(?:web|internet|google)|tolong\s+cari(?:kan)?|coba\s+cari(?:kan)?|search\s+on\s+the\s+web|cek\s+di\s+(?:internet|google|web))\b/gi, '')), text);
     if (q.length >= 2) return q;
   }
 
   // 2. Real-time news, current events, prices, weather, sports, & factual entity queries (Autonomous AI Search Instinct)
   const instinctPatterns = [
-    /\b(?:berita|kabar|update|informasi|isu|news|headline)\b/i,
-    /\b(?:terbaru|terkini|hari\s+ini|saat\s+ini|sekarang|tahun\s+ini|minggu\s+ini|bulan\s+ini|barusan|viral|trending|today|latest|current|breaking|2024|2025|2026|2027)\b/i,
-    /\b(?:gempa|tsunami|erupsi|banjir|longsor|kebakaran|bencana|cuaca|suhu|prakiraan\s+cuaca|weather|earthquake|flood)\b/i,
-    /\b(?:harga|kurs|nilai\s+tukar|tarif|biaya|tiket|gaji|umr|ump|saham|ihsg|bitcoin|btc|eth|crypto|emas|antam|bbm|pertamax|pertalite|dolar|usd|rupiah|price|stock|market\s+cap)\b/i,
-    /\b(?:skor|hasil\s+pertandingan|jadwal\s+pertandingan|jadwal|klasemen|pemain|pelatih|timnas|liga|piala\s+dunia|champions|motogp|f1|badminton|match|score|standings|fixtures)\b/i,
-    /\b(?:presiden|wapres|wakil\s+presiden|menteri|gubernur|bupati|walikota|wali\s+kota|anggota\s+dpr|ketua|kapolri|panglima|jaksa\s+agung|direktur|ceo|founder|pendiri|pemilik|tokoh|artis|seleb|penyanyi|aktor|youtuber|influencer)\b/i,
-    /\b(?:undang-undang|uu\s+no|pasal|peraturan|pp\s+no|perpres|kuhp|hukum|aturan|syarat|cara\s+daftar|pendaftaran|cpns|snbt|utbk|beasiswa|bansos|pajak|bpjs|sim|stnk|paspor|kua)\b/i,
-    /\b(?:spesifikasi|spek|review|kelebihan\s+dan\s+kekurangan|perbandingan|vs|versus|rekomendasi|daftar|peringkat|ranking|top\s+\d+|terbaik|termurah|tercepat|terbesar|terkaya|tertinggi)\b/i,
-    /\b(?:sejarah|profil|biodata|biografi|asal\s+usul|fakta|letak|lokasi|alamat|tempat\s+wisata|negara|ibukota|ibu\s+kota|populasi|jumlah\s+penduduk|luas\s+wilayah|jarak|universitas|kampus|sekolah|rumah\s+sakit|perusahaan|pt\s+\w+|film|anime|lagu|album|game|rilis)\b/i,
-    /^(?:(?:tolong|coba|bisa|mohon|bro|kak|bang)\s+)*(?:siapa(?:kah)?|apa\s+itu|apakah\s+itu|dimana(?:kah)?|di\s+mana(?:kah)?|kapan(?:kah)?|berapa(?:kah)?|jelaskan\s+tentang|ceritakan\s+tentang|apa\s+saja|bagaimana\s+(?:sejarah|kondisi|perkembangan|cara\s+kerja)|who\s+(?:is|was|are)|what\s+(?:is|are|was)|where\s+is|when\s+(?:is|was|did)|how\s+(?:much|many))\b\s+(.{3,})/i
+    /\b(?:berita|kabar\s+(?:terbaru|terkini|tentang|soal|mengenai)|update|informasi|isu|news|headline|cek\s+fakta|benarkah|apakah\s+benar|hoaks|hoax)\b/i,
+    /\b(?:terbaru|terkini|hari\s+ini|saat\s+ini|sekarang|tahun\s+ini|minggu\s+ini|bulan\s+ini|kemarin|tadi|barusan|viral|trending|today|latest|current|breaking|2024|2025|2026|2027|2028|2029)\b/i,
+    /\b(?:gempa|tsunami|erupsi|gunung\s+meletus|banjir|longsor|kebakaran|bencana|cuaca|suhu|prakiraan\s+cuaca|bmkg|weather|earthquake|flood)\b/i,
+    /\b(?:harga|kurs|nilai\s+tukar|tarif|biaya|ongkir|tiket|gaji|umr|ump|saham|ihsg|bitcoin|btc|eth|crypto|emas|antam|bbm|pertamax|pertalite|dolar|usd|rupiah|idr|inflasi|suku\s+bunga|price|stock|market\s+cap)\b/i,
+    /\b(?:skor|hasil\s+pertandingan|jadwal\s+pertandingan|jadwal|jam\s+tayang|klasemen|pemain|pelatih|timnas|liga|piala\s+dunia|euro|ucl|champions|motogp|f1|badminton|nba|match|score|standings|fixtures)\b/i,
+    /\b(?:presiden|wapres|wakil\s+presiden|menteri|gubernur|bupati|walikota|wali\s+kota|anggota\s+dpr|ketua|kapolri|panglima|jaksa\s+agung|kpk|direktur|ceo|cto|founder|pendiri|pemilik|tokoh|pahlawan|artis|seleb|penyanyi|aktor|aktris|sutradara|youtuber|influencer)\b/i,
+    /\b(?:undang-undang|uu\s+no|pasal|peraturan|pp\s+no|perpres|permen|kuhp|hukum|aturan|syarat|cara\s+daftar|pendaftaran|cpns|pppk|snbt|snbp|utbk|beasiswa|bansos|pajak|ppn|bpjs|sim|stnk|paspor|visa|kua|libur\s+nasional|tanggal\s+merah|cuti\s+bersama)\b/i,
+    /\b(?:spesifikasi|spek|review|kelebihan\s+dan\s+kekurangan|perbandingan|vs|versus|bandingkan|bedanya|rekomendasi|daftar|peringkat|ranking|top\s+\d+|terbaik|termurah|tercepat|terbesar|terkaya|tertinggi|terpanjang|terdalam|rilis|keluaran|versi\s+terbaru)\b/i,
+    /\b(?:sejarah|profil|biodata|biografi|asal\s+usul|fakta|letak|lokasi|alamat|tempat\s+wisata|negara|ibukota|ibu\s+kota|populasi|jumlah\s+penduduk|luas\s+wilayah|jarak|universitas|kampus|sekolah|rumah\s+sakit|perusahaan|pt\s+\w+|film|anime|series|drakor|lagu|album|game|konser|rilis)\b/i,
+    /^(?:(?:tolong|coba|bisa|mohon|bro|kak|bang)\s+)*(?:siapa(?:kah)?|apa\s+itu|apakah\s+(?:itu|benar|ada)|benarkah|dimana(?:kah)?|di\s+mana(?:kah)?|kapan(?:kah)?|berapa(?:kah)?|jelaskan\s+tentang|ceritakan\s+tentang|apa\s+saja|bagaimana\s+(?:sejarah|kondisi|perkembangan|kabar)|who\s+(?:is|was|are)|what\s+(?:is|are|was)|where\s+is|when\s+(?:is|was|did)|how\s+(?:much|many))\b\s+(.{3,})/i
   ];
 
   for (const pattern of instinctPatterns) {
     if (pattern.test(text)) {
-      const clean = cleanExtractedQuery(text);
+      const clean = sanitizeSearchQuery(cleanExtractedQuery(text), text);
       if (clean.length >= 3) return clean;
     }
   }

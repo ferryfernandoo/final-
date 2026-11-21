@@ -341,15 +341,18 @@ export const SourceBubbleCarousel = React.memo(({ sources = [], language, onShow
                     <img
                       src={faviconUrl}
                       onError={(e) => {
-                        if (!e.target.dataset.triedDuck && cleanDomain) {
-                          e.target.dataset.triedDuck = 'true';
-                          e.target.src = `https://icons.duckduckgo.com/ip3/${cleanDomain}.ico`;
+                        if (!e.currentTarget.dataset.triedDuck && cleanDomain) {
+                          e.currentTarget.dataset.triedDuck = 'true';
+                          e.currentTarget.src = `https://icons.duckduckgo.com/ip3/${cleanDomain}.ico`;
+                        } else if (!e.currentTarget.dataset.triedGlobe) {
+                          e.currentTarget.dataset.triedGlobe = 'true';
+                          e.currentTarget.src = 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png';
                         } else {
-                          e.target.src = 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png';
+                          e.currentTarget.style.display = 'none';
                         }
                       }}
                       className="source-bubble-favicon"
-                      alt={cleanDomain || 'source'}
+                      alt=""
                       loading="lazy"
                     />
                     <span className="source-bubble-rank-badge">#{rankNum}</span>
@@ -836,14 +839,26 @@ export const SmoothGeneratedImage = React.memo(({
   containerStyle = {},
   imgStyle = {}
 }) => {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [imgState, setImgState] = useState({ src, status: 'loading' });
   const imgRef = useRef(null);
 
+  const activeStatus = imgState.src === src ? imgState.status : 'loading';
+  const loaded = activeStatus === 'loaded';
+  const failed = activeStatus === 'failed';
+
   useEffect(() => {
-    setFailed(false);
-    setLoaded(Boolean(imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0));
-  }, [src]);
+    const rafId = requestAnimationFrame(() => {
+      const img = imgRef.current;
+      if (!img || !img.complete) return;
+      if (img.naturalWidth > 0) {
+        setImgState((prev) => (prev.src === src && prev.status === 'loaded' ? prev : { src, status: 'loaded' }));
+      } else {
+        setImgState({ src, status: 'failed' });
+        onError?.();
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [src, onError]);
 
   if (!src || failed) {
     return null;
@@ -862,26 +877,24 @@ export const SmoothGeneratedImage = React.memo(({
       <img
         ref={imgRef}
         src={src}
-        alt={alt}
-        loading="lazy"
+        alt={loaded ? alt : ''}
+        loading="eager"
         decoding="async"
         className={`message-image smooth-gen-image${loaded ? ' loaded' : ''}`}
         onLoad={() => {
           if (imgRef.current && imgRef.current.naturalWidth === 0) {
-            setFailed(true);
-            setLoaded(true);
+            setImgState({ src, status: 'failed' });
             onError?.();
             return;
           }
-          setLoaded(true);
+          setImgState({ src, status: 'loaded' });
         }}
         onError={() => {
-          setFailed(true);
-          setLoaded(true);
+          setImgState({ src, status: 'failed' });
           onError?.();
         }}
         onClick={onClick}
-        style={imgStyle}
+        style={{ opacity: loaded ? 1 : 0, ...imgStyle }}
         title={title}
       />
       {onUpscaleHD && (
