@@ -32,7 +32,8 @@ const ChatComposerCard = ({
   selectedModel,
   setSelectedModel = noop,
   isReasoningCapable = false,
-  isReasoningEnabled = false,
+  isReasoningEnabled = true,
+  reasoningByModel = {},
   toggleReasoning = noop,
   isSttListening = false,
   toggleSpeechToText = noop,
@@ -360,29 +361,6 @@ const ChatComposerCard = ({
                 </svg>
               </button>
             </div>
-
-            {isReasoningCapable && (
-              <button
-                type="button"
-                className={`claude-reasoning-toggle-btn ${isReasoningEnabled ? 'active' : ''}`}
-                onMouseDown={handleKeepFocusMouseDown}
-                onClick={toggleReasoning}
-                title={
-                  isReasoningEnabled
-                    ? (userLanguage === 'id' ? 'Mode Penalaran: AKTIF (Klik untuk nonaktifkan)' : 'Reasoning Mode: ACTIVE (Click to disable)')
-                    : (userLanguage === 'id' ? 'Mode Penalaran: NONAKTIF (Klik untuk aktifkan)' : 'Reasoning Mode: DISABLED (Click to enable)')
-                }
-                tabIndex={isExpanded ? 0 : -1}
-              >
-                <span className="reasoning-toggle-icon">🧠</span>
-                <span className="reasoning-toggle-text">
-                  {userLanguage === 'id' ? 'Penalaran' : 'Reasoning'}
-                </span>
-                <span className={`reasoning-toggle-status-pill ${isReasoningEnabled ? 'on' : 'off'}`}>
-                  {isReasoningEnabled ? (userLanguage === 'id' ? 'Aktif' : 'On') : (userLanguage === 'id' ? 'Mati' : 'Off')}
-                </span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -564,37 +542,69 @@ const ChatComposerCard = ({
             </div>
           </div>
           <div className="model-dropdown-list">
-            {DEEPERNOVA_MODELS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                className={`model-option-item ${selectedModel === m.id ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedModel(m.id);
-                  try {
-                    localStorage.setItem('deepernova_selected_model', m.id);
-                  } catch (_e) { }
-                  setShowModelMenu(false);
-                }}
-              >
-                <div className="model-option-info">
-                  <div className="model-option-name-row">
-                    <span className="model-option-name">{m.name}</span>
-                    <span className="model-option-pill">{userLanguage === 'id' ? m.tag : m.tagEn}</span>
-                  </div>
-                  <span className="model-option-sub">
-                    {userLanguage === 'id' ? (m.sub || m.desc) : (m.subEn || m.descEn)}
-                  </span>
+            {DEEPERNOVA_MODELS.map((m) => {
+              const isModelReasoningOn = (reasoningByModel && m.id in reasoningByModel)
+                ? reasoningByModel[m.id] !== false
+                : true;
+              return (
+                <div
+                  key={m.id}
+                  className={`model-option-item ${selectedModel === m.id ? 'active' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="model-option-select-btn"
+                    onMouseDown={handleKeepFocusMouseDown}
+                    onClick={() => {
+                      setSelectedModel(m.id);
+                      try {
+                        localStorage.setItem('deepernova_selected_model', m.id);
+                      } catch (_e) { }
+                      setShowModelMenu(false);
+                    }}
+                  >
+                    <div className="model-option-info">
+                      <div className="model-option-name-row">
+                        <span className="model-option-name">{m.name}</span>
+                        <span className="model-option-pill">{userLanguage === 'id' ? m.tag : m.tagEn}</span>
+                        {selectedModel === m.id && (
+                          <span className="model-check-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                      <span className="model-option-sub">
+                        {userLanguage === 'id' ? (m.sub || m.desc) : (m.subEn || m.descEn)}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className={`model-reasoning-inline-btn ${isModelReasoningOn ? 'on' : 'off'}`}
+                    aria-pressed={isModelReasoningOn}
+                    onMouseDown={handleKeepFocusMouseDown}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleReasoning(m.id);
+                    }}
+                    title={
+                      isModelReasoningOn
+                        ? (userLanguage === 'id' ? `Penalaran ${m.name}: AKTIF (Klik untuk matikan)` : `${m.name} Reasoning: ON (Click to turn off)`)
+                        : (userLanguage === 'id' ? `Penalaran ${m.name}: NONAKTIF (Klik untuk aktifkan)` : `${m.name} Reasoning: OFF (Click to turn on)`)
+                    }
+                  >
+                    <span className="model-reasoning-label">
+                      {userLanguage === 'id' ? 'Penalaran' : 'Reason'}
+                    </span>
+                    <span className="model-reasoning-switch" aria-hidden="true">
+                      <span className="model-reasoning-thumb" />
+                    </span>
+                  </button>
                 </div>
-                {selectedModel === m.id && (
-                  <span className="model-check-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                )}
-              </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -2495,7 +2495,7 @@
 
 .toolbar-expandable-pills.visible {
   max-width: 390px !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
   opacity: 1 !important;
   transform: translate3d(0, 0, 0) scale(1) !important;
   pointer-events: auto !important;
@@ -3078,8 +3078,8 @@
   bottom: calc(100% + 10px) !important;
   left: 12px !important;
   right: auto !important;
-  width: 288px !important;
-  max-width: calc(100vw - 32px) !important;
+  width: 356px !important;
+  max-width: calc(100vw - 24px) !important;
   max-height: min(460px, 68vh) !important;
   display: flex !important;
   flex-direction: column !important;
@@ -3192,14 +3192,12 @@
   flex-direction: row !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 10px !important;
-  padding: 9px 11px !important;
+  gap: 8px !important;
+  padding: 4px !important;
   border-radius: 12px !important;
   border: 1px solid transparent !important;
   background: transparent !important;
-  cursor: pointer !important;
-  text-align: left !important;
-  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.18s ease !important;
+  transition: background-color 0.16s ease, border-color 0.16s ease !important;
 }
 
 .model-option-item:hover {
@@ -3222,6 +3220,18 @@
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
+.model-option-select-btn {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 5px 7px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  text-align: left !important;
+}
+
 .model-option-info {
   display: flex !important;
   flex-direction: column !important;
@@ -3233,7 +3243,8 @@
 .model-option-name-row {
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
 }
 
 .model-option-name {
@@ -3265,7 +3276,7 @@
 }
 
 .model-option-sub {
-  font-size: 11.5px !important;
+  font-size: 11px !important;
   color: #71717a !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -3278,16 +3289,86 @@
 }
 
 .model-check-icon {
-  color: #18181b !important;
-  margin-left: 6px !important;
-  display: flex !important;
+  color: #16a34a !important;
+  margin-left: 2px !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
 }
 
 [data-theme="dark"] .model-check-icon {
-  color: #ffffff !important;
+  color: #4ade80 !important;
+}
+
+.model-reasoning-inline-btn {
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px 8px !important;
+  margin-right: 4px !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(15, 23, 42, 0.09) !important;
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: #52525b !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease !important;
+}
+
+.model-reasoning-inline-btn.on {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  color: #047857 !important;
+}
+
+[data-theme="dark"] .model-reasoning-inline-btn {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .model-reasoning-inline-btn.on {
+  background: rgba(16, 185, 129, 0.18) !important;
+  border-color: rgba(52, 211, 153, 0.45) !important;
+  color: #6ee7b7 !important;
+}
+
+.model-reasoning-label {
+  line-height: 1 !important;
+}
+
+.model-reasoning-switch {
+  width: 24px !important;
+  height: 14px !important;
+  border-radius: 9999px !important;
+  background: rgba(148, 163, 184, 0.45) !important;
+  position: relative !important;
+  display: inline-block !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.model-reasoning-inline-btn.on .model-reasoning-switch {
+  background: #10b981 !important;
+}
+
+.model-reasoning-thumb {
+  position: absolute !important;
+  top: 2px !important;
+  left: 2px !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22) !important;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.model-reasoning-inline-btn.on .model-reasoning-thumb {
+  transform: translateX(10px) !important;
 }
 
 /* Minimalist Tool Icon Buttons (Mic & Voice Mode) */

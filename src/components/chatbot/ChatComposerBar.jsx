@@ -51,6 +51,7 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
   setSelectedModel,
   isReasoningCapable,
   isReasoningEnabled,
+  reasoningByModel,
   toggleReasoning,
   isSttListening,
   toggleSpeechToText,
@@ -327,6 +328,7 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
         setSelectedModel={setSelectedModel}
         isReasoningCapable={isReasoningCapable}
         isReasoningEnabled={isReasoningEnabled}
+        reasoningByModel={reasoningByModel}
         toggleReasoning={toggleReasoning}
         isSttListening={isSttListening}
         toggleSpeechToText={toggleSpeechToText}

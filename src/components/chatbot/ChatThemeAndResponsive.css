@@ -2990,6 +2990,7 @@
 
   .toolbar-expandable-pills.visible {
     max-width: 195px !important;
+    flex-wrap: nowrap !important;
     gap: 5px !important;
   }
 
@@ -3047,7 +3048,7 @@
     display: inline-flex !important;
     align-items: center !important;
     gap: 5px !important;
-    max-width: 128px !important;
+    max-width: 150px !important;
     flex-shrink: 1 !important;
   }
 
@@ -3055,7 +3056,7 @@
     display: inline-block !important;
     font-size: 12px !important;
     font-weight: 550 !important;
-    max-width: 92px !important;
+    max-width: 112px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
@@ -3170,7 +3171,7 @@
     box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12), 0 4px 10px rgba(0, 0, 0, 0.24) !important;
   }
 
-  /* Dropdown Menus on Mobile - Strictly Above Composer Card (NEVER COVERS TEXTAREA) */
+  /* Dropdown Menus on Mobile - Strictly Above Composer Card (NEVER COVERS TEXTAREA OR VIEWPORT TOP) */
   .claude-model-dropdown {
     position: absolute !important;
     left: 0 !important;
@@ -3179,7 +3180,7 @@
     top: auto !important;
     width: auto !important;
     max-width: calc(100vw - 24px) !important;
-    max-height: min(440px, 64vh) !important;
+    max-height: min(315px, 44dvh) !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
@@ -3187,6 +3188,37 @@
     box-shadow: 0 16px 40px -4px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
     z-index: 999999 !important;
     margin: 0 !important;
+  }
+
+  .claude-model-dropdown .model-dropdown-list {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    gap: 2px !important;
+  }
+
+  .claude-model-dropdown .model-option-item {
+    padding: 3px !important;
+    gap: 6px !important;
+  }
+
+  .claude-model-dropdown .model-option-select-btn {
+    padding: 4px 6px !important;
+  }
+
+  .claude-model-dropdown .model-option-name {
+    font-size: 12.5px !important;
+  }
+
+  .claude-model-dropdown .model-option-pill {
+    font-size: 9.5px !important;
+    padding: 1px 5px !important;
+  }
+
+  .claude-model-dropdown .model-reasoning-inline-btn {
+    padding: 4px 7px !important;
+    font-size: 10px !important;
+    gap: 5px !important;
   }
 
   .file-menu-dropdown.claude-dropdown {

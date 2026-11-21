@@ -41,9 +41,9 @@ const HELP_DATA = [
     title: 'Cara Menggunakan Mode Penalaran (Deep Reasoning / CoT)',
     summary: 'Kapan harus mengaktifkan mode pemikiran langkah-demi-langkah dan kapan mematikannya untuk jawaban instan to-the-point.',
     solution: [
-      'Mode Penalaran Aktif: AI akan berpikir mendalam terlebih dahulu sebelum menyajikan kesimpulan matang (tersedia di model Nemotron).',
-      'Mode Penalaran Nonaktif (Default Cepat): AI langsung mengalirkan jawaban padat dan cepat seketika.',
-      'Cara Mengatur: Pada model yang mendukung penalaran, klik ikon penalaran di bilah input obrolan untuk mengaktifkan atau menonaktifkannya.'
+      'Mode Penalaran Aktif (Default): AI akan berpikir langkah-demi-langkah sebelum menyajikan kesimpulan matang.',
+      'Mode Penalaran Nonaktif: AI langsung mengalirkan jawaban cepat to-the-point tanpa kotak proses penalaran.',
+      'Cara Mengatur: Buka dropdown Pilih Model di kolom chat, lalu klik tombol switch Penalaran di sebelah kanan nama model.'
     ],
     tips: 'Gunakan Mode Penalaran saat Anda membutuhkan verifikasi rumus matematika rumit, logika algoritma rekursif, atau analisis hukum/kebijakan publik.',
     keywords: 'mode penalaran, deep reasoning, thinking button, tombol pikir, chain of thought, cot'

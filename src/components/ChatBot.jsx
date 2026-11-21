@@ -449,22 +449,39 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
       return 'qwen2.5-vl-72b';
     }
   });
-  const [isReasoningEnabled, setIsReasoningEnabled] = useState(() => {
+  const [reasoningByModel, setReasoningByModel] = useState(() => {
     try {
-      return localStorage.getItem('deepernova_reasoning_enabled') === 'true'; // Default is FALSE as requested
+      const savedMapRaw = localStorage.getItem('deepernova_reasoning_by_model');
+      if (savedMapRaw) {
+        const parsed = JSON.parse(savedMapRaw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+      // Migrate legacy global flag if explicitly turned off previously; otherwise default ON (true)
+      const legacyFlag = localStorage.getItem('deepernova_reasoning_enabled');
+      if (legacyFlag === 'false') {
+        const defaultSavedModel = sanitizeSelectedModelId(localStorage.getItem('deepernova_selected_model') || 'qwen2.5-vl-72b');
+        return { [defaultSavedModel]: false };
+      }
+      return {};
     } catch (e) {
-      return false;
+      return {};
     }
   });
-  const toggleReasoning = useCallback(() => {
-    setIsReasoningEnabled(prev => {
-      const next = !prev;
+  const isReasoningEnabled = reasoningByModel[selectedModel] !== false;
+  const toggleReasoning = useCallback((targetModelId) => {
+    const modelId = targetModelId || selectedModel;
+    setReasoningByModel(prev => {
+      const currentVal = prev[modelId] !== false;
+      const nextMap = { ...prev, [modelId]: !currentVal };
       try {
-        localStorage.setItem('deepernova_reasoning_enabled', String(next));
+        localStorage.setItem('deepernova_reasoning_by_model', JSON.stringify(nextMap));
+        if (modelId === selectedModel) {
+          localStorage.setItem('deepernova_reasoning_enabled', String(!currentVal));
+        }
       } catch (e) { }
-      return next;
+      return nextMap;
     });
-  }, []);
+  }, [selectedModel]);
 
   const [isAgenticMode, setIsAgenticMode] = useState(() => {
     try {
@@ -5997,6 +6014,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     let displayedFullText = '';
     let fullText = '';
     let targetReasoningText = '';
+    let hiddenReasoningFallback = '';
     let displayedReasoningText = '';
     let reasoningStartTime = null;
     let reasoningEndTime = null;
@@ -6110,15 +6128,16 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
         // Handle live reasoning chunk from FreeLLM / Reasoning Engine
         if (typeof chunk === 'object' && chunk.type === 'reasoning') {
-          targetReasoningText += chunk.content;
-          triggerWebSearchIfNeeded(placeholderId, targetReasoningText);
+          hiddenReasoningFallback += chunk.content;
+          triggerWebSearchIfNeeded(placeholderId, hiddenReasoningFallback);
           if (triggeredSearchRequestsRef.current.has(placeholderId)) {
             return;
           }
-          if (!isReasoningCapable || !isReasoningEnabled) {
-            // When reasoning mode is OFF or model does not support reasoning (like Gold), do not show reasoning box or stream reasoning text
+          if (!isReasoningEnabled) {
+            // When reasoning mode is OFF for this model, do not show reasoning box or stream reasoning text
             return;
           }
+          targetReasoningText += chunk.content;
           if (!reasoningStartTime) {
             reasoningStartTime = Date.now();
             isReasoning = true;
@@ -6236,7 +6255,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // GUARANTEE: NEVER FORGET TO RESPOND AFTER REASONING OR ON EMPTY STREAM
       if (!fullText || !fullText.trim()) {
-        const reasoningSource = (targetReasoningText || displayedReasoningText)?.trim();
+        const reasoningSource = (targetReasoningText || displayedReasoningText || hiddenReasoningFallback)?.trim();
         if (reasoningSource) {
           console.warn('[ChatBot] Stream finished with reasoning but empty text. Auto-synthesizing verified response...');
           fullText = extractResponseFromReasoning(reasoningSource);
@@ -6260,10 +6279,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             ? {
               ...msg,
               text: fullText,
-              reasoningText: targetReasoningText || msg.reasoningText,
-              reasoningDuration: reasoningDuration || msg.reasoningDuration,
+              reasoningText: isReasoningEnabled ? (targetReasoningText || msg.reasoningText) : undefined,
+              reasoningDuration: isReasoningEnabled ? (reasoningDuration || msg.reasoningDuration) : undefined,
               isReasoning: false,
-              isReasoningComplete: !!(targetReasoningText || msg.reasoningText),
+              isReasoningComplete: isReasoningEnabled ? !!(targetReasoningText || msg.reasoningText) : false,
               isStreaming: false,
               isThinking: false,
             }
@@ -8891,6 +8910,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       setSelectedModel={setSelectedModel}
       isReasoningCapable={isReasoningCapable}
       isReasoningEnabled={isReasoningEnabled}
+      reasoningByModel={reasoningByModel}
       toggleReasoning={toggleReasoning}
       isSttListening={isSttListening}
       toggleSpeechToText={toggleSpeechToText}
@@ -9526,6 +9546,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           setSelectedModel={setSelectedModel}
           isReasoningCapable={isReasoningCapable}
           isReasoningEnabled={isReasoningEnabled}
+          reasoningByModel={reasoningByModel}
           toggleReasoning={toggleReasoning}
           isSttListening={isSttListening}
           toggleSpeechToText={toggleSpeechToText}
