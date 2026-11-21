@@ -6007,9 +6007,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Send to Deepernova AI with conversation history for advanced context
       // Use fullMessage (with file contents) instead of inputValue
       // Capture conversationId NOW so it's used in streaming callback, not currentConversationId (which can change)
-      const streamingConversationId = currentConversationId;
+      const streamingConversationId = activeConvId || currentConversationId;
+      const isPrivateTurn = isPrivateSession(streamingConversationId);
 
-      const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningCapable ? isReasoningEnabled : false, true);
+      const response = await sendMessageToGrok(fullMessage, updatedConversationHistory, userLanguage, streamingConversationId, selectedPersonality, abortController, selectedModel, isAuthenticated, isGuest, userName || user?.name, sessionMessageCount + 1, imagesToPass, isReasoningCapable ? isReasoningEnabled : false, true, isPrivateTurn);
       let streamDone = false;
       currentStreamingTextRef.current = '';
 
@@ -7015,7 +7016,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       // Map sources using uniqueImages for fallback thumbnails
-      let sources = resultsList.map(item => {
+      let sources = resultsList.map((item, idx) => {
         let domain = item.domain || '';
         const url = item.link || item.url || '';
         if (!domain && url) {
@@ -7294,7 +7295,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         userName || user?.name,
         sessionMessageCount + 2,
         [],
-        false // enableReasoning = false (ALWAYS disabled for search conclusion so it reads & summarizes news immediately!)
+        false, // enableReasoning = false (ALWAYS disabled for search conclusion so it reads & summarizes news immediately!)
+        true,
+        isPrivateSession(currentConversationId)
       );
 
       let finalResponseText = '';

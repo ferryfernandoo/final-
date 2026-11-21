@@ -93,6 +93,11 @@ export function detectLanguageSync() {
     }
 
     // If browser primary is Chinese, or timezone is Chinese
+    const navLangs = Array.from(
+      (typeof navigator !== 'undefined' && (navigator.languages || [navigator.language])) || []
+    )
+      .filter(Boolean)
+      .map(l => String(l).toLowerCase());
     if (navLangs.some(l => l.startsWith('zh'))) {
       return 'zh';
     }

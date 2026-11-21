@@ -699,6 +699,12 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
     const isGrok46Model = false;
     const isFlashModel = Boolean(normalizedRequestModel);
 
+    const privateCandidBlock = isPrivateSession
+      ? (language === 'id'
+        ? '\n\n[MODE OBROLAN PRIVAT]: Sesi ini sementara dan terisolasi penuh dari riwayat/memori pengguna. Jawablah secara jujur, blak-blakan, lugas, langsung ke inti, objektif, dan tanpa basa-basi atau menggurui untuk diskusi terbuka yang aman dan wajar, sambil tetap mematuhi prinsip keselamatan terhadap konten berbahaya atau ilegal.'
+        : '\n\n[PRIVATE CHAT MODE]: This session is ephemeral and completely isolated from saved history/memory. Respond candidly, directly, objectively, and without preachy lecturing or unnecessary filler for benign/open discussions, while upholding safety principles against harmful or illegal content.')
+      : '';
+
     let systemPromptContent;
     let finalMessages;
 
@@ -768,12 +774,6 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
       const activePersonalityKey = (personality || DEFAULT_PERSONALITY).toLowerCase();
       const activePersonalityObj = PERSONALITIES[activePersonalityKey] || PERSONALITIES[DEFAULT_PERSONALITY] || PERSONALITIES.friendly;
       const personalitySystemAppend = activePersonalityObj?.systemPromptAppend || '';
-
-      const privateCandidBlock = isPrivateSession
-        ? (language === 'id'
-          ? '\n\n[MODE OBROLAN PRIVAT]: Sesi ini sementara dan terisolasi penuh dari riwayat/memori pengguna. Jawablah secara jujur, blak-blakan, lugas, langsung ke inti, objektif, dan tanpa basa-basi atau menggurui untuk diskusi terbuka yang aman dan wajar, sambil tetap mematuhi prinsip keselamatan terhadap konten berbahaya atau ilegal.'
-          : '\n\n[PRIVATE CHAT MODE]: This session is ephemeral and completely isolated from saved history/memory. Respond candidly, directly, objectively, and without preachy lecturing or unnecessary filler for benign/open discussions, while upholding safety principles against harmful or illegal content.')
-        : '';
 
       if (isSearchConclusion) {
         // 🌟 DEDICATED SEARCH SYNTHESIS PROMPT: Ensures model reads & incorporates search results directly!
@@ -1291,12 +1291,11 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
             const delta = parsed.choices?.[0]?.delta;
             const reasoningChunk = delta?.reasoning_content || delta?.reasoning;
             if (reasoningChunk) {
-              const sanitizedReasoning = sanitizeAntiQwen(reasoningChunk);
-              totalReasoningText += sanitizedReasoning;
-              await onChunk({ type: 'reasoning', content: sanitizedReasoning });
+              totalReasoningText += reasoningChunk;
+              await onChunk({ type: 'reasoning', content: reasoningChunk });
             }
             if (delta?.content) {
-              let text = sanitizeAntiQwen(delta.content);
+              let text = delta.content;
 
               // Handle models emitting <think> ... </think> tags in standard content stream
               if (text.includes('<think>')) {
@@ -1354,18 +1353,18 @@ export const processStreamingResponse = async (response, onChunk, abortSignal = 
           const parsed = JSON.parse(data);
           const delta = parsed.choices?.[0]?.delta;
           if (delta?.reasoning_content) {
-            const cleanReasoning = sanitizeAntiQwen(delta.reasoning_content);
+            const cleanReasoning = delta.reasoning_content;
             totalReasoningText += cleanReasoning;
             await onChunk({ type: 'reasoning', content: cleanReasoning });
           }
           if (delta?.content) {
-            const cleanContent = sanitizeAntiQwen(delta.content);
+            const cleanContent = delta.content;
             fullText += cleanContent;
             await onChunk({ type: 'content', content: cleanContent });
           }
         } catch (error) {
           if (data.trim() && !data.trim().startsWith('{')) {
-            const fallbackText = sanitizeAntiQwen(data);
+            const fallbackText = data;
             fullText += fallbackText;
             await onChunk({ type: 'content', content: fallbackText });
           }

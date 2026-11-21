@@ -430,7 +430,9 @@ function App() {
 
         if (response.ok) {
           const data = await parseResponse(response);
-          if (data.authenticated) {
+          const isAuthFlag = Boolean(data.authenticated ?? data.isAuthenticated);
+          const isGuestFlag = Boolean(data.guest ?? data.isGuest);
+          if (isAuthFlag) {
             setIsAuthenticated(true);
             setIsGuest(false);
             setUser(data.user || null);
@@ -439,7 +441,7 @@ function App() {
             return;
           }
 
-          if (data.guest) {
+          if (isGuestFlag) {
             setIsAuthenticated(false);
             setIsGuest(true);
             setUser(data.user || null);
@@ -447,6 +449,12 @@ function App() {
             safeRemoveItem('authUser');
             return;
           }
+
+          safeRemoveItem('authUser');
+          setIsAuthenticated(false);
+          setIsGuest(false);
+          setUser(null);
+          return;
         }
 
         if (response.status === 401) {
