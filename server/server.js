@@ -5653,7 +5653,10 @@ app.post('/api/conversations', async (req, res) => {
         const baseTime = Date.now();
         let prevTimeMs = 0;
         sanitizedMessages.forEach((msg, idx) => {
-          const msgId = msg.id || `msg_${conv.id}_${idx}_${baseTime}`;
+          const rawMsgId = msg.id ?? `msg_${conv.id}_${idx}_${baseTime}`;
+          const msgId = typeof rawMsgId === 'number' && Number.isInteger(rawMsgId)
+            ? String(rawMsgId)
+            : String(rawMsgId).replace(/\.0$/, '');
 
           if (messageIds.has(msgId)) {
             duplicateIds.push(msgId);

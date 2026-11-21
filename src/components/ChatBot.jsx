@@ -4421,7 +4421,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
   // Create a placeholder bot message immediately so the response feels faster
   const createBotPlaceholder = () => {
-    const placeholderId = Date.now() + Math.floor(Math.random() * 1000);
+    const placeholderId = `bot_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const placeholderMessage = {
       id: placeholderId,
       text: '',
@@ -4560,7 +4560,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     lastSentUserMessageIdRef.current = newUserMessage.id;
 
     // Create AI placeholder
-    const placeholderId = Date.now() + Math.floor(Math.random() * 1000);
+    const placeholderId = `bot_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const botMessage = {
       id: placeholderId,
       text: '',
@@ -5526,7 +5526,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     setInputValue('');
 
     // Create placeholder for bot response
-    const placeholderId = Date.now() + Math.floor(Math.random() * 1000);
+    const placeholderId = `bot_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const botMessage = {
       id: placeholderId,
       text: '',
@@ -6336,7 +6336,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       images: uploadedImages.length > 0 ? uploadedImages : undefined,
     };
 
-    const placeholderId = Date.now() + Math.floor(Math.random() * 1000);
+    const placeholderId = `bot_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const botMessage = {
       id: placeholderId,
       text: '',
