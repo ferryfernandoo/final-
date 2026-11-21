@@ -5249,6 +5249,14 @@ app.get('/api/conversations', (req, res) => {
               return hasText || hasMedia || hasSearch;
             }
             return Boolean(msg.text && String(msg.text).trim()) || Boolean(msg.imageUrl);
+          })
+          .sort((a, b) => {
+            const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            if (!isNaN(tA) && !isNaN(tB) && tA !== tB) return tA - tB;
+            const roleA = a.sender === 'user' ? 0 : 1;
+            const roleB = b.sender === 'user' ? 0 : 1;
+            return roleA - roleB;
           });
 
         return {
