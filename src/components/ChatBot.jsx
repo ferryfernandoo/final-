@@ -7272,32 +7272,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 - Sajikan perbandingan spesifikasi/fitur kunci, kelebihan dan kekurangan masing-masing dalam format yang jelas (poin-poin atau tabel ringkas).
 - Berikan kesimpulan atau rekomendasi akhir yang tegas dan aplikatif bagi pengguna.\n\n`;
       }
-      conclusionPrompt += `--- PANDUAN STRUKTUR & KUALITAS JAWABAN PENCARIAN (SANGAT PENTING) ---
-1. SIKAP SANGAT RAMAH & SANTUN: Bersikaplah sangat ramah, hangat, sopan, dan bersahabat. DILARANG kaku dan DILARANG memanggil dengan sebutan "bro", "cuy", atau slang canggung.
-2. DILARANG BERTERIMA KASIH: Jangan pernah menulis "Terima kasih atas hasil pencariannya..." atau sejenisnya. Pengguna tidak memberikan informasi ini. Langsung mulai jawaban di paragraf pertama!
-3. WAJIB BERPEDOMAN PADA WAKTU SEKARANG: Tahun saat ini adalah ${currentYear} (BUKAN 2024). Semua analisis berita dan peristiwa terkini berpedoman pada tanggal hari ini: ${dateFormattedId}.
-4. FORMAT SUPER RAPI, BERJENJANG & SCANNABLE (WAJIB):
-   - RINGKASAN INTI AWAL (1-2 kalimat): Awali jawaban langsung dengan inti/jawaban tegas atas pertanyaan pengguna di paragraf pertama.
-   - SUBJUDUL TEMATIK (###): Gunakan heading markdown tingkat 3 (contoh: "### 1. Perkembangan Utama" atau "### Rincian Lengkap") untuk memecah informasi ke topik-topik terpisah.
-   - POIN DENGAN JUDUL TEBAL (BOLD LEAD): Gunakan daftar bernomor atau bullet list di mana SETIAP BUTIR DIAWALI DENGAN JUDUL TEBAL:
-     Contoh: "1. **Kenaikan Tarif:** Mulai diberlakukan..." atau "- **Dampak Regulasi:** Menurut laporan resmi..."
-   - SATU BARIS KOSONG (BLANK LINE): Pisahkan setiap paragraf, subjudul, dan butir poin dengan SATU BARIS KOSONG agar jawaban lega, berjarak nyaman, dan tidak menumpuk padat.
-   - TEBALKAN DATA KRUSIAL: Cetak tebal angka penting, persentase, tanggal spesifik, atau nama lembaga kunci.
-
-5. BERIKAN ULASAN & ARTIKEL LENGKAP SECARA MENDALAM DENGAN BAHASA SENDIRI (KOMPREHENSIF):
-   - Tulis ulasan atau penjelasan yang LENGKAP, MENYELURUH, KAYA INFORMASI, dan MENDALAM (artikel utuh berkualitas tinggi). Kupas tuntas fakta, latar belakang sejarah, sains, ragam jenis, tips praktis, mekanisme, dan perbandingannya secara komprehensif.
-   - DILARANG menyingkat atau memotong ulasan menjadi terlalu pendek atau dangkal! Pengguna menginginkan isi artikel yang lengkap dan berbobot tinggi.
-   - Tulis dengan kalimat dan gayamu sendiri yang hangat, luwes, dan ramah (jangan menempelkan blok kutipan mentah dari mesin pencari).
-   - SITASI BUBBLE SIMPEL & ELEGAN: Untuk setiap rujukan sumber fakta dari web, CUKUP cantumkan link sitasi di akhir kalimat penting: [Nama Web](URL) (contoh: [Kompas](url), [Detik](url)). Frontend otomatis merendernya sebagai bubble badge kecil elegan dengan logo favicon dan nama media saja, sehingga artikel penjelasanmu tetap bersih, rapi, dan nyaman dibaca tanpa deretan URL panjang! DILARANG membuat sitasi untuk URL foto gambar!
-
-6. ANALISIS PERBANDINGAN CERDAS & OBYEKTIF:
-   - Jika pengguna membandingkan dua hal atau menanyakan perbandingan (termasuk hasil Google vs Deepernova, atau produk/topik A vs B), sajikan perbandingan yang komprehensif, faktual, dan tidak memihak berdasarkan temuan data di atas.
-
-7. FOKUS MURNI PADA TOPIK TERAKHIR (TOPIC SWITCHING):
-   - Jawab HANYA berdasarkan "Pertanyaan Pengguna" di atas dan data hasil pencarian web terkait.
-   - Jika pertanyaan pengguna di atas adalah topik baru yang berbeda dari percakapan sebelumnya, DILARANG KERAS memaksakan mengaitkan, menghubungkan, atau mengungkit topik lama yang tidak relevan!
-
-8. Berikan jawaban utuh sekarang. JANGAN memicu tag [SEARCH_REQUEST] atau [EXECUTE_SEARCH] lagi.\n\n[PERINGATAN SANGAT PENTING: Jawab HANYA tentang "${userQuery}" dan data web di atas! DILARANG KERAS menjawab atau menyinggung topik obrolan sebelumnya!]`;
+      conclusionPrompt += `--- PANDUAN JAWABAN PENCARIAN ---
+- Bersikaplah ramah, santun, dan langsung mulai jawaban di paragraf pertama (JANGAN berterima kasih atas hasil pencarian; tahun sekarang ${currentYear}, tanggal ${dateFormattedId}).
+- Awali 1-2 kalimat ringkasan inti, gunakan subjudul \`###\`, buat poin berjudul **tebal**, pisahkan paragraf dengan blank line, dan tebalkan angka/tanggal penting.
+- Sajikan penjelasan lengkap, informatif, dan mengalir dengan sitasi link ringkas \`[Nama Web](URL)\` di akhir kalimat penting (dilarang membuat sitasi untuk URL gambar).
+- Fokus HANYA pada pertanyaan "${userQuery}" di atas dan data web ini; dilarang mengaitkan topik lama atau memicu [SEARCH_REQUEST]/[EXECUTE_SEARCH] lagi.`;
 
       const activePersonalityAppend = PERSONALITIES[selectedPersonality]?.systemPromptAppend || '';
       if (activePersonalityAppend) {

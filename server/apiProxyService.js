@@ -178,7 +178,7 @@ export function getUpstreamModelPlan(requestedModel = '', options = {}) {
   const isGrok = lower.includes('grok-4.6') || lower === 'grok';
   const isVisionReq = hasImages || lower.includes('image') || (lower === 'qwen2.5-vl-72b' && hasImages);
 
-  const FAST_POOL = ['qwen2.5-vl-72b', 'nemotron-3-ultra-550b', 'north-mini-code', 'free-router', 'nemotron-3.5-lightning'];
+  const FAST_POOL = ['qwen2.5-vl-72b', 'nemotron-3-ultra-550b', 'free-router', 'nemotron-3.5-lightning', 'nemotron-3.5-super-vl', 'north-mini-code'];
   const REAL_DIRECT_MODELS = new Set([
     'qwen2.5-vl-72b',
     'nemotron-3-ultra-550b',
@@ -277,8 +277,8 @@ export async function dispatchFreeLlmRequest({
   const plan = getUpstreamModelPlan(requestedModel, { hasImages, enableReasoning });
   const deadTargets = new Set();
   let lastError = null;
-  // Cap cumulative fallback budget so proxy/Edge callers receive a fast failover within Vercel's 25s limit
-  const totalBudgetMs = timeoutMs ? Math.max(timeoutMs * 2, 20000) : 21000;
+  // Allow healthy upstream TTFB while staying comfortably inside proxy/Edge streaming limits
+  const totalBudgetMs = timeoutMs ? Math.max(timeoutMs * 2, 24000) : 28000;
   const dispatchDeadline = Date.now() + totalBudgetMs;
 
   for (const { target, index } of orderedTargets) {
@@ -306,8 +306,8 @@ export async function dispatchFreeLlmRequest({
 
       const baseAttemptTimeout = timeoutMs || (
         (plan.isGrok || modelToTry.includes('smart') || modelToTry.includes('550b') || modelToTry.includes('120b') || modelToTry.includes('397b'))
-          ? 12000
-          : (stream ? 6000 : 7500)
+          ? 17000
+          : (stream ? 9000 : 10000)
       );
       const effectiveTimeout = timeoutMs
         ? timeoutMs
