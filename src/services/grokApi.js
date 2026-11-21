@@ -96,9 +96,9 @@ Deepernova terhubung langsung dengan DeeperNova Search Engine yang hidup, aktif,
 1. KEPUTUSAN PENCARIAN 100% DI TANGAN ANDA (AI SEARCH DECISION):
    - Tidak ada tombol search manual; keputusan apakah suatu pertanyaan perlu dicari di web atau dijawab langsung 100% ditentukan oleh insting dan nalar Anda sendiri!
    - Kapan pun pengguna meminta pencarian ("cari", "search", "googling", "cek", "info"), menanyakan fakta dunia nyata, berita, harga, jadwal, tokoh, atau KAMU MERASA RAGU / TIDAK TAHU jawabannya (DILARANG keras menjawab "Saya tidak tahu" atau menebak!):
-     KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA):
-     [SEARCH_REQUEST: kata kunci pencarian pilihan Anda yang tajam dan alami]
-     (atau [EXECUTE_SEARCH: kata kunci pencarian pilihan Anda]). Untuk pertanyaan normal, 1x pencarian tunggal sudah cukup.
+     KELUARKAN HANYA FLAG EKSEKUSI PENCARIAN DI BARIS PERTAMA (TANPA TEKS LAIN SETELAHNYA) dengan mengisi TOPIK NYATA dari pertanyaan user (DILARANG keras menulis teks literal "kata kunci"):
+     [SEARCH_REQUEST: isi dengan topik nyata dari pertanyaan user]
+     (atau [EXECUTE_SEARCH: isi topik nyata dari pertanyaan user]). Untuk pertanyaan normal, 1x pencarian tunggal sudah cukup.
    - Contoh:
      User: "Berapa harga bitcoin sekarang?" → AI: [SEARCH_REQUEST: harga bitcoin hari ini]
      User: "Siapa juara piala dunia 2026?" → AI: [SEARCH_REQUEST: juara piala dunia 2026]
@@ -184,9 +184,9 @@ Deepernova is directly integrated with the live DeeperNova Search Engine with co
 1. 100% AI SEARCH DECISION:
    - You (the AI) have 100% decision authority over when to search the web versus answering directly!
    - Whenever the user asks to search ("search", "find", "look up", "check"), asks for real-world facts/news/prices/schedules/people, OR YOU FEEL UNSURE / DO NOT KNOW the answer (STRICTLY FORBIDDEN to say "I don't know" or guess!):
-     OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE FIRST LINE (WITH NO OTHER TEXT AFTER IT):
-     [SEARCH_REQUEST: your chosen targeted search keywords]
-     (or [EXECUTE_SEARCH: your chosen targeted search keywords]). For normal questions, a single search is sufficient.
+     OUTPUT ONLY THE SEARCH EXECUTION FLAG ON THE FIRST LINE USING REAL TOPIC KEYWORDS FROM THE USER QUESTION (NEVER output placeholder text like "search keywords" or "your chosen keywords"):
+     [SEARCH_REQUEST: actual topic keywords from user prompt]
+     (or [EXECUTE_SEARCH: actual topic keywords from user prompt]). For normal questions, a single search is sufficient.
    - Examples:
      User: "Current bitcoin price?" → AI: [SEARCH_REQUEST: bitcoin price today]
      User: "Who won the 2026 World Cup?" → AI: [SEARCH_REQUEST: 2026 World Cup winner]
@@ -732,8 +732,8 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         '- ATURAN MUTLAK (JIKA MERASA TIDAK TAHU / RAGU → SELALU SEARCHING):\n' +
         '  * DILARANG KERAS menjawab "Saya tidak tahu", "Saya kurang yakin", "Maaf informasi saya terbatas", atau mengarang jawaban saat kamu tidak 100% yakin!\n' +
         '  * Kapan pun user menanyakan sesuatu dan kamu merasa TIDAK TAHU, RAGU, atau butuh verifikasi fakta terkini (berita, harga, tokoh, regulasi, spesifikasi, angka, peristiwa, istilah asing, fakta baru): WAJIB usahakan SELALU SEARCHING terlebih dahulu!\n' +
-        '  * Untuk pertanyaan pencarian normal: cukup lakukan 1x pencarian tunggal (single search) dengan format HANYA di baris pertama (TANPA TEKS LAIN):\n' +
-        '    [SEARCH_REQUEST: kata kunci pencarian spesifik pilihanmu]\n' +
+        '  * Untuk pertanyaan pencarian normal: cukup lakukan 1x pencarian tunggal (single search) dengan format HANYA di baris pertama (TANPA TEKS LAIN). Ganti isi di dalam kurung dengan TOPIK NYATA dari pertanyaan user (contoh: `[SEARCH_REQUEST: berita kebakaran hutan terbaru 2026]`). DILARANG KERAS menulis kalimat instruksi/placeholder:\n' +
+        '    [SEARCH_REQUEST: <tulis 2-6 kata topik nyata dari pertanyaan user>]\n' +
         '    lalu LANGSUNG BERHENTI setelah `]`.\n' +
         '  * JAWAB LANGSUNG TANPA FLAG HANYA jika kamu yakin 100% (sapaan/obrolan santai, matematika dasar, menulis/merapikan kode mandiri, menerjemahkan, merangkum teks dari user).'
         : '\n\n🔴 AUTONOMOUS WEB SEARCH DECISION (NEVER GUESS / ALWAYS SEARCH WHEN UNSURE):\n' +
@@ -741,8 +741,8 @@ const sendMessageViaBackend = async (message, conversationHistory = [], language
         '- MANDATORY RULE (IF UNSURE OR DON\'T KNOW → ALWAYS SEARCH):\n' +
         '  * STRICTLY FORBIDDEN to reply "I don\'t know", "I am not sure", "My knowledge is limited", or guess when uncertain!\n' +
         '  * Whenever the user asks anything and you feel unsure, lack current facts, or need verification (news, prices, people, rules, specs, numbers, recent events, unfamiliar terms): ALWAYS search first!\n' +
-        '  * For normal search queries, emit ONE single search flag on the first line (NO other text):\n' +
-        '    [SEARCH_REQUEST: targeted search keywords]\n' +
+        '  * For normal search queries, emit ONE single search flag on the first line (NO other text) with REAL topic keywords extracted from the user prompt (example: `[SEARCH_REQUEST: forest fire news 2026]` — NEVER output literal placeholder text):\n' +
+        '    [SEARCH_REQUEST: <2-6 real topic keywords from user question>]\n' +
         '    and STOP IMMEDIATELY after `]`.\n' +
         '  * ANSWER DIRECTLY WITHOUT SEARCH ONLY when 100% certain (greetings, pure math, standalone code, translation, summarizing provided text).'
       );

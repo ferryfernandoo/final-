@@ -104,6 +104,9 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
   } catch (e) {
     throw new Error('Invalid URL format: ' + e.message);
   }
+  if (!parsedUrl.hostname || !parsedUrl.hostname.includes('.') || /\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(imageUrl)) {
+    throw new Error('Non-image or invalid external URL');
+  }
 
   // Generate unique cache key based on URL
   const hash = crypto.createHash('sha256').update(imageUrl).digest('hex');
@@ -254,7 +257,16 @@ export async function downloadAndCacheImage(rawUrl, titleHint = '') {
 export async function batchPreloadImages(urls = []) {
   if (!Array.isArray(urls) || urls.length === 0) return [];
   const valid = urls
-    .filter(u => typeof u === 'string' && (u.startsWith('http://') || u.startsWith('https://')))
+    .filter(u => {
+      if (typeof u !== 'string') return false;
+      if (!u.startsWith('http://') && !u.startsWith('https://')) return false;
+      if (/\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(u)) return false;
+      try {
+        return new URL(u).hostname.includes('.');
+      } catch {
+        return false;
+      }
+    })
     .slice(0, 10);
 
   const promises = valid.map(u => 

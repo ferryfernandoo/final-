@@ -467,8 +467,7 @@ export const isImageLabelText = (rawLabel = '') => {
   const label = String(rawLabel || '').trim();
   if (!label) return false;
   return (
-    /^\[?\s*(?:foto|gambar|image|photo|ilustrasi|visual|thumbnail|lihat\s*(?:foto|gambar)|encrypted(?:-tbn\d*)?)\s*#?\d*\s*\]?$/i.test(label) ||
-    /^https?:\/\//i.test(label)
+    /^\[?\s*(?:foto|gambar|image|photo|ilustrasi|visual|thumbnail|lihat\s*(?:foto|gambar)|encrypted(?:-tbn\d*)?)\s*#?\d*\s*\]?$/i.test(label)
   );
 };
 
@@ -478,8 +477,18 @@ export const isValidRenderableImageSrc = (rawSrc = '') => {
   if (/^(?:javascript:|vbscript:|about:|data:image\/svg|null$|undefined$|#$|\.\.\.$|url_foto$|url$)/i.test(clean)) {
     return false;
   }
-  if (/^(?:https?:\/\/|\/api\/|\/generated-|\/watermarked-|blob:|data:image\/)/i.test(clean)) {
-    return !/\s/.test(clean) && clean !== 'https://' && clean !== 'http://';
+  if (/^(?:https?:\/\/)/i.test(clean)) {
+    if (/\s/.test(clean) || /\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(clean)) return false;
+    try {
+      const parsed = new URL(clean);
+      const host = parsed.hostname || '';
+      return host.includes('.') && !host.endsWith('.') && host.split('.').pop().length >= 2;
+    } catch {
+      return false;
+    }
+  }
+  if (/^(?:\/api\/|\/generated-|\/watermarked-|blob:|data:image\/)/i.test(clean)) {
+    return !/\s/.test(clean);
   }
   return false;
 };

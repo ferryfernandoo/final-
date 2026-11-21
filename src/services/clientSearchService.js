@@ -55,6 +55,39 @@ function cleanSearchText(str) {
   return str.replace(/<\/?mark[^>]*>/gi, '').replace(/<[^>]+>/g, '').trim();
 }
 
+function extractCoreTopicFromPrompt(userPrompt = '') {
+  const cleaned = String(userPrompt || '')
+    .replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*\]/gi, '')
+    .replace(/^(?:halo|hai|hi|hello|tolong|coba|bisa|bisakah|mohon|dong|bro|kak|bang|min|please|can you|could you)\s+/gi, '')
+    .replace(/^(?:tolong|coba|bisa|bisakah|mohon|dong|bro|kak|bang)\s+/gi, '')
+    .replace(/^(?:cari(?:kan)?|searching|search(?:\s+for)?|googling|browsing|cek(?:kan)?|temukan|lihat(?:kan)?|kasih\s+tahu|beritahu|jelaskan|ceritakan|tampilkan|sebutkan|info(?:rmasi)?(?:\s+tentang|\s+mengenai|\s+seputar)?|look\s+up|find(?:\s+info(?:\s+about)?)?|tell\s+me\s+about)\s+/i, '')
+    .replace(/^(?:tentang|mengenai|seputar|di\s+web|di\s+internet|on\s+the\s+web|the\s+web\s+for|about|for)\s+/i, '')
+    .replace(/\s+(?:dong|ya|yah|bro|kak|bang|please|terima\s+kasih|makasih)[?!.]*$/i, '')
+    .replace(/[?!.]+$/, '')
+    .trim();
+  return cleaned || String(userPrompt || '').trim();
+}
+
+/**
+ * Prevents generic LLM placeholder templates like
+ * "kata kunci pencarian spesifik pilihanmu" from ever reaching search engines.
+ */
+export function sanitizeSearchQuery(rawQuery = '', userPrompt = '') {
+  let q = String(rawQuery || '').replace(/^["'`]+|["'`]+$/g, '').trim();
+  const isTemplatePlaceholder = !q ||
+    q.length < 2 ||
+    /^<[^>]+>$/.test(q) ||
+    /^\[[^\]]+\]$/.test(q) ||
+    /^(?:\.{2,}|topik|kueri|query|keywords?|search\s*keywords?|kata\s*kunci(?:\s+pencarian)?(?:\s+spesifik)?(?:\s+pilihan(?:\s*mu|\s*anda))?(?:\s+yang\s+(?:tajam|tepat|alami))?)$/i.test(q) ||
+    /\b(?:kata\s+kunci\s+pencarian|pilihan(?:\s*mu|\s*anda)|targeted\s+search\s+keywords?|your\s+chosen(?:\s+targeted)?\s+search|topik_nyata|您的?.*关键词|精准搜索关键词)\b/i.test(q);
+
+  if (isTemplatePlaceholder) {
+    const fallback = extractCoreTopicFromPrompt(userPrompt);
+    return (fallback && fallback.length >= 2) ? fallback.slice(0, 140) : 'berita terkini Indonesia';
+  }
+  return q.slice(0, 180);
+}
+
 /**
  * Query passthrough - tidak ada modifikasi tanggal atau regex aneh.
  * Query pencarian 100% murni mengikuti apa yang ditentukan oleh AI.
@@ -79,7 +112,7 @@ export function detectUpfrontSearchIntent(promptText, language = 'id') {
     text.match(/\[(?:SEARCH_REQUEST|SEARCH):\s*(.+?)\]/i) ||
     text.match(/^<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>$/i);
   if (directFlagMatch && directFlagMatch[1]) {
-    return directFlagMatch[1].replace(/["']/g, '').trim();
+    return sanitizeSearchQuery(directFlagMatch[1].replace(/["']/g, '').trim(), text);
   }
 
   // Ignore code snippets, slash commands, or pure json/object notation
@@ -1064,7 +1097,7 @@ export async function executeWebSearch(query, options = {}) {
   const limit = options.limit || 12;
   const includeImages = options.includeImages !== false;
   const userPrompt = options.userPrompt || '';
-  const effectiveQuery = (query || userPrompt || '').trim();
+  const effectiveQuery = sanitizeSearchQuery(query, userPrompt);
 
   if (!effectiveQuery) {
     return {
@@ -1097,11 +1130,31 @@ export async function executeWebSearch(query, options = {}) {
   // ── Image Collection Pool ──
   const candidateImages = [];
   const seenImageUrls = new Set();
+  const isCleanCandidateImageUrl = (rawUrl) => {
+    if (!rawUrl || typeof rawUrl !== 'string') return false;
+    const u = rawUrl.trim();
+    if (
+      u.includes('favicons?sz=') ||
+      u.includes('.ico') ||
+      u.includes('.php') ||
+      u.includes('/ajax/') ||
+      u.includes('/rss/articles/') ||
+      u.startsWith('data:image/svg')
+    ) {
+      return false;
+    }
+    try {
+      const parsed = new URL(u);
+      return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname.includes('.');
+    } catch {
+      return false;
+    }
+  };
   const addCandidateImage = (img) => {
     if (!img) return;
-    const url = img.imageUrl || img.thumbnail || img.link;
-    if (!url || typeof url !== 'string') return;
-    if (seenImageUrls.has(url) || url.includes('favicons?sz=') || url.includes('.ico') || url.startsWith('data:image/svg')) return;
+    // Never fall back to img.link (which is an HTML article page, not an image binary!)
+    const url = img.imageUrl || img.thumbnail || '';
+    if (!isCleanCandidateImageUrl(url) || seenImageUrls.has(url)) return;
     seenImageUrls.add(url);
     candidateImages.push({
       thumbnail: url,
@@ -1306,14 +1359,16 @@ export async function executeWebSearch(query, options = {}) {
         fetchImagesForQuery(facet.imageQuery || facet.query, 6)
       ]);
       for (const res of facetResults) {
-        if (res.status === 'fulfilled') {
-          if (Array.isArray(res.value) && res.value.length > 0) {
-            if (res.value[0]?.url || res.value[0]?.link) {
-              rawCandidates.push(...res.value);
-            } else if (res.value[0]?.thumbnail) {
-              for (const img of res.value) {
-                addCandidateImage({ ...img, facetTopic: facet.topic });
-              }
+        if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value.length > 0) {
+          if (res.value[0]?.imageUrl) {
+            for (const img of res.value) {
+              addCandidateImage({ ...img, facetTopic: facet.topic });
+            }
+          } else if (res.value[0]?.url || res.value[0]?.link) {
+            rawCandidates.push(...res.value);
+          } else if (res.value[0]?.thumbnail) {
+            for (const img of res.value) {
+              addCandidateImage({ ...img, facetTopic: facet.topic });
             }
           }
         }
@@ -1372,6 +1427,7 @@ export default {
   searchWeb,
   detectUpfrontSearchIntent,
   enrichQueryWithDateIfRecent,
+  sanitizeSearchQuery,
   API_BASE_URL,
   API_KEY
 };

@@ -162,10 +162,6 @@
       "destination": "/api/token-usage/:path*"
     },
     {
-      "source": "/auth/me",
-      "destination": "/api/auth/me"
-    },
-    {
       "source": "/api/serp-search",
       "destination": "/api/serp-search"
     },

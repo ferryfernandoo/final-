@@ -1042,18 +1042,32 @@ app.all(['/api/serp-search', '/api/google-search'], async (req, res) => {
   }
 
   try {
-    const results = await webSearchService._fetchSerpApi(query, limit, lang);
+    let results = await webSearchService._fetchSerpApi(query, limit, lang);
+    let inlineImages = results?._inline_images || [];
+    let engine = 'serpapi_google';
+
+    if (!Array.isArray(results) || results.length === 0) {
+      const fallbackRes = await webSearchService.searchGoogle(query, limit, lang);
+      if (fallbackRes?.success && Array.isArray(fallbackRes.results) && fallbackRes.results.length > 0) {
+        results = fallbackRes.results;
+        inlineImages = fallbackRes.inline_images || [];
+        engine = fallbackRes.engine || 'deepernova_google_hybrid_fallback';
+      } else {
+        results = [];
+      }
+    }
+
     return res.json({
       success: true,
       data: {
         organic_results: results,
-        inline_images: results._inline_images || [],
+        inline_images: inlineImages,
         search_information: {
           query,
           total_results: results.length,
           time_taken_ms: 350
         },
-        engine: 'serpapi_google'
+        engine
       }
     });
   } catch (err) {
@@ -3782,7 +3796,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
             'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
             '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF (MUTLAK): Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. ' +
             '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-            'KEPUTUSAN PENCARIAN WEB OTONOM (SELALU SEARCHING JIKA RAGU / TIDAK TAHU): Kamu terhubung ke search engine live web. ATURAN: Dilarang menebak atau menjawab "Saya tidak tahu"! Jika kamu merasa RAGU, tidak yakin, atau user menanyakan berita/peristiwa terkini, harga, cuaca, skor, jadwal, tokoh terkini, atau fakta baru: keluarkan [SEARCH_REQUEST: kata kunci pilihanmu] di baris pertama lalu berhenti. Jika kamu sudah tahu pasti (pengetahuan umum, konsep, coding, matematika, sapaan), jawab LANGSUNG tanpa flag secepat mungkin! ' +
+            'KEPUTUSAN PENCARIAN WEB OTONOM (SELALU SEARCHING JIKA RAGU / TIDAK TAHU): Kamu terhubung ke search engine live web. ATURAN: Dilarang menebak atau menjawab "Saya tidak tahu"! Jika kamu merasa RAGU, tidak yakin, atau user menanyakan berita/peristiwa terkini, harga, cuaca, skor, jadwal, tokoh terkini, atau fakta baru: keluarkan [SEARCH_REQUEST: isi topik spesifik dari pertanyaan user, JANGAN menulis kalimat "kata kunci pilihanmu"] di baris pertama lalu berhenti. Jika kamu sudah tahu pasti (pengetahuan umum, konsep, coding, matematika, sapaan), jawab LANGSUNG tanpa flag secepat mungkin! ' +
             (isGrok46Request ? '' : 'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file dokumen (Word .docx, Excel .xlsx/.csv, PowerPoint .pptx, PDF), kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: keluarkan [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] lalu LANGSUNG BERHENTI tanpa menulis teks pengantar/jawaban sebelum sub-agent selesai. ') +
             'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
         }
@@ -3857,7 +3871,13 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
             '3. Langsung BERHENTI tepat setelah tanda kurung siku tutup `]`.';
           console.log('[CHAT] 🤖 Agentic Sub-Agent task detected → instructing silent [SUBAGENT_ORCHESTRATE: ...] handoff');
         } else if (!isSearchConclusion && !hasImagesInPayload && looksFactual) {
-          finalSystemPrompt += '\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI & SELALU SEARCHING]: Pertanyaan pengguna saat ini membutuhkan fakta dunia nyata atau verifikasi yang mungkin tidak kamu ketahui pasti. DILARANG menjawab dari ingatan atau mengatakan "tidak tahu". Baris pertama jawabanmu WAJIB HANYA berisi: [SEARCH_REQUEST: kata kunci pencarian yang tepat] lalu BERHENTI tanpa menulis teks lain.';
+          const derivedSearchTopic = lastUserText
+            .replace(/^(?:tolong|coba|bisa|mohon|dong|halo|hai)\s+/gi, '')
+            .replace(/^(?:cari(?:kan)?(?:\s+(?:berita|info(?:rmasi)?))?|search|googling)\s+/i, '')
+            .replace(/[?!.]+$/, '')
+            .trim()
+            .slice(0, 80) || lastUserText.slice(0, 80);
+          finalSystemPrompt += `\n\n[DIREKTIF WAJIB SISTEM - ANTI HALUSINASI & SELALU SEARCHING]: Pertanyaan pengguna saat ini membutuhkan fakta dunia nyata atau verifikasi yang mungkin tidak kamu ketahui pasti. DILARANG menjawab dari ingatan atau mengatakan "tidak tahu". Baris pertama jawabanmu WAJIB HANYA berisi tag pencarian dengan topik nyata (contoh: [SEARCH_REQUEST: ${derivedSearchTopic}]) lalu BERHENTI tanpa menulis teks lain. DILARANG menulis teks generik seperti "kata kunci pencarian" secara harfiah.`;
           console.log('[CHAT] 🛡️ Factual query detected → forcing single web search flag');
         }
 
@@ -4046,9 +4066,12 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           try {
             let session = sessionDb.findById(sessionId);
             if (!session) {
-              sessionDb.create(sessionId, req.user.id, userQuery ? userQuery.slice(0, 45) : 'Obrolan AI');
+              const cleanSessionTitle = (!isSearchConclusion && userQuery && !userQuery.startsWith('[INSTRUKSI SISTEM'))
+                ? userQuery.slice(0, 45)
+                : 'Obrolan AI';
+              sessionDb.create(sessionId, req.user.id, cleanSessionTitle);
             }
-            if (userQuery) {
+            if (userQuery && !isSearchConclusion && !userQuery.startsWith('[INSTRUKSI SISTEM')) {
               const existingMsg = userMessageId ? messageDb.findById(userMessageId) : null;
               if (!existingMsg) {
                 messageDb.create(
@@ -5176,56 +5199,67 @@ app.get('/api/conversations', (req, res) => {
         const rawMessages = session.messagesJson ? JSON.parse(session.messagesJson).filter(m => m.id) : [];
         const sessionImages = imagesBySessionMap.get(session.id) || [];
 
-        const messages = rawMessages.map(msg => {
-          const processedMsg = { ...msg };
-          if (msg.searchSourcesJson) {
-            try { processedMsg.searchSources = JSON.parse(msg.searchSourcesJson); } catch (_e) { processedMsg.searchSources = []; }
-            delete processedMsg.searchSourcesJson;
-          }
-          if (msg.searchImagesJson) {
-            try { processedMsg.searchImages = JSON.parse(msg.searchImagesJson); } catch (_e) { processedMsg.searchImages = []; }
-            delete processedMsg.searchImagesJson;
-          }
-          if (msg.metadataJson) {
-            try {
-              const parsedMeta = JSON.parse(msg.metadataJson);
-              if (parsedMeta && typeof parsedMeta === 'object') {
-                if (parsedMeta.subAgentData) processedMsg.subAgentData = parsedMeta.subAgentData;
-                if (parsedMeta.downloadUrl) processedMsg.downloadUrl = parsedMeta.downloadUrl;
-                if (parsedMeta.fileName) processedMsg.fileName = parsedMeta.fileName;
-                if (parsedMeta.downloadSummary) processedMsg.downloadSummary = parsedMeta.downloadSummary;
-              }
-            } catch (_e) { }
-            delete processedMsg.metadataJson;
-          }
+        const messages = rawMessages
+          .map(msg => {
+            const processedMsg = { ...msg, isStreaming: false, isThinking: false, isSearching: false };
+            if (msg.searchSourcesJson) {
+              try { processedMsg.searchSources = JSON.parse(msg.searchSourcesJson); } catch (_e) { processedMsg.searchSources = []; }
+              delete processedMsg.searchSourcesJson;
+            }
+            if (msg.searchImagesJson) {
+              try { processedMsg.searchImages = JSON.parse(msg.searchImagesJson); } catch (_e) { processedMsg.searchImages = []; }
+              delete processedMsg.searchImagesJson;
+            }
+            if (msg.metadataJson) {
+              try {
+                const parsedMeta = JSON.parse(msg.metadataJson);
+                if (parsedMeta && typeof parsedMeta === 'object') {
+                  if (parsedMeta.subAgentData) processedMsg.subAgentData = parsedMeta.subAgentData;
+                  if (parsedMeta.downloadUrl) processedMsg.downloadUrl = parsedMeta.downloadUrl;
+                  if (parsedMeta.fileName) processedMsg.fileName = parsedMeta.fileName;
+                  if (parsedMeta.downloadSummary) processedMsg.downloadSummary = parsedMeta.downloadSummary;
+                }
+              } catch (_e) { }
+              delete processedMsg.metadataJson;
+            }
 
-          // Check if message contains image markdown: ![Generated Image](URL)
-          const imgMarkdownMatch = msg.text?.match(/!\[Generated Image\]\(([^)]+)\)/);
-          if (imgMarkdownMatch && imgMarkdownMatch[1]) {
-            const extractedUrl = imgMarkdownMatch[1];
-            const matchedImage = imagesByUrlMap.get(extractedUrl);
-            return {
-              ...processedMsg,
-              imageUrl: extractedUrl,
-              imageId: matchedImage ? matchedImage.id : undefined,
-              model: matchedImage ? matchedImage.model : undefined,
-              size: matchedImage ? matchedImage.size : undefined,
-              isImage: true
-            };
-          }
+            // Check if message contains image markdown: ![Generated Image](URL)
+            const imgMarkdownMatch = msg.text?.match(/!\[Generated Image\]\(([^)]+)\)/);
+            if (imgMarkdownMatch && imgMarkdownMatch[1]) {
+              const extractedUrl = imgMarkdownMatch[1];
+              const matchedImage = imagesByUrlMap.get(extractedUrl);
+              return {
+                ...processedMsg,
+                imageUrl: extractedUrl,
+                imageId: matchedImage ? matchedImage.id : undefined,
+                model: matchedImage ? matchedImage.model : undefined,
+                size: matchedImage ? matchedImage.size : undefined,
+                isImage: true
+              };
+            }
 
-          return processedMsg;
-        });
+            return processedMsg;
+          })
+          .filter(msg => {
+            // Strip empty orphaned assistant placeholders saved from interrupted streams
+            if (msg.sender !== 'user') {
+              const hasText = Boolean(msg.text && String(msg.text).trim());
+              const hasMedia = Boolean(msg.imageUrl || msg.downloadUrl || msg.subAgentData);
+              const hasSearch = Array.isArray(msg.searchSources) && msg.searchSources.length > 0;
+              return hasText || hasMedia || hasSearch;
+            }
+            return Boolean(msg.text && String(msg.text).trim()) || Boolean(msg.imageUrl);
+          });
 
         return {
           id: session.id,
-          title: session.title,
+          title: session.title || 'Obrolan AI',
           createdAt: session.createdAt,
           updatedAt: session.updatedAt,
           messages,
           images: sessionImages
         };
-      });
+      }).filter(conv => conv.messages.length > 0 || conv.images.length > 0);
 
       return res.json({ success: true, conversations });
     } else if (req.session?.isGuest) {
@@ -5280,30 +5314,47 @@ app.post('/api/conversations', async (req, res) => {
       `);
 
       uniqueConversations.forEach(conv => {
-        if (!conv.id || !conv.title || !Array.isArray(conv.messages)) {
+        if (!conv.id || !Array.isArray(conv.messages)) {
           return; // Skip invalid conversations
         }
+
+        const sanitizedMessages = conv.messages.filter(msg => {
+          if (!msg || typeof msg !== 'object') return false;
+          const textVal = String(msg.text || msg.content || '').trim();
+          const hasMedia = Boolean(msg.imageUrl || (Array.isArray(msg.imageUrls) && msg.imageUrls.length > 0) || msg.subAgentData || msg.downloadUrl);
+          const hasSearch = Array.isArray(msg.searchSources) && msg.searchSources.length > 0;
+          if (msg.sender !== 'user' && !textVal && !hasMedia && !hasSearch) {
+            return false; // Skip empty orphaned assistant placeholder
+          }
+          return true;
+        });
+
+        if (sanitizedMessages.length === 0) {
+          return; // Skip saving empty ghost conversations
+        }
+
+        const firstUserMsg = sanitizedMessages.find(m => m.sender === 'user' && String(m.text || m.content || '').trim());
+        const safeTitle = (conv.title && String(conv.title).trim()) ||
+          (firstUserMsg ? String(firstUserMsg.text || firstUserMsg.content).trim().slice(0, 45) : 'Obrolan AI');
 
         // Accurately compute createdAt and updatedAt for this specific conversation
         let createdAtIso;
         if (conv.createdAt) {
           const parsed = new Date(conv.createdAt);
           createdAtIso = !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date().toISOString();
-        } else if (conv.messages.length > 0 && conv.messages[0].timestamp) {
-          const parsed = new Date(conv.messages[0].timestamp);
+        } else if (sanitizedMessages[0].timestamp) {
+          const parsed = new Date(sanitizedMessages[0].timestamp);
           createdAtIso = !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date().toISOString();
         } else {
           createdAtIso = new Date().toISOString();
         }
 
         let updatedAtIso;
-        if (conv.messages.length > 0) {
-          const lastMsg = conv.messages[conv.messages.length - 1];
-          if (lastMsg && lastMsg.timestamp) {
-            const parsed = new Date(lastMsg.timestamp);
-            if (!isNaN(parsed.getTime())) {
-              updatedAtIso = parsed.toISOString();
-            }
+        const lastMsg = sanitizedMessages[sanitizedMessages.length - 1];
+        if (lastMsg && lastMsg.timestamp) {
+          const parsed = new Date(lastMsg.timestamp);
+          if (!isNaN(parsed.getTime())) {
+            updatedAtIso = parsed.toISOString();
           }
         }
         if (!updatedAtIso && conv.updatedAt) {
@@ -5317,23 +5368,23 @@ app.post('/api/conversations', async (req, res) => {
         }
 
         // Upsert session safely without primary key violation
-        upsertSession.run(conv.id, userId, conv.title, createdAtIso, updatedAtIso);
+        upsertSession.run(conv.id, userId, safeTitle, createdAtIso, updatedAtIso);
 
         // Delete old messages for this session
         db.prepare('DELETE FROM chat_messages WHERE sessionId = ?').run(conv.id);
 
-        // Insert new messages with conflict resolution
+        // Insert new messages with conflict resolution and monotonic timestamps
         const insertMsg = db.prepare(`
           INSERT OR REPLACE INTO chat_messages (id, sessionId, userId, role, content, personality, searchQuery, searchSources, searchImages, metadata, createdAt)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        // Track message IDs to detect duplicates
         const messageIds = new Set();
         const duplicateIds = [];
 
         const baseTime = Date.now();
-        conv.messages.forEach((msg, idx) => {
+        let prevTimeMs = 0;
+        sanitizedMessages.forEach((msg, idx) => {
           const msgId = msg.id || `msg_${conv.id}_${idx}_${baseTime}`;
 
           if (messageIds.has(msgId)) {
@@ -5341,13 +5392,18 @@ app.post('/api/conversations', async (req, res) => {
           }
           messageIds.add(msgId);
 
-          let msgTimestamp;
+          let msgMs = baseTime + idx * 100;
           if (msg.timestamp) {
             const parsed = new Date(msg.timestamp);
-            msgTimestamp = !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date(baseTime + idx * 100).toISOString();
-          } else {
-            msgTimestamp = new Date(baseTime + idx * 100).toISOString();
+            if (!isNaN(parsed.getTime())) {
+              msgMs = parsed.getTime();
+            }
           }
+          if (msgMs <= prevTimeMs) {
+            msgMs = prevTimeMs + 1;
+          }
+          prevTimeMs = msgMs;
+          const msgTimestamp = new Date(msgMs).toISOString();
 
           let metadataJson = null;
           if (msg.subAgentData || msg.downloadUrl || msg.fileName) {
@@ -7323,12 +7379,16 @@ app.get(['/api/images/proxy', '/api/images/proxy-download'], async (req, res) =>
     }
     const imageUrl = String(rawUrl).replace(/&amp;/g, '&').trim();
 
-    // Validate URL format
+    // Validate URL format & reject single-label incomplete domains or tracking scripts
     let parsedUrl;
     try {
       parsedUrl = new URL(imageUrl);
     } catch (_) {
       return res.status(400).json({ error: 'Invalid URL format' });
+    }
+    if (!parsedUrl.hostname || !parsedUrl.hostname.includes('.') || parsedUrl.hostname.endsWith('.') ||
+        /\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(imageUrl)) {
+      return res.status(400).json({ error: 'Invalid or non-image URL' });
     }
 
     // SSRF protection

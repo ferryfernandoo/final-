@@ -12,7 +12,7 @@ import { saveImageToGallery, downloadImageDirectly } from '../services/imageStor
 import { downloadText } from '../services/universalDownloadService';
 import { reminderService } from '../services/reminderService';
 import { API_BASE_URL } from '../apiConfig';
-import { executeWebSearch, buildGuaranteedReferenceSources, fetchImagesForQuery } from '../services/clientSearchService';
+import { executeWebSearch, buildGuaranteedReferenceSources, fetchImagesForQuery, sanitizeSearchQuery } from '../services/clientSearchService';
 import { initRealtimeSync, createTypewriter } from '../services/realtimeSyncService';
 import { registerBackHandler } from '../services/mobileNavigationService';
 import { detectLanguageSync, detectLanguageAsync, saveLanguage } from '../utils/languageDetector';
@@ -641,7 +641,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
     if (!messages || messages.length === 0) return;
     if (isPrivateChat || String(currentConversationId || '').startsWith('private_')) return;
 
-    const isStreamingActive = messages.some(m => m.isStreaming || m.isThinking || (m.sender === 'bot' && (!m.text || m.text.trim() === '')));
+    const isStreamingActive = messages.some(m => m.isStreaming || m.isThinking || m.isSearching || m.isImageGenerating || (m.sender === 'bot' && (!m.text || m.text.trim() === '')));
     if (isStreamingActive) return;
 
     const timer = setTimeout(() => {
@@ -2654,6 +2654,7 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
       // 3. Update daftar percakapan dari HP lain
       onConversationsUpdated: async () => {
+        if (isPrivateChatRef.current || isSendGeneratingRef.current) return;
         try {
           const loaded = await ConversationPersistenceService.loadConversations(isAuthenticated, isGuest);
           if (loaded && Array.isArray(loaded)) {
@@ -2706,9 +2707,10 @@ const ChatBot = ({ onLogout, user, isAuthenticated, isGuest, onNavigate, onUpdat
 
     // Catch-up polling cepat saat layar HP dibuka kembali
     const catchUpSync = async () => {
-      if (!isAuthenticated || isGuest || isSendGeneratingRef.current) return;
+      if (!isAuthenticated || isGuest || isSendGeneratingRef.current || isPrivateChatRef.current || switchingConvRef.current) return;
       try {
         const activeId = currentConversationId;
+        if (isPrivateSession(activeId)) return;
         const res = await fetch(`/api/realtime/sync-poll?activeSessionId=${encodeURIComponent(activeId || '')}`, {
           credentials: 'include'
         });
@@ -3617,7 +3619,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           },
         });
 
-        if (!response.ok) {
+        if (!response.ok && response.status !== 404) {
           console.warn('Failed to delete conversation from backend:', response.status);
           setCustomAlert({
             type: 'error',
@@ -3651,21 +3653,32 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     }
 
-    // Remove from conversations list
-    const remaining = conversations.filter((c) => c.id !== convId);
-    setConversations(remaining);
+    // Remove from conversations list using functional update to avoid stale closures
+    let nextFallbackId = null;
+    let shouldCreateFresh = false;
+    setConversations((prev) => {
+      const remaining = (prev || []).filter((c) => c && c.id !== convId);
+      if (currentConversationId === convId) {
+        if (remaining.length > 0) {
+          nextFallbackId = remaining[0].id;
+        } else {
+          shouldCreateFresh = true;
+        }
+      }
+      return remaining;
+    });
 
     // Show success feedback
     setCustomAlert({
       type: 'success',
-      message: 'Session deleted successfully'
+      message: userLanguage === 'id' ? 'Riwayat percakapan berhasil dihapus' : 'Session deleted successfully'
     });
 
     // Switch to another conversation if current one was deleted
     if (currentConversationId === convId) {
-      if (remaining.length > 0) {
-        switchConversation(remaining[0].id);
-      } else {
+      if (nextFallbackId) {
+        switchConversation(nextFallbackId);
+      } else if (shouldCreateFresh) {
         createNewConversation();
       }
     }
@@ -4123,7 +4136,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const fallbackTitle = userMsg ? userMsg.text.split('\n')[0].substring(0, 45).trim() : 'Chat Baru';
 
     // If session already has a custom title, keep it
-    if (targetConv?.title && targetConv.title !== 'Chat Baru' && targetConv.title !== 'New Chat' && targetConv.title !== 'Chat' && targetConv.title !== 'Percakapan AI') {
+    const defaultPlaceholderTitles = new Set(['Chat Baru', 'New Chat', 'Chat', 'Percakapan AI', 'Obrolan AI', 'AI Chat']);
+    if (targetConv?.title && !defaultPlaceholderTitles.has(targetConv.title.trim())) {
       return;
     }
 
@@ -7025,12 +7039,26 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       // Pre-warm server disk cache by pre-downloading candidate images in background
       if (uniqueImages.length > 0) {
         try {
-          const prewarmUrls = uniqueImages.slice(0, 8).map(i => i.url).filter(Boolean);
-          fetch('/api/images/cache-batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ urls: prewarmUrls })
-          }).catch(() => { });
+          const prewarmUrls = uniqueImages
+            .slice(0, 6)
+            .map(i => i.url)
+            .filter(u => {
+              if (!u || typeof u !== 'string') return false;
+              if (/\.php(?:[?#]|$)|\/ajax\/|\/rss\/articles\//i.test(u)) return false;
+              try {
+                const parsed = new URL(u);
+                return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname.includes('.');
+              } catch {
+                return false;
+              }
+            });
+          if (prewarmUrls.length > 0) {
+            fetch('/api/images/cache-batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ urls: prewarmUrls })
+            }).catch(() => { });
+          }
         } catch (_) { }
       }
 
@@ -7157,11 +7185,11 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // Build high-signal, rich factual context from search results for the AI
       // Provide deep snippets (~750 chars) so the AI reads concrete numbers, quotes, and facts from Google & Deepernova!
-      const topContextSources = sources.slice(0, 8);
+      const topContextSources = sources.slice(0, 6);
       const searchContext = topContextSources.map((s, idx) => {
         const engineName = s.sourceEngine || 'DeeperNova Search';
         const rankBadge = `[Sumber #${idx + 1} | Mesin: ${engineName} | Relevansi: ${Math.round(s.accuracyScore || 95)}%${s.date ? ' | Tanggal: ' + s.date : ''}]`;
-        const cleanSnippet = (s.snippet || s.description || s.content || '').slice(0, 750).trim();
+        const cleanSnippet = (s.snippet || s.description || s.content || '').slice(0, 480).trim();
         return `${rankBadge}\nJudul: ${s.title}\nURL: ${s.link}\nKutipan Teks & Bukti Fakta:\n${cleanSnippet}`;
       }).join('\n\n----------------------------------------\n\n');
 
@@ -7218,7 +7246,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       // 🌟 Extract and inject Verified Real Images for Contextual Inline Embedding
       if (uniqueImages.length > 0) {
-        const topImages = uniqueImages.slice(0, 8);
+        const topImages = uniqueImages.slice(0, 5);
         conclusionPrompt += `--- DAFTAR FOTO & GAMBAR TERVERIFIKASI DARI INTERNET ---\n` +
           `Sistem telah menemukan foto-foto nyata dari internet terkait pencarian ini:\n` +
           topImages.map((img, idx) => {
@@ -7333,7 +7361,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         searchTypingTimer = setInterval(() => {
           if (displayedSearchText.length < finalResponseText.length) {
             const diff = finalResponseText.length - displayedSearchText.length;
-            const step = getSmoothTypingStep(diff, searchStreamFinished, displayedSearchText.length, finalResponseText.length);
+            const baseStep = getSmoothTypingStep(diff, searchStreamFinished, displayedSearchText.length, finalResponseText.length);
+            const step = searchStreamFinished ? Math.max(baseStep, Math.ceil(diff / 3), 24) : baseStep;
 
             displayedSearchText += finalResponseText.substr(displayedSearchText.length, step);
 
@@ -7826,7 +7855,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         : (Array.isArray(messages) ? messages : []);
       const lastUserMsg = [...historyPool].reverse().find(m => m && (m.sender === 'user' || m.role === 'user'));
       const userPrompt = currentTurnText || (lastUserMsg ? (lastUserMsg.text || lastUserMsg.content || '') : '') || searchQuery;
-      const finalSearchQuery = searchQuery.replace(/^["']|["']$/g, '').trim();
+      const finalSearchQuery = sanitizeSearchQuery(searchQuery.replace(/^["']|["']$/g, '').trim(), userPrompt);
 
       console.log(`[ChatBot] 🔍 AI-determined SEARCH_REQUEST: "${finalSearchQuery}" (userPrompt: "${userPrompt}") for message ${messageId}`);
 

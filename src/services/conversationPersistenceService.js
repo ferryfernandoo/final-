@@ -11,6 +11,8 @@ import { getDeviceId } from './realtimeSyncService';
 const STORAGE_KEY = 'chatbot_conversations';
 
 let _memoryCache = null;
+let _lastSavedBackendHash = '';
+let _lastSavedBackendAt = 0;
 
 class ConversationPersistenceService {
   /**
@@ -53,7 +55,7 @@ class ConversationPersistenceService {
           try {
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem('cached_conversations');
-          } catch (_e) {}
+          } catch (_e) { }
           return backendConvs.length > 0 ? backendConvs : null;
         }
       } catch (err) {
@@ -135,7 +137,7 @@ class ConversationPersistenceService {
           const convs = JSON.parse(saved);
           const sizeInMB = (saved.length / 1024 / 1024).toFixed(2);
           console.log(`[ConversationPersistence] 📦 Loaded ${sizeInMB}MB from localStorage`);
-          
+
           if (Array.isArray(convs) && convs.length > 0) {
             const validConvs = convs.filter(c => c && c.id && c.messages !== undefined);
             if (validConvs.length > 0) {
@@ -186,17 +188,47 @@ class ConversationPersistenceService {
     try {
       const publicConversations = this.filterPublicConversations(conversations);
       if (publicConversations.length > 0) {
-          const validConversations = publicConversations
-            .map(conv => {
-              if (!conv.id || !conv.title || !Array.isArray(conv.messages)) {
-                console.warn('Invalid conversation structure:', conv);
-                return null;
+        const validConversations = publicConversations
+          .map(conv => {
+            if (!conv.id || !conv.title || !Array.isArray(conv.messages)) {
+              console.warn('Invalid conversation structure:', conv);
+              return null;
+            }
+            // Preserve message structure safely for localStorage
+            const processedMessages = conv.messages.map(msg => {
+              const processedMsg = {
+                ...msg,
+              };
+              if (msg.images && Array.isArray(msg.images)) {
+                processedMsg.images = msg.images.map(img => {
+                  if (img && typeof img === 'object') {
+                    return {
+                      ...img,
+                      dataUrl: img.dataUrl || null,
+                      publicUrl: img.publicUrl || null,
+                      url: img.publicUrl || img.dataUrl || img.url || null
+                    };
+                  }
+                  return img;
+                });
               }
-              // Preserve message structure safely for localStorage
-              const processedMessages = conv.messages.map(msg => {
-                const processedMsg = {
-                  ...msg,
-                };
+              // Preserve message structure safely for localStorage (strip empty unstarted bot placeholders)
+              const processedMessages = conv.messages
+                .filter(msg => {
+                  if (!msg || typeof msg !== 'object') return false;
+                  if (msg.sender === 'user') return true;
+                  const txt = typeof msg.text === 'string' ? msg.text.trim() : (typeof msg.content === 'string' ? msg.content.trim() : '');
+                  const hasMedia = Boolean(msg.imageUrl || (Array.isArray(msg.imageUrls) && msg.imageUrls.length > 0) || msg.downloadUrl || msg.subAgentData);
+                  const hasSearch = Array.isArray(msg.searchSources) && msg.searchSources.length > 0;
+                  return Boolean(txt || hasMedia || hasSearch);
+                })
+                .map(msg => {
+                  const processedMsg = {
+                    ...msg,
+                    isStreaming: false,
+                    isThinking: false,
+                    isSearching: false,
+                  };
                 if (msg.images && Array.isArray(msg.images)) {
                   processedMsg.images = msg.images.map(img => {
                     if (img && typeof img === 'object') {
@@ -227,30 +259,44 @@ class ConversationPersistenceService {
             })
             .filter(c => c !== null);
 
-          if (validConversations.length > 0) {
-            let toSave = validConversations;
-            let saved = false;
-            
-            // Try saving, if QuotaExceededError occurs, progressively trim older conversations
-            while (!saved && toSave.length > 0) {
-              try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-                saved = true;
-                console.log(`[ConversationPersistence] ✅ Saved ${toSave.length} conversations to localStorage`);
-              } catch (storageErr) {
-                if (toSave.length > 1) {
-                  // Keep the most recent conversations
-                  const newLen = Math.max(1, Math.floor(toSave.length * 0.75));
-                  console.warn(`[ConversationPersistence] QuotaExceeded, trimming to ${newLen} recent conversations`);
-                  toSave = toSave.slice(-newLen);
-                } else {
-                  console.warn('[ConversationPersistence] Could not fit single conversation into localStorage:', storageErr.message);
-                  break;
-                }
+            const totalImageCount = processedMessages.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
+            console.log(`[ConversationPersistence] Saving conversation "${conv.title}" (${processedMessages.length} messages, ${totalImageCount} images)`);
+
+            return {
+              id: conv.id,
+              title: conv.title,
+              messages: processedMessages,
+              createdAt: conv.createdAt || new Date().toISOString(),
+              updatedAt: conv.updatedAt || new Date().toISOString(),
+              isPrivate: conv.isPrivate || false,
+            };
+          })
+          .filter(c => c !== null);
+
+        if (validConversations.length > 0) {
+          let toSave = validConversations;
+          let saved = false;
+
+          // Try saving, if QuotaExceededError occurs, progressively trim older conversations
+          while (!saved && toSave.length > 0) {
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+              saved = true;
+              console.log(`[ConversationPersistence] ✅ Saved ${toSave.length} conversations to localStorage`);
+            } catch (storageErr) {
+              if (toSave.length > 1) {
+                // Keep the most recent conversations
+                const newLen = Math.max(1, Math.floor(toSave.length * 0.75));
+                console.warn(`[ConversationPersistence] QuotaExceeded, trimming to ${newLen} recent conversations`);
+                toSave = toSave.slice(-newLen);
+              } else {
+                console.warn('[ConversationPersistence] Could not fit single conversation into localStorage:', storageErr.message);
+                break;
               }
             }
           }
         }
+      }
       return true;
     } catch (err) {
       console.error('Error saving to localStorage:', err);
@@ -283,55 +329,55 @@ class ConversationPersistenceService {
       const data = await response.json();
       if (data.conversations && Array.isArray(data.conversations)) {
         console.log(`[ConversationPersistence] Loaded ${data.conversations.length} conversations from backend`);
-        
+
         return data.conversations.map((conv) => {
           // Process messages and restore image URLs from images array if available
           const messages = Array.isArray(conv.messages)
             ? conv.messages.map((msg) => {
-                const processedMsg = {
-                  ...msg,
-                  sender: msg.sender === 'assistant' ? 'bot' : msg.sender,
-                  timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-                };
-                
-                // If message has imageUrl from server or embedded in text, keep it
-                let imgUrl = msg.imageUrl;
-                if (!imgUrl && msg.text) {
-                  const match = msg.text.match(/!\[.*?\]\((https?:\/\/[^\s\)]+|data:image\/[^\s\)]+)\)/i) ||
-                                msg.text.match(/\[IMAGE_URL:\s*(https?:\/\/[^\s\]]+|data:image\/[^\s\]]+)\]/i);
-                  if (match) imgUrl = match[1];
-                }
+              const processedMsg = {
+                ...msg,
+                sender: msg.sender === 'assistant' ? 'bot' : msg.sender,
+                timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+              };
 
-                if (imgUrl) {
-                  processedMsg.imageUrl = imgUrl;
-                  processedMsg.imageId = msg.imageId;
-                  processedMsg.isImage = true;
-                  console.log(`[ConversationPersistence] Message has image URL: ${imgUrl.substring(0, 80)}...`);
-                }
-                
-                return processedMsg;
-              })
+              // If message has imageUrl from server or embedded in text, keep it
+              let imgUrl = msg.imageUrl;
+              if (!imgUrl && msg.text) {
+                const match = msg.text.match(/!\[.*?\]\((https?:\/\/[^\s\)]+|data:image\/[^\s\)]+)\)/i) ||
+                  msg.text.match(/\[IMAGE_URL:\s*(https?:\/\/[^\s\]]+|data:image\/[^\s\]]+)\]/i);
+                if (match) imgUrl = match[1];
+              }
+
+              if (imgUrl) {
+                processedMsg.imageUrl = imgUrl;
+                processedMsg.imageId = msg.imageId;
+                processedMsg.isImage = true;
+                console.log(`[ConversationPersistence] Message has image URL: ${imgUrl.substring(0, 80)}...`);
+              }
+
+              return processedMsg;
+            })
             : [];
 
           // Guarantee user ask comes before bot response
           const normalizedMsgs = this.normalizeMessageOrder(messages);
-          
+
           const imageCount = normalizedMsgs.filter(m => m.imageUrl).length;
           console.log(`[ConversationPersistence] Conversation ${conv.id}: ${normalizedMsgs.length} messages, ${imageCount} with images`);
-          
+
           // Include images array for reference
           const result = {
             ...conv,
             messages: normalizedMsgs,
           };
-          
+
           // Preserve images array if it exists
           if (conv.images && Array.isArray(conv.images)) {
             result.images = conv.images;
           }
-          
+
           console.log(`[ConversationPersistence] Loaded conversation ${conv.id}: ${messages.length} messages, ${conv.images ? conv.images.length : 0} images`);
-          
+
           return result;
         });
       }
@@ -345,15 +391,96 @@ class ConversationPersistenceService {
   /**
    * Save to backend (Authenticated users)
    */
+  static sanitizeMessagesForBackend(messages = []) {
+    if (!Array.isArray(messages)) return [];
+    const cleaned = [];
+    for (const m of messages) {
+      if (!m || typeof m !== 'object') continue;
+      const text = typeof m.text === 'string' ? m.text : (typeof m.content === 'string' ? m.content : '');
+      const hasMedia = Boolean(m.imageUrl || (Array.isArray(m.imageUrls) && m.imageUrls.length > 0) || m.downloadUrl || m.subAgentData);
+      const hasSearch = Array.isArray(m.searchSources) && m.searchSources.length > 0;
+
+      // Drop unstarted / empty streaming bot placeholders so blank rows never pollute DB
+      if (m.sender !== 'user' && !text.trim() && !hasMedia && !hasSearch) {
+        continue;
+      }
+
+      const compactMsg = {
+        id: m.id,
+        sender: m.sender === 'user' ? 'user' : 'bot',
+        text: text.length > 80000 ? text.slice(0, 80000) : text,
+        timestamp: m.timestamp,
+        ...(m.personality ? { personality: m.personality } : {}),
+        ...(m.searchQuery ? { searchQuery: m.searchQuery } : {}),
+        ...(hasSearch
+          ? {
+              searchSources: m.searchSources.slice(0, 12).map((s) => ({
+                title: s.title,
+                link: s.link || s.url,
+                url: s.url || s.link,
+                domain: s.domain,
+                snippet: typeof s.snippet === 'string' ? s.snippet.slice(0, 400) : '',
+                thumbnail: s.thumbnail,
+                accuracyScore: s.accuracyScore,
+                date: s.date,
+                sourceEngine: s.sourceEngine,
+              })),
+            }
+          : {}),
+        ...(Array.isArray(m.searchImages) && m.searchImages.length > 0
+          ? { searchImages: m.searchImages.slice(0, 8) }
+          : {}),
+        ...(m.subAgentData ? { subAgentData: m.subAgentData } : {}),
+        ...(m.downloadUrl ? { downloadUrl: m.downloadUrl } : {}),
+        ...(m.fileName ? { fileName: m.fileName } : {}),
+        ...(m.downloadSummary ? { downloadSummary: m.downloadSummary } : {}),
+        ...(m.imageUrl && !String(m.imageUrl).startsWith('data:image/') ? { imageUrl: m.imageUrl } : {}),
+      };
+      cleaned.push(compactMsg);
+    }
+    return cleaned;
+  }
+
   static async saveToBackend(conversations) {
     try {
-      const publicConversations = this.filterPublicConversations(conversations).filter(
-        (c) => Array.isArray(c.messages) && c.messages.length > 0
-      );
-      if (publicConversations.length === 0) return true;
+      const sanitizedConvs = this.filterPublicConversations(conversations)
+        .map((c) => {
+          const msgs = this.sanitizeMessagesForBackend(c.messages || []);
+          const firstUser = msgs.find((m) => m.sender === 'user' && m.text?.trim());
+          const title = (c.title && String(c.title).trim()) || (firstUser ? firstUser.text.trim().slice(0, 45) : 'Obrolan AI');
+          return {
+            ...c,
+            title,
+            messages: msgs,
+          };
+        })
+        .filter((c) => c.id && c.messages.length > 0);
+
+      if (sanitizedConvs.length === 0) return true;
+
+      // Stay well below Vercel's 4.5MB serverless request body limit
+      const cappedConvs = [];
+      let runningBytes = 0;
+      const MAX_PAYLOAD_BYTES = 3.2 * 1024 * 1024;
+      for (const conv of sanitizedConvs) {
+        const chunkBytes = JSON.stringify(conv).length;
+        if (cappedConvs.length > 0 && runningBytes + chunkBytes > MAX_PAYLOAD_BYTES) {
+          break;
+        }
+        cappedConvs.push(conv);
+        runningBytes += chunkBytes;
+      }
 
       const deviceId = getDeviceId();
-      console.log(`[ConversationPersistence] Saving ${publicConversations.length} conversations to backend (device: ${deviceId})...`);
+      const bodyStr = JSON.stringify({ conversations: cappedConvs, deviceId });
+      const now = Date.now();
+      if (bodyStr === _lastSavedBackendHash && now - _lastSavedBackendAt < 15000) {
+        return true;
+      }
+      _lastSavedBackendHash = bodyStr;
+      _lastSavedBackendAt = now;
+
+      console.log(`[ConversationPersistence] Saving ${cappedConvs.length} conversations to backend (device: ${deviceId})...`);
       const response = await fetch(`${API_BASE_URL}/api/conversations`, {
         method: 'POST',
         credentials: 'include',
@@ -361,16 +488,18 @@ class ConversationPersistenceService {
           'Content-Type': 'application/json',
           'x-device-id': deviceId,
         },
-        body: JSON.stringify({ conversations: publicConversations, deviceId }),
+        body: bodyStr,
       });
 
       if (!response.ok) {
+        _lastSavedBackendHash = '';
         console.error(`Failed to save conversations: ${response.status}`);
         return false;
       }
 
       return true;
     } catch (err) {
+      _lastSavedBackendHash = '';
       console.error('Error saving to backend:', err);
       return false;
     }
@@ -381,6 +510,8 @@ class ConversationPersistenceService {
    */
   static clearMemoryCache() {
     _memoryCache = null;
+    _lastSavedBackendHash = '';
+    _lastSavedBackendAt = 0;
   }
 
   /**

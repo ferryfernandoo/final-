@@ -27,6 +27,7 @@ const DEFAULT_FREELLM_CHAT_URL = 'http://127.0.0.1:3005/v1/chat/completions';
 
 let activeProxyTargetIndex = 0;
 const keyCooldownUntilMap = new Map();
+const modelCooldownUntilMap = new Map();
 let lastEnvMtimeMs = 0;
 let lastLoadedTargetSignature = '';
 
@@ -284,7 +285,10 @@ export async function dispatchFreeLlmRequest({
     const targetKey = `${target.id}:${target.apiKey}`;
     if (deadTargets.has(targetKey)) continue;
 
-    const candidateModels = plan.modelsByPlatform[target.platform] || plan.candidateModels;
+    const baseCandidateModels = plan.modelsByPlatform[target.platform] || plan.candidateModels;
+    const nowMs = Date.now();
+    const healthyModels = baseCandidateModels.filter(m => (modelCooldownUntilMap.get(`${target.platform}:${m}`) || 0) <= nowMs);
+    const candidateModels = healthyModels.length > 0 ? healthyModels : baseCandidateModels;
     for (const modelToTry of candidateModels) {
       if (signal?.aborted) {
         return { response: null, modelUsed: null, platformUsed: null, clientAborted: true, lastError };
@@ -347,6 +351,7 @@ export async function dispatchFreeLlmRequest({
 
         if (resp.ok) {
           clearFreeLlmTargetCooldown(target);
+          modelCooldownUntilMap.delete(`${target.platform}:${modelToTry}`);
           activeProxyTargetIndex = (index + 1) % Math.max(1, getEffectiveFreeLlmTargets().length);
           const routedVia = resp.headers?.get?.('x-routed-via') || `${target.platform}/${modelToTry}`;
           console.log(`[FREELLM] ✅ Responded via ${routedVia} (requested=${requestedModel})`);
@@ -363,6 +368,10 @@ export async function dispatchFreeLlmRequest({
         if (status === 401 || status === 403) {
           markFreeLlmTargetError(target, status);
           deadTargets.add(targetKey);
+        } else if (status === 404 && target.platform === 'freellmapi') {
+          modelCooldownUntilMap.set(`${target.platform}:${modelToTry}`, Date.now() + 10 * 60 * 1000);
+        } else if (status === 429 && target.platform === 'freellmapi') {
+          modelCooldownUntilMap.set(`${target.platform}:${modelToTry}`, Date.now() + 3 * 60 * 1000);
         } else if ((status === 402 || status === 429) && target.platform !== 'freellmapi') {
           // Only cool down direct provider keys; freellmapi gateway manages per-model upstream limits internally.
           markFreeLlmTargetError(target, status);

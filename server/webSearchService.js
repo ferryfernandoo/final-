@@ -632,7 +632,13 @@ class WebSearchService {
       if (!u || typeof u !== 'string') return;
       const cleanU = u.replace(/&amp;/g, '&').trim();
       if (!cleanU.startsWith('http://') && !cleanU.startsWith('https://')) return;
-      if (cleanU.endsWith('/') || cleanU.endsWith('.php') || cleanU.endsWith('.asp') || cleanU.endsWith('.jsp') || cleanU.includes('favicons?sz=') || cleanU.includes('.ico') || cleanU.startsWith('data:image/svg')) return;
+      if (cleanU.endsWith('/') || cleanU.includes('.php') || cleanU.includes('/ajax/') || cleanU.includes('/rss/articles/') || cleanU.endsWith('.asp') || cleanU.endsWith('.jsp') || cleanU.includes('favicons?sz=') || cleanU.includes('.ico') || cleanU.startsWith('data:image/svg')) return;
+      try {
+        const parsedImg = new URL(cleanU);
+        if (!parsedImg.hostname || !parsedImg.hostname.includes('.')) return;
+      } catch {
+        return;
+      }
       if (seen.has(cleanU)) return;
       seen.add(cleanU);
       let dom = '';
@@ -700,9 +706,13 @@ class WebSearchService {
    * Automatically handles comparison queries by fetching balanced intelligence for both sides.
    */
   async searchGoogle(query, maxResults = 8, language = 'id') {
-    const cleanQ = (query || '').trim();
+    let cleanQ = (query || '').trim();
     if (!cleanQ) {
       return { success: false, error: 'Query kosong', results: [] };
+    }
+    if (/^(?:kata\s*kunci(?:\s+pencarian)?(?:\s+spesifik)?(?:\s+pilihan(?:\s*mu|\s*anda))?|targeted\s+search\s+keywords?|your\s+chosen.*)$/i.test(cleanQ) ||
+        /\b(?:kata\s+kunci\s+pencarian|pilihan(?:\s*mu|\s*anda)|targeted\s+search\s+keywords?)\b/i.test(cleanQ)) {
+      cleanQ = language === 'en' ? 'latest breaking news today' : 'berita terkini hari ini Indonesia';
     }
 
     const cacheKey = `${cleanQ.toLowerCase()}:${maxResults}:${language}`;

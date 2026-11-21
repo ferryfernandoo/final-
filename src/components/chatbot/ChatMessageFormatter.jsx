@@ -464,10 +464,11 @@ export const formatMessageContent = ({
     const rawChildren = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
 
     // Intercept image target URLs (Google thumbnails, image extensions, image CDNs, photo-label links)
-    // to prevent rendering them as raw text links or citation pills
+    // to prevent rendering HTML news articles as broken images
+    const isLikelyWebPageUrl = /\.(?:html?|php|asp|jsp)(?:[?#]|$)|\/(?:berita|news|article|artikel|read|rss\/articles)\//i.test(targetUrl);
     const isImageTarget =
       isLikelyImageUrl(targetUrl) ||
-      (isImageLabelText(rawChildren) && isValidRenderableImageSrc(targetUrl));
+      (!isLikelyWebPageUrl && isImageLabelText(rawChildren) && isValidRenderableImageSrc(targetUrl));
 
     if (isImageTarget) {
       return renderMarkdownFigure(targetUrl, rawChildren);
