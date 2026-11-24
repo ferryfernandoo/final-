@@ -1,130 +1,150 @@
 /**
- * Landing Page Translations Dictionary
+ * Landing Page Translations Dictionary — Clean, Concise & Professional
  * Languages: Indonesian ('id'), English ('en'), Chinese ('zh')
  */
 
 export const landingTranslations = {
   id: {
     nav: {
-      agent: 'AI Agent',
       products: 'Produk',
-      features: 'Fitur',
+      features: 'Keunggulan',
+      download: 'Aplikasi',
       api: 'API',
       faq: 'FAQ',
       help: 'Bantuan',
-      login: 'Login',
+      login: 'Masuk',
       startChat: 'Mulai Chat',
-      language: 'Bahasa',
-      download: 'Unduh APK'
-    },
-    download: {
-      eyebrow: 'Aplikasi Android Resmi · Cloudflare Edge CDN',
-      heading: 'Unduh Deepernova untuk Android',
-      sub: 'Performa native layar penuh tanpa hambatan browser, diakselerasi langsung oleh jaringan Cloudflare Edge.',
-      searchCard: {
-        badge: 'Search Engine APK',
-        title: 'DeeperNova Search',
-        subtitle: 'Mesin Pencari Mandiri Cepat & Ringan',
-        size: '6.6 MB',
-        version: 'v1.0.0',
-        feature1: 'Pencarian mandiri tanpa iklan & tracker',
-        feature2: 'Layar penuh native PWA hemat baterai',
-        btn: 'Unduh Search APK',
-        btnSub: '6.6 MB · Cloudflare Edge'
-      },
-      aiCard: {
-        badge: 'AI Cloud Assistant APK',
-        title: 'DeeperNova AI Assistant',
-        subtitle: 'Asisten AI Cerdas & AI Agent Sandbox',
-        size: '13 MB',
-        version: 'v2.5.0',
-        feature1: 'Penalaran mendalam & Coding Agent',
-        feature2: 'Cloud Vault & Otomasi Dokumen Terintegrasi',
-        btn: 'Unduh DeeperNova AI APK',
-        btnSub: '13 MB · Cloudflare Edge'
-      },
-      trust: {
-        cdnTitle: 'Cloudflare Global Edge CDN',
-        cdnDesc: 'Akselerasi unduhan global instan langsung dari server edge terdekat dengan latensi minimal.',
-        securityTitle: '100% Bersih & Terverifikasi',
-        securityDesc: 'Bebas dari iklan, malware, dan pelacak pihak ketiga dengan enkripsi SSL 256-bit.',
-        compatTitle: 'Instalasi Cepat Langsung',
-        compatDesc: 'Cukup buka file .apk yang telah diunduh, lalu pilih Instal pada perangkat Android Anda.'
-      }
+      language: 'Bahasa'
     },
     hero: {
-      titleLead: 'Platform Inteligensi Artifisial',
-      titleGradient: 'Otonom & Terintegrasi',
-      titleTrail: 'Generasi Berikutnya.',
-      sub: 'Infrastruktur komputasi kognitif mutakhir yang memadukan penalaran multi-model, AI Coding Agent dengan sandbox eksekusi terisolasi, otomasi dokumen profesional, serta riset web presisi.',
-      startFreeChat: 'Eksplorasi Platform',
-      aiAgent: 'AI Agent',
-      agentBadge: 'Sandbox',
-      documentStudio: 'Cloud Vault',
-      trust: [
-        'Arsitektur Terisolasi & Aman',
-        'Sandbox Eksekusi Aman',
-        'Akselerasi Cloudflare Edge Global'
+      badge: 'DeeperNova AI · Cloud & Peramban Agent',
+      titleLead: 'Kecerdasan buatan yang ringkas,',
+      titleAccent: 'otonom di server',
+      titleTrail: 'dan aman untuk kerja nyata.',
+      sub: 'Tanya, riset web dengan Peramban Agent, bangun kode di sandbox terisolasi, dan susun dokumen profesional dalam satu ruang kerja cepat tanpa gangguan.',
+      primaryCta: 'Mulai Chat Baru',
+      secondaryCta: 'Buka AI Agent',
+      metrics: [
+        { label: 'Eksekusi Server', value: '100% Jalan di Latar' },
+        { label: 'Mode Riset', value: 'Peramban Agent Aktif' },
+        { label: 'Keamanan', value: 'Proteksi Siber Berlapis' }
       ]
     },
     products: {
       eyebrow: 'Ekosistem',
-      heading: 'Satu platform, produk terintegrasi',
+      heading: 'Empat modul inti dalam satu platform',
+      sub: 'Dirancang ringan, cepat dibuka, dan langsung fokus pada produktivitas.',
+      chat: {
+        tag: 'Utama',
+        title: 'AI Chat & Peramban Agent',
+        desc: 'Percakapan cerdas dengan penelusuran halaman web penuh, sitasi instan, dan proses server yang tetap berjalan walau Anda keluar aplikasi.',
+        link: 'Mulai Percakapan'
+      },
       agent: {
-        title: 'AI Agent',
-        desc: 'Agentic AI otonom canggih: manipulasi file sandbox, eksekusi kode terisolasi, live preview & chain of work transparan.',
-        link: 'Buka AI Agent'
-      },
-      search: {
-        title: 'Search Engine',
-        desc: 'Mesin pencari web mandiri dengan data real-time dan ringkasan AI.',
-        placeholder: 'Cari sesuatu...',
-        link: 'Buka Search Engine'
-      },
-      api: {
-        title: 'Developer API',
-        desc: 'Integrasikan model Gold 1.5 & Search API ke aplikasi Anda. 1 juta token gratis.',
-        link: 'Buka Konsol API'
+        tag: 'Sandbox',
+        title: 'Autonomous Coding Agent',
+        desc: 'Lingkungan eksekusi kode terisolasi untuk merancang, menguji, dan mempratinjau aplikasi web maupun skrip secara langsung.',
+        link: 'Buka Workspace Agent'
       },
       docs: {
-        title: 'Cloud Vault 3GB',
-        desc: 'Penyimpanan cloud terenkripsi untuk proyek kode, dokumen, dan aset AI Anda.',
-        link: 'Buka Cloud Vault'
+        tag: 'Office',
+        title: 'Typernova Document Studio',
+        desc: 'Susun dokumen Word (.docx), tabel Excel (.xlsx), dan materi presentasi PowerPoint (.pptx) secara rapi dan siap unduh.',
+        link: 'Buka Document Studio'
+      },
+      api: {
+        tag: 'Developer',
+        title: 'Search & Developer API',
+        desc: 'Integrasikan model penalaran DeeperNova dan mesin pencari real-time ke dalam sistem Anda melalui endpoint REST standar.',
+        placeholder: 'Cari di DeeperNova Search...',
+        link: 'Dokumentasi API'
       }
     },
     features: {
-      eyebrow: 'Fitur',
-      heading: 'Semua yang Anda butuhkan',
-      sub: 'Kemampuan AI lengkap dalam satu antarmuka yang sederhana.',
+      eyebrow: 'Arsitektur & Keamanan',
+      heading: 'Cepat, tangguh, dan terlindungi dari serangan siber',
       items: [
-        { icon: 'fa-comments', title: 'Multi-Model Chat', desc: 'Penalaran mendalam, coding, dan obrolan multi-bahasa.' },
-        { icon: 'fa-code', title: 'Coding Agent & IDE', desc: 'Cloud sandbox dengan live web preview otomatis.' },
-        { icon: 'fa-file-lines', title: 'Otomasi Dokumen AI', desc: 'Buat Word, Excel, dan PowerPoint secara instan.' },
-        { icon: 'fa-image', title: 'Vision & Gambar', desc: 'Analisis foto, OCR teks, dan generate gambar.' },
-        { icon: 'fa-brain', title: 'Memory Bank', desc: 'Mengingat preferensi dan konteks penting Anda.' },
-        { icon: 'fa-shield-halved', title: 'Cloud Vault 3GB', desc: 'Penyimpanan dokumen terenkripsi dan aman.' }
+        {
+          icon: 'fa-server',
+          title: 'Pemrosesan Penuh di Server',
+          desc: 'Jawaban dan tugas agent diproses mandiri di server. Keluar dan masuk kembali ke aplikasi kapan saja tanpa memutus proses.'
+        },
+        {
+          icon: 'fa-compass',
+          title: 'Mode Peramban Agent',
+          desc: 'AI mampu menjelajahi dan membaca isi halaman web secara langsung untuk merangkum fakta akurat tanpa membuang waktu.'
+        },
+        {
+          icon: 'fa-shield-halved',
+          title: 'Pertahanan Siber Ekstra Kuat',
+          desc: 'Dilengkapi firewall anti-SSRF, proteksi DNS rebinding, filter injeksi prompt, pembatas brute-force, dan isolasi sandbox.'
+        },
+        {
+          icon: 'fa-bolt',
+          title: 'Respons Ringan & Instan',
+          desc: 'Masuk langsung ke obrolan baru yang bersih tanpa jeda pemuatan riwayat berat, dengan sitasi ringkas bebas URL panjang.'
+        },
+        {
+          icon: 'fa-layer-group',
+          title: 'Orkestrasi Sub-Agent Otomatis',
+          desc: 'Kesadaran agentic penuh untuk merencanakan arsitektur, membangun kode multi-berkas, dan memverifikasi hasil secara otomatis.'
+        },
+        {
+          icon: 'fa-lock',
+          title: 'Privasi & Penyimpanan Terenkripsi',
+          desc: 'Mendukung mode tamu instan maupun akun tersinkronisasi lintas perangkat dengan perlindungan sesi berstandar tinggi.'
+        }
       ]
     },
+    download: {
+      eyebrow: 'Aplikasi Mobile',
+      heading: 'Tersedia untuk perangkat Android',
+      sub: 'Unduh paket instalasi resmi yang ringan dan bebas iklan untuk akses layar penuh.',
+      aiApp: {
+        title: 'DeeperNova AI Assistant',
+        meta: 'v2.5 · 13 MB · Android 5.0+',
+        desc: 'AI Chat, Mode Peramban Agent, Sub-Agent Orchestrator, dan Document Studio dalam satu aplikasi ringan.',
+        btn: 'Unduh APK AI'
+      },
+      searchApp: {
+        title: 'DeeperNova Search',
+        meta: 'v1.0 · 6.6 MB · Android 5.0+',
+        desc: 'Mesin pencari independen bebas pelacak dengan ringkasan cepat dan konsumsi baterai minimal.',
+        btn: 'Unduh APK Search'
+      }
+    },
     faq: {
-      eyebrow: 'FAQ',
-      heading: 'Pertanyaan umum',
+      eyebrow: 'Tanya Jawab',
+      heading: 'Pertanyaan yang sering diajukan',
       items: [
-        { q: 'Apakah Deepernova AI gratis?', a: 'Ya, seluruh fitur utama dapat digunakan 100% gratis tanpa biaya langganan.' },
-        { q: 'Apakah wajib mendaftar akun?', a: 'Tidak. Anda bisa langsung menggunakan Mode Tamu tanpa perlu login.' },
-        { q: 'Format dokumen apa saja yang didukung?', a: 'Microsoft Word (.docx), Microsoft Excel (.xlsx), dan PowerPoint (.pptx).' },
-        { q: 'Bagaimana keamanan data saya?', a: 'Pada mode lokal, data tersimpan di perangkat Anda. Sesi akun dilindungi enkripsi penuh.' }
+        {
+          q: 'Apakah saya harus login terlebih dahulu untuk mencoba AI?',
+          a: 'Tidak. Anda dapat langsung memulai obrolan baru dalam Mode Tamu, dan masuk ke akun kapan saja melalui tombol Login di bilah sisi kiri bawah.'
+        },
+        {
+          q: 'Apa yang terjadi jika saya menutup aplikasi saat AI sedang menjawab?',
+          a: 'Proses pembuatan jawaban dan eksekusi agent berjalan sepenuhnya di server, sehingga tidak akan terputus dan tetap tersimpan saat Anda kembali.'
+        },
+        {
+          q: 'Bagaimana keamanan data dan sistem dari ancaman siber?',
+          a: 'Seluruh permintaan melewati lapisan firewall anti-injeksi, validasi DNS/SSRF ketat pada peramban otonom, serta isolasi eksekusi kode di server.'
+        },
+        {
+          q: 'Apakah DeeperNova AI gratis digunakan?',
+          a: 'Ya, fitur percakapan utama, pencarian real-time, peramban agent, dan pembuatan dokumen dapat digunakan secara gratis.'
+        }
       ]
     },
     cta: {
-      heading: 'Siap mencoba Deepernova?',
-      sub: 'Gratis dan langsung bisa dipakai dari browser Anda.',
-      button: 'Mulai Chat Sekarang'
+      heading: 'Mulai bekerja lebih cerdas hari ini.',
+      sub: 'Langsung buka ruang obrolan baru yang bersih, ringan, dan siap pakai.',
+      button: 'Buka Chat Baru'
     },
     footer: {
-      chat: 'Chat',
-      documentStudio: 'Cloud Vault',
-      universe: 'Universe',
-      searchEngine: 'Search Engine',
+      chat: 'AI Chat',
+      agent: 'AI Agent',
+      docs: 'Document Studio',
+      search: 'Search Engine',
       api: 'Developer API',
       help: 'Pusat Bantuan',
       copyright: 'PT Deepernova AI Indonesia'
@@ -132,125 +152,145 @@ export const landingTranslations = {
   },
   en: {
     nav: {
-      agent: 'AI Agent',
       products: 'Products',
-      features: 'Features',
+      features: 'Security',
+      download: 'Mobile App',
       api: 'API',
       faq: 'FAQ',
       help: 'Help',
       login: 'Log In',
       startChat: 'Start Chat',
-      language: 'Language',
-      download: 'Download APK'
-    },
-    download: {
-      eyebrow: 'Official Android Apps · Cloudflare Edge CDN',
-      heading: 'Download Deepernova for Android',
-      sub: 'Fast standalone native experience accelerated directly by the Cloudflare Edge network.',
-      searchCard: {
-        badge: 'Search Engine APK',
-        title: 'DeeperNova Search',
-        subtitle: 'Autonomous Real-Time Search Engine',
-        size: '6.6 MB',
-        version: 'v1.0.0',
-        feature1: 'Ad-free independent web search & zero trackers',
-        feature2: 'Full-screen distraction-free native PWA',
-        btn: 'Download Search APK',
-        btnSub: '6.6 MB · Cloudflare Edge'
-      },
-      aiCard: {
-        badge: 'AI Cloud Assistant APK',
-        title: 'DeeperNova AI Assistant',
-        subtitle: 'Intelligent AI Reasoning & Workspace Studio',
-        size: '13 MB',
-        version: 'v2.5.0',
-        feature1: 'Deep reasoning & Coding Agent Sandbox',
-        feature2: 'Built-in Cloud Vault & Document Automation',
-        btn: 'Download DeeperNova AI APK',
-        btnSub: '13 MB · Cloudflare Edge'
-      },
-      trust: {
-        cdnTitle: 'Cloudflare Global Edge CDN',
-        cdnDesc: 'Instant global edge acceleration with low latency & high bandwidth.',
-        securityTitle: '100% Clean & Verified',
-        securityDesc: 'Malware-free, SHA-256 verified signature, and zero personal tracking.',
-        compatTitle: 'Quick & Direct Installation',
-        compatDesc: 'Simply tap the downloaded .apk file and choose Install on your Android device.'
-      }
+      language: 'Language'
     },
     hero: {
-      titleLead: 'Next-Generation Autonomous',
-      titleGradient: 'Cognitive Intelligence',
-      titleTrail: 'Engineered for Performance.',
-      sub: 'An integrated cognitive infrastructure uniting state-of-the-art multi-model reasoning, autonomous coding agents in isolated sandboxes, professional document orchestration, and precision web intelligence.',
-      startFreeChat: 'Explore Platform',
-      aiAgent: 'AI Agent',
-      agentBadge: 'Sandbox',
-      documentStudio: 'Cloud Vault',
-      trust: [
-        'Isolated & Secure Architecture',
-        'Secure Execution Sandbox',
-        'Accelerated by Cloudflare Edge CDN'
+      badge: 'DeeperNova AI · Cloud & Browser Agent',
+      titleLead: 'Clean, fast artificial intelligence,',
+      titleAccent: 'autonomous on server',
+      titleTrail: 'and hardened for real work.',
+      sub: 'Chat, browse live web pages with Browser Agent, execute code in isolated sandboxes, and generate professional documents in one distraction-free workspace.',
+      primaryCta: 'Start New Chat',
+      secondaryCta: 'Open AI Agent',
+      metrics: [
+        { label: 'Server Execution', value: '100% Background Safe' },
+        { label: 'Web Research', value: 'Autonomous Browser Agent' },
+        { label: 'Cyber Defense', value: 'Multi-Layer Shield' }
       ]
     },
     products: {
       eyebrow: 'Ecosystem',
-      heading: 'One platform, integrated products',
+      heading: 'Four core modules in one unified platform',
+      sub: 'Engineered to stay lightweight, open instantly, and focus on real output.',
+      chat: {
+        tag: 'Core',
+        title: 'AI Chat & Browser Agent',
+        desc: 'Intelligent dialogue with full-page web reading, compact citations, and background server execution that continues even if you close the app.',
+        link: 'Start Chatting'
+      },
       agent: {
-        title: 'AI Agent',
-        desc: 'Advanced autonomous Agentic AI: sandbox file manipulation, isolated code execution, live preview & transparent chain of work.',
-        link: 'Open AI Agent'
-      },
-      search: {
-        title: 'Search Engine',
-        desc: 'Independent web search engine with real-time crawling and AI summaries.',
-        placeholder: 'Search anything...',
-        link: 'Open Search Engine'
-      },
-      api: {
-        title: 'Developer API',
-        desc: 'Integrate Gold 1.5 models & Search API into your applications. 1 million free tokens.',
-        link: 'Open API Console'
+        tag: 'Sandbox',
+        title: 'Autonomous Coding Agent',
+        desc: 'Isolated cloud code execution environment to architect, run, and live-preview web apps and scripts.',
+        link: 'Open Agent Workspace'
       },
       docs: {
-        title: 'Cloud Vault 3GB',
-        desc: 'Encrypted cloud storage for your code projects, documents, and AI assets.',
-        link: 'Open Cloud Vault'
+        tag: 'Office',
+        title: 'Typernova Document Studio',
+        desc: 'Generate clean Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) deliverables ready for download.',
+        link: 'Open Document Studio'
+      },
+      api: {
+        tag: 'Developer',
+        title: 'Search & Developer API',
+        desc: 'Integrate DeeperNova reasoning models and real-time search into your stack via clean REST endpoints.',
+        placeholder: 'Search with DeeperNova...',
+        link: 'API Documentation'
       }
     },
     features: {
-      eyebrow: 'Features',
-      heading: 'Everything you need',
-      sub: 'Comprehensive AI capabilities in one simple, elegant interface.',
+      eyebrow: 'Architecture & Security',
+      heading: 'Fast, resilient, and hardened against cyber threats',
       items: [
-        { icon: 'fa-comments', title: 'Multi-Model Chat', desc: 'Deep reasoning, coding, and multilingual conversation.' },
-        { icon: 'fa-code', title: 'Coding Agent & IDE', desc: 'Cloud sandbox with automatic live web previews.' },
-        { icon: 'fa-file-lines', title: 'AI Document Suite', desc: 'Generate Word, Excel, and PowerPoint documents instantly.' },
-        { icon: 'fa-image', title: 'Vision & Imaging', desc: 'Photo analysis, OCR text extraction, and image generation.' },
-        { icon: 'fa-brain', title: 'Memory Bank', desc: 'Remembers your preferences and critical context.' },
-        { icon: 'fa-shield-halved', title: 'Cloud Vault 3GB', desc: 'Encrypted, secure document and project storage.' }
+        {
+          icon: 'fa-server',
+          title: 'Full Server-Side Execution',
+          desc: 'Responses and agent workflows run independently on the server. Leave and return to the app anytime without interrupting progress.'
+        },
+        {
+          icon: 'fa-compass',
+          title: 'Browser Agent Mode',
+          desc: 'Autonomously navigates and extracts full web page content to verify facts accurately and concisely.'
+        },
+        {
+          icon: 'fa-shield-halved',
+          title: 'Hardened Cyber Security',
+          desc: 'Protected by anti-SSRF DNS verification, prompt-injection firewalls, brute-force lockouts, and sandbox isolation.'
+        },
+        {
+          icon: 'fa-bolt',
+          title: 'Zero-Delay Clean Start',
+          desc: 'Opens directly in a fresh empty chat with zero blocking history lag and compact URL-free citations.'
+        },
+        {
+          icon: 'fa-layer-group',
+          title: 'Proactive Agentic Flow',
+          desc: 'Intrinsic agentic awareness to plan architectures, synthesize multi-file projects, and verify deliverables.'
+        },
+        {
+          icon: 'fa-lock',
+          title: 'Encrypted Session Privacy',
+          desc: 'Supports instant Guest access and cross-device authenticated accounts with strict session protection.'
+        }
       ]
+    },
+    download: {
+      eyebrow: 'Mobile Apps',
+      heading: 'Available for Android devices',
+      sub: 'Lightweight, ad-free official packages for distraction-free native access.',
+      aiApp: {
+        title: 'DeeperNova AI Assistant',
+        meta: 'v2.5 · 13 MB · Android 5.0+',
+        desc: 'AI Chat, Browser Agent Mode, Sub-Agent Orchestrator, and Document Studio in one compact app.',
+        btn: 'Download AI APK'
+      },
+      searchApp: {
+        title: 'DeeperNova Search',
+        meta: 'v1.0 · 6.6 MB · Android 5.0+',
+        desc: 'Independent tracker-free search engine with instant answers and minimal battery usage.',
+        btn: 'Download Search APK'
+      }
     },
     faq: {
       eyebrow: 'FAQ',
-      heading: 'Frequently Asked Questions',
+      heading: 'Frequently asked questions',
       items: [
-        { q: 'Is Deepernova AI free?', a: 'Yes, all core features are 100% free to use with no subscription required.' },
-        { q: 'Do I need to create an account?', a: 'No. You can immediately jump in with Guest Mode without logging in.' },
-        { q: 'What document formats are supported?', a: 'Microsoft Word (.docx), Microsoft Excel (.xlsx), and PowerPoint (.pptx).' },
-        { q: 'How safe is my data?', a: 'In local mode, data remains on your device. Authenticated account sessions are protected with end-to-end encryption.' }
+        {
+          q: 'Do I need to log in before using the AI?',
+          a: 'No. You enter a clean New Chat immediately as a Guest, and can sign in anytime using the Login button in the bottom-left sidebar.'
+        },
+        {
+          q: 'What happens if I exit the app while the AI is generating?',
+          a: 'All AI generation and agent tasks run 100% on the server, so processing continues uninterrupted and is ready when you return.'
+        },
+        {
+          q: 'How is the platform protected against cyber attacks?',
+          a: 'Requests pass through multi-layer anti-injection filters, DNS-verified SSRF guards on the Browser Agent, and strict sandbox isolation.'
+        },
+        {
+          q: 'Is DeeperNova AI free to use?',
+          a: 'Yes, core chat, real-time web research, browser agent mode, and document creation are free to use.'
+        }
       ]
     },
     cta: {
-      heading: 'Ready to experience Deepernova?',
-      sub: 'Free and instantly accessible directly from your browser.',
-      button: 'Start Chatting Now'
+      heading: 'Start working smarter today.',
+      sub: 'Jump straight into a clean, fast, distraction-free chat workspace.',
+      button: 'Open New Chat'
     },
     footer: {
-      chat: 'Chat',
-      documentStudio: 'Cloud Vault',
-      universe: 'Universe',
-      searchEngine: 'Search Engine',
+      chat: 'AI Chat',
+      agent: 'AI Agent',
+      docs: 'Document Studio',
+      search: 'Search Engine',
       api: 'Developer API',
       help: 'Help Center',
       copyright: 'PT Deepernova AI Indonesia'
@@ -258,125 +298,145 @@ export const landingTranslations = {
   },
   zh: {
     nav: {
-      agent: 'AI 智能体',
       products: '产品',
-      features: '功能特性',
-      api: 'API 接口',
-      faq: '常见问题',
-      help: '帮助中心',
+      features: '安全架构',
+      download: '客户端',
+      api: 'API',
+      faq: '问答',
+      help: '帮助',
       login: '登录',
       startChat: '开始对话',
-      language: '语言',
-      download: '下载 APK'
-    },
-    download: {
-      eyebrow: '官方安卓客户端 · Cloudflare Edge CDN 加速',
-      heading: '下载 Deepernova 安卓客户端 (.APK)',
-      sub: '独立原生全屏体验，由 Cloudflare 全球边缘 CDN 强力加速与安全守护。',
-      searchCard: {
-        badge: '独立搜索引擎 APK',
-        title: 'DeeperNova Search',
-        subtitle: '极速轻量独立搜索引擎',
-        size: '6.6 MB',
-        version: 'v1.0.0',
-        feature1: '独立实时网页检索，无广告追踪',
-        feature2: '原生全屏极简浏览体验',
-        btn: '下载 Search APK',
-        btnSub: '6.6 MB · Cloudflare Edge'
-      },
-      aiCard: {
-        badge: 'AI 智能助手 APK',
-        title: 'DeeperNova AI Assistant',
-        subtitle: '深度推理智能助手与工作空间',
-        size: '13 MB',
-        version: 'v2.5.0',
-        feature1: '深度推理大模型与编程沙箱',
-        feature2: '集成云端保险库与智能文档生成',
-        btn: '下载 DeeperNova AI APK',
-        btnSub: '13 MB · Cloudflare Edge'
-      },
-      trust: {
-        cdnTitle: 'Cloudflare 全球边缘 CDN',
-        cdnDesc: '全球超低延迟分布式边缘网络，秒级极速下载。',
-        securityTitle: '100% 安全纯净认证',
-        securityDesc: '无恶意软件、SHA-256 签名校验、零广告追踪。',
-        compatTitle: '极速直接安装',
-        compatDesc: '下载完成后直接点击 .apk 文件并选择安装即可开始使用。'
-      }
+      language: '语言'
     },
     hero: {
-      titleLead: '新一代自主',
-      titleGradient: '认知智能基础设施',
-      titleTrail: '驱动企业级极致效能。',
-      sub: '深度融合多模型前沿推理、隔离沙箱代码执行的自主 AI Coding Agent、自动化专业文档编排（Word/Excel/PPT）与实时全网情报检索的一体化平台。',
-      startFreeChat: '立即探索平台',
-      aiAgent: 'AI 智能体',
-      agentBadge: '沙箱环境',
-      documentStudio: '云端保险库',
-      trust: [
-        '高规格隔离安全架构',
-        '高安全隔离运行沙箱',
-        'Cloudflare 全球边缘 CDN 加速'
+      badge: 'DeeperNova AI · 云端与浏览器智能体',
+      titleLead: '轻量、极速、专业的人工智能，',
+      titleAccent: '全服务端自主运行',
+      titleTrail: '多重网络安全防护。',
+      sub: '集智能对话、自主浏览器检索 (Browser Agent)、隔离代码沙箱与专业文档生成于一体的极简高效工作台。',
+      primaryCta: '开启新对话',
+      secondaryCta: '打开 AI Agent',
+      metrics: [
+        { label: '服务端运行', value: '后台持续不中断' },
+        { label: '深度检索', value: '自主浏览器智能体' },
+        { label: '安全防线', value: '多层网络攻防加固' }
       ]
     },
     products: {
-      eyebrow: '产品生态',
-      heading: '统一平台，深度整合产品',
+      eyebrow: '核心生态',
+      heading: '四大核心模块，极简统一体验',
+      sub: '摒弃冗余设计，秒级响应，专注于高质量产出。',
+      chat: {
+        tag: '核心',
+        title: 'AI 对话与浏览器智能体',
+        desc: '支持深度网页阅读、精简引用角标，且生成任务在服务端独立运行，退出应用也不中断。',
+        link: '立即对话'
+      },
       agent: {
-        title: 'AI 智能体 (Agent)',
-        desc: '前沿自主 AI Agent：沙箱文件管理、隔离代码执行、实时网页预览与透明工作流。',
-        link: '开启 AI 智能体'
-      },
-      search: {
-        title: '搜索引擎',
-        desc: '独立的实时网络搜索引擎，具备毫秒级抓取与 AI 智能摘要。',
-        placeholder: '搜索任何内容...',
-        link: '打开搜索引擎'
-      },
-      api: {
-        title: '开发者 API',
-        desc: '将 Gold 1.5 模型与搜索 API 集成至您的应用中，免费获赠 100 万 Token。',
-        link: '打开 API 控制台'
+        tag: '沙箱',
+        title: '自主编程智能体',
+        desc: '安全隔离的云端代码执行环境，支持构建、验证与实时预览 Web 应用。',
+        link: '进入编程工作台'
       },
       docs: {
-        title: '3GB 专属云端保险库',
-        desc: '高规格加密云存储空间，安全管理您的代码项目、文档与 AI 生成资产。',
-        link: '打开云端保险库'
+        tag: '办公',
+        title: 'Typernova 文档工作室',
+        desc: '快速生成排版规范的 Word (.docx)、Excel (.xlsx) 与 PowerPoint (.pptx) 文档。',
+        link: '打开文档工作室'
+      },
+      api: {
+        tag: '开发者',
+        title: '搜索引擎与开发者 API',
+        desc: '通过标准 REST 接口轻松接入 DeeperNova 推理模型与实时检索能力。',
+        placeholder: '使用 DeeperNova 搜索...',
+        link: '查看 API 文档'
       }
     },
     features: {
-      eyebrow: '功能特性',
-      heading: '满足您所有需求',
-      sub: '极简优雅界面，聚合全方位 AI 生产力。',
+      eyebrow: '性能与网络安全',
+      heading: '轻量高速，抵御全方位网络攻击',
       items: [
-        { icon: 'fa-comments', title: '多模型对话', desc: '深度推理、专业编程与流畅多语言交流。' },
-        { icon: 'fa-code', title: '编程 Agent & IDE', desc: '云端沙箱环境，支持自动实时网页预览。' },
-        { icon: 'fa-file-lines', title: 'AI 智能文档生成', desc: '秒级即时生成 Word、Excel 和 PowerPoint 格式文档。' },
-        { icon: 'fa-image', title: '视觉解析与图像', desc: '图像视觉解析、OCR 文本提取与 AI 图像生成。' },
-        { icon: 'fa-brain', title: '智能记忆库', desc: '智能记忆您的个人偏好与关键业务上下文。' },
-        { icon: 'fa-shield-halved', title: '3GB 专属云端保险库', desc: '高规格全密态加密文档与项目存储空间。' }
+        {
+          icon: 'fa-server',
+          title: '100% 服务端独立运行',
+          desc: '提问后即使关闭或切换应用，服务端依然持续完成推理与检索，随时返回查看完整结果。'
+        },
+        {
+          icon: 'fa-compass',
+          title: '自主浏览器模式',
+          desc: '深入访问并提取网页正文内容，精准核验事实，杜绝冗长链接刷屏。'
+        },
+        {
+          icon: 'fa-shield-halved',
+          title: '企业级网络安全防线',
+          desc: '内置防 SSRF/DNS 重绑定校验、提示词注入防火墙、防暴力破解与沙箱隔离。'
+        },
+        {
+          icon: 'fa-bolt',
+          title: '零延迟纯净新会话',
+          desc: '进入即开启干净空白新对话，无需等待历史记录加载。'
+        },
+        {
+          icon: 'fa-layer-group',
+          title: '智能子代理编排',
+          desc: '具备原生 Agent 自主意识，自动完成架构规划、多文件编码与质量校验。'
+        },
+        {
+          icon: 'fa-lock',
+          title: '隐私与多端同步',
+          desc: '支持免登录访客即用及加密账号多设备实时同步。'
+        }
       ]
+    },
+    download: {
+      eyebrow: '移动客户端',
+      heading: 'Android 官方轻量客户端',
+      sub: '纯净无广告安装包，提供原生全屏流畅体验。',
+      aiApp: {
+        title: 'DeeperNova AI Assistant',
+        meta: 'v2.5 · 13 MB · Android 5.0+',
+        desc: '集成 AI 对话、浏览器智能体、子代理编排与文档工作室。',
+        btn: '下载 AI 客户端'
+      },
+      searchApp: {
+        title: 'DeeperNova Search',
+        meta: 'v1.0 · 6.6 MB · Android 5.0+',
+        desc: '独立无追踪极速搜索引擎客户端。',
+        btn: '下载搜索客户端'
+      }
     },
     faq: {
       eyebrow: '常见问题',
       heading: '常见问题解答',
       items: [
-        { q: 'Deepernova AI 是免费的吗？', a: '是的，所有核心功能均 100% 免费开放使用，无需支付任何订阅费。' },
-        { q: '必须注册账号才能使用吗？', a: '不需要。您可以直接以访客模式即开即用，无需预先登录。' },
-        { q: '支持哪些文档格式？', a: '全面支持 Microsoft Word (.docx)、Excel (.xlsx) 以及 PowerPoint (.pptx)。' },
-        { q: '我的数据隐私和安全性如何？', a: '在本地模式下，数据仅保留在您的设备中；云端会话均经过全链路加密保护。' }
+        {
+          q: '必须先登录才能使用吗？',
+          a: '不需要。进入即可直接使用纯净访客新对话，随时可通过左下角侧边栏的登录按钮登录账号。'
+        },
+        {
+          q: '提问后退出应用会导致回答中断吗？',
+          a: '不会。所有推理与智能体流程均在服务端独立完成，重新进入即可查看结果。'
+        },
+        {
+          q: '系统如何保障网络安全？',
+          a: '全链路配备防注入过滤、SSRF/DNS 安全校验、请求限流与隔离沙箱保护。'
+        },
+        {
+          q: 'DeeperNova AI 是免费的吗？',
+          a: '是的，核心对话、实时搜索、浏览器智能体与文档生成均可免费使用。'
+        }
       ]
     },
     cta: {
-      heading: '准备好体验 Deepernova 了吗？',
-      sub: '完全免费，直接在浏览器中即刻开启体验。',
-      button: '立即开始对话'
+      heading: '即刻开启高效智能工作体验',
+      sub: '轻量、专业、零等待，浏览器即开即用。',
+      button: '开启新对话'
     },
     footer: {
-      chat: '在线对话',
-      documentStudio: '云端保险库',
-      universe: 'Universe 广场',
-      searchEngine: '搜索引擎',
+      chat: 'AI 对话',
+      agent: 'AI Agent',
+      docs: '文档工作室',
+      search: '搜索引擎',
       api: '开发者 API',
       help: '帮助中心',
       copyright: 'PT Deepernova AI Indonesia'

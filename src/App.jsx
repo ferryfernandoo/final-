@@ -765,13 +765,15 @@ function App() {
           <LandingPage
             onStartChat={() => {
               if (!isAuthenticated && !isGuest) {
-                setShowLoginView(true);
+                handleGuestLogin();
               }
+              setShowLoginView(false);
               handleNavigate('chat');
             }}
             onOpenOffice={() => handleNavigate('office')}
             onOpenUniverse={() => handleNavigate('universe')}
             onOpenLogin={() => {
+              setPendingPostLoginRedirect('chat');
               setShowLoginView(true);
               handleNavigate('chat');
             }}
@@ -1084,6 +1086,10 @@ function App() {
         isAuthenticated={isAuthenticated}
         isGuest={isGuest}
         onLogout={handleLogout}
+        onLoginRequest={() => {
+          setPendingPostLoginRedirect('chat');
+          setShowLoginView(true);
+        }}
         onNavigate={handleNavigate}
         onUpdateUser={handleUpdateUser}
       />

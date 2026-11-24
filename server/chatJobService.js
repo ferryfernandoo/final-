@@ -50,6 +50,9 @@ function sanitizeJobPayload(job) {
     searchSources: Array.isArray(job.searchSources) ? job.searchSources : [],
     searchImages: Array.isArray(job.searchImages) ? job.searchImages : [],
     searchSteps: Array.isArray(job.searchSteps) ? job.searchSteps : [],
+    browserPages: Array.isArray(job.browserPages) ? job.browserPages : [],
+    browserAgentMode: job.browserAgentMode || 'auto',
+    phaseDetail: job.phaseDetail || '',
     error: job.error || null,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt
@@ -107,18 +110,45 @@ function sanitizeSearchQueryServer(rawQuery = '', fallbackPrompt = '') {
   return q || String(fallbackPrompt || '').slice(0, 120);
 }
 
+function stripRawUrlsOutsideCode(text = '') {
+  if (!text || typeof text !== 'string') return text;
+  const codeMap = new Map();
+  let idx = 0;
+  let masked = text.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+    const key = `__CODE_URL_SAFE_${idx++}__`;
+    codeMap.set(key, m);
+    return key;
+  });
+  // Keep markdown image refs ![alt](url_or_foto) and relative /api links intact; strip bare external http(s):// URLs leaked as text
+  masked = masked.replace(/(!?\[[^\]]*\]\([^)]+\))|((?:https?:\/\/|www\.)[^\s<>"')\]]+)/gi, (full, mdLink, rawUrl) => {
+    if (mdLink) return mdLink;
+    if (!rawUrl) return full;
+    try {
+      const parsed = new URL(rawUrl.startsWith('www.') ? `https://${rawUrl}` : rawUrl);
+      return parsed.hostname.replace(/^www\./i, '');
+    } catch {
+      return '';
+    }
+  });
+  for (const [k, v] of codeMap.entries()) {
+    masked = masked.replace(k, v);
+  }
+  return masked;
+}
+
 function cleanAssistantStreamingText(raw = '') {
   return String(raw || '')
     .replace(/\bDoubao\b/gi, 'DeeperNova AI')
     .replace(/\bByteDance\b/gi, 'DeeperNova AI')
     .replace(/<\/?(?:think|reasoning|thought)>/gi, '')
     .replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*\]\s*/gi, '')
+    .replace(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):[^\]]*\]\s*/gi, '')
     .replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>\s*/gi, '')
     .trimStart();
 }
 
 function cleanAssistantFinalText(raw = '') {
-  return cleanAssistantStreamingText(raw).trim();
+  return stripRawUrlsOutsideCode(cleanAssistantStreamingText(raw)).trim();
 }
 
 function formatBubbleDomainServer(rawDomain = '') {
@@ -130,12 +160,11 @@ function formatBubbleDomainServer(rawDomain = '') {
 
 function replaceCitationsServer(text = '', sources = []) {
   if (!text || !Array.isArray(sources) || sources.length === 0) return text;
-  return text.replace(/\[Sumber\s*#?\s*(\d+)[^\]]*\](?!\()/gi, (match, numStr) => {
-    const idx = parseInt(numStr, 10) - 1;
-    if (idx >= 0 && idx < sources.length) {
-      const s = sources[idx];
-      if (!s?.link) return '';
-      return `[${formatBubbleDomainServer(s.domain)}](${s.link})`;
+  // Convert verbose [Sumber #N] / [Source N] tags to ultra-clean [N] markers (frontend turns [N] into interactive source pill without typing raw URLs)
+  return text.replace(/\[(?:Sumber|Source)\s*#?\s*(\d+)[^\]]*\](?!\()/gi, (match, numStr) => {
+    const idx = parseInt(numStr, 10);
+    if (idx >= 1 && idx <= sources.length) {
+      return `[${idx}]`;
     }
     return match;
   });
@@ -266,7 +295,7 @@ async function runServerSearchPipeline(job, query, userPrompt, language) {
   return { sources, verifiedImages };
 }
 
-function buildSearchConclusionMessages(job, sources, verifiedImages) {
+function buildSearchConclusionMessages(job, sources, verifiedImages, browserContextBlock = null) {
   const nowTime = new Date();
   const currentYear = nowTime.getFullYear();
   const dateFormattedId = nowTime.toLocaleDateString('id-ID', {
@@ -279,24 +308,30 @@ function buildSearchConclusionMessages(job, sources, verifiedImages) {
   const sysPrompt =
     `Kamu adalah asisten AI yang berjalan pada model ${job.model || 'Qwen 2.5 VL 72B'} melalui platform DeeperNova AI.\n` +
     `[WAKTU REAL-TIME SEKARANG]: Tahun ${currentYear}, tanggal ${dateFormattedId}.\n` +
-    `PERAN SINTESIS BERITA & HASIL PENCARIAN WEB (MUTLAK):\n` +
-    `1. STRICT ANTI-HALUSINASI: Hanya nyatakan fakta, angka, tanggal, nama tokoh, dan detail yang BENAR-BENAR ada pada data hasil pencarian web yang diberikan. DILARANG mengarang detail yang tidak tertulis di sumber.\n` +
+    `PERAN SINTESIS BERITA & HASIL PENELUSURAN WEB (MUTLAK):\n` +
+    `1. STRICT ANTI-HALUSINASI: Hanya nyatakan fakta, angka, tanggal, nama tokoh, dan detail yang BENAR-BENAR ada pada data terverifikasi yang diberikan. DILARANG mengarang detail yang tidak tertulis di sumber.\n` +
     `2. LANGSUNG KE JAWABAN: Jangan berterima kasih atas hasil pencarian. Mulai paragraf pertama langsung menjawab pertanyaan.\n` +
-    `3. FORMAT RAPI & SITASI LINK: Awali ringkasan inti, gunakan subjudul \`###\` dan poin **tebal**, cantumkan sitasi ringkas \`[Nama Web](URL)\`. Jangan mengaitkan topik percakapan lama.\n` +
-    `4. DILARANG memicu [SEARCH_REQUEST] atau [EXECUTE_SEARCH] lagi.`;
+    `3. ATURAN ANTI-URL PANJANG (ZERO-URL SPEED POLICY): DILARANG KERAS mengetik URL mentah (http://, https://, www.) di dalam teks atau link markdown — mengetik URL memakan banyak token dan memperlambat jawaban! Gunakan penanda sitasi angka singkat [1], [2], dst.\n` +
+    `4. FORMAT RAPI: Awali ringkasan inti, gunakan subjudul \`###\` dan poin **tebal**. Jangan mengaitkan topik percakapan lama.\n` +
+    `5. DILARANG memicu [SEARCH_REQUEST] atau [BROWSER_AGENT] lagi.`;
 
-  const searchContext = sources.slice(0, 6).map((s, idx) => {
-    const snippet = String(s.snippet || '').slice(0, 480).trim();
-    return `[Sumber #${idx + 1} | ${s.sourceEngine || 'Web'}${s.date ? ' | ' + s.date : ''}]\nJudul: ${s.title}\nURL: ${s.link}\nKutipan:\n${snippet}`;
-  }).join('\n\n---\n\n');
-
-  let userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"\n\n--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${searchContext || 'Tidak ada hasil teks tambahan.'}\n\n`;
-  if (verifiedImages.length > 0) {
-    userMsg += `--- DAFTAR FOTO TERVERIFIKASI ---\n` +
-      verifiedImages.slice(0, 4).map((img, i) => `[Foto #${i + 1}] "${String(img.title || '').replace(/[\[\]]/g, '').trim()}" | URL: ${img.url}`).join('\n') +
-      `\n- Boleh sisipkan foto relevan di bawah subjudul memakai \`![Keterangan](URL_Foto)\`. DILARANG mengarang URL lain.\n\n`;
+  let userMsg;
+  if (browserContextBlock) {
+    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"\n\n${browserContextBlock}\n\n`;
   } else {
-    userMsg += `- Tidak ada foto terverifikasi yang dapat ditampilkan. DILARANG menyisipkan tag atau URL gambar (![...](...)).\n\n`;
+    const searchContext = sources.slice(0, 6).map((s, idx) => {
+      const snippet = sanitizeUntrustedWebContent(String(s.snippet || '').slice(0, 520).trim());
+      return `[Sumber #${idx + 1} | Domain: ${s.domain || 'web'} | ${s.sourceEngine || 'Web'}${s.date ? ' | ' + s.date : ''}]\nJudul: ${s.title}\nKutipan:\n${snippet}`;
+    }).join('\n\n---\n\n');
+
+    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"\n\n--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${searchContext || 'Tidak ada hasil teks tambahan.'}\n\n`;
+    if (verifiedImages.length > 0) {
+      userMsg += `--- DAFTAR ID FOTO TERVERIFIKASI ---\n` +
+        verifiedImages.slice(0, 4).map((img, i) => `- foto:${i + 1} -> "${String(img.title || '').replace(/[\[\]]/g, '').trim()}"`).join('\n') +
+        `\n- Jika relevan, tampilkan foto memakai ID pendek \`![Keterangan singkat](foto:1)\`. DILARANG menulis URL gambar!\n\n`;
+    } else {
+      userMsg += `- Tidak ada foto terverifikasi. DILARANG menyisipkan tag gambar (![...](...)).\n\n`;
+    }
   }
 
   if (/\b(?:bandingkan|perbedaan|bagusan\s+mana|pilih\s+mana|vs\.?|versus|compare)\b/i.test(job.userPrompt || '')) {
@@ -419,6 +454,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
   let thinkBuffer = '';
   let insideThinkTag = false;
   let searchTagFound = null;
+  let browserTagFound = null;
   let reasoningStartMs = null;
 
   const emitReasoning = (chunk) => {
@@ -447,8 +483,14 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
     }
     rawText += chunk;
 
-    // If initial turn emits [SEARCH_REQUEST: ...], stop forwarding immediately so we run server search seamlessly
+    // If initial turn emits [BROWSER_AGENT: ...] or [SEARCH_REQUEST: ...], stop forwarding immediately so we run server search/browser seamlessly
     if (options.detectSearchFlag) {
+      const bm = rawText.match(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):\s*(.+?)\]/i);
+      if (bm && bm[1]) {
+        browserTagFound = bm[1].trim();
+        localController.abort();
+        return;
+      }
       const m = rawText.match(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/i) ||
         rawText.match(/<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i);
       if (m && m[1]) {
@@ -456,10 +498,10 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
         localController.abort();
         return;
       }
-      // Hold back rendering if leading characters are a partial search/subagent tag
+      // Hold back rendering if leading characters are a partial search/browser/subagent tag
       const trimmedLead = rawText.trimStart();
-      if (/^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(trimmedLead) ||
-          /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*$/i.test(rawText)) {
+      if (/^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB|B|BR|BRO|BROW|BROWS|BROWSE|BROWSER|O|OP|OPE|OPEN)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(trimmedLead) ||
+          /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH|BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):[^\]]*$/i.test(rawText)) {
         return;
       }
     }
@@ -545,7 +587,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
   if (externalSignal) externalSignal.removeEventListener('abort', forwardAbort);
 
   // Flush remaining buffer
-  if (thinkBuffer && !searchTagFound) {
+  if (thinkBuffer && !searchTagFound && !browserTagFound) {
     if (insideThinkTag) emitReasoning(thinkBuffer);
     else emitContent(thinkBuffer);
     thinkBuffer = '';
@@ -559,6 +601,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
     rawText,
     reasoningText,
     searchTagFound,
+    browserTagFound,
     usedStandbyFallback: false
   };
 }
@@ -632,12 +675,25 @@ function persistCompletionToChatTables(job) {
 async function executeJobInBackground(job, params) {
   const signal = job.abortController.signal;
   try {
-    let runSearchWithQuery = params.searchQuery ? sanitizeSearchQueryServer(params.searchQuery, job.userPrompt) : null;
+    const promptUrls = extractUrlsFromText(job.userPrompt || '');
+    const userWantsBrowser =
+      job.browserAgentMode === 'on' ||
+      promptUrls.length > 0 ||
+      /\b(peramban\s+agent|browser\s+agent|buka\s+(?:web|link|url|situs|halaman)|baca\s+artikel|rangkum\s+(?:web|artikel|halaman|situs)|scrape|crawl)\b/i.test(job.userPrompt || '');
+
+    let runBrowserQuery = (job.browserAgentMode === 'on' && params.searchQuery)
+      ? sanitizeSearchQueryServer(params.searchQuery, job.userPrompt)
+      : (userWantsBrowser && !params.hasImages && params.enableWebSearch !== false ? sanitizeSearchQueryServer(job.userPrompt, job.userPrompt) : null);
+
+    let runSearchWithQuery = (!runBrowserQuery && params.searchQuery)
+      ? sanitizeSearchQueryServer(params.searchQuery, job.userPrompt)
+      : null;
     let firstPass = null;
 
-    if (!runSearchWithQuery) {
+    if (!runBrowserQuery && !runSearchWithQuery) {
       job.status = 'thinking';
-      broadcastJobEvent(job, 'status', { status: 'thinking' });
+      job.phaseDetail = job.language === 'en' ? 'Analyzing your prompt...' : 'Memahami pertanyaanmu...';
+      broadcastJobEvent(job, 'status', { status: 'thinking', phaseDetail: job.phaseDetail });
       flushJobToDb(job, true);
 
       firstPass = await streamLlmToJob(
@@ -658,18 +714,130 @@ async function executeJobInBackground(job, params) {
         throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
       }
 
-      if (firstPass.searchTagFound && !params.hasImages && params.enableWebSearch !== false) {
-        runSearchWithQuery = sanitizeSearchQueryServer(firstPass.searchTagFound, job.userPrompt);
+      if (firstPass.browserTagFound && !params.hasImages && params.enableWebSearch !== false) {
+        runBrowserQuery = sanitizeSearchQueryServer(firstPass.browserTagFound, job.userPrompt);
+      } else if (firstPass.searchTagFound && !params.hasImages && params.enableWebSearch !== false) {
+        if (job.browserAgentMode === 'on') {
+          runBrowserQuery = sanitizeSearchQueryServer(firstPass.searchTagFound, job.userPrompt);
+        } else {
+          runSearchWithQuery = sanitizeSearchQueryServer(firstPass.searchTagFound, job.userPrompt);
+        }
       } else if (
         !firstPass.usedStandbyFallback &&
         params.enableWebSearch !== false &&
         shouldFallbackSearchForUncertainty(firstPass.rawText, job)
       ) {
-        runSearchWithQuery = sanitizeSearchQueryServer(job.userPrompt, job.userPrompt);
+        if (job.browserAgentMode === 'on') {
+          runBrowserQuery = sanitizeSearchQueryServer(job.userPrompt, job.userPrompt);
+        } else {
+          runSearchWithQuery = sanitizeSearchQueryServer(job.userPrompt, job.userPrompt);
+        }
       }
     }
 
-    if (runSearchWithQuery) {
+    if (runBrowserQuery) {
+      job.text = '';
+      job.reasoningText = '';
+      job.reasoningDuration = null;
+      job.status = 'searching';
+      job.searchQuery = runBrowserQuery;
+      job.phaseDetail = job.language === 'en' ? 'Browser Agent opening & reading pages...' : 'Peramban Agent sedang membaca halaman web...';
+      broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: runBrowserQuery });
+      flushJobToDb(job, true);
+
+      const browserRes = await runBrowserAgent({
+        query: runBrowserQuery,
+        userPrompt: job.userPrompt,
+        targetUrls: promptUrls,
+        language: job.language || 'id',
+        webSearchService: deps.webSearchService,
+        maxPages: 3,
+        signal,
+        onStep: (step) => {
+          if (step?.title) job.phaseDetail = step.title;
+          if (Array.isArray(step?.browserPages)) job.browserPages = step.browserPages;
+          job.searchSteps = [
+            ...(Array.isArray(job.searchSteps) ? job.searchSteps.slice(-4) : []),
+            {
+              query: step?.query || runBrowserQuery,
+              label: step?.title || 'Peramban Agent membaca halaman...',
+              isSearching: step?.phase !== 'browsing_done',
+              sources: [],
+              images: []
+            }
+          ];
+          broadcastJobEvent(job, 'status', {
+            status: 'searching',
+            phaseDetail: job.phaseDetail,
+            searchQuery: job.searchQuery,
+            searchSteps: job.searchSteps,
+            browserPages: job.browserPages
+          });
+        }
+      });
+
+      if (signal.aborted || job.stopped) {
+        throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
+      }
+
+      const bSources = Array.isArray(browserRes?.sources) ? browserRes.sources : [];
+      const bImages = Array.isArray(browserRes?.images) ? browserRes.images : [];
+      const bPages = Array.isArray(browserRes?.browserPages) ? browserRes.browserPages : [];
+
+      job.searchSources = bSources;
+      job.searchImages = bImages;
+      job.browserPages = bPages;
+      job.searchSteps = [{
+        query: runBrowserQuery,
+        label: job.language === 'id' ? `Peramban Agent membaca ${bPages.length} halaman` : `Browser Agent read ${bPages.length} pages`,
+        isSearching: false,
+        sources: bSources,
+        images: bImages
+      }];
+
+      broadcastJobEvent(job, 'search', {
+        searchQuery: job.searchQuery,
+        searchSources: bSources,
+        searchImages: bImages,
+        searchSteps: job.searchSteps,
+        browserPages: bPages
+      });
+
+      job.status = 'thinking';
+      job.phaseDetail = job.language === 'id' ? 'Menyusun ringkasan akurat...' : 'Synthesizing accurate summary...';
+      broadcastJobEvent(job, 'status', { status: 'thinking', phaseDetail: job.phaseDetail, browserPages: bPages });
+      flushJobToDb(job, true);
+
+      const browserConclusionMessages = buildSearchConclusionMessages(job, bSources, bImages, browserRes?.llmContextBlock || null);
+      const conclusionPass = await streamLlmToJob(
+        job,
+        browserConclusionMessages,
+        {
+          model: job.model,
+          enableReasoning: false,
+          hasImages: false,
+          temperature: 0.4,
+          maxTokens: 4096,
+          detectSearchFlag: false
+        },
+        signal
+      );
+
+      if (signal.aborted || job.stopped) {
+        throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
+      }
+
+      let finalBrowserText = replaceCitationsServer(cleanAssistantFinalText(conclusionPass.rawText || job.text), bSources);
+      if (!finalBrowserText || !finalBrowserText.trim()) {
+        if (bSources.length > 0) {
+          finalBrowserText = `Berdasarkan halaman yang dibaca oleh **Peramban Agent** mengenai **${job.userPrompt || job.searchQuery}**:\n\n` +
+            bSources.slice(0, 4).filter(s => s.snippet).map((s, idx) => `- **${s.title}**: ${s.snippet} [${idx + 1}]`).join('\n\n');
+        } else {
+          finalBrowserText = 'Maaf, Peramban Agent tidak menemukan konten halaman yang dapat dibaca saat ini.';
+        }
+      }
+      job.text = finalBrowserText;
+    } else if (runSearchWithQuery) {
       // Wipe any pre-search speculation before running web search
       job.text = '';
       job.reasoningText = '';
@@ -681,7 +849,8 @@ async function executeJobInBackground(job, params) {
       }
 
       job.status = 'thinking';
-      broadcastJobEvent(job, 'status', { status: 'thinking' });
+      job.phaseDetail = job.language === 'id' ? 'Merangkum fakta terverifikasi...' : 'Synthesizing verified facts...';
+      broadcastJobEvent(job, 'status', { status: 'thinking', phaseDetail: job.phaseDetail });
       flushJobToDb(job, true);
 
       const conclusionMessages = buildSearchConclusionMessages(job, sources, verifiedImages);
@@ -707,7 +876,7 @@ async function executeJobInBackground(job, params) {
       if (!finalSearchText || !finalSearchText.trim()) {
         if (sources.length > 0) {
           finalSearchText = `Berdasarkan penelusuran web terkini mengenai **${job.userPrompt || job.searchQuery}**:\n\n` +
-            sources.slice(0, 4).filter(s => s.snippet).map(s => `- **${s.title}**: ${s.snippet} [${formatBubbleDomainServer(s.domain)}](${s.link})`).join('\n\n');
+            sources.slice(0, 4).filter(s => s.snippet).map((s, idx) => `- **${s.title}**: ${s.snippet} [${idx + 1}]`).join('\n\n');
         } else {
           finalSearchText = 'Maaf, belum ditemukan hasil pencarian yang cukup jelas saat ini.';
         }
@@ -788,6 +957,9 @@ export function startChatJob(params) {
     searchSources: [],
     searchImages: [],
     searchSteps: [],
+    browserPages: [],
+    browserAgentMode: params.browserAgentMode || 'auto',
+    phaseDetail: '',
     error: null,
     stopped: false,
     createdAt: now,

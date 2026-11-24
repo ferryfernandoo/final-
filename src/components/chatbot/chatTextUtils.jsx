@@ -779,6 +779,9 @@ export const sanitizeStreamingText = (text) => {
   cleaned = cleaned.replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[\s\S]*$/gi, '');
   cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>/gi, '');
   cleaned = cleaned.replace(/<search(?:_request)?>[\s\S]*$/gi, '');
+  cleaned = cleaned.replace(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):[\s\S]*?\]/gi, '');
+  cleaned = cleaned.replace(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):[\s\S]*$/gi, '');
+  cleaned = cleaned.replace(/\[(?:BROWSER_AG|BROWSE_)[A-Z_]*$/gi, '');
   cleaned = cleaned.replace(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[\s\S]*?\]/gi, '');
   cleaned = cleaned.replace(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[\s\S]*$/gi, '');
   cleaned = cleaned.replace(/\[(?:SUB|SUBA|SUBAG|SUBAGE|SUBAGEN|SUBAGENT|ACTIVATE_SUB|AGENT_EXEC)[A-Z_]*$/gi, '');
@@ -953,4 +956,114 @@ export const humanizeClientError = (errStr) => {
     return "Akses kunci server AI sedang diperbarui. Silakan coba sesaat lagi.";
   }
   return errStr;
+};
+
+/**
+ * Natural, prompt-aware waiting messages so users see immediate contextual feedback
+ * containing keywords from their actual prompt instead of a static "Merenungi...".
+ */
+export const buildContextualWaitingMessage = (userPrompt = '', elapsedMs = 0, language = 'id', phase = 'thinking') => {
+  const raw = String(userPrompt || '').replace(/\s+/g, ' ').trim();
+  const shortSnippet = raw
+    ? (raw.length > 34 ? `${raw.slice(0, 32).trim()}...` : raw)
+    : '';
+  const quoted = shortSnippet ? `"${shortSnippet}"` : '';
+  const stepIdx = Math.floor((elapsedMs || 0) / 2500);
+
+  if (language === 'en') {
+    if (phase === 'browser') {
+      const list = quoted
+        ? [`Opening Browser Agent to read pages about ${quoted}...`, `Extracting key facts for ${quoted}...`, `Verifying web content for ${quoted}...`]
+        : ['Opening Browser Agent to inspect pages...', 'Extracting key facts...', 'Cross-checking web sources...'];
+      return list[stepIdx % list.length];
+    }
+    if (phase === 'search') {
+      const list = quoted
+        ? [`Searching live sources about ${quoted}...`, `Collecting references for ${quoted}...`, `Comparing facts for ${quoted}...`]
+        : ['Searching live sources...', 'Gathering relevant references...', 'Verifying facts...'];
+      return list[stepIdx % list.length];
+    }
+    if (phase === 'agentic' || phase === 'subagent') {
+      const list = quoted
+        ? [`Planning autonomous execution for ${quoted}...`, `Orchestrating Sub-Agent workflow for ${quoted}...`, `Building & verifying output for ${quoted}...`]
+        : ['Planning autonomous execution...', 'Orchestrating Sub-Agent workflow...', 'Verifying deliverables...'];
+      return list[stepIdx % list.length];
+    }
+    const list = quoted
+      ? [
+          `AI is imagining an answer for ${quoted}...`,
+          `Understanding the context of ${quoted}...`,
+          `Composing a clear response for ${quoted}...`,
+          `Refining details about ${quoted}...`
+        ]
+      : ['Thinking through your request...', 'Composing a clear response...', 'Refining the details...'];
+    return list[stepIdx % list.length];
+  }
+
+  if (language === 'zh') {
+    if (phase === 'browser') {
+      return quoted ? `正在启动浏览器代理读取 ${quoted} 相关网页...` : '正在启动浏览器代理读取网页...';
+    }
+    if (phase === 'search') {
+      return quoted ? `正在搜索关于 ${quoted} 的最新资料...` : '正在搜索实时参考资料...';
+    }
+    if (phase === 'agentic' || phase === 'subagent') {
+      return quoted ? `正在自主编排并构建 ${quoted}...` : '正在执行多代理自主任务...';
+    }
+    const list = quoted
+      ? [
+          `正在构思关于 ${quoted} 的最佳回答...`,
+          `正在理解 ${quoted} 的上下文...`,
+          `正在为您整理关于 ${quoted} 的回复...`
+        ]
+      : ['正在思考您的问题...', '正在组织清晰回答...', '正在优化细节...'];
+    return list[stepIdx % list.length];
+  }
+
+  if (phase === 'browser') {
+    const list = quoted
+      ? [
+          `Peramban Agent sedang membaca halaman web untuk ${quoted}...`,
+          `Sedang mengekstrak fakta akurat tentang ${quoted}...`,
+          `Menyusun ringkasan dari halaman yang dibuka untuk ${quoted}...`
+        ]
+      : ['Peramban Agent sedang menjelajahi halaman...', 'Mengekstrak inti informasi halaman...', 'Menyusun ringkasan akurat...'];
+    return list[stepIdx % list.length];
+  }
+  if (phase === 'search') {
+    const list = quoted
+      ? [
+          `Sedang mencari sumber terbaru tentang ${quoted}...`,
+          `Mengumpulkan referensi akurat untuk ${quoted}...`,
+          `Memverifikasi fakta seputar ${quoted}...`
+        ]
+      : ['Sedang menelusuri web terbaru...', 'Mengumpulkan referensi relevan...', 'Memverifikasi kebenaran fakta...'];
+    return list[stepIdx % list.length];
+  }
+  if (phase === 'agentic' || phase === 'subagent') {
+    const list = quoted
+      ? [
+          `Mengaktifkan mode Agentic otonom untuk ${quoted}...`,
+          `Merancang arsitektur & langkah kerja ${quoted}...`,
+          `Menjalankan orkestrasi Sub-Agent untuk ${quoted}...`
+        ]
+      : ['Mengaktifkan eksekusi Agentic...', 'Merancang struktur solusi...', 'Menjalankan orkestrasi Sub-Agent...'];
+    return list[stepIdx % list.length];
+  }
+
+  const list = quoted
+    ? [
+        `AI sedang membayangkan jawaban untuk ${quoted}...`,
+        `Memahami maksud dan konteks ${quoted}...`,
+        `Merangkai penjelasan yang tepat untuk ${quoted}...`,
+        `Menyiapkan poin penting seputar ${quoted}...`,
+        `Menyempurnakan jawaban untuk ${quoted}...`
+      ]
+    : [
+        'AI sedang membayangkan jawaban terbaik...',
+        'Sedang memahami pertanyaanmu...',
+        'Merangkai jawaban yang ringkas dan jelas...',
+        'Menyiapkan respons untukmu...'
+      ];
+  return list[stepIdx % list.length];
 };

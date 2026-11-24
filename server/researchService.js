@@ -37,7 +37,7 @@ export class ResearchService {
 
     // Check database cache first
     const cached = researchMemoryDb.findByQueryHash(queryHash);
-    
+
     if (!cached) {
       return { decision: 'SEARCH', reason: 'No cached data found', cached: null };
     }
@@ -144,7 +144,7 @@ export class ResearchService {
 
     // 2. Fallback to SerpAPI if configured
     const apiKey = this.getSerpApiKey();
-    
+
     // If no SERPAPI_KEY, return mock development data
     if (!apiKey) {
       console.warn('[ResearchService] Neither Deepernova nor SERPAPI_KEY responded, using mock data');
@@ -166,12 +166,12 @@ export class ResearchService {
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`SerpAPI error: ${response.status}`);
-      
+
       const data = await response.json();
 
       // Extract meaningful sources
       const sources = this.extractSources(data);
-      
+
       return {
         success: true,
         query,

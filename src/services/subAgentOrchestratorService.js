@@ -130,6 +130,15 @@ export function detectExplicitSubAgentUserIntent(userPrompt = '', attachedFiles 
     return true;
   }
 
+  // 1b. Proactive agentic activation for building apps/websites/dashboards/games/multi-file software WITHOUT requiring the word "file"
+  if (
+    /\b(buat(?:kan|in|lah)?|bikin(?:kan|in)?|bangun(?:kan)?|kembangkan|generate|create|build|develop|rancang(?:kan)?)\b/i.test(norm) &&
+    /\b(website|web\s*app|landing\s*page|aplikasi\s*(?:web)?|dashboard|kalkulator|calculator|game|portofolio|portfolio|sistem\s+kasir|toko\s*online|proyek\s+lengkap|multi[\s-]*file)\b/i.test(norm) &&
+    !/\b(gambar|foto|ilustrasi|logo|poster|wallpaper)\b/i.test(norm)
+  ) {
+    return true;
+  }
+
   // 2. Explicit file / Office / archive / project creation or modification requests (tolerant to filler words like "aku/dong/coba")
   if (
     /\b(kirim(?:kan)?\s+file(?:nya)?|export\s+(?:to|ke)\s+(?:ppt|pptx|docx|xlsx|pdf|zip)|sertakan\s+file(?:nya)?|dalam\s+bentuk\s+file)\b/i.test(norm) ||

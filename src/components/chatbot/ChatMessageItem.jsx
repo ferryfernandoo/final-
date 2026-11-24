@@ -1,13 +1,14 @@
 // ============================================================
 // Deepernova AI ChatBot — Memoized Single Message Component
 // ============================================================
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import ReminderCard from '../ReminderCard';
 import {
   getFileBadgeInfo,
   getCleanUserDisplayText,
   getMessageAttachedFiles
 } from './chatConstants';
+import { buildContextualWaitingMessage } from './chatTextUtils';
 import {
   SourceBubbleCarousel,
   ReasoningSection,
@@ -30,6 +31,8 @@ const ChatMessageItemComponent = ({
   userLanguage = 'id',
   currentModelName = 'AI',
   loadingPhase = null,
+  loadingStatusMsg = '',
+  latestUserPromptText = '',
   localModelProgress = { pct: 0, statusText: '', isLoading: false },
   hdUpscalingMap = {},
   quizSelectedAnswers,
@@ -49,6 +52,16 @@ const ChatMessageItemComponent = ({
 }) => {
   const isUser = message.sender === 'user';
   const isBot = message.sender === 'bot' || message.role === 'assistant';
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false);
+  const [isBrowserPanelOpen, setIsBrowserPanelOpen] = useState(false);
+
+  const effectiveWaitingText = (() => {
+    if (loadingStatusMsg && loadingStatusMsg.trim()) return loadingStatusMsg;
+    const phaseKey = message.isSearching
+      ? 'search'
+      : (message.subAgentData ? 'agentic' : (loadingPhase === 'sending' ? 'thinking' : 'thinking'));
+    return buildContextualWaitingMessage(latestUserPromptText || message?.userPrompt || '', 0, userLanguage, phaseKey);
+  })();
 
   return (
     <div
@@ -205,6 +218,45 @@ const ChatMessageItemComponent = ({
               </div>
             )}
 
+            {Array.isArray(message.browserPages) && message.browserPages.length > 0 && (
+              <div className="browser-agent-live-card">
+                <button
+                  type="button"
+                  className="browser-agent-card-header"
+                  onClick={() => setIsBrowserPanelOpen((prev) => !prev)}
+                >
+                  <span className="browser-agent-card-left">
+                    <span className={`browser-agent-badge-dot ${message.isStreaming ? 'pulse' : ''}`}></span>
+                    <span>
+                      {userLanguage === 'zh'
+                        ? `浏览器代理已读取 ${message.browserPages.length} 个网页`
+                        : userLanguage === 'id'
+                          ? `Peramban Agent membaca ${message.browserPages.length} halaman web`
+                          : `Browser Agent read ${message.browserPages.length} web pages`}
+                    </span>
+                  </span>
+                  <i className={`fa-solid fa-chevron-${isBrowserPanelOpen ? 'up' : 'down'}`} aria-hidden="true"></i>
+                </button>
+                {isBrowserPanelOpen && (
+                  <div className="browser-agent-pages-list">
+                    {message.browserPages.map((pg, pIdx) => (
+                      <a
+                        key={`${pg.url || pIdx}`}
+                        href={pg.url && /^https?:\/\//i.test(pg.url) ? pg.url : '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="browser-agent-page-row"
+                      >
+                        <span className="browser-agent-page-domain">{pg.domain || 'web'}</span>
+                        <span className="browser-agent-page-title">{pg.title || pg.domain || 'Halaman'}</span>
+                        {pg.wordCount ? <span style={{ opacity: 0.65 }}>{pg.wordCount} kata</span> : null}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {message.reasoningText && (
               <ReasoningSection
                 reasoningText={message.reasoningText}
@@ -223,21 +275,15 @@ const ChatMessageItemComponent = ({
                   <span></span>
                   <span></span>
                 </div>
-                {loadingPhase && (
-                  <span className="slow-processing-text">
-                    {localModelProgress?.isLoading ? (
-                      <span style={{ color: '#ea580c', fontWeight: 600 }}>
-                        ⚡ {localModelProgress.statusText || `Memuat Engine AI (${localModelProgress.pct}%)...`}
-                      </span>
-                    ) : (
-                      <>
-                        {loadingPhase === 'sending' && (userLanguage === 'id' ? 'Mengirim...' : 'Sending...')}
-                        {loadingPhase === 'thinking' && (userLanguage === 'id' ? 'Merenungi...' : 'Thinking...')}
-                        {loadingPhase === 'slow' && (userLanguage === 'id' ? 'Merespon sedikit lebih lama dari biasanya...' : 'Taking a bit longer to respond...')}
-                      </>
-                    )}
-                  </span>
-                )}
+                <span className="slow-processing-text contextual-waiting-text">
+                  {localModelProgress?.isLoading ? (
+                    <span style={{ color: '#ea580c', fontWeight: 600 }}>
+                      ⚡ {localModelProgress.statusText || `Memuat Engine AI (${localModelProgress.pct}%)...`}
+                    </span>
+                  ) : (
+                    effectiveWaitingText
+                  )}
+                </span>
               </div>
             )}
 
@@ -249,8 +295,8 @@ const ChatMessageItemComponent = ({
                   <span></span>
                   <span></span>
                 </div>
-                <span className="slow-processing-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
-                  {userLanguage === 'id' ? 'Menulis jawaban...' : 'Writing response...'}
+                <span className="slow-processing-text contextual-waiting-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
+                  {loadingStatusMsg || (userLanguage === 'id' ? 'Menyusun jawaban terbaik...' : 'Composing best response...')}
                 </span>
               </div>
             )}
@@ -263,8 +309,8 @@ const ChatMessageItemComponent = ({
                   <span></span>
                   <span></span>
                 </div>
-                <span className="slow-processing-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
-                  {userLanguage === 'id' ? 'Menulis jawaban...' : 'Writing response...'}
+                <span className="slow-processing-text contextual-waiting-text" style={{ fontStyle: 'italic', fontSize: '13px' }}>
+                  {loadingStatusMsg || effectiveWaitingText}
                 </span>
               </div>
             )}
@@ -342,24 +388,51 @@ const ChatMessageItemComponent = ({
 
             {(() => {
               const cleanedText = getCleanUserDisplayText(message);
-              return cleanedText ? (
-                <div className="user-bubble-text">
-                  <FormattedMessageBody
-                    text={cleanedText}
-                    isStreaming={false}
-                    message={message}
-                    userLanguage={userLanguage}
-                    onNavigate={onNavigate}
-                    handleImageClick={onImageClick}
-                    handleUpscaleHD={onUpscaleHD}
-                    hdUpscalingMap={hdUpscalingMap}
-                    quizSelectedAnswers={quizSelectedAnswers}
-                    quizIsSubmitted={quizIsSubmitted}
-                    setQuizSelections={setQuizSelections}
-                    setQuizSubmitted={setQuizSubmitted}
-                  />
+              if (!cleanedText) return null;
+              const lineCount = cleanedText.split('\n').length;
+              const isLongPrompt = cleanedText.length > 165 || lineCount > 3;
+              return (
+                <div className="user-bubble-body">
+                  <div className={`user-bubble-text ${isLongPrompt && !isPromptExpanded ? 'clamped-preview' : ''}`}>
+                    <FormattedMessageBody
+                      text={cleanedText}
+                      isStreaming={false}
+                      message={message}
+                      userLanguage={userLanguage}
+                      onNavigate={onNavigate}
+                      handleImageClick={onImageClick}
+                      handleUpscaleHD={onUpscaleHD}
+                      hdUpscalingMap={hdUpscalingMap}
+                      quizSelectedAnswers={quizSelectedAnswers}
+                      quizIsSubmitted={quizIsSubmitted}
+                      setQuizSelections={setQuizSelections}
+                      setQuizSubmitted={setQuizSubmitted}
+                    />
+                  </div>
+                  {isLongPrompt && (
+                    <button
+                      type="button"
+                      className={`user-bubble-expand-btn ${isPromptExpanded ? 'expanded' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsPromptExpanded((prev) => !prev);
+                      }}
+                      title={
+                        isPromptExpanded
+                          ? (userLanguage === 'id' ? 'Tampilkan ringkas' : 'Collapse prompt')
+                          : (userLanguage === 'id' ? 'Lihat prompt lengkap' : 'Show full prompt')
+                      }
+                    >
+                      <span>
+                        {isPromptExpanded
+                          ? (userLanguage === 'id' ? 'Ringkas' : 'Less')
+                          : (userLanguage === 'id' ? 'Lihat semua' : 'Full prompt')}
+                      </span>
+                      <i className="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                    </button>
+                  )}
                 </div>
-              ) : null;
+              );
             })()}
           </div>
         )}
@@ -534,7 +607,8 @@ const areMessageItemPropsEqual = (prev, next) => {
       prev.message?.memoryActions !== next.message?.memoryActions ||
       prev.message?.reminder !== next.message?.reminder ||
       prev.message?.downloadUrl !== next.message?.downloadUrl ||
-      prev.message?.subAgentData !== next.message?.subAgentData
+      prev.message?.subAgentData !== next.message?.subAgentData ||
+      prev.message?.browserPages !== next.message?.browserPages
     ) {
       return false;
     }
@@ -550,7 +624,8 @@ const areMessageItemPropsEqual = (prev, next) => {
     prev.userLanguage !== next.userLanguage ||
     prev.quizSelectedAnswers !== next.quizSelectedAnswers ||
     prev.quizIsSubmitted !== next.quizIsSubmitted ||
-    prev.hdUpscalingMap !== next.hdUpscalingMap
+    prev.hdUpscalingMap !== next.hdUpscalingMap ||
+    prev.latestUserPromptText !== next.latestUserPromptText
   ) {
     return false;
   }
@@ -558,6 +633,7 @@ const areMessageItemPropsEqual = (prev, next) => {
   if (next.message?.isStreaming || next.message?.isThinking) {
     if (
       prev.loadingPhase !== next.loadingPhase ||
+      prev.loadingStatusMsg !== next.loadingStatusMsg ||
       prev.localModelProgress !== next.localModelProgress
     ) {
       return false;

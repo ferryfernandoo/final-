@@ -1449,6 +1449,7 @@ export const startServerChatJob = async ({
   enableReasoning = false,
   enableWebSearch = true,
   isPrivateMode = false,
+  browserAgentMode = 'auto',
   userMessageId = null,
   assistantMessageId = null,
   userPrompt = '',
@@ -1480,6 +1481,21 @@ export const startServerChatJob = async ({
     isPrivateMode
   });
 
+  const enrichedMessages = Array.isArray(built.messages)
+    ? built.messages.map((m, idx) => {
+        if (idx === 0 && m?.role === 'system' && typeof m.content === 'string') {
+          const browserDir = browserAgentMode === 'on'
+            ? '\n[PERAMBAN AGENT MODE: AKTIF WAJIB] Prioritaskan membaca halaman web penuh via [BROWSER_AGENT: topik/url] untuk pertanyaan pencarian/url.'
+            : '';
+          return {
+            ...m,
+            content: `${m.content}\n\n=== ZERO-URL & PROACTIVE AGENTIC POLICY ===\n- STRICTLY FORBIDDEN to type raw URLs (http:// or https:// or www.) in explanatory text; use concise [1], [2] markers and foto:1 image IDs.\n- You are a fully Agentic AI: proactively trigger [SUBAGENT_ORCHESTRATE: ...] for file/website/app/code/office document requests or [BROWSER_AGENT: ...] to deeply read web pages.${browserDir}`
+          };
+        }
+        return m;
+      })
+    : built.messages;
+
   const deviceId = getDeviceId();
   const payload = {
     model: built.model,
@@ -1492,10 +1508,11 @@ export const startServerChatJob = async ({
     deviceId,
     language: language || (typeof localStorage !== 'undefined' ? localStorage.getItem('deepernova_language') : null) || 'id',
     personality: personality || 'mentor',
-    messages: built.messages,
+    messages: enrichedMessages,
     uploadedImages: built.uploadedImages,
     enableReasoning: built.enableReasoning,
     enableWebSearch: Boolean(enableWebSearch),
+    browserAgentMode: browserAgentMode || 'auto',
     isPrivate: isPrivateSession,
     temperature: built.temperature,
     max_tokens: built.max_tokens

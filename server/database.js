@@ -562,6 +562,10 @@ export const messageDb = {
   }
 };
 
+try { db.exec('ALTER TABLE chat_jobs ADD COLUMN browserPages TEXT'); } catch {}
+try { db.exec('ALTER TABLE chat_jobs ADD COLUMN subAgentData TEXT'); } catch {}
+try { db.exec("ALTER TABLE chat_jobs ADD COLUMN browserAgentMode TEXT DEFAULT 'auto'"); } catch {}
+
 function deserializeChatJob(row) {
   if (!row) return null;
   const parseJson = (raw, fallback) => {
@@ -577,7 +581,10 @@ function deserializeChatJob(row) {
     isPrivate: Boolean(row.isPrivate),
     searchSources: parseJson(row.searchSources, []),
     searchImages: parseJson(row.searchImages, []),
-    searchSteps: parseJson(row.searchSteps, [])
+    searchSteps: parseJson(row.searchSteps, []),
+    browserPages: parseJson(row.browserPages, []),
+    subAgentData: parseJson(row.subAgentData, null),
+    browserAgentMode: row.browserAgentMode || 'auto'
   };
 }
 
@@ -590,9 +597,10 @@ export const chatJobDb = {
         id, userId, deviceId, sessionId, userMessageId, assistantMessageId,
         status, model, personality, language, isPrivate, userPrompt,
         text, reasoningText, reasoningDuration, searchQuery,
-        searchSources, searchImages, searchSteps, error, createdAt, updatedAt
+        searchSources, searchImages, searchSteps, browserPages, subAgentData, browserAgentMode,
+        error, createdAt, updatedAt
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         status = excluded.status,
         text = excluded.text,
@@ -602,6 +610,9 @@ export const chatJobDb = {
         searchSources = excluded.searchSources,
         searchImages = excluded.searchImages,
         searchSteps = excluded.searchSteps,
+        browserPages = excluded.browserPages,
+        subAgentData = excluded.subAgentData,
+        browserAgentMode = excluded.browserAgentMode,
         error = excluded.error,
         updatedAt = excluded.updatedAt
     `);
@@ -625,6 +636,9 @@ export const chatJobDb = {
       job.searchSources ? JSON.stringify(job.searchSources) : null,
       job.searchImages ? JSON.stringify(job.searchImages) : null,
       job.searchSteps ? JSON.stringify(job.searchSteps) : null,
+      job.browserPages ? JSON.stringify(job.browserPages) : null,
+      job.subAgentData ? JSON.stringify(job.subAgentData) : null,
+      job.browserAgentMode || 'auto',
       job.error || null,
       Number(job.createdAt) || now,
       Number(job.updatedAt) || now

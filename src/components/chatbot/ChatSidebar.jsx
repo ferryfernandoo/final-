@@ -39,6 +39,7 @@ export const ChatSidebar = React.memo(({
   setShowSettingsModal,
   setShowFormatDbModal,
   openLogoutConfirm,
+  onLoginRequest,
   showAlert
 }) => {
   const sortedPublicConversations = useMemo(() => {
@@ -400,6 +401,9 @@ export const ChatSidebar = React.memo(({
                 >
                   <i className="fa-regular fa-message meta-chat-item-icon"></i>
                   <span className="meta-chat-item-text">{conv.title}</span>
+                  {conv.isLoading && (
+                    <span className="meta-chat-running-badge" title={userLanguage === 'id' ? 'Berjalan di server' : 'Running on server'}>⚡</span>
+                  )}
                   <button
                     type="button"
                     className="meta-chat-delete-icon"
@@ -428,39 +432,83 @@ export const ChatSidebar = React.memo(({
                 <img src={user.picture} alt={user.name || 'User'} className="meta-sidebar-avatar-img" />
               ) : (
                 <div className="meta-sidebar-avatar-initial">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : 'F'}
+                  {(isGuest || !isAuthenticated || user?.guest)
+                    ? 'T'
+                    : (user?.name ? user.name.charAt(0).toUpperCase() : 'D')}
                 </div>
               )}
             </div>
-            <span className="meta-sidebar-handle-text" title={user?.name || 'ferryfernandoo_'}>
-              {user?.name || 'ferryfernandoo_'}
+            <span
+              className="meta-sidebar-handle-text"
+              title={(isGuest || !isAuthenticated || user?.guest) ? 'Tamu (Guest)' : (user?.name || 'DeeperNova User')}
+            >
+              {(isGuest || !isAuthenticated || user?.guest)
+                ? (userLanguage === 'zh' ? '访客 (未登录)' : userLanguage === 'id' ? 'Akun Tamu' : 'Guest Account')
+                : (user?.name || 'DeeperNova User')}
             </span>
           </div>
 
-          <button
-            type="button"
-            className="meta-sidebar-bell-btn"
-            onClick={() => {
-              showAlert?.(
-                userLanguage === 'id'
-                  ? '🔔 Semua fitur DeeperNova AI berjalan normal tanpa kendala.'
-                  : '🔔 All DeeperNova AI systems operational.',
-                'info',
-                3000
-              );
-            }}
-            title="Notifikasi"
-          >
-            <i className="fa-regular fa-bell"></i>
-          </button>
+          {(isGuest || !isAuthenticated || user?.guest) && onLoginRequest ? (
+            <button
+              type="button"
+              className="meta-sidebar-login-btn"
+              onClick={() => {
+                setShowSidebarProfileMenu(false);
+                onLoginRequest();
+              }}
+              title={userLanguage === 'zh' ? '登录账号' : userLanguage === 'id' ? 'Masuk / Login Akun' : 'Log in'}
+            >
+              <i className="fa-solid fa-right-to-bracket"></i>
+              <span>{userLanguage === 'zh' ? '登录' : 'Login'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="meta-sidebar-bell-btn"
+              onClick={() => {
+                showAlert?.(
+                  userLanguage === 'id'
+                    ? '🔔 Semua fitur DeeperNova AI berjalan normal tanpa kendala.'
+                    : '🔔 All DeeperNova AI systems operational.',
+                  'info',
+                  3000
+                );
+              }}
+              title="Notifikasi"
+            >
+              <i className="fa-regular fa-bell"></i>
+            </button>
+          )}
 
           {showSidebarProfileMenu && (
             <div className="meta-profile-popover" onClick={(e) => e.stopPropagation()}>
               <div className="meta-popover-header">
-                <strong>{user?.name || 'ferryfernandoo_'}</strong>
-                <span>{user?.email || 'user@deepernova.com'}</span>
+                <strong>
+                  {(isGuest || !isAuthenticated || user?.guest)
+                    ? (userLanguage === 'zh' ? '访客模式 (Guest)' : userLanguage === 'id' ? 'Mode Tamu (Belum Login)' : 'Guest Mode')
+                    : (user?.name || 'DeeperNova User')}
+                </strong>
+                <span>
+                  {(isGuest || !isAuthenticated || user?.guest)
+                    ? (userLanguage === 'zh' ? '登录以同步历史会话与云端文件' : userLanguage === 'id' ? 'Login untuk sinkronisasi riwayat & cloud' : 'Sign in to sync chats & cloud files')
+                    : (user?.email || 'user@deepernova.com')}
+                </span>
               </div>
               <div className="meta-popover-divider"></div>
+              {(isGuest || !isAuthenticated || user?.guest) && onLoginRequest && (
+                <button
+                  type="button"
+                  className="meta-popover-item"
+                  style={{ color: '#ea580c', fontWeight: 700 }}
+                  onClick={() => {
+                    setShowSidebarProfileMenu(false);
+                    onLoginRequest();
+                  }}
+                >
+                  <i className="fa-solid fa-right-to-bracket"></i>
+                  <span>{userLanguage === 'zh' ? '立即登录 / 注册' : userLanguage === 'id' ? 'Login / Daftar Akun' : 'Log in / Sign up'}</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="meta-popover-item"

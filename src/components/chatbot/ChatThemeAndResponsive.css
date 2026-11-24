@@ -231,13 +231,11 @@
   justify-content: space-between !important;
   padding: 12px 18px 26px 18px !important;
   padding-top: max(12px, env(safe-area-inset-top, 12px)) !important;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.96) 0%,
-    rgba(255, 255, 255, 0.72) 38%,
-    rgba(255, 255, 255, 0.24) 76%,
-    rgba(255, 255, 255, 0) 100%
-  ) !important;
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(255, 255, 255, 0.72) 38%,
+      rgba(255, 255, 255, 0.24) 76%,
+      rgba(255, 255, 255, 0) 100%) !important;
   background-color: transparent !important;
   border-bottom: none !important;
   box-shadow: none !important;
@@ -2757,13 +2755,11 @@
     min-height: 64px !important;
     padding: 8px 12px 24px 12px !important;
     padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
-    background: linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.96) 0%,
-      rgba(255, 255, 255, 0.72) 38%,
-      rgba(255, 255, 255, 0.24) 76%,
-      rgba(255, 255, 255, 0) 100%
-    ) !important;
+    background: linear-gradient(to bottom,
+        rgba(255, 255, 255, 0.96) 0%,
+        rgba(255, 255, 255, 0.72) 38%,
+        rgba(255, 255, 255, 0.24) 76%,
+        rgba(255, 255, 255, 0) 100%) !important;
     background-color: transparent !important;
     border-bottom: none !important;
     box-shadow: none !important;
@@ -4076,4 +4072,245 @@
     padding: 3px 6px;
     font-size: 0.68rem;
   }
+}
+
+/* ============================================================
+   ✨ SIMPLE & SMOOTH USER BUBBLE ASK + RISE-UP + COLLAPSE + PERAMBAN CARD + GUEST LOGIN
+   ============================================================ */
+@keyframes userBubbleRiseUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.message.user {
+  animation: userBubbleRiseUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.message.user .message-content {
+  border-radius: 18px 18px 4px 18px !important;
+  padding: 10px 14px !important;
+  font-size: 14.5px !important;
+  line-height: 1.5 !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06) !important;
+  border: 1px solid rgba(15, 23, 42, 0.07) !important;
+  transition: background 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+[data-theme="dark"] .message.user .message-content {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.user-bubble-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-bubble-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.user-bubble-text.clamped-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-bubble-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  align-self: flex-end;
+  margin-top: 2px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.05);
+  color: inherit;
+  opacity: 0.78;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+[data-theme="dark"] .user-bubble-expand-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.user-bubble-expand-btn:hover {
+  opacity: 1;
+  background: rgba(234, 88, 12, 0.12);
+}
+
+.user-bubble-expand-btn i {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.user-bubble-expand-btn.expanded i {
+  transform: rotate(180deg);
+}
+
+/* Natural Contextual Waiting Phrase */
+@keyframes waitingPhraseFadeIn {
+  from {
+    opacity: 0.4;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.contextual-waiting-text {
+  display: inline-block;
+  animation: waitingPhraseFadeIn 0.25s ease-out;
+}
+
+/* Browser Agent Live Card */
+.browser-agent-live-card {
+  margin-bottom: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(234, 88, 12, 0.24);
+  background: rgba(255, 247, 237, 0.72);
+  overflow: hidden;
+  font-size: 12.5px;
+}
+
+[data-theme="dark"] .browser-agent-live-card {
+  background: rgba(30, 41, 59, 0.58);
+  border-color: rgba(251, 146, 60, 0.28);
+}
+
+.browser-agent-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+}
+
+.browser-agent-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.browser-agent-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f97316;
+  flex-shrink: 0;
+}
+
+.browser-agent-badge-dot.pulse {
+  animation: pulseBadge 1.4s ease-in-out infinite;
+}
+
+@keyframes pulseBadge {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.35); opacity: 1; }
+}
+
+.browser-agent-pages-list {
+  padding: 0 12px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.browser-agent-page-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  text-decoration: none;
+  color: inherit;
+  font-size: 12px;
+}
+
+[data-theme="dark"] .browser-agent-page-row {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.browser-agent-page-row:hover {
+  border-color: rgba(234, 88, 12, 0.4);
+}
+
+.browser-agent-page-domain {
+  font-weight: 700;
+  color: #ea580c;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .browser-agent-page-domain {
+  color: #fb923c;
+}
+
+.browser-agent-page-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  opacity: 0.85;
+}
+
+/* Sidebar Bottom-Left Guest Login Button & Running Indicator */
+.meta-sidebar-login-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  color: #ffffff !important;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.meta-sidebar-login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.36);
+}
+
+.meta-chat-running-badge {
+  font-size: 11px;
+  margin-right: 4px;
+  color: #f97316;
+  animation: pulseBadge 1.4s ease-in-out infinite;
 }

@@ -40,7 +40,7 @@ const inferDownloadNameFromHref = (href = '', label = '') => {
     if (qPath) return qPath.split('/').pop();
     const lastSeg = u.pathname.split('/').filter(Boolean).pop();
     if (lastSeg && lastSeg.includes('.')) return decodeURIComponent(lastSeg);
-  } catch (_) {}
+  } catch (_) { }
   const txt = String(label || '').trim();
   return txt && txt.includes('.') ? txt : 'deepernova-file';
 };
@@ -314,7 +314,7 @@ const SafeMarkdownFigure = React.memo(({
           wrapper.style.display = 'none';
         }
       }
-    } catch (_) {}
+    } catch (_) { }
     setImgState({ src: resolvedSrc, status: 'failed' });
   };
 
@@ -380,12 +380,27 @@ export const formatMessageContent = ({
 
   const resolvedMessageId = messageId || message?.id || null;
   const sources = message?.searchSources || null;
+  const searchImages = Array.isArray(message?.searchImages) ? message.searchImages : [];
   const redirectCards = [];
   let tempText = text;
 
-  // Auto-format unlinked citation tags like [Sumber 1] or [Sumber #1] into cite links
+  // Strip Browser Agent protocol tags if any leaked into text
+  tempText = tempText.replace(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):[\s\S]*?\]/gi, '');
+
+  // Auto-resolve short image ID tokens ![caption](foto:N) into verified searchImage URLs (Zero-URL Speed Optimization)
+  tempText = tempText.replace(/!\[([^\]]*)\]\((?:foto|photo|img):(\d+)\)/gi, (_m, alt, numStr) => {
+    const idx = parseInt(numStr, 10) - 1;
+    const matched = idx >= 0 && idx < searchImages.length ? searchImages[idx] : null;
+    const resolvedUrl = matched?.imageUrl || matched?.url || matched?.thumbnail;
+    if (resolvedUrl && isValidRenderableImageSrc(resolvedUrl)) {
+      return `![${alt || matched?.title || 'Foto'}](${resolvedUrl})`;
+    }
+    return '';
+  });
+
+  // Auto-format unlinked citation tags like [Sumber 1], [Sumber #1], or standalone [1] into cite links
   if (sources && Array.isArray(sources) && sources.length > 0) {
-    tempText = tempText.replace(/\[Sumber\s*#?\s*(\d+)[^\]]*\](?!\()/gi, (match, numStr) => {
+    tempText = tempText.replace(/\[(?:Sumber\s*#?\s*|Source\s*#?\s*)?(\d+)(?:[^\]]*)\](?!\()/gi, (match, numStr) => {
       const idx = parseInt(numStr, 10);
       if (idx > 0 && idx <= sources.length) {
         return `[cite:${idx}](cite:${idx})`;
@@ -474,7 +489,7 @@ export const formatMessageContent = ({
   };
 
   const renderInlineCitationPill = (href, children) => {
-    if (!href) {
+    if (!href || /^(javascript|vbscript|data|file|blob):/i.test(String(href).trim())) {
       return <span className="message-link-fallback">{children}</span>;
     }
 
@@ -562,8 +577,8 @@ export const formatMessageContent = ({
       domain &&
       cleanChildren.length <= 25 &&
       (cleanChildren.toLowerCase().includes(cleanDomainRoot) ||
-       cleanDomainRoot.includes(cleanChildren.toLowerCase()) ||
-       formatBubbleDomainLabel(domain).toLowerCase() === cleanChildren.toLowerCase())
+        cleanDomainRoot.includes(cleanChildren.toLowerCase()) ||
+        formatBubbleDomainLabel(domain).toLowerCase() === cleanChildren.toLowerCase())
     );
 
     const shouldRenderAsCitationPill = isExplicitCite || isShortCiteTag || isDomainBrandLabel;

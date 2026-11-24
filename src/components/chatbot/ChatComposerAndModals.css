@@ -5441,3 +5441,68 @@
   opacity: 0.8;
   animation: hdPulse 1.2s infinite;
 }
+
+/* ============================================================
+   🚀 ULTRA-LIGHTWEIGHT GPU COMPOSITED INPUT ANIMATION & PERAMBAN TOGGLE
+   ============================================================ */
+.input-container.claude-style {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s ease,
+              border-color 0.2s ease !important;
+  will-change: transform;
+  contain: layout style;
+}
+
+.input-container.claude-style.minimal-morph {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.18s ease,
+              box-shadow 0.2s ease !important;
+}
+
+.input-container.claude-style textarea {
+  transition: height 0.14s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* Browser Agent Toggle Button in Composer */
+.claude-browser-agent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(15, 23, 42, 0.04);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.16s ease;
+}
+
+[data-theme="dark"] .claude-browser-agent-btn {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+.claude-browser-agent-btn:hover:not(:disabled) {
+  background: rgba(234, 88, 12, 0.1);
+  border-color: rgba(234, 88, 12, 0.35);
+  color: #ea580c;
+  transform: translateY(-1px);
+}
+
+.claude-browser-agent-btn.active {
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.28);
+}
+
+.claude-browser-agent-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

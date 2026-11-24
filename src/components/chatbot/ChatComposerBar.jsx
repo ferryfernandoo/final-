@@ -49,6 +49,8 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
   setShowGlobalMemorySettings,
   selectedModel,
   setSelectedModel,
+  browserAgentMode = 'auto',
+  toggleBrowserAgentMode,
   isReasoningCapable,
   isReasoningEnabled,
   reasoningByModel,
@@ -326,6 +328,8 @@ const ChatComposerBar = React.memo(function ChatComposerBar({
         currentModelObj={currentModelObj}
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
+        browserAgentMode={browserAgentMode}
+        toggleBrowserAgentMode={toggleBrowserAgentMode}
         isReasoningCapable={isReasoningCapable}
         isReasoningEnabled={isReasoningEnabled}
         reasoningByModel={reasoningByModel}

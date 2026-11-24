@@ -59,6 +59,14 @@ try {
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import { installNodeSecurityShield, nodeSecurityMiddleware, validateSafeUrl } from './nodeSecurityShield.js';
+import {
+  aiSecurityFirewallMiddleware,
+  sanitizeClientSystemPrompt,
+  IMMUTABLE_AI_SECURITY_GUARDRAIL,
+  authBruteForceGuard,
+  recordAuthFailure,
+  clearAuthFailures
+} from './aiCyberSecurityShield.js';
 
 // Activate process-wide Node.js security shield (CVE-2026-111497 Node2Shell, CVE-2026-105482 DNS NUL, CVE-2026-105483/106069)
 installNodeSecurityShield();
@@ -284,6 +292,7 @@ const PORT = process.env.PORT || 3001;
 
 // 🛡️ NODE2SHELL (CVE-2026-111497) & OCT-2026 CVE SHIELD MIDDLEWARE
 app.use(nodeSecurityMiddleware);
+app.use(aiSecurityFirewallMiddleware);
 
 // 🛡️ ADVANCED SECURITY HEADERS (HELMET, COOP, ANTI-CLICKJACKING, ANTI-SNIFF)
 app.use(helmet({
@@ -1216,8 +1225,8 @@ app.get(['/auth/me', '/api/auth/me'], (req, res) => {
   return res.status(401).json({ authenticated: false, guest: false, error: 'Not authenticated' });
 });
 
-// Login endpoint (email & password)
-app.post(['/auth/login', '/api/auth/login'], (req, res, next) => {
+// Login endpoint (email & password) with brute-force shield
+app.post(['/auth/login', '/api/auth/login'], authBruteForceGuard, (req, res, next) => {
   // Forward Order DTE login requests (which use `username` instead of `email` on /api/auth/login) to the DTE proxy
   if ((req.path.startsWith('/api/auth/') && !req.body?.email) || (req.body?.username && !req.body?.email)) {
     return next();
@@ -1228,6 +1237,7 @@ app.post(['/auth/login', '/api/auth/login'], (req, res, next) => {
       return res.status(500).json({ success: false, error: 'Terjadi kendala pada server auth' });
     }
     if (!user) {
+      recordAuthFailure(req);
       return res.status(401).json({
         success: false,
         message: info?.message || 'Login gagal',
@@ -1240,6 +1250,7 @@ app.post(['/auth/login', '/api/auth/login'], (req, res, next) => {
         console.error('[AUTH API] req.logIn error:', err);
         return res.status(500).json({ success: false, error: 'Gagal mengaktifkan sesi login' });
       }
+      clearAuthFailures(req);
       req.session.isGuest = false;
       req.session.save((saveErr) => {
         if (saveErr) console.error('[AUTH API] req.session.save error:', saveErr);
@@ -3382,7 +3393,16 @@ function prepareServerChatMessages(reqBody, rawMessages) {
   }
 
   const clientSystemMsg = messages.find(m => m.role === 'system');
-  let finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
+  const sanitizedClientPrompt = (clientSystemMsg && clientSystemMsg.content)
+    ? sanitizeClientSystemPrompt(clientSystemMsg.content)
+    : '';
+  let finalSystemPrompt = sanitizedClientPrompt || DEFAULT_SYSTEM_PROMPT;
+  if (!finalSystemPrompt.includes('IMMUTABLE_SECURITY_POLICY')) {
+    finalSystemPrompt += `\n\n${IMMUTABLE_AI_SECURITY_GUARDRAIL}`;
+  }
+  finalSystemPrompt += `\n\n=== ZERO-URL SPEED RULE & PROACTIVE AGENTIC CAPABILITY ===
+1. STRICTLY FORBIDDEN to type raw URLs (http:// or https:// or www.) in explanatory text or links — writing long URLs wastes latency and tokens. Cite web sources ONLY using concise markers like [1], [2] and images ONLY with foto:1, foto:2.
+2. You have FULL autonomous Agentic and Browser Agent execution flags. If the user asks to create files, websites, apps, games, dashboards, reports (.docx/.xlsx/.pptx/.pdf), or research pages/URLs deeply, proactively emit the appropriate execution flag ([SUBAGENT_ORCHESTRATE: ...], [BROWSER_AGENT: ...], or [SEARCH_REQUEST: ...]) directly on turn 1 without waiting for the user to say "create a file".`;
 
   const SERVER_PERSONALITY_PROMPTS = {
     casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab (gunakan aku-kamu, jangan kaku).',
@@ -3477,7 +3497,7 @@ app.post('/api/chat/jobs/start', express.json({ limit: '50mb' }), (req, res) => 
       clientIp,
       sessionId: body.sessionId || body.conversationId || `conv_${Date.now()}`,
       userMessageId: body.userMessageId || `user_${Date.now()}`,
-      assistantMessageId: body.assistantMessageId || `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      assistantMessageId: body.assistantMessageId || `bot_${Date.now()}`,
       userPrompt: body.userPrompt || prep.userQuery,
       preparedMessages: prep.preparedMessages,
       model: body.model || 'qwen2.5-vl-72b',
@@ -3485,6 +3505,7 @@ app.post('/api/chat/jobs/start', express.json({ limit: '50mb' }), (req, res) => 
       language: body.language || req.cookies?.deepernova_language || 'id',
       enableReasoning: Boolean(body.enableReasoning),
       enableWebSearch: body.enableWebSearch !== false && !prep.isGrok46Request,
+      browserAgentMode: body.browserAgentMode || 'auto',
       searchQuery: body.searchQuery || null,
       hasImages: prep.hasImagesInPayload,
       isPrivate: Boolean(body.isPrivate || String(body.sessionId || body.conversationId || '').startsWith('private_')),
@@ -4042,7 +4063,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
             `2. DILARANG MENGABAIKAN BERITA: Dilarang keras menjawab di luar konteks berita yang ditemukan atau mengabaikan isi kutipan berita!\n` +
             `3. FOKUS TOPIK TERAKHIR: Jawab 100% fokus pada pertanyaan dan berita terbaru ini. DILARANG KERAS membahas atau mengaitkan topik obrolan lama yang sudah tidak relevan!\n` +
             `4. DILARANG BERTERIMA KASIH: Jangan pernah mengucapkan "Terima kasih atas hasil pencariannya". Langsung mulai jawaban di paragraf pertama.\n` +
-            `5. SITASI LINK: Cantumkan sitasi link [Nama Sumber](URL) pada setiap fakta atau berita terkait.\n` +
+            `5. ZERO-URL RULE (CEPAT): DILARANG menulis URL mentah (http:// atau https://). Gunakan sitasi angka singkat [1], [2] untuk sumber dan foto:1 untuk gambar.\n` +
             `6. FORMAT RAPI: Awali 1-2 kalimat ringkasan inti, gunakan subjudul (###), dan buat poin berjarak lega.\n` +
             `7. LANGSUNG KE JAWABAN: Berikan jawaban berita final yang lengkap dan jelas tanpa basa-basi.`;
         } else {
@@ -4054,14 +4075,20 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
             'ATURAN GAYA KOMUNIKASI (MUTLAK): ' +
             '1. SESUAIKAN DENGAN KEPRIBADIAN AKTIF (MUTLAK): Ikuti kepribadian yang ditentukan. Jika Casual, bicaralah santai mengalir (aku-kamu, santai, asyik, jangan kaku atau baku). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. ' +
             '2. PERTANYAAN SIMPEL / SAPAAN: Jika pertanyaan sederhana, sapaan ("halo", "hai"), atau fakta singkat, jawab secara padat, manis, dan langsung to-the-point (1-3 kalimat). Jangan bertele-tele. ' +
-            'KEPUTUSAN PENCARIAN WEB OTONOM (SELALU SEARCHING JIKA RAGU / TIDAK TAHU): Kamu terhubung ke search engine live web. ATURAN: Dilarang menebak atau menjawab "Saya tidak tahu"! Jika kamu merasa RAGU, tidak yakin, atau user menanyakan berita/peristiwa terkini, harga, cuaca, skor, jadwal, tokoh terkini, atau fakta baru: keluarkan [SEARCH_REQUEST: isi topik spesifik dari pertanyaan user, JANGAN menulis kalimat "kata kunci pilihanmu"] di baris pertama lalu berhenti. Jika kamu sudah tahu pasti (pengetahuan umum, konsep, coding, matematika, sapaan), jawab LANGSUNG tanpa flag secepat mungkin! ' +
-            (isGrok46Request ? '' : 'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI VIA FLAG): Jika pengguna meminta mengaktifkan sub-agent/mode agentic, ATAU meminta dibuatkan/dikirimkan berkas/file dokumen (Word .docx, Excel .xlsx/.csv, PowerPoint .pptx, PDF), kode, website, landing page, aplikasi web, game, kalkulator, dashboard, script Python/JS/HTML/CSS/SQL/JSON, atau proyek multi-file: keluarkan [SUBAGENT_ORCHESTRATE: deskripsi tugas dan file yang harus dibuat] lalu LANGSUNG BERHENTI tanpa menulis teks pengantar/jawaban sebelum sub-agent selesai. ') +
+            '3. ZERO-URL SPEED RULE: DILARANG mengetik URL panjang (http://, https://, www.) dalam jawaban penjelasan agar respons cepat; pakai [1], [2]. ' +
+            'KEPUTUSAN PENCARIAN WEB & PERAMBAN AGENT OTONOM: Jika perlu mencari fakta terbaru keluarkan [SEARCH_REQUEST: topik]. Jika pengguna mengirim URL atau perlu membaca isi artikel web penuh keluarkan [BROWSER_AGENT: topik atau url]. ' +
+            (isGrok46Request ? '' : 'KEMAMPUAN SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (AKTIVASI PROAKTIF VIA FLAG): Kamu sadar penuh atas kemampuan agentic-mu! Jika pengguna meminta dibuatkan file (.docx/.xlsx/.pptx/.pdf/.zip), website, landing page, aplikasi, game, kalkulator, dashboard, script, atau proyek multi-file (WALAU tanpa mengetik kata "file"), LANGSUNG keluarkan [SUBAGENT_ORCHESTRATE: deskripsi tugas lengkap] lalu berhenti! ') +
             'Kamu SELALU memperhatikan dan mengingat seluruh riwayat percakapan sebelumnya.';
         }
 
-        // Pertahankan sistem prompt lengkap dari Chatbot yang berisi memori aktif pengguna
+        // Pertahankan sistem prompt lengkap dari Chatbot yang berisi memori aktif pengguna (disanitasi)
         const clientSystemMsg = messages.find(m => m.role === 'system');
-        let finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content) ? clientSystemMsg.content : DEFAULT_SYSTEM_PROMPT;
+        let finalSystemPrompt = (clientSystemMsg && clientSystemMsg.content)
+          ? sanitizeClientSystemPrompt(clientSystemMsg.content)
+          : DEFAULT_SYSTEM_PROMPT;
+        if (!finalSystemPrompt.includes('IMMUTABLE_SECURITY_POLICY')) {
+          finalSystemPrompt += `\n\n${IMMUTABLE_AI_SECURITY_GUARDRAIL}`;
+        }
 
         // Inject personality style if not already present
         const reqPersonality = (req.body.personality || '').toLowerCase();
