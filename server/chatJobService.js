@@ -5,6 +5,8 @@
 // the APK/browser mid-answer NEVER kills generation or causes lost replies.
 // ============================================================
 import crypto from 'crypto';
+import { runBrowserAgent, extractUrlsFromText } from './services/browserAgentService.js';
+import { sanitizeUntrustedWebContent } from './aiCyberSecurityShield.js';
 
 let deps = {};
 
