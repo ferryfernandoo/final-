@@ -336,10 +336,10 @@ function buildVercelConfig(backendUrl, searchEngineUrl, dteUrl) {
       { source: '/dte/:path*', destination: '/dte/index.html' },
       { source: '/api/ping', destination: `${dteUrl}/api/ping` },
       { source: '/api/dte/ping', destination: `${dteUrl}/api/ping` },
-      { source: '/api/auth/login', destination: `${dteUrl}/api/auth/login` },
-      { source: '/api/auth/register', destination: `${dteUrl}/api/auth/register` },
+      { source: '/api/auth/:path*', destination: `${dteUrl}/api/auth/:path*` },
       { source: '/api/items', destination: `${dteUrl}/api/items` },
       { source: '/api/items/:path*', destination: `${dteUrl}/api/items/:path*` },
+      { source: '/api/admin', destination: `${dteUrl}/api/admin` },
       { source: '/api/admin/:path*', destination: `${dteUrl}/api/admin/:path*` },
       { source: '/api/requests', destination: `${dteUrl}/api/requests` },
       { source: '/api/requests/:path*', destination: `${dteUrl}/api/requests/:path*` },
@@ -511,6 +511,32 @@ function updateAllConfigs(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
 
     log.success(`Konfigurasi diperbarui di: ${dir}`);
   }
+
+  // Update Order DTE frontend DIRECT_DTE_TUNNEL fallback URL
+  try {
+    const dteConfigPath = path.join(ORDER_DTE_USER_DIR, 'src', 'config.js');
+    if (fs.existsSync(dteConfigPath) && dteUrl) {
+      const origCfg = fs.readFileSync(dteConfigPath, 'utf8');
+      const nextCfg = origCfg.replace(
+        /export const DIRECT_DTE_TUNNEL = '[^']+';/,
+        `export const DIRECT_DTE_TUNNEL = '${dteUrl}';`
+      );
+      if (nextCfg !== origCfg) {
+        fs.writeFileSync(dteConfigPath, nextCfg, 'utf8');
+        const dteViteBin = path.join(ORDER_DTE_USER_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
+        if (fs.existsSync(dteViteBin)) {
+          execSync(`node "${dteViteBin}" build`, { cwd: ORDER_DTE_USER_DIR, stdio: 'inherit' });
+        }
+        const copyDte = path.join(PROD_ROOT_DIR, 'scripts', 'copy_dte_dist.mjs');
+        if (fs.existsSync(copyDte)) {
+          execSync(`node "${copyDte}"`, { cwd: PROD_ROOT_DIR, stdio: 'inherit' });
+        }
+        log.success(`Order DTE frontend rebuilt dengan DIRECT_DTE_TUNNEL = ${dteUrl}`);
+      }
+    }
+  } catch (dteErr) {
+    log.warn(`Gagal sync Order DTE config: ${dteErr.message}`);
+  }
 }
 
 function buildAndDeployToVercel(reasonLabel = 'sync live tunnels') {
@@ -530,6 +556,14 @@ function buildAndDeployToVercel(reasonLabel = 'sync live tunnels') {
 
     if (!process.argv.includes('--skip-push')) {
       log.info('Melakukan Git commit & push ke origin/main untuk memicu Auto-Deploy Vercel...');
+      const lockFile = path.join(PROD_ROOT_DIR, '.git', 'index.lock');
+      try {
+        if (fs.existsSync(lockFile)) {
+          const ageMs = Date.now() - fs.statSync(lockFile).mtimeMs;
+          if (ageMs > 15000) fs.unlinkSync(lockFile);
+        }
+      } catch {}
+
       const filesToStage = [
         'vercel.json',
         'active_tunnel.json',
@@ -541,6 +575,7 @@ function buildAndDeployToVercel(reasonLabel = 'sync live tunnels') {
         'api/chat/stop.js',
         'scripts/auto_start_all.mjs',
         'dist',
+        'public/dte',
         'dpn-search-app/dist/index.html',
         'search-engine/vercel.json',
       ].filter((rel) => fs.existsSync(path.join(PROD_ROOT_DIR, rel)));

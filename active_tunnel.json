@@ -1,16 +1,16 @@
 {
-  "backend": "https://94f513744ab653.app.lhr.life",
-  "search": "https://3f50d08b4717ee.app.lhr.life",
-  "orderDte": "https://6fc7c733cac0b9.app.lhr.life",
-  "backendUrl": "https://94f513744ab653.app.lhr.life",
-  "searchEngineUrl": "https://3f50d08b4717ee.app.lhr.life",
-  "dteUrl": "https://6fc7c733cac0b9.app.lhr.life",
-  "aiUrl": "https://94f513744ab653.app.lhr.life",
+  "backend": "https://amount-put-dense-sub.trycloudflare.com",
+  "search": "https://substantially-holidays-compression-individually.trycloudflare.com",
+  "orderDte": "https://attorney-imperial-aware-spots.trycloudflare.com",
+  "backendUrl": "https://amount-put-dense-sub.trycloudflare.com",
+  "searchEngineUrl": "https://substantially-holidays-compression-individually.trycloudflare.com",
+  "dteUrl": "https://attorney-imperial-aware-spots.trycloudflare.com",
+  "aiUrl": "https://amount-put-dense-sub.trycloudflare.com",
   "backendPort": 3001,
   "aiPort": 8000,
   "searchEnginePort": 4000,
   "dtePort": 5173,
   "mode": "VERCEL_FULLSTACK_NATIVE_DUAL",
   "status": "LIVE",
-  "updatedAt": "2026-11-24T23:08:31.898Z"
+  "updatedAt": "2026-11-24T23:39:02.769Z"
 }
