@@ -1,20 +1,20 @@
 /**
- * Deepernova Master Auto-Start & Orchestrator
- * 
- * Sekali jalan, script ini otomatis:
- * 1. Menjalankan Search Engine (Port 3000)
- * 2. Menjalankan Backend Deepernova AI (Port 3001)
- * 3. Menjalankan Frontend Vite Dev (Port 5174)
- * 4. Menjalankan Order DTE Backend (Port 5000)
- * 5. Menjalankan Order DTE User Frontend (Port 5173)
- * 6. Menyalakan Cloudflare Tunnel untuk Backend, Search, DTE
- * 7. Mendeteksi URL publik trycloudflare.com secara otomatis
- * 8. Mengupdate .env, active_tunnel.json, src/apiConfig.js, dll
- * 9. Build frontend (npm run build)
- * 10. Git commit & push ke GitHub → Vercel auto-deploy
+ * DeeperNova Master Ecosystem Auto-Start, Tunnel Synchronizer & Eternal Supervisor
+ *
+ * Menyalakan dan mengawasi seluruh layanan secara otomatis:
+ * 1. FreeLLMAPI Gateway (Port 3005 - F:\a final deepernova ai\freellmapi\server)
+ * 2. DeeperNova AI Python Server (Port 8000 - F:\llm deepernova)
+ * 3. DeeperNova Search Engine & Crawler (Port 4000 - C:\deepernova-search-main)
+ * 4. DeeperNova Backend AI, AI Agent Sandbox & Chat Jobs (Port 3001 - F:\a final deepernova ai\deepernova ai)
+ * 5. Order DTE Backend & Fast Frontend (Port 5000 & 5173 - F:\order dte)
+ * 6. DeeperNova Frontend Vite Dev (Port 5174)
+ * 7. Cloudflare Tunnels (3001 Backend/AI/Agent, 4000 Search Engine, 5173 DTE) + SSH Failover
+ * 8. Sinkronisasi penuh vercel.json, Edge Proxies (api/*), apiConfig.js, active_tunnel.json, .env, .env.production
+ * 9. Build produksi & Git Push ke origin/main -> Auto-Deploy Vercel
+ * 10. Eternal Watchdog Supervisor (menjaga semua port & tunnel tetap hidup 24/7)
  */
 
-import { spawn, exec, execSync } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -22,49 +22,54 @@ import net from 'node:net';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT_DIR = path.resolve(__dirname, '..');
+
+const WORKTREE_DIR = path.resolve(__dirname, '..');
+const PROD_ROOT_DIR = fs.existsSync('F:\\a final deepernova ai\\deepernova ai')
+  ? 'F:\\a final deepernova ai\\deepernova ai'
+  : WORKTREE_DIR;
+
+const FREELLM_SERVER_DIR = 'F:\\a final deepernova ai\\freellmapi\\server';
+const AI_SERVER_DIR = 'F:\\llm deepernova';
 const SEARCH_DIR = fs.existsSync('C:\\deepernova-search-main')
   ? 'C:\\deepernova-search-main'
-  : (fs.existsSync(path.join(ROOT_DIR, 'search-engine'))
-    ? path.join(ROOT_DIR, 'search-engine')
-    : (fs.existsSync('F:\\deepernova-search-main')
-      ? 'F:\\deepernova-search-main'
-      : 'F:\\search engine\\search-engine'));
+  : path.join(PROD_ROOT_DIR, 'search-engine');
 const ORDER_DTE_SERVER_DIR = 'F:\\order dte\\server';
 const ORDER_DTE_USER_DIR = 'F:\\order dte\\user';
-const AI_SERVER_DIR = 'F:\\llm deepernova';
 
-const CLOUDFLARED_BIN = fs.existsSync(path.join(ROOT_DIR, 'bin', 'cloudflared.exe'))
-  ? path.join(ROOT_DIR, 'bin', 'cloudflared.exe')
-  : (fs.existsSync('C:\\Program Files (x86)\\cloudflared\\cloudflared.exe')
-    ? 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe'
-    : (fs.existsSync('F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe')
-      ? 'F:\\a final deepernova ai\\deepernova ai\\bin\\cloudflared.exe'
-      : 'cloudflared'));
+const CLOUDFLARED_BIN = [
+  path.join(PROD_ROOT_DIR, 'bin', 'cloudflared.exe'),
+  path.join(WORKTREE_DIR, 'bin', 'cloudflared.exe'),
+  'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe',
+].find((p) => fs.existsSync(p)) || 'cloudflared';
 
-// Helper to sanitize URL (remove trailing slash)
 const cleanUrl = (url) => String(url || '').trim().replace(/\/+$/, '');
 
-// Logger formatting
 const log = {
-  info: (msg) => console.log(`\x1b[36m[AUTO-START]\x1b[0m ℹ️  ${msg}`),
-  success: (msg) => console.log(`\x1b[32m[AUTO-START]\x1b[0m ✅ ${msg}`),
-  warn: (msg) => console.log(`\x1b[33m[AUTO-START]\x1b[0m ⚠️  ${msg}`),
-  error: (msg) => console.log(`\x1b[31m[AUTO-START]\x1b[0m ❌ ${msg}`),
-  title: (msg) => console.log(`\n\x1b[35m=====================================================\x1b[0m\n\x1b[1m\x1b[37m${msg}\x1b[0m\n\x1b[35m=====================================================\x1b[0m\n`)
+  info: (msg) => console.log(`[AUTO-START] ${new Date().toLocaleTimeString()} INFO  ${msg}`),
+  success: (msg) => console.log(`[AUTO-START] ${new Date().toLocaleTimeString()} OK    ${msg}`),
+  warn: (msg) => console.log(`[AUTO-START] ${new Date().toLocaleTimeString()} WARN  ${msg}`),
+  error: (msg) => console.error(`[AUTO-START] ${new Date().toLocaleTimeString()} ERROR ${msg}`),
+  title: (msg) => console.log(`\n=====================================================\n${msg}\n=====================================================`),
 };
 
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function checkPortOpen(port, timeoutMs = 2000) {
+function checkPortOpen(port, timeoutMs = 2000) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
     socket.setTimeout(timeoutMs);
-    socket.on('connect', () => { socket.destroy(); resolve(true); });
-    socket.on('timeout', () => { socket.destroy(); resolve(false); });
-    socket.on('error', () => { resolve(false); });
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on('error', () => {
+      socket.destroy();
+      resolve(false);
+    });
     socket.connect(port, '127.0.0.1');
   });
 }
@@ -73,1058 +78,688 @@ async function waitForPort(port, maxWaitMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     if (await checkPortOpen(port)) return true;
-    await new Promise((r) => setTimeout(r, 1000));
+    await sleep(1000);
   }
   return false;
 }
 
-function killPort(port) {
-  try {
-    const out = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' });
-    const lines = out.trim().split('\n');
-    for (const line of lines) {
-      if (line.includes('LISTENING')) {
-        const parts = line.trim().split(/\s+/);
-        const pid = parts[parts.length - 1];
-        if (pid && pid !== '0' && pid !== String(process.pid)) {
-          log.info(`Membersihkan proses lama di port ${port} (PID: ${pid})...`);
-          try { execSync(`taskkill /f /pid ${pid}`, { stdio: 'ignore' }); } catch { }
-        }
-      }
-    }
-  } catch { }
-}
+const managedChildren = new Map();
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-/**
- * Start a process in background with optional log output.
- * Path is quoted to handle spaces (e.g. "F:\order dte\server").
- */
-function startProcess(command, args, cwd, name, logFile = null) {
-  log.info(`Menjalankan ${name}...`);
+function startBackgroundService(key, command, args, cwd, logFileName, extraEnv = {}) {
+  if (!fs.existsSync(cwd)) {
+    log.warn(`Direktori untuk ${key} tidak ditemukan: ${cwd}`);
+    return null;
+  }
+  log.info(`Menjalankan ${key} di ${cwd}...`);
   try {
+    const logDir = path.join(PROD_ROOT_DIR, 'scratch');
+    try {
+      if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    } catch {}
     let stdioConfig = 'ignore';
-    if (logFile) {
-      try {
-        const fullLogPath = path.isAbsolute(logFile) ? logFile : path.join(ROOT_DIR, logFile);
-        const fd = fs.openSync(fullLogPath, 'a');
-        stdioConfig = ['ignore', fd, fd];
-      } catch {
-        stdioConfig = 'ignore';
-      }
+    try {
+      const logPath = path.join(logDir, logFileName);
+      const fd = fs.openSync(logPath, 'a');
+      stdioConfig = ['ignore', fd, fd];
+    } catch {
+      stdioConfig = 'ignore';
     }
+
     const child = spawn(command, args, {
       cwd,
-      detached: true,
+      detached: false,
+      windowsHide: true,
       stdio: stdioConfig,
-      shell: true
+      env: { ...process.env, ...extraEnv },
     });
-    child.unref();
+    child.on('error', (err) => {
+      log.warn(`Service ${key} error: ${err.message}`);
+    });
+    managedChildren.set(key, child);
+    return child;
   } catch (err) {
-    log.warn(`Gagal startProcess untuk ${name}: ${err.message}`);
+    log.error(`Gagal menjalankan ${key}: ${err.message}`);
+    return null;
   }
 }
 
 /**
- * Launch a Cloudflare quick tunnel and parse the URL from the log file.
+ * Buka tunnel publik untuk port tertentu menggunakan Cloudflare Quick Tunnel
+ * dengan fallback otomatis ke localhost.run jika terkena rate-limit.
  */
-function launchTunnel(port, logFilePath) {
-  return new Promise((resolve, reject) => {
-    if (!fs.existsSync(CLOUDFLARED_BIN)) {
-      return reject(new Error(`cloudflared.exe tidak ditemukan di ${CLOUDFLARED_BIN}`));
-    }
-
-    log.info(`Menyalakan Cloudflare Tunnel untuk port ${port}...`);
-
-    // Hapus log lama
-    try { if (fs.existsSync(logFilePath)) fs.unlinkSync(logFilePath); } catch { }
-
-    const child = spawn(CLOUDFLARED_BIN, [
-      'tunnel',
-      '--url', `http://127.0.0.1:${port}`,
-      '--protocol', 'http2',
-      '--logfile', logFilePath,
-      '--retries', '10'
-    ], {
-      detached: true,
-      windowsHide: true,
-      stdio: 'ignore'
-    });
-    child.unref();
-
+function createResilientTunnel(port, label) {
+  return new Promise((resolve) => {
+    log.info(`[${label}] Membuka Cloudflare Tunnel untuk http://127.0.0.1:${port}...`);
     let resolved = false;
-    const maxWaitMs = 90000; // 90 detik
-    const start = Date.now();
+    let cfProc = null;
 
-    const interval = setInterval(() => {
-      if (Date.now() - start > maxWaitMs) {
-        clearInterval(interval);
-        if (!resolved) {
-          reject(new Error(`Timeout menunggu Cloudflare Tunnel port ${port} (${maxWaitMs / 1000}s)`));
+    const startSshFallback = (reason) => {
+      if (resolved) return;
+      log.warn(`[${label}] Cloudflare fallback (${reason}) -> beralih ke localhost.run SSH...`);
+      if (cfProc) {
+        try { cfProc.kill(); } catch {}
+      }
+      const sshProc = spawn('ssh', [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'ServerAliveInterval=20',
+        '-o', 'ServerAliveCountMax=3',
+        '-R', `80:127.0.0.1:${port}`,
+        'nokey@localhost.run',
+      ], { windowsHide: true });
+
+      const onData = (chunk) => {
+        const text = chunk.toString();
+        const match = text.match(/https:\/\/([a-zA-Z0-9.-]+)\.lhr\.life/);
+        if (match && !resolved) {
+          resolved = true;
+          const url = cleanUrl(match[0]);
+          log.success(`[${label}] Tunnel aktif (localhost.run): ${url}`);
+          resolve({ port, label, url, process: sshProc, provider: 'lhr' });
         }
-        return;
-      }
+      };
+      sshProc.stdout.on('data', onData);
+      sshProc.stderr.on('data', onData);
+    };
 
-      if (fs.existsSync(logFilePath)) {
-        try {
-          const content = fs.readFileSync(logFilePath, 'utf8');
-          const match = content.match(/https:\/\/[a-z0-9\-]+\.trycloudflare\.com/i);
-          const isRegistered = content.includes('Registered tunnel connection') ||
-            content.includes('Registered at') ||
-            content.includes('connection=') ||
-            content.includes('location=') ||
-            content.includes('connIndex=');
-          if (match && match[0] && isRegistered) {
+    try {
+      cfProc = spawn(CLOUDFLARED_BIN, [
+        'tunnel',
+        '--url', `http://127.0.0.1:${port}`,
+        '--protocol', 'http2',
+        '--no-autoupdate',
+      ], { windowsHide: true });
+
+      let candidateUrl = null;
+      const fallbackTimer = setTimeout(() => {
+        if (!resolved) {
+          if (candidateUrl) {
             resolved = true;
-            clearInterval(interval);
-            resolve(cleanUrl(match[0]));
+            log.success(`[${label}] Tunnel aktif (Cloudflare): ${candidateUrl}`);
+            resolve({ port, label, url: candidateUrl, process: cfProc, provider: 'cloudflare' });
+          } else {
+            startSshFallback('timeout 25s');
           }
-        } catch { }
-      }
-    }, 800);
+        }
+      }, 25000);
+
+      const onCfData = (chunk) => {
+        const text = chunk.toString();
+        if (text.includes('429 Too Many Requests') || text.includes('error code: 1015')) {
+          clearTimeout(fallbackTimer);
+          startSshFallback('Cloudflare 429 rate limit');
+          return;
+        }
+
+        const matches = [...text.matchAll(/https:\/\/([a-z0-9-]+)\.trycloudflare\.com/gi)]
+          .filter((m) => m[1].toLowerCase() !== 'api' && m[1].includes('-'));
+        if (matches.length > 0 && !candidateUrl) {
+          candidateUrl = cleanUrl(matches[0][0]);
+        }
+
+        const isRegistered =
+          text.includes('Registered tunnel connection') ||
+          text.includes('connIndex=');
+
+        if (candidateUrl && isRegistered && !resolved) {
+          clearTimeout(fallbackTimer);
+          resolved = true;
+          log.success(`[${label}] Tunnel aktif & terdaftar (Cloudflare): ${candidateUrl}`);
+          resolve({ port, label, url: candidateUrl, process: cfProc, provider: 'cloudflare' });
+        }
+      };
+
+      cfProc.stdout.on('data', onCfData);
+      cfProc.stderr.on('data', onCfData);
+      cfProc.on('error', (err) => {
+        clearTimeout(fallbackTimer);
+        startSshFallback(err.message);
+      });
+    } catch (err) {
+      startSshFallback(err.message);
+    }
   });
 }
 
-// ─────────────────────────────────────────────
-// CONFIG UPDATE
-// ─────────────────────────────────────────────
-
-function updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
-  log.info('Memperbarui konfigurasi proyek secara otomatis...');
-
-  const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
-  let oldTunnel = {};
-  try {
-    if (fs.existsSync(activeTunnelPath)) {
-      oldTunnel = JSON.parse(fs.readFileSync(activeTunnelPath, 'utf8'));
-    }
-  } catch { }
-
-  const finalAiUrl = aiUrl || oldTunnel.aiUrl || backendUrl;
-
-  // 1. Update .env
-  const envPath = path.join(ROOT_DIR, '.env');
-  if (fs.existsSync(envPath)) {
-    let envContent = fs.readFileSync(envPath, 'utf8');
-    envContent = envContent.replace(
-      /VITE_DEEPERNOVA_SEARCH_API_URL=\S+/g,
-      `VITE_DEEPERNOVA_SEARCH_API_URL=/api/v1`
-    );
-    envContent = envContent.replace(
-      /VITE_SEARCH_ENGINE_URL=\S+/g,
-      `VITE_SEARCH_ENGINE_URL=/search`
-    );
-    if (dteUrl) {
-      envContent = envContent.replace(
-        /VITE_ORDER_DTE_URL=\S+/g,
-        `VITE_ORDER_DTE_URL=${dteUrl}`
-      );
-    }
-    envContent = envContent.replace(
-      /PUBLIC_BACKEND_URL=\S+/g,
-      `PUBLIC_BACKEND_URL=${backendUrl}`
-    );
-    envContent = envContent.replace(
-      /VITE_API_URL=\S+/g,
-      `VITE_API_URL=${backendUrl}`
-    );
-    envContent = envContent.replace(
-      /VPS_PUBLIC_URL=\S+/g,
-      `VPS_PUBLIC_URL=${backendUrl}`
-    );
-    if (finalAiUrl) {
-      if (envContent.includes('DEEPERNOVA_PUBLIC_API_URL=')) {
-        envContent = envContent.replace(/DEEPERNOVA_PUBLIC_API_URL=\S+/g, `DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`);
-      } else {
-        envContent += `\nDEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`;
-      }
-      if (envContent.includes('VITE_DEEPERNOVA_PUBLIC_API_URL=')) {
-        envContent = envContent.replace(/VITE_DEEPERNOVA_PUBLIC_API_URL=\S+/g, `VITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`);
-      } else {
-        envContent += `\nVITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`;
-      }
-      if (envContent.includes('DEEPERNOVA_API_URL=')) {
-        envContent = envContent.replace(/DEEPERNOVA_API_URL=\S+/g, `DEEPERNOVA_API_URL=http://127.0.0.1:8000/v1/chat/completions`);
-      } else {
-        envContent += `\nDEEPERNOVA_API_URL=http://127.0.0.1:8000/v1/chat/completions`;
-      }
-    }
-    fs.writeFileSync(envPath, envContent, 'utf8');
-    log.success('.env berhasil diperbarui.');
-  }
-
-  // 2. Update active_tunnel.json
-  const tunnelConfig = {
-    backendUrl,
-    aiUrl: finalAiUrl,
-    searchEngineUrl,
-    dteUrl: dteUrl || oldTunnel.dteUrl || null,
-    backendPort: 3001,
-    aiPort: 8000,
-    searchEnginePort: 4000,
-    dtePort: 5173,
-    status: "LIVE",
-    updatedAt: new Date().toISOString()
-  };
-  fs.writeFileSync(activeTunnelPath, JSON.stringify(tunnelConfig, null, 2), 'utf8');
-  log.success('active_tunnel.json berhasil diperbarui.');
-
-  // 3. Update src/apiConfig.js
-  const apiConfigPath = path.join(ROOT_DIR, 'src', 'apiConfig.js');
-  if (fs.existsSync(apiConfigPath)) {
-    let apiConfigContent = fs.readFileSync(apiConfigPath, 'utf8');
-    apiConfigContent = apiConfigContent.replace(
-      /(?:export\s+)?const CLOUDFLARE_BACKEND_URL = '[^']+';(\s*export const PUBLIC_API_BASE_URL = [^;]+;)?/,
-      `export const CLOUDFLARE_BACKEND_URL = '${backendUrl}';\nexport const PUBLIC_API_BASE_URL = CLOUDFLARE_BACKEND_URL;`
-    );
-    if (finalAiUrl) {
-      apiConfigContent = apiConfigContent.replace(
-        /export const DEEPERNOVA_AI_PUBLIC_URL =\s*[\s\S]*?'https:\/\/[a-z0-9\-]+\.trycloudflare\.com';/,
-        `export const DEEPERNOVA_AI_PUBLIC_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DEEPERNOVA_PUBLIC_API_URL) ||\n  '${finalAiUrl}';`
-      );
-    }
-    if (dteUrl) {
-      apiConfigContent = apiConfigContent.replace(
-        /export const ORDER_DTE_URL =\s*[\s\S]*?'https:\/\/[a-z0-9\-]+\.trycloudflare\.com'\);/,
-        `export const ORDER_DTE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ORDER_DTE_URL) ||\n  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')\n    ? 'http://localhost:5173'\n    : '${dteUrl}');`
-      );
-    }
-    if (searchEngineUrl) {
-      apiConfigContent = apiConfigContent.replace(
-        /export const SEARCH_ENGINE_URL =[\s\S]*?;/,
-        `export const SEARCH_ENGINE_URL =\n  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEARCH_ENGINE_URL) ||\n  (typeof window !== 'undefined' ? \`\${window.location.origin}/search\` : '/search');`
-      );
-    }
-    fs.writeFileSync(apiConfigPath, apiConfigContent, 'utf8');
-    log.success('src/apiConfig.js berhasil diperbarui.');
-  }
-
-  // 4. Ensure src/services/clientSearchService.js uses Vercel Edge Rewrite (/api/v1) in production
-  log.success('src/services/clientSearchService.js siap dengan Vercel Edge Rewrite (/api/v1).');
-
-  // 5. Ensure src/components/LandingPage.jsx always opens /search on Vercel CDN
-  log.success('src/components/LandingPage.jsx siap dengan Vercel CDN (/search).');
-
-  // 6. Update .env.production
-  const envProdPath = path.join(ROOT_DIR, '.env.production');
-  if (fs.existsSync(envProdPath)) {
-    let envProdContent = fs.readFileSync(envProdPath, 'utf8');
-    envProdContent = envProdContent.replace(
-      /VITE_DEEPERNOVA_SEARCH_API_URL=\S+/g,
-      `VITE_DEEPERNOVA_SEARCH_API_URL=/api/v1`
-    );
-    envProdContent = envProdContent.replace(
-      /VITE_SEARCH_ENGINE_URL=\S+/g,
-      `VITE_SEARCH_ENGINE_URL=/search`
-    );
-    if (dteUrl) {
-      envProdContent = envProdContent.replace(
-        /VITE_ORDER_DTE_URL=\S+/g,
-        `VITE_ORDER_DTE_URL=${dteUrl}`
-      );
-    }
-    envProdContent = envProdContent.replace(
-      /VITE_API_URL=\S+/g,
-      `VITE_API_URL=${backendUrl}`
-    );
-    if (finalAiUrl) {
-      if (envProdContent.includes('VITE_DEEPERNOVA_PUBLIC_API_URL=')) {
-        envProdContent = envProdContent.replace(/VITE_DEEPERNOVA_PUBLIC_API_URL=\S+/g, `VITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`);
-      } else {
-        envProdContent += `\nVITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`;
-      }
-    }
-    fs.writeFileSync(envProdPath, envProdContent, 'utf8');
-    log.success('.env.production berhasil diperbarui.');
-  }
-
-  // 7. Update vercel.json
-  const vercelPath = path.join(ROOT_DIR, 'vercel.json');
-  const vercelConfig = {
+function buildVercelConfig(backendUrl, searchEngineUrl, dteUrl) {
+  return {
     headers: [
       {
-        source: "/(.*)",
+        source: '/(.*)',
         headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-XSS-Protection", value: "1; mode=block" },
-          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Content-Security-Policy", value: "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';" }
-        ]
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=()' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Content-Security-Policy', value: "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss: blob: data:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';" },
+        ],
       },
       {
-        source: "/(index.html)?",
-        headers: [
-          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate, max-age=0" }
-        ]
+        source: '/(index.html)?',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate, max-age=0' }],
       },
       {
-        source: "/search/(index.html)?",
-        headers: [
-          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate, max-age=0" }
-        ]
+        source: '/search/(index.html)?',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate, max-age=0' }],
       },
       {
-        source: "/search/assets/(.*)",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
-        ]
+        source: '/search/assets/(.*)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
-        source: "/dte/(index.html)?",
-        headers: [
-          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate, max-age=0" }
-        ]
+        source: '/dte',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate, max-age=0' }],
       },
       {
-        source: "/dte/assets/(.*)",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
-        ]
+        source: '/dte/(index.html|operator|admin)?',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate, max-age=0' }],
       },
       {
-        source: "/assets/(.*)",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
-        ]
+        source: '/dte/assets/(.*)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
-        source: "/ceo.jpg",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
-          { key: "X-Robots-Tag", value: "index, follow, max-image-preview:large" }
-        ]
+        source: '/assets/(.*)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
-        source: "/api/(.*)",
+        source: '/ceo.jpg',
         headers: [
-          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" }
-        ]
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+          { key: 'X-Robots-Tag', value: 'index, follow, max-image-preview:large' },
+        ],
       },
       {
-        source: "/auth/(.*)",
+        source: '/api/(.*)',
         headers: [
-          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" }
-        ]
-      }
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nosnippet' },
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, max-age=0' },
+        ],
+      },
+      {
+        source: '/auth/(.*)',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nosnippet' },
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, max-age=0' },
+        ],
+      },
     ],
     rewrites: [
+      { source: '/api/chat/jobs/start', destination: `${backendUrl}/api/chat/jobs/start` },
+      { source: '/api/chat/jobs/active', destination: `${backendUrl}/api/chat/jobs/active` },
+      { source: '/api/chat/jobs/sync', destination: `${backendUrl}/api/chat/jobs/sync` },
+      { source: '/api/chat/jobs/:jobId/stream', destination: '/api/chat/jobs/stream?jobId=:jobId' },
+      { source: '/api/chat/jobs/stream/:sessionId', destination: `${backendUrl}/api/chat/jobs/stream/:sessionId` },
+      { source: '/api/chat/jobs/:jobId', destination: `${backendUrl}/api/chat/jobs/:jobId` },
+      { source: '/api/chat', destination: '/api/chat' },
+      { source: '/api/subagent/orchestrate', destination: '/api/subagent/orchestrate' },
+      { source: '/api/chat/stop', destination: `${backendUrl}/api/chat/stop` },
+      { source: '/api/ping', destination: '/api/ping' },
+      { source: '/api/token-usage/:path*', destination: '/api/token-usage/:path*' },
+      { source: '/api/serp-search', destination: '/api/serp-search' },
+      { source: '/api/google-search', destination: '/api/serp-search' },
+      { source: '/api/search', destination: '/api/search' },
+      { source: '/api/v1/search', destination: '/api/search' },
+      { source: '/api/v1/search-fast', destination: '/api/search' },
+      { source: '/api/v1/images', destination: `${searchEngineUrl}/api/v1/images` },
+      { source: '/api/images', destination: `${searchEngineUrl}/api/v1/images` },
+      { source: '/api/suggestions', destination: '/api/suggestions' },
+      { source: '/api/suggestions/trending', destination: `${searchEngineUrl}/api/suggestions/trending` },
+      { source: '/api/images/crawl', destination: `${searchEngineUrl}/api/images/crawl` },
+      { source: '/api/images/recent', destination: `${searchEngineUrl}/api/images/recent` },
+      { source: '/api/images/stats', destination: `${searchEngineUrl}/api/images/stats` },
+      { source: '/api/v1/health', destination: `${searchEngineUrl}/api/v1/health` },
+      { source: '/api/v1/news', destination: `${searchEngineUrl}/api/v1/news` },
+      { source: '/api/tunnel/info', destination: `${searchEngineUrl}/api/tunnel/info` },
+      { source: '/api/v1/suggest', destination: '/api/suggestions' },
+      { source: '/api/status', destination: '/api/status' },
+      { source: '/api/agent', destination: `${backendUrl}/api/agent` },
+      { source: '/api/agent/:path*', destination: `${backendUrl}/api/agent/:path*` },
+      { source: '/search', destination: '/search/index.html' },
+      { source: '/search/', destination: '/search/index.html' },
+      { source: '/search/assets/:path*', destination: '/search/assets/:path*' },
+      { source: '/search/icons/:path*', destination: '/search/icons/:path*' },
+      { source: '/search/manifest.json', destination: '/search/manifest.json' },
+      { source: '/search/sw.js', destination: '/search/sw.js' },
+      { source: '/search/favicon.png', destination: '/search/favicon.png' },
+      { source: '/search/:path*', destination: '/search/index.html' },
+      { source: '/dte', destination: '/dte/index.html' },
+      { source: '/dte/', destination: '/dte/index.html' },
+      { source: '/dte/assets/:path*', destination: '/dte/assets/:path*' },
+      { source: '/dte/icons/:path*', destination: '/dte/icons/:path*' },
+      { source: '/dte/manifest.json', destination: '/dte/manifest.json' },
+      { source: '/dte/favicon.svg', destination: '/dte/favicon.svg' },
+      { source: '/dte/favicon.png', destination: '/dte/favicon.png' },
+      { source: '/dte/favicon.ico', destination: '/dte/favicon.ico' },
+      { source: '/dte/:path*', destination: '/dte/index.html' },
+      { source: '/api/ping', destination: `${dteUrl}/api/ping` },
+      { source: '/api/dte/ping', destination: `${dteUrl}/api/ping` },
+      { source: '/api/auth/login', destination: `${dteUrl}/api/auth/login` },
+      { source: '/api/auth/register', destination: `${dteUrl}/api/auth/register` },
+      { source: '/api/items', destination: `${dteUrl}/api/items` },
+      { source: '/api/items/:path*', destination: `${dteUrl}/api/items/:path*` },
+      { source: '/api/admin/:path*', destination: `${dteUrl}/api/admin/:path*` },
+      { source: '/api/requests', destination: `${dteUrl}/api/requests` },
+      { source: '/api/requests/:path*', destination: `${dteUrl}/api/requests/:path*` },
+      { source: '/api/dte/:path*', destination: `${dteUrl}/api/:path*` },
+      { source: '/uploads/:path*', destination: `${dteUrl}/uploads/:path*` },
+      { source: '/api/ai/:path*', destination: `${searchEngineUrl}/api/ai/:path*` },
+      { source: '/api/news', destination: `${searchEngineUrl}/api/news` },
+      { source: '/api/news/:path*', destination: `${searchEngineUrl}/api/news/:path*` },
+      { source: '/api/tokoh', destination: `${searchEngineUrl}/api/tokoh` },
+      { source: '/api/tokoh/:path*', destination: `${searchEngineUrl}/api/tokoh/:path*` },
+      { source: '/api/geo', destination: `${searchEngineUrl}/api/geo` },
+      { source: '/api/geo/:path*', destination: `${searchEngineUrl}/api/geo/:path*` },
+      { source: '/api/crawl', destination: `${searchEngineUrl}/api/crawl` },
+      { source: '/api/crawl/:path*', destination: `${searchEngineUrl}/api/crawl/:path*` },
+      { source: '/api/economics', destination: `${searchEngineUrl}/api/economics` },
+      { source: '/api/economics/:path*', destination: `${searchEngineUrl}/api/economics/:path*` },
+      { source: '/api/proxy-image', destination: `${searchEngineUrl}/api/proxy-image` },
+      { source: '/api/upstream/:path*', destination: `${backendUrl}/api/:path*` },
+      { source: '/api/:path*', destination: `${backendUrl}/api/:path*` },
+      { source: '/auth/:path*', destination: `${backendUrl}/auth/:path*` },
+      { source: '/v1/:path*', destination: `${backendUrl}/v1/:path*` },
+      { source: '/download/:path*', destination: `${backendUrl}/download/:path*` },
+      { source: '/watermarked/:path*', destination: `${backendUrl}/watermarked/:path*` },
       {
-        source: "/search",
-        destination: "/search/index.html"
+        source: '/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)',
+        destination: '/index.html',
       },
-      {
-        source: "/search/",
-        destination: "/search/index.html"
-      },
-      {
-        source: "/search/assets/:path*",
-        destination: "/search/assets/:path*"
-      },
-      {
-        source: "/search/icons/:path*",
-        destination: "/search/icons/:path*"
-      },
-      {
-        source: "/search/manifest.json",
-        destination: "/search/manifest.json"
-      },
-      {
-        source: "/search/sw.js",
-        destination: "/search/sw.js"
-      },
-      {
-        source: "/search/favicon.png",
-        destination: "/search/favicon.png"
-      },
-      {
-        source: "/search/:path*",
-        destination: "/search/index.html"
-      },
-      {
-        source: "/dte",
-        destination: "/dte/index.html"
-      },
-      {
-        source: "/dte/",
-        destination: "/dte/index.html"
-      },
-      {
-        source: "/dte/assets/:path*",
-        destination: "/dte/assets/:path*"
-      },
-      {
-        source: "/dte/icons/:path*",
-        destination: "/dte/icons/:path*"
-      },
-      {
-        source: "/dte/manifest.json",
-        destination: "/dte/manifest.json"
-      },
-      {
-        source: "/dte/favicon.svg",
-        destination: "/dte/favicon.svg"
-      },
-      {
-        source: "/dte/favicon.png",
-        destination: "/dte/favicon.png"
-      },
-      {
-        source: "/dte/favicon.ico",
-        destination: "/dte/favicon.ico"
-      },
-      {
-        source: "/dte/:path*",
-        destination: "/dte/index.html"
-      },
-      {
-        source: "/api/dte/ping",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/ping`
-      },
-      {
-        source: "/api/items",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/items`
-      },
-      {
-        source: "/api/items/:path*",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/items/:path*`
-      },
-      {
-        source: "/api/admin/:path*",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/admin/:path*`
-      },
-      {
-        source: "/api/requests",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/requests`
-      },
-      {
-        source: "/api/requests/:path*",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/requests/:path*`
-      },
-      {
-        source: "/api/dte/:path*",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/api/:path*`
-      },
-      {
-        source: "/uploads/:path*",
-        destination: `${dteUrl || 'https://col-dialogue-reflection-edition.trycloudflare.com'}/uploads/:path*`
-      },
-      {
-        source: "/api/search",
-        destination: `${searchEngineUrl}/api/search`
-      },
-      {
-        source: "/api/status",
-        destination: `${searchEngineUrl}/api/status`
-      },
-      {
-        source: "/api/v1/suggest",
-        destination: `${searchEngineUrl}/suggest`
-      },
-      {
-        source: "/api/v1/:path*",
-        destination: `${searchEngineUrl}/api/v1/:path*`
-      },
-      {
-        source: "/api/suggestions",
-        destination: `${searchEngineUrl}/api/suggestions`
-      },
-      {
-        source: "/api/suggestions/:path*",
-        destination: `${searchEngineUrl}/api/suggestions/:path*`
-      },
-      {
-        source: "/api/ai/:path*",
-        destination: `${searchEngineUrl}/api/ai/:path*`
-      },
-      {
-        source: "/api/news",
-        destination: `${searchEngineUrl}/api/news`
-      },
-      {
-        source: "/api/news/:path*",
-        destination: `${searchEngineUrl}/api/news/:path*`
-      },
-      {
-        source: "/api/tokoh",
-        destination: `${searchEngineUrl}/api/tokoh`
-      },
-      {
-        source: "/api/tokoh/:path*",
-        destination: `${searchEngineUrl}/api/tokoh/:path*`
-      },
-      {
-        source: "/api/geo",
-        destination: `${searchEngineUrl}/api/geo`
-      },
-      {
-        source: "/api/geo/:path*",
-        destination: `${searchEngineUrl}/api/geo/:path*`
-      },
-      {
-        source: "/api/crawl",
-        destination: `${searchEngineUrl}/api/crawl`
-      },
-      {
-        source: "/api/crawl/:path*",
-        destination: `${searchEngineUrl}/api/crawl/:path*`
-      },
-      {
-        source: "/api/economics",
-        destination: `${searchEngineUrl}/api/economics`
-      },
-      {
-        source: "/api/economics/:path*",
-        destination: `${searchEngineUrl}/api/economics/:path*`
-      },
-      {
-        source: "/api/proxy-image",
-        destination: `${searchEngineUrl}/api/proxy-image`
-      },
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`
-      },
-      {
-        source: "/auth/:path*",
-        destination: `${backendUrl}/auth/:path*`
-      },
-      {
-        source: "/v1/:path*",
-        destination: `${backendUrl}/v1/:path*`
-      },
-      {
-        source: "/download/:path*",
-        destination: `${backendUrl}/download/:path*`
-      },
-      {
-        source: "/watermarked/:path*",
-        destination: `${backendUrl}/watermarked/:path*`
-      },
-      {
-        source: "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
-        destination: "/index.html"
-      }
-    ]
+    ],
   };
-  fs.writeFileSync(vercelPath, JSON.stringify(vercelConfig, null, 2), 'utf8');
-  log.success('vercel.json rewrites berhasil diperbarui.');
+}
 
-  // 8. Update dpn-search-app/dist/index.html
-  const dpnSearchHtmlPath = path.join(ROOT_DIR, 'dpn-search-app', 'dist', 'index.html');
-  if (fs.existsSync(dpnSearchHtmlPath)) {
-    let dpnHtml = fs.readFileSync(dpnSearchHtmlPath, 'utf8');
-    dpnHtml = dpnHtml.replace(
-      /var BACKEND_URL = '[^']+';/,
-      `var BACKEND_URL = '${searchEngineUrl}';`
-    );
-    fs.writeFileSync(dpnSearchHtmlPath, dpnHtml, 'utf8');
-    log.success('dpn-search-app/dist/index.html server address updated.');
-  }
-
-  // 9. Update search-engine/vercel.json
-  const seVercelPath = path.join(ROOT_DIR, 'search-engine', 'vercel.json');
-  if (fs.existsSync(seVercelPath)) {
-    try {
-      const seVercel = JSON.parse(fs.readFileSync(seVercelPath, 'utf8'));
-      if (Array.isArray(seVercel.rewrites)) {
-        const apiRewrite = seVercel.rewrites.find(r => r.source === '/api/:path*');
-        if (apiRewrite) {
-          apiRewrite.destination = `${searchEngineUrl}/api/:path*`;
-          fs.writeFileSync(seVercelPath, JSON.stringify(seVercel, null, 2), 'utf8');
-          log.success('search-engine/vercel.json rewrites berhasil diperbarui.');
-        }
-      }
-    } catch { }
+function replaceTunnelUrlInEdgeFile(filePath, backendUrl) {
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const updated = raw.replace(
+    /https:\/\/[a-z0-9.-]+\.(?:trycloudflare\.com|lhr\.life)/gi,
+    backendUrl
+  );
+  if (updated !== raw) {
+    fs.writeFileSync(filePath, updated, 'utf8');
   }
 }
 
-// ─────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────
+function updateAllConfigs(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
+  const finalAiUrl = aiUrl || backendUrl;
+  const roots = Array.from(new Set([PROD_ROOT_DIR, WORKTREE_DIR])).filter((d) => fs.existsSync(d));
+
+  for (const dir of roots) {
+    // 1. active_tunnel.json
+    const tunnelPayload = {
+      backend: backendUrl,
+      search: searchEngineUrl,
+      orderDte: dteUrl,
+      backendUrl,
+      searchEngineUrl,
+      dteUrl,
+      aiUrl: finalAiUrl,
+      backendPort: 3001,
+      aiPort: 8000,
+      searchEnginePort: 4000,
+      dtePort: 5173,
+      mode: 'VERCEL_FULLSTACK_NATIVE_DUAL',
+      status: 'LIVE',
+      updatedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(path.join(dir, 'active_tunnel.json'), JSON.stringify(tunnelPayload, null, 2), 'utf8');
+
+    // 2. vercel.json (only apply full jobs/agent Edge rewrites where those api files exist; in worktree apply matching rewrites)
+    const hasJobsApi = fs.existsSync(path.join(dir, 'api', 'chat', 'jobs', 'stream.js'));
+    const vercelConfig = buildVercelConfig(backendUrl, searchEngineUrl, dteUrl);
+    if (!hasJobsApi) {
+      vercelConfig.rewrites = vercelConfig.rewrites.filter(
+        (r) =>
+          r.destination !== '/api/chat/jobs/stream?jobId=:jobId' &&
+          r.destination !== '/api/serp-search' &&
+          r.destination !== '/api/search' &&
+          r.destination !== '/api/suggestions' &&
+          r.destination !== '/api/status'
+      );
+      // Ensure /api/search & /api/v1/search route directly to searchEngineUrl when Edge /api/search.js is absent
+      vercelConfig.rewrites.unshift(
+        { source: '/api/v1/search', destination: `${searchEngineUrl}/api/v1/search` },
+        { source: '/api/v1/search-fast', destination: `${searchEngineUrl}/api/v1/search` },
+        { source: '/api/search', destination: `${searchEngineUrl}/api/search` },
+        { source: '/api/suggestions', destination: `${searchEngineUrl}/api/suggestions` },
+        { source: '/api/status', destination: `${searchEngineUrl}/api/status` }
+      );
+    }
+    fs.writeFileSync(path.join(dir, 'vercel.json'), JSON.stringify(vercelConfig, null, 2), 'utf8');
+
+    // 3. Edge API proxy fallback URLs
+    const edgeFiles = [
+      path.join(dir, 'api', 'chat.js'),
+      path.join(dir, 'api', 'agent', '_proxy.js'),
+      path.join(dir, 'api', 'chat', 'jobs', '_proxy.js'),
+      path.join(dir, 'api', 'auth', 'me.js'),
+      path.join(dir, 'api', 'chat', 'stop.js'),
+    ];
+    for (const ef of edgeFiles) {
+      replaceTunnelUrlInEdgeFile(ef, backendUrl);
+    }
+
+    // 4. src/apiConfig.js
+    const apiConfigPath = path.join(dir, 'src', 'apiConfig.js');
+    if (fs.existsSync(apiConfigPath)) {
+      let apiContent = fs.readFileSync(apiConfigPath, 'utf8');
+      apiContent = apiContent.replace(
+        /export const CLOUDFLARE_BACKEND_URL = '[^']+';/,
+        `export const CLOUDFLARE_BACKEND_URL = '${backendUrl}';`
+      );
+      apiContent = apiContent.replace(
+        /(export const DEEPERNOVA_AI_PUBLIC_URL =[\s\S]*?)'https:\/\/[a-z0-9.-]+\.(?:trycloudflare\.com|lhr\.life)(?:\/v1\/chat\/completions)?';/,
+        `$1'${finalAiUrl}';`
+      );
+      fs.writeFileSync(apiConfigPath, apiContent, 'utf8');
+    }
+
+    // 5. .env
+    const envPath = path.join(dir, '.env');
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, 'utf8');
+      envContent = envContent
+        .replace(/PUBLIC_BACKEND_URL=\S+/g, `PUBLIC_BACKEND_URL=${backendUrl}`)
+        .replace(/VITE_API_URL=\S+/g, `VITE_API_URL=${backendUrl}`)
+        .replace(/VPS_PUBLIC_URL=\S+/g, `VPS_PUBLIC_URL=${backendUrl}`)
+        .replace(/VITE_ORDER_DTE_URL=\S+/g, `VITE_ORDER_DTE_URL=${dteUrl}`)
+        .replace(/DEEPERNOVA_PUBLIC_API_URL=\S+/g, `DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`)
+        .replace(/VITE_DEEPERNOVA_PUBLIC_API_URL=\S+/g, `VITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions`)
+        .replace(
+          /ALLOWED_ORIGINS=\S+/g,
+          `ALLOWED_ORIGINS=${backendUrl},${searchEngineUrl},${dteUrl},https://www.deepernova.com,https://deepernova.com,http://localhost:5173,http://localhost:5174,http://localhost:3000,http://localhost:3001`
+        );
+      fs.writeFileSync(envPath, envContent, 'utf8');
+    }
+
+    // 6. .env.production
+    const envProdPath = path.join(dir, '.env.production');
+    const envProdContent =
+      `VITE_DEEPERNOVA_SEARCH_API_URL=/api/v1\n` +
+      `VITE_SEARCH_ENGINE_URL=/search\n` +
+      `VITE_ORDER_DTE_URL=${dteUrl}\n` +
+      `VITE_DEEPERNOVA_SEARCH_API_KEY=dn_live_d69468b9c25451f3b7cd8482e96cbcf7\n` +
+      `VITE_DEEPERNOVA_PUBLIC_GUEST_KEY=dn_live_d69468b9c25451f3b7cd8482e96cbcf7\n` +
+      `VITE_API_URL=${backendUrl}\n\n` +
+      `VITE_DEEPERNOVA_PUBLIC_API_URL=${finalAiUrl}/v1/chat/completions\n`;
+    fs.writeFileSync(envProdPath, envProdContent, 'utf8');
+
+    // 7. dpn-search-app/dist/index.html & search-engine/vercel.json
+    const dpnHtmlPath = path.join(dir, 'dpn-search-app', 'dist', 'index.html');
+    if (fs.existsSync(dpnHtmlPath)) {
+      const dpnHtml = fs.readFileSync(dpnHtmlPath, 'utf8');
+      fs.writeFileSync(
+        dpnHtmlPath,
+        dpnHtml.replace(/var BACKEND_URL = '[^']+';/, `var BACKEND_URL = '${searchEngineUrl}';`),
+        'utf8'
+      );
+    }
+    const seVercelPath = path.join(dir, 'search-engine', 'vercel.json');
+    if (fs.existsSync(seVercelPath)) {
+      try {
+        const seV = JSON.parse(fs.readFileSync(seVercelPath, 'utf8'));
+        if (Array.isArray(seV.rewrites)) {
+          const rw = seV.rewrites.find((r) => r.source === '/api/:path*');
+          if (rw) rw.destination = `${searchEngineUrl}/api/:path*`;
+          fs.writeFileSync(seVercelPath, JSON.stringify(seV, null, 2), 'utf8');
+        }
+      } catch {}
+    }
+
+    log.success(`Konfigurasi diperbarui di: ${dir}`);
+  }
+}
+
+function buildAndDeployToVercel(reasonLabel = 'sync live tunnels') {
+  try {
+    if (!process.argv.includes('--skip-build')) {
+      log.info('Membangun frontend produksi (Vite build) di repositori utama untuk Vercel...');
+      const viteBin = path.join(PROD_ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
+      if (fs.existsSync(viteBin)) {
+        execSync(`node "${viteBin}" build`, { cwd: PROD_ROOT_DIR, stdio: 'inherit' });
+        const copySearch = path.join(PROD_ROOT_DIR, 'scripts', 'copy_search_dist.mjs');
+        const copyDte = path.join(PROD_ROOT_DIR, 'scripts', 'copy_dte_dist.mjs');
+        if (fs.existsSync(copySearch)) execSync(`node "${copySearch}"`, { cwd: PROD_ROOT_DIR, stdio: 'inherit' });
+        if (fs.existsSync(copyDte)) execSync(`node "${copyDte}"`, { cwd: PROD_ROOT_DIR, stdio: 'inherit' });
+      }
+      log.success('Build produksi selesai.');
+    }
+
+    if (!process.argv.includes('--skip-push')) {
+      log.info('Melakukan Git commit & push ke origin/main untuk memicu Auto-Deploy Vercel...');
+      const filesToStage = [
+        'vercel.json',
+        'active_tunnel.json',
+        'src/apiConfig.js',
+        'api/chat.js',
+        'api/agent/_proxy.js',
+        'api/chat/jobs/_proxy.js',
+        'api/auth/me.js',
+        'api/chat/stop.js',
+        'scripts/auto_start_all.mjs',
+        'dist',
+        'dpn-search-app/dist/index.html',
+        'search-engine/vercel.json',
+      ].filter((rel) => fs.existsSync(path.join(PROD_ROOT_DIR, rel)));
+
+      execSync(`git add ${filesToStage.map((f) => `"${f}"`).join(' ')}`, {
+        cwd: PROD_ROOT_DIR,
+        stdio: 'inherit',
+      });
+
+      const ts = new Date().toISOString().replace('T', ' ').slice(0, 16);
+      try {
+        execSync(
+          `git commit -m "fix(live): ${reasonLabel} for AI, AI Agent & Search Engine (${ts})"`,
+          { cwd: PROD_ROOT_DIR, stdio: 'inherit' }
+        );
+      } catch {
+        log.info('Tidak ada perubahan baru pada file git untuk di-commit.');
+      }
+
+      execSync('git push origin main', { cwd: PROD_ROOT_DIR, stdio: 'inherit' });
+      log.success('Push ke GitHub origin/main SUKSES! Vercel sedang mendeploy endpoint terbaru.');
+    }
+  } catch (err) {
+    log.error(`Gagal saat build/push Vercel: ${err.message}`);
+  }
+}
+
+async function ensureAllLocalServicesUp() {
+  // 1. FreeLLMAPI Gateway (Port 3005)
+  if (!(await checkPortOpen(3005))) {
+    if (fs.existsSync(path.join(FREELLM_SERVER_DIR, 'dist', 'index.js'))) {
+      startBackgroundService('FreeLLMAPI Gateway (3005)', process.execPath, ['dist/index.js'], FREELLM_SERVER_DIR, 'freellm-3005.log');
+      if (await waitForPort(3005, 20000)) {
+        log.success('FreeLLMAPI Gateway ONLINE di port 3005.');
+      } else {
+        log.warn('FreeLLMAPI Gateway masih inisialisasi di port 3005...');
+      }
+    }
+  } else {
+    log.success('FreeLLMAPI Gateway sudah ONLINE di port 3005.');
+  }
+
+  // 2. DeeperNova AI Python Server (Port 8000)
+  if (!(await checkPortOpen(8000))) {
+    if (fs.existsSync(path.join(AI_SERVER_DIR, 'start_api_server.py'))) {
+      startBackgroundService(
+        'DeeperNova Python AI Server (8000)',
+        'python',
+        ['-u', 'start_api_server.py'],
+        AI_SERVER_DIR,
+        'ai-python-8000.log',
+        { CUDA_VISIBLE_DEVICES: '' }
+      );
+      if (await waitForPort(8000, 15000)) {
+        log.success('DeeperNova Python AI Server ONLINE di port 8000.');
+      } else {
+        log.info('DeeperNova Python AI Server sedang memuat model di background (port 8000)...');
+      }
+    }
+  } else {
+    log.success('DeeperNova Python AI Server sudah ONLINE di port 8000.');
+  }
+
+  // 3. DeeperNova Search Engine & Crawler (Port 4000)
+  if (!(await checkPortOpen(4000))) {
+    if (fs.existsSync(SEARCH_DIR)) {
+      const entry = fs.existsSync(path.join(SEARCH_DIR, 'server.js')) ? 'server.js' : 'src/server.js';
+      startBackgroundService(
+        'DeeperNova Search Engine (4000)',
+        process.execPath,
+        ['--expose-gc', '--env-file=.env', '--max-old-space-size=4096', entry],
+        SEARCH_DIR,
+        'search-4000.log'
+      );
+      if (await waitForPort(4000, 35000)) {
+        log.success('DeeperNova Search Engine & Crawler ONLINE di port 4000.');
+      } else {
+        log.warn('Search Engine masih memuat indeks besar di background (port 4000)...');
+      }
+    }
+  } else {
+    log.success('DeeperNova Search Engine sudah ONLINE di port 4000.');
+  }
+
+  // 4. DeeperNova Backend AI + AI Agent Sandbox + Chat Jobs (Port 3001)
+  if (!(await checkPortOpen(3001))) {
+    startBackgroundService(
+      'DeeperNova Backend AI & Agent (3001)',
+      process.execPath,
+      ['server/server.js'],
+      PROD_ROOT_DIR,
+      'backend-3001.log'
+    );
+    if (await waitForPort(3001, 30000)) {
+      log.success('DeeperNova Backend AI & AI Agent ONLINE di port 3001.');
+    } else {
+      log.warn('Backend AI belum merespons di port 3001, periksa scratch/backend-3001.log');
+    }
+  } else {
+    log.success('DeeperNova Backend AI & AI Agent sudah ONLINE di port 3001.');
+  }
+
+  // 5. Order DTE Backend (Port 5000) & Fast Frontend (Port 5173)
+  if (fs.existsSync(ORDER_DTE_SERVER_DIR) && !(await checkPortOpen(5000))) {
+    startBackgroundService('Order DTE Backend (5000)', process.execPath, ['server.js'], ORDER_DTE_SERVER_DIR, 'dte-5000.log');
+    await waitForPort(5000, 12000);
+  }
+  if (fs.existsSync(ORDER_DTE_USER_DIR) && !(await checkPortOpen(5173))) {
+    startBackgroundService('Order DTE Frontend (5173)', process.execPath, ['fast-server.mjs'], ORDER_DTE_USER_DIR, 'dte-5173.log');
+    await waitForPort(5173, 12000);
+  }
+
+  // 6. DeeperNova Frontend Vite Dev (Port 5174)
+  if (!(await checkPortOpen(5174))) {
+    const viteBin = path.join(PROD_ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
+    if (fs.existsSync(viteBin)) {
+      startBackgroundService('DeeperNova Vite Frontend (5174)', process.execPath, [viteBin, '--port', '5174'], PROD_ROOT_DIR, 'vite-5174.log');
+      await waitForPort(5174, 15000);
+    }
+  }
+}
 
 async function main() {
-  log.title('🚀 DEEPERNOVA AI AUTO-CONFIGURATION SYSTEM');
+  log.title('DEEPERNOVA ECOSYSTEM MASTER ORCHESTRATOR');
 
-  // ── Step 0: Kill proses cloudflared lama ───
-  log.info('Membersihkan cloudflared lama...');
-  try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch { }
-  await sleep(1000);
-
-  // Pastikan C:\deepernova-data dan D:\deepernova-data siap
-  if (!fs.existsSync('C:\\deepernova-data')) {
-    try { fs.mkdirSync('C:\\deepernova-data', { recursive: true }); } catch { }
-  }
-  if (!fs.existsSync('D:\\deepernova-data')) {
-    try { fs.mkdirSync('D:\\deepernova-data', { recursive: true }); } catch { }
-  }
-  if (!fs.existsSync('D:\\deepernova-data\\temp')) {
-    try { fs.mkdirSync('D:\\deepernova-data\\temp', { recursive: true }); } catch { }
+  // Pastikan direktori data tersedia
+  for (const d of ['C:\\deepernova-data', 'D:\\deepernova-data', 'D:\\deepernova-data\\temp']) {
+    try {
+      if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+    } catch {}
   }
 
-  // ── Step 0.5: DeeperNova AI Server (Port 8000) ───
-  log.title('🧠 STEP 0.5: DeeperNova AI Server (Port 8000)');
-  if (await checkPortOpen(8000)) {
-    log.success('AI Server sudah aktif di port 8000.');
-  } else if (fs.existsSync(AI_SERVER_DIR)) {
-    startProcess('python', ['-u', 'start_api_server.py'], AI_SERVER_DIR, 'Deepernova AI Server', 'ai-server.log');
-    log.info('Menunggu AI Server siap di port 8000 (max 80 detik)...');
-    if (await waitForPort(8000, 80000)) {
-      log.success('AI Server siap di port 8000.');
-    } else {
-      log.warn('AI Server belum merespons port 8000, proses lanjut di background...');
-    }
-  } else {
-    log.warn(`Folder AI Server tidak ditemukan: ${AI_SERVER_DIR}`);
-  }
-
-  // ── Step 1: Nyalakan Search Engine (port 4000) ───
-  log.title('📦 STEP 1: Search Engine (Port 4000)');
-  if (await checkPortOpen(4000)) {
-    log.success('Search Engine sudah aktif di port 4000.');
-  } else if (fs.existsSync(SEARCH_DIR)) {
-    const serverFile = fs.existsSync(path.join(SEARCH_DIR, 'server.js')) ? 'server.js' : 'src/server.js';
-    startProcess('node', ['--expose-gc', '--env-file=.env', '--max-old-space-size=4096', serverFile], SEARCH_DIR, 'Deepernova Search Engine', 'search-server.log');
-    log.info('Menunggu Search Engine siap di port 4000 (max 40 detik)...');
-    if (await waitForPort(4000, 40000)) {
-      log.success('Search Engine siap di port 4000.');
-    } else {
-      log.warn('Search Engine belum siap, tapi proses lanjut...');
-    }
-  } else {
-    log.warn(`Folder Search Engine tidak ditemukan: ${SEARCH_DIR}`);
-  }
-
-  // ── Step 2: Nyalakan Backend Server (port 3001) ───
-  log.title('📦 STEP 2: Backend Server');
-  if (await checkPortOpen(3001)) {
-    log.success('Backend Server sudah aktif di port 3001.');
-  } else {
-    startProcess('node', ['server/server.js'], ROOT_DIR, 'Deepernova Backend Server', 'server.log');
-    log.info('Menunggu Backend Server siap di port 3001 (max 35 detik)...');
-    if (await waitForPort(3001, 35000)) {
-      log.success('Backend Server siap di port 3001.');
-    } else {
-      log.warn('Backend Server belum siap, tapi proses lanjut...');
-    }
-  }
-
-  // ── Step 3: Nyalakan Frontend Vite (port 5174) ───
-  log.title('📦 STEP 3: Frontend Vite Dev Server');
-  if (await checkPortOpen(5174)) {
-    log.success('Frontend Vite sudah aktif di port 5174.');
-  } else {
-    const viteBin = path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
-    if (fs.existsSync(viteBin)) {
-      startProcess('node', [viteBin, '--port', '5174'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
-    } else {
-      startProcess('npm', ['run', 'dev'], ROOT_DIR, 'Deepernova AI Frontend', 'frontend.log');
-    }
-    log.info('Menunggu Frontend siap di port 5174 (max 25 detik)...');
-    if (await waitForPort(5174, 25000)) {
-      log.success('Frontend Vite siap di port 5174.');
-    } else {
-      log.warn('Frontend Vite belum siap, tapi proses lanjut...');
-    }
-  }
-
-  // ── Step 4: Nyalakan Order DTE Backend (port 5000) ───
-  log.title('📦 STEP 4: Order DTE Backend');
-  if (fs.existsSync(ORDER_DTE_SERVER_DIR)) {
-    if (await checkPortOpen(5000)) {
-      log.success('DTE Backend sudah aktif di port 5000.');
-    } else {
-      startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend', 'dte-backend.log');
-      log.info('Menunggu DTE Backend siap di port 5000 (max 15 detik)...');
-      if (await waitForPort(5000, 15000)) {
-        log.success('DTE Backend siap di port 5000.');
-      } else {
-        log.warn('DTE Backend belum siap, tapi proses lanjut...');
-      }
-    }
-  } else {
-    log.warn(`Folder DTE Backend tidak ditemukan: ${ORDER_DTE_SERVER_DIR}`);
-  }
-
-  // ── Step 5: Nyalakan Order DTE Frontend (port 5173) ───
-  log.title('📦 STEP 5: Order DTE Frontend');
-  const dteExists = fs.existsSync(ORDER_DTE_USER_DIR);
-  if (dteExists) {
-    if (await checkPortOpen(5173)) {
-      log.success('DTE Frontend sudah aktif di port 5173.');
-    } else {
-      startProcess('node', ['fast-server.mjs'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend', 'dte-frontend.log');
-      log.info('Menunggu DTE Frontend siap di port 5173 (max 15 detik)...');
-      if (await waitForPort(5173, 15000)) {
-        log.success('DTE Frontend siap di port 5173.');
-      } else {
-        log.warn('DTE Frontend belum siap, tapi proses lanjut...');
-      }
-    }
-  } else {
-    log.warn(`Folder DTE Frontend tidak ditemukan: ${ORDER_DTE_USER_DIR}`);
-  }
-
-  // ── Step 6: Buka Cloudflare Tunnels ───
-  log.title('🌐 STEP 6: Cloudflare Tunnels');
-
-  const backendLog = path.join(ROOT_DIR, 'tunnel-backend.log');
-  const aiLog = path.join(ROOT_DIR, 'tunnel-ai.log');
-  const searchLog = path.join(ROOT_DIR, 'tunnel-search.log');
-  const dteLog = path.join(ROOT_DIR, 'tunnel-dte.log');
-
-  // Baca URL lama sebagai fallback
-  const activeTunnelPath = path.join(ROOT_DIR, 'active_tunnel.json');
-  let oldTunnel = {};
+  // Bersihkan cloudflared yatim sebelumnya
   try {
-    if (fs.existsSync(activeTunnelPath)) {
-      oldTunnel = JSON.parse(fs.readFileSync(activeTunnelPath, 'utf8'));
+    execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' });
+    await sleep(1000);
+  } catch {}
+
+  // Step 1: Nyalakan seluruh server lokal
+  log.title('STEP 1: MENYALAKAN SERVER AI, FREELLM, AI AGENT & SEARCH ENGINE');
+  await ensureAllLocalServicesUp();
+
+  // Step 2: Buka tunnel publik
+  log.title('STEP 2: MEMBUKA CLOUDFLARE TUNNELS AKTIF');
+  const [backendTunnel, searchTunnel, dteTunnel] = await Promise.all([
+    createResilientTunnel(3001, 'Backend AI & AI Agent'),
+    createResilientTunnel(4000, 'Search Engine'),
+    createResilientTunnel(5173, 'Order DTE'),
+  ]);
+
+  let currentBackendUrl = backendTunnel.url;
+  let currentSearchUrl = searchTunnel.url;
+  let currentDteUrl = dteTunnel.url;
+  let activeTunnels = [backendTunnel, searchTunnel, dteTunnel];
+
+  // Step 3: Sinkronisasi semua konfigurasi & Vercel
+  log.title('STEP 3: MEMPERBARUI KONFIGURASI & VERCEL');
+  updateAllConfigs(currentBackendUrl, currentSearchUrl, currentDteUrl, currentBackendUrl);
+
+  // Sync script ini juga ke repositori produksi agar start_all.bat di sana selalu mutakhir
+  try {
+    const prodScriptPath = path.join(PROD_ROOT_DIR, 'scripts', 'auto_start_all.mjs');
+    if (PROD_ROOT_DIR !== WORKTREE_DIR) {
+      fs.copyFileSync(__filename, prodScriptPath);
     }
-  } catch { }
+  } catch {}
 
-  let backendUrl = null;
-  let searchEngineUrl = null;
-  let dteUrl = null;
-  let aiUrl = null;
+  buildAndDeployToVercel('activate all servers & sync live tunnels');
 
-  // Cek apakah cloudflared.exe ada
-  if (!fs.existsSync(CLOUDFLARED_BIN)) {
-    log.error(`cloudflared.exe tidak ditemukan di: ${CLOUDFLARED_BIN}`);
-    log.warn('Download dari: https://github.com/cloudflare/cloudflared/releases');
-    log.warn('Menggunakan URL tunnel lama...');
-    backendUrl = oldTunnel.backendUrl || 'http://localhost:3001';
-    searchEngineUrl = oldTunnel.searchEngineUrl || 'http://localhost:3000';
-    dteUrl = oldTunnel.dteUrl || null;
-  } else {
-    const aiListening = await checkPortOpen(8000);
-    const tunnelTasks = [
-      launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
-      launchTunnel(4000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
-    ];
-    if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
-      tunnelTasks.push(
-        launchTunnel(8000, aiLog).catch(e => { log.warn(`AI tunnel: ${e.message}`); return null; })
-      );
-    }
-    if (dteExists) {
-      tunnelTasks.push(
-        launchTunnel(5173, dteLog).catch(e => { log.warn(`DTE tunnel: ${e.message}`); return null; })
-      );
-    }
+  log.title('SEMUA SERVER & TUNNEL ONLINE 100%!');
+  console.log(`  FreeLLM Gateway   : http://127.0.0.1:3005`);
+  console.log(`  Python AI Engine  : http://127.0.0.1:8000`);
+  console.log(`  Backend AI & Agent: http://127.0.0.1:3001  -> ${currentBackendUrl}`);
+  console.log(`  Search Engine     : http://127.0.0.1:4000  -> ${currentSearchUrl}`);
+  console.log(`  Order DTE         : http://127.0.0.1:5173  -> ${currentDteUrl}`);
+  console.log(`  Frontend Dev      : http://127.0.0.1:5174`);
 
-    const results = await Promise.all(tunnelTasks);
-
-    backendUrl = results[0] || oldTunnel.backendUrl || 'http://localhost:3001';
-    searchEngineUrl = results[1] || oldTunnel.searchEngineUrl || 'http://localhost:4000';
-    let idx = 2;
-    if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
-      aiUrl = results[idx] || oldTunnel.aiUrl || backendUrl;
-      idx++;
-    } else {
-      aiUrl = oldTunnel.aiUrl || backendUrl;
-    }
-    if (dteExists) {
-      dteUrl = results[idx] || oldTunnel.dteUrl || null;
-    }
-  }
-
-  log.success(`Backend Tunnel   : ${backendUrl}`);
-  log.success(`AI Engine Tunnel : ${aiUrl}`);
-  log.success(`Search Tunnel    : ${searchEngineUrl}`);
-  if (dteUrl) log.success(`DTE Tunnel       : ${dteUrl}`);
-
-  // ── Step 7: Update semua config files ───
-  log.title('⚙️  STEP 7: Update Konfigurasi');
-  updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl);
-
-  // ── Step 8: Build Frontend ───
-  if (!process.argv.includes('--skip-build') && !process.argv.includes('--quick')) {
-    log.title('🔨 STEP 8: Build Frontend');
-    log.info('Membangun bundle frontend (npm run build)...');
-    try {
-      const buildCmd = fs.existsSync(path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js'))
-        ? `node "${path.join(ROOT_DIR, 'node_modules', 'vite', 'bin', 'vite.js')}" build && node "${path.join(ROOT_DIR, 'scripts', 'copy_search_dist.mjs')}"`
-        : 'npm run build';
-      execSync(buildCmd, { cwd: ROOT_DIR, stdio: 'inherit', shell: true });
-      log.success('Frontend build selesai.');
-    } catch (err) {
-      log.error(`Build gagal: ${err.message}`);
-      log.warn('Melanjutkan ke git push meskipun build gagal...');
-    }
-  } else {
-    log.info('Melewati Step 8 (Build Frontend) via parameter...');
-  }
-
-  // ── Step 8.5: Update & Build APKs ───
-  if (process.argv.includes('--build-apk') || process.argv.includes('--apk')) {
-    log.title('📱 STEP 8.5: Update & Build Android APKs');
-    // 1. DPN Search APK
-    try {
-      log.info('Menyinkronkan dan merakit DPN-Search.apk...');
-      const dpnDir = path.join(ROOT_DIR, 'dpn-search-app');
-      execSync('npx cap sync android', { cwd: dpnDir, stdio: 'inherit' });
-      execSync('.\\gradlew.bat assembleDebug', { cwd: path.join(dpnDir, 'android'), stdio: 'inherit' });
-      const dpnApkSrc = path.join(dpnDir, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
-      const dpnApkDest = path.join(ROOT_DIR, 'DPN-Search.apk');
-      if (fs.existsSync(dpnApkSrc)) {
-        fs.copyFileSync(dpnApkSrc, dpnApkDest);
-        log.success(`DPN-Search.apk berhasil diperbarui (${(fs.statSync(dpnApkDest).size / 1024 / 1024).toFixed(2)} MB).`);
-      }
-    } catch (apkErr) {
-      log.warn(`Gagal merakit DPN-Search.apk: ${apkErr.message}`);
-    }
-
-    // 2. DeeperNova AI APK
-    try {
-      log.info('Menyinkronkan dan merakit deepernova-ai.apk...');
-      execSync('npx cap sync android', { cwd: ROOT_DIR, stdio: 'inherit' });
-      execSync('.\\gradlew.bat assembleDebug', { cwd: path.join(ROOT_DIR, 'android'), stdio: 'inherit' });
-      const aiApkSrc = path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
-      const aiApkDest = path.join(ROOT_DIR, 'deepernova-ai.apk');
-      if (fs.existsSync(aiApkSrc)) {
-        fs.copyFileSync(aiApkSrc, aiApkDest);
-        log.success(`deepernova-ai.apk berhasil diperbarui (${(fs.statSync(aiApkDest).size / 1024 / 1024).toFixed(2)} MB).`);
-      }
-    } catch (aiApkErr) {
-      log.warn(`Gagal merakit deepernova-ai.apk: ${aiApkErr.message}`);
-    }
-  }
-
-  // ── Step 9: Git Commit & Push ───
-  if (!process.argv.includes('--skip-push') && !process.argv.includes('--quick')) {
-    log.title('🚀 STEP 9: Git Push ke GitHub');
-    log.info('Menyinkronkan ke GitHub & Vercel...');
-    try {
-      // Pastikan git user config ada
-      try {
-        execSync('git config user.email', { cwd: ROOT_DIR, stdio: 'pipe' });
-      } catch {
-        execSync('git config user.email "deploy@deepernova.ai"', { cwd: ROOT_DIR, stdio: 'inherit' });
-        execSync('git config user.name "Deepernova Auto Deploy"', { cwd: ROOT_DIR, stdio: 'inherit' });
-      }
-
-      // Stage all files
-      execSync('git add -A', { cwd: ROOT_DIR, stdio: 'inherit' });
-
-      // Commit
-      const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
-      try {
-        execSync(`git commit -m "fix(ecosystem): fix ai agent response, dte connection, search engine speed & sync tunnels (${timestamp})"`, { cwd: ROOT_DIR, stdio: 'inherit' });
-        log.success('Commit berhasil.');
-      } catch {
-        log.info('Tidak ada perubahan baru untuk di-commit.');
-      }
-
-      // Push
-      log.info('Melakukan git push origin main...');
-      execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'inherit' });
-      log.success('✅ Push ke GitHub berhasil! Vercel auto-deploy aktif.');
-    } catch (err) {
-      log.warn(`Git push gagal: ${err.message || ''}`);
-      log.warn('Pastikan remote origin benar dan ada koneksi internet.');
-    }
-  } else {
-    log.info('Melewati Step 9 (Git Push) via parameter...');
-  }
-
-  // ── SELESAI ───
-  log.title('✨ SEMUA LAYANAN AKTIF & TERKONFIGURASI OTOMATIS!');
-  console.log(`  🌐 Frontend Lokal  : http://localhost:5174`);
-  console.log(`  🔍 Search Engine   : ${searchEngineUrl}/api/v1/search`);
-  console.log(`  ⚡ Backend API     : ${backendUrl}`);
-  console.log(`  🧠 AI GPU Engine   : ${aiUrl}/v1/chat/completions`);
-  if (dteUrl) {
-    console.log(`  🏭 Order DTE       : ${dteUrl}`);
-  }
-  console.log(`  🚀 Vercel Live     : Auto-deployed via GitHub\n`);
-  console.log('📌 Tekan Ctrl+C untuk mematikan semua service.\n');
-
-  if (process.argv.includes('--exit-on-complete') || process.argv.includes('--once')) {
-    log.success('Proses deployment selesai. Semua service dan tunnel aktif di background.');
+  if (process.argv.includes('--once')) {
     return;
   }
 
-  // Cleanup on exit
-  const cleanup = () => {
-    log.info('Mematikan semua service...');
-    try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch { }
-    process.exit(0);
-  };
-  process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
-
-  // ─────────────────────────────────────────────
-  // 🛡️ STEP 10: AUTONOMOUS RECONNECT & HEALTH SUPERVISOR
-  // ─────────────────────────────────────────────
-  log.title('🛡️  STEP 10: Auto-Reconnect Supervisor Aktif');
-  log.info('Memantau stabilitas internet, kesehatan Cloudflare Tunnel, dan proses lokal setiap 15 detik...');
-
-  let isInternetUp = true;
-  let consecutiveTunnelFailures = 0;
-  let isSupervising = false;
-
-  async function checkInternet(timeoutMs = 3500) {
-    const checkHost = (host) => new Promise((resolve) => {
-      const socket = new net.Socket();
-      socket.setTimeout(timeoutMs);
-      socket.on('connect', () => { socket.destroy(); resolve(true); });
-      socket.on('timeout', () => { socket.destroy(); resolve(false); });
-      socket.on('error', () => { resolve(false); });
-      socket.connect(53, host);
-    });
-
-    const primary = await checkHost('1.1.1.1');
-    if (primary) return true;
-    return await checkHost('8.8.8.8');
-  }
-
-  async function isEndpointAlive(url, timeoutMs = 6000) {
-    if (!url || !url.startsWith('http')) return false;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(url, { signal: controller.signal, method: 'GET' });
-      clearTimeout(timer);
-      return res.status < 500;
-    } catch {
-      return false;
-    }
-  }
-
-  async function performAutoReconnect(reason) {
-    log.title(`🔄 AUTO-RECONNECT: ${reason}`);
-    try {
-      log.info('Menghentikan tunnel lama yang macet...');
-      try { execSync('taskkill /f /im cloudflared.exe', { stdio: 'ignore' }); } catch { }
-      await sleep(2000);
-
-      log.info('Menyalakan ulang semua tunnel Cloudflare...');
-      const aiListening = await checkPortOpen(8000);
-      const tunnelTasks = [
-        launchTunnel(3001, backendLog).catch(e => { log.warn(`Backend tunnel: ${e.message}`); return null; }),
-        launchTunnel(4000, searchLog).catch(e => { log.warn(`Search tunnel: ${e.message}`); return null; }),
-      ];
-      if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
-        tunnelTasks.push(launchTunnel(8000, aiLog).catch(e => { log.warn(`AI tunnel: ${e.message}`); return null; }));
-      }
-      if (dteExists) {
-        tunnelTasks.push(launchTunnel(5173, dteLog).catch(e => { log.warn(`DTE tunnel: ${e.message}`); return null; }));
-      }
-
-      const results = await Promise.all(tunnelTasks);
-      if (results[0]) backendUrl = results[0];
-      if (results[1]) searchEngineUrl = results[1];
-      let idx = 2;
-      if (aiListening || fs.existsSync(AI_SERVER_DIR)) {
-        if (results[idx]) aiUrl = results[idx];
-        idx++;
-      }
-      if (dteExists && results[idx]) {
-        dteUrl = results[idx];
-      }
-
-      log.success(`Backend Baru      : ${backendUrl}`);
-      log.success(`Search Engine Baru: ${searchEngineUrl}`);
-      if (dteUrl) log.success(`DTE Baru          : ${dteUrl}`);
-
-      // Update konfigurasi
-      updateConfigFiles(backendUrl, searchEngineUrl, dteUrl, aiUrl);
-
-      // Quick push ke GitHub & Vercel
-      try {
-        log.info('Menyinkronkan pembaruan tunnel ke GitHub & Vercel...');
-        execSync('git add active_tunnel.json .env.production src/apiConfig.js vercel.json', { cwd: ROOT_DIR, stdio: 'ignore' });
-        const ts = new Date().toISOString().replace('T', ' ').slice(0, 16);
-        execSync(`git commit -m "fix(reconnect): auto-reconnect tunnels & sync Vercel endpoints (${ts})"`, { cwd: ROOT_DIR, stdio: 'ignore' });
-        execSync('git push origin main', { cwd: ROOT_DIR, stdio: 'ignore' });
-        log.success('✅ Sinkronisasi tunnel ke GitHub & Vercel berhasil!');
-      } catch (gitErr) {
-        log.warn(`Sinkronisasi Git dilewati: ${gitErr.message}`);
-      }
-
-      log.success('✨ Auto-reconnect tuntas! Semua layanan kembali online.');
-    } catch (err) {
-      log.error(`Gagal auto-reconnect: ${err.message}`);
-    }
-  }
-
-  // Periodic Watchdog Timer
+  // Step 4: Eternal Watchdog Supervisor
+  log.title('STEP 4: ETERNAL WATCHDOG SUPERVISOR AKTIF (24/7)');
+  let busy = false;
   setInterval(async () => {
-    if (isSupervising) return;
-    isSupervising = true;
-
+    if (busy) return;
+    busy = true;
     try {
-      const internetNow = await checkInternet();
+      await ensureAllLocalServicesUp();
 
-      // 1. Internet connection dropped/recovered
-      if (!internetNow) {
-        if (isInternetUp) {
-          isInternetUp = false;
-          log.warn('🌐 [SUPERVISOR] Jaringan internet terputus (offline). Menunggu koneksi pulih...');
+      const deadTunnel = activeTunnels.some(
+        (t) => !t?.process || t.process.killed || t.process.exitCode !== null
+      );
+      if (deadTunnel) {
+        log.warn('Salah satu proses tunnel berhenti! Membuka ulang tunnel & memperbarui Vercel...');
+        for (const t of activeTunnels) {
+          try {
+            if (t?.process?.pid) execSync(`taskkill /F /T /PID ${t.process.pid}`, { stdio: 'ignore' });
+          } catch {}
         }
-        return;
-      }
-
-      if (!isInternetUp && internetNow) {
-        isInternetUp = true;
-        log.success('🟢 [SUPERVISOR] Jaringan internet terhubung kembali! Melakukan auto-reconnect seluruh layanan...');
-        consecutiveTunnelFailures = 0;
-        await performAutoReconnect('Internet pulih kembali setelah offline');
-        return;
-      }
-
-      // 2. Health check Cloudflare tunnels
-      const [backendAlive, searchAlive] = await Promise.all([
-        isEndpointAlive(backendUrl),
-        isEndpointAlive(searchEngineUrl)
-      ]);
-
-      if (!backendAlive || !searchAlive) {
-        consecutiveTunnelFailures++;
-        log.warn(`⚠️ [SUPERVISOR] Health check tunnel gagal (percobaan ${consecutiveTunnelFailures}/2)...`);
-        if (consecutiveTunnelFailures >= 2) {
-          log.error('❌ [SUPERVISOR] Tunnel Cloudflare mati / tidak merespons. Memulai auto-reconnect...');
-          consecutiveTunnelFailures = 0;
-          await performAutoReconnect('Tunnel Cloudflare tidak merespons (502 / network error)');
-        }
-      } else {
-        if (consecutiveTunnelFailures > 0) {
-          log.success('🟢 [SUPERVISOR] Tunnel Cloudflare kembali normal.');
-          consecutiveTunnelFailures = 0;
-        }
-      }
-
-      // 3. Local service watchdog
-      if (!(await checkPortOpen(3001))) {
-        log.warn('⚠️ [SUPERVISOR] Backend Port 3001 mati! Memulai ulang...');
-        startProcess('node', ['server/server.js'], ROOT_DIR, 'Backend Deepernova AI (Port 3001)', 'backend.log');
-      }
-      if (!(await checkPortOpen(4000))) {
-        log.warn('⚠️ [SUPERVISOR] Search Engine Port 4000 mati! Memulai ulang...');
-        startProcess('node', ['--expose-gc', '--env-file=.env', '--max-old-space-size=6144', 'src/server.js'], SEARCH_DIR, 'Deepernova Search Engine (Port 4000)', 'search.log');
-      }
-      if (fs.existsSync(ORDER_DTE_SERVER_DIR) && !(await checkPortOpen(5000))) {
-        log.warn('⚠️ [SUPERVISOR] Order DTE Backend Port 5000 mati! Memulai ulang...');
-        startProcess('node', ['server.js'], ORDER_DTE_SERVER_DIR, 'Order DTE Backend (Port 5000)', 'dte-backend.log');
-      }
-      if (fs.existsSync(ORDER_DTE_USER_DIR) && !(await checkPortOpen(5173))) {
-        log.warn('⚠️ [SUPERVISOR] Order DTE Frontend Port 5173 mati! Memulai ulang...');
-        startProcess('node', ['fast-server.mjs'], ORDER_DTE_USER_DIR, 'Order DTE User Frontend (Port 5173)', 'dte-frontend.log');
+        await sleep(1500);
+        const [bNew, sNew, dNew] = await Promise.all([
+          createResilientTunnel(3001, 'Backend AI & AI Agent'),
+          createResilientTunnel(4000, 'Search Engine'),
+          createResilientTunnel(5173, 'Order DTE'),
+        ]);
+        currentBackendUrl = bNew.url;
+        currentSearchUrl = sNew.url;
+        currentDteUrl = dNew.url;
+        activeTunnels = [bNew, sNew, dNew];
+        updateAllConfigs(currentBackendUrl, currentSearchUrl, currentDteUrl, currentBackendUrl);
+        buildAndDeployToVercel('auto-reconnect tunnels');
       }
     } catch (err) {
-      log.warn(`[SUPERVISOR ERROR] ${err.message}`);
+      log.warn(`Supervisor warning: ${err.message}`);
     } finally {
-      isSupervising = false;
+      busy = false;
     }
-  }, 15000);
+  }, 20000);
 }
 
 main().catch((err) => {

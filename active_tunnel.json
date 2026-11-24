@@ -1,12 +1,16 @@
 {
-  "backend": "https://liberty-bracelet-mayor-gaps.trycloudflare.com",
-  "search": "https://williams-condo-mile-discussing.trycloudflare.com",
-  "orderDte": "https://secretary-were-science-pottery.trycloudflare.com",
-  "backendUrl": "https://liberty-bracelet-mayor-gaps.trycloudflare.com",
-  "searchEngineUrl": "https://williams-condo-mile-discussing.trycloudflare.com",
-  "dteUrl": "https://secretary-were-science-pottery.trycloudflare.com",
-  "aiUrl": "https://liberty-bracelet-mayor-gaps.trycloudflare.com",
+  "backend": "https://94f513744ab653.app.lhr.life",
+  "search": "https://3f50d08b4717ee.app.lhr.life",
+  "orderDte": "https://6fc7c733cac0b9.app.lhr.life",
+  "backendUrl": "https://94f513744ab653.app.lhr.life",
+  "searchEngineUrl": "https://3f50d08b4717ee.app.lhr.life",
+  "dteUrl": "https://6fc7c733cac0b9.app.lhr.life",
+  "aiUrl": "https://94f513744ab653.app.lhr.life",
+  "backendPort": 3001,
+  "aiPort": 8000,
+  "searchEnginePort": 4000,
+  "dtePort": 5173,
   "mode": "VERCEL_FULLSTACK_NATIVE_DUAL",
-  "updatedAt": "2026-11-20T00:12:00.000Z",
-  "status": "LIVE"
+  "status": "LIVE",
+  "updatedAt": "2026-11-24T23:08:31.898Z"
 }

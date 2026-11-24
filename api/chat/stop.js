@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://94f513744ab653.app.lhr.life';
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {

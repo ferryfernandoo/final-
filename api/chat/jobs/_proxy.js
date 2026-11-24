@@ -1,4 +1,4 @@
-const FALLBACK_BACKEND_URL = 'https://liberty-bracelet-mayor-gaps.trycloudflare.com';
+const FALLBACK_BACKEND_URL = 'https://94f513744ab653.app.lhr.life';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

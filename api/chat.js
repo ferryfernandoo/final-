@@ -33,7 +33,7 @@ const getEdgeFreeLlmTargets = () => {
   return targets;
 };
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://liberty-bracelet-mayor-gaps.trycloudflare.com';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://94f513744ab653.app.lhr.life';
 
 const SERVER_PERSONALITY_PROMPTS = {
   casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab seperti teman karib (gunakan aku-kamu, partikel nih, yuk, dong, loh, santai aja).\n- DILARANG KERAS menggunakan bahasa baku, kaku, formal, atau seperti surat dinas!',

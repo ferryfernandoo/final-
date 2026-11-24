@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const BACKEND_ORIGIN = 'https://liberty-bracelet-mayor-gaps.trycloudflare.com';
+const BACKEND_ORIGIN = 'https://94f513744ab653.app.lhr.life';
 
 export default async function handler(req) {
   try {

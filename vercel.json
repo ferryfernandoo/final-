@@ -143,19 +143,27 @@
   "rewrites": [
     {
       "source": "/api/chat/jobs/start",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/chat/jobs/start"
+      "destination": "https://94f513744ab653.app.lhr.life/api/chat/jobs/start"
     },
     {
       "source": "/api/chat/jobs/active",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/chat/jobs/active"
+      "destination": "https://94f513744ab653.app.lhr.life/api/chat/jobs/active"
+    },
+    {
+      "source": "/api/chat/jobs/sync",
+      "destination": "https://94f513744ab653.app.lhr.life/api/chat/jobs/sync"
     },
     {
       "source": "/api/chat/jobs/:jobId/stream",
       "destination": "/api/chat/jobs/stream?jobId=:jobId"
     },
     {
+      "source": "/api/chat/jobs/stream/:sessionId",
+      "destination": "https://94f513744ab653.app.lhr.life/api/chat/jobs/stream/:sessionId"
+    },
+    {
       "source": "/api/chat/jobs/:jobId",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/chat/jobs/:jobId"
+      "destination": "https://94f513744ab653.app.lhr.life/api/chat/jobs/:jobId"
     },
     {
       "source": "/api/chat",
@@ -167,7 +175,7 @@
     },
     {
       "source": "/api/chat/stop",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/chat/stop"
+      "destination": "https://94f513744ab653.app.lhr.life/api/chat/stop"
     },
     {
       "source": "/api/ping",
@@ -199,11 +207,11 @@
     },
     {
       "source": "/api/v1/images",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/v1/images"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/v1/images"
     },
     {
       "source": "/api/images",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/v1/images"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/v1/images"
     },
     {
       "source": "/api/suggestions",
@@ -211,31 +219,31 @@
     },
     {
       "source": "/api/suggestions/trending",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/suggestions/trending"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/suggestions/trending"
     },
     {
       "source": "/api/images/crawl",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/images/crawl"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/images/crawl"
     },
     {
       "source": "/api/images/recent",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/images/recent"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/images/recent"
     },
     {
       "source": "/api/images/stats",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/images/stats"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/images/stats"
     },
     {
       "source": "/api/v1/health",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/v1/health"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/v1/health"
     },
     {
       "source": "/api/v1/news",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/v1/news"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/v1/news"
     },
     {
       "source": "/api/tunnel/info",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/tunnel/info"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/tunnel/info"
     },
     {
       "source": "/api/v1/suggest",
@@ -247,11 +255,11 @@
     },
     {
       "source": "/api/agent",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/agent"
+      "destination": "https://94f513744ab653.app.lhr.life/api/agent"
     },
     {
       "source": "/api/agent/:path*",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/agent/:path*"
+      "destination": "https://94f513744ab653.app.lhr.life/api/agent/:path*"
     },
     {
       "source": "/search",
@@ -323,119 +331,119 @@
     },
     {
       "source": "/api/ping",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/ping"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/ping"
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/ping"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/ping"
     },
     {
       "source": "/api/auth/login",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/auth/login"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/auth/login"
     },
     {
       "source": "/api/auth/register",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/auth/register"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/auth/register"
     },
     {
       "source": "/api/items",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/items"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/items/:path*"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/items/:path*"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/admin/:path*"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/requests"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/requests/:path*"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/api/:path*"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://secretary-were-science-pottery.trycloudflare.com/uploads/:path*"
+      "destination": "https://6fc7c733cac0b9.app.lhr.life/uploads/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/ai/:path*"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/news"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/news/:path*"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/tokoh"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/tokoh/:path*"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/geo"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/geo/:path*"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/crawl"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/crawl/:path*"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/economics"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/economics/:path*"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://williams-condo-mile-discussing.trycloudflare.com/api/proxy-image"
+      "destination": "https://3f50d08b4717ee.app.lhr.life/api/proxy-image"
     },
     {
       "source": "/api/upstream/:path*",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/:path*"
+      "destination": "https://94f513744ab653.app.lhr.life/api/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/api/:path*"
+      "destination": "https://94f513744ab653.app.lhr.life/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/auth/:path*"
+      "destination": "https://94f513744ab653.app.lhr.life/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/v1/:path*"
+      "destination": "https://94f513744ab653.app.lhr.life/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/download/:path*"
+      "destination": "https://94f513744ab653.app.lhr.life/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://liberty-bracelet-mayor-gaps.trycloudflare.com/watermarked/:path*"
+      "destination": "https://94f513744ab653.app.lhr.life/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",
