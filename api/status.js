@@ -1,4 +1,4 @@
-const FALLBACK_SEARCH_URL = 'https://cod-each-vote-arising.trycloudflare.com';
+const FALLBACK_SEARCH_URL = 'https://ceo-michel-stephanie-lovers.trycloudflare.com';
 
 export const config = {
   runtime: 'edge',

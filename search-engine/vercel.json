@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/:path*"
+      "destination": "https://ceo-michel-stephanie-lovers.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",

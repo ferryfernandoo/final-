@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://processors-released-arrange-alternatives.trycloudflare.com';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://upc-taylor-discounted-understand.trycloudflare.com';
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {

@@ -1,6 +1,6 @@
 const FALLBACK_BACKEND_URL =
   (typeof globalThis !== 'undefined' && globalThis.process?.env?.PUBLIC_BACKEND_URL) ||
-  'https://processors-released-arrange-alternatives.trycloudflare.com';
+  'https://upc-taylor-discounted-understand.trycloudflare.com';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

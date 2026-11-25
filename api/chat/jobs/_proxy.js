@@ -1,4 +1,4 @@
-const FALLBACK_BACKEND_URL = 'https://processors-released-arrange-alternatives.trycloudflare.com';
+const FALLBACK_BACKEND_URL = 'https://upc-taylor-discounted-understand.trycloudflare.com';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

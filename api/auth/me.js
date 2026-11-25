@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const BACKEND_ORIGIN = 'https://processors-released-arrange-alternatives.trycloudflare.com';
+const BACKEND_ORIGIN = 'https://upc-taylor-discounted-understand.trycloudflare.com';
 
 export default async function handler(req) {
   try {
