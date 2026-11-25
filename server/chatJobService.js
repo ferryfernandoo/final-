@@ -673,17 +673,25 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
 function buildSearchConclusionMessages(job, sources, verifiedImages, browserContextBlock = null, opts = {}) {
   const nowTime = new Date();
   const currentYear = nowTime.getFullYear();
+  const weekdayId = nowTime.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
   const dateFormattedId = nowTime.toLocaleDateString('id-ID', {
     timeZone: 'Asia/Jakarta',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   });
+  const timeWib = nowTime.toLocaleTimeString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).replace(/\./g, ':');
+  const realtimeStamp = `[WAKTU REAL-TIME SEKARANG]: Hari ${weekdayId}, tanggal ${dateFormattedId}, pukul ${timeWib} WIB (Tahun ${currentYear}).`;
 
   if (opts.noRelevantSources || (!browserContextBlock && (!Array.isArray(sources) || sources.length === 0))) {
     const honestSysPrompt =
       `Kamu adalah asisten AI yang berjalan pada model ${job.model || 'Qwen 2.5 VL 72B'} melalui platform DeeperNova AI.\n` +
-      `[WAKTU REAL-TIME SEKARANG]: Tahun ${currentYear}, tanggal ${dateFormattedId}.\n` +
+      `${realtimeStamp}\n` +
       `ATURAN MUTLAK KEJUJURAN & ANTI-NYAMPAH:\n` +
       `1. Pencarian web TIDAK menemukan sumber yang relevan untuk pertanyaan pengguna.\n` +
       `2. DILARANG KERAS membacakan, menyebut, atau menyinggung hasil pencarian yang tidak nyambung.\n` +
@@ -698,7 +706,7 @@ function buildSearchConclusionMessages(job, sources, verifiedImages, browserCont
 
   const sysPrompt =
     `Kamu adalah asisten AI yang berjalan pada model ${job.model || 'Qwen 2.5 VL 72B'} melalui platform DeeperNova AI.\n` +
-    `[WAKTU REAL-TIME SEKARANG]: Tahun ${currentYear}, tanggal ${dateFormattedId}.\n` +
+    `${realtimeStamp}\n` +
     `PERAN SINTESIS RISET MENDALAM & ANTI-NYAMPAH (MUTLAK):\n` +
     `1. STRICT RELEVANSI & ANTI-HALUSINASI: Hanya gunakan fakta, angka, tanggal, dan detail dari sumber yang BENAR-BENAR RELEVAN dengan pertanyaan pengguna. Abaikan sumber yang melenceng — JANGAN bacakan hasil pencarian yang tidak nyambung! Jika info spesifik tidak ada di sumber, katakan jujur tidak tahu dan JANGAN mengarang.\n` +
     `2. LANGSUNG KE JAWABAN: Jangan berterima kasih atas hasil pencarian. Mulai paragraf pertama langsung menjawab inti pertanyaan.\n` +

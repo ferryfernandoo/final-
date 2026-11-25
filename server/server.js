@@ -3379,18 +3379,30 @@ function prepareServerChatMessages(reqBody, rawMessages) {
 
   const nowServer = new Date();
   const yearServer = nowServer.getFullYear();
+  const weekdayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
   const todayServerId = nowServer.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeWib = nowServer.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\./g, ':');
+  const timeWita = nowServer.toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\./g, ':');
+  const timeWit = nowServer.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jayapura', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\./g, ':');
+  const wibHour = Number(nowServer.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', hour12: false }));
+  const dayPartId = wibHour < 4 ? 'dini hari' : wibHour < 11 ? 'pagi' : wibHour < 15 ? 'siang' : wibHour < 18 ? 'sore' : 'malam';
+  const REALTIME_CLOCK_DIRECTIVE =
+    `[WAKTU REAL-TIME SEKARANG (SUMBER KEBENARAN MUTLAK)]:\n` +
+    `- Hari: ${weekdayServerId}\n` +
+    `- Tanggal: ${todayServerId} (Tahun ${yearServer})\n` +
+    `- Jam Sekarang: ${timeWib} WIB (${dayPartId}) | ${timeWita} WITA | ${timeWit} WIT\n` +
+    `- ATURAN KESADARAN WAKTU: Kamu SELALU sadar penuh terhadap hari, tanggal, dan jam saat ini. Jika pengguna bertanya hari apa, tanggal berapa, atau jam berapa sekarang (atau menghitung besok/kemarin/minggu depan), JAWAB LANGSUNG secara akurat menggunakan data waktu di atas TANPA perlu [SEARCH_REQUEST]!`;
 
   let DEFAULT_SYSTEM_PROMPT = '';
   if (isSearchConclusion) {
     DEFAULT_SYSTEM_PROMPT =
       `Kamu adalah asisten AI yang berjalan pada model ${currentModelLabel}.\n` +
-      `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}.\n` +
+      `${REALTIME_CLOCK_DIRECTIVE}\n` +
       `PERAN SINTESIS BERITA & HASIL PENCARIAN REAL-TIME (MUTLAK): Gunakan hanya fakta dari hasil pencarian, langsung jawab tanpa berterima kasih, sertakan sitasi link [Nama Sumber](URL).`;
   } else {
     DEFAULT_SYSTEM_PROMPT =
-      `Kamu adalah asisten AI berbahasa Indonesia yang berjalan pada model ${currentModelLabel} (via DeeperNova AI platform). ` +
-      `[WAKTU REAL-TIME SEKARANG]: Tahun ${yearServer}, tanggal ${todayServerId}. ` +
+      `Kamu adalah asisten AI berbahasa Indonesia yang berjalan pada model ${currentModelLabel} (via DeeperNova AI platform).\n` +
+      `${REALTIME_CLOCK_DIRECTIVE}\n` +
       `KEPUTUSAN PENCARIAN WEB OTONOM (ANTI-HALUSINASI): Jika user menanyakan fakta dunia nyata, berita, harga, kurs, tokoh, aturan, jadwal, atau hal yang belum 100% pasti, keluarkan HANYA [SEARCH_REQUEST: topik nyata] di baris pertama lalu berhenti.`;
   }
 
@@ -3399,6 +3411,10 @@ function prepareServerChatMessages(reqBody, rawMessages) {
     ? sanitizeClientSystemPrompt(clientSystemMsg.content)
     : '';
   let finalSystemPrompt = sanitizedClientPrompt || DEFAULT_SYSTEM_PROMPT;
+  // ALWAYS prepend real-time clock awareness even when client sent its own system prompt!
+  if (!finalSystemPrompt.includes('WAKTU REAL-TIME SEKARANG (SUMBER KEBENARAN MUTLAK)')) {
+    finalSystemPrompt = `${REALTIME_CLOCK_DIRECTIVE}\n\n${finalSystemPrompt}`;
+  }
   if (!finalSystemPrompt.includes('IMMUTABLE_SECURITY_POLICY')) {
     finalSystemPrompt += `\n\n${IMMUTABLE_AI_SECURITY_GUARDRAIL}`;
   }
