@@ -143,15 +143,15 @@
   "rewrites": [
     {
       "source": "/api/chat/jobs/start",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/chat/jobs/start"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/chat/jobs/start"
     },
     {
       "source": "/api/chat/jobs/active",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/chat/jobs/active"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/chat/jobs/active"
     },
     {
       "source": "/api/chat/jobs/sync",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/chat/jobs/sync"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/chat/jobs/sync"
     },
     {
       "source": "/api/chat/jobs/:jobId/stream",
@@ -159,11 +159,11 @@
     },
     {
       "source": "/api/chat/jobs/stream/:sessionId",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/chat/jobs/stream/:sessionId"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/chat/jobs/stream/:sessionId"
     },
     {
       "source": "/api/chat/jobs/:jobId",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/chat/jobs/:jobId"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/chat/jobs/:jobId"
     },
     {
       "source": "/api/chat",
@@ -175,7 +175,7 @@
     },
     {
       "source": "/api/chat/stop",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/chat/stop"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/chat/stop"
     },
     {
       "source": "/api/ping",
@@ -207,11 +207,11 @@
     },
     {
       "source": "/api/v1/images",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/v1/images"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/v1/images"
     },
     {
       "source": "/api/images",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/v1/images"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/v1/images"
     },
     {
       "source": "/api/suggestions",
@@ -219,31 +219,31 @@
     },
     {
       "source": "/api/suggestions/trending",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/suggestions/trending"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/suggestions/trending"
     },
     {
       "source": "/api/images/crawl",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/images/crawl"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/images/crawl"
     },
     {
       "source": "/api/images/recent",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/images/recent"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/images/recent"
     },
     {
       "source": "/api/images/stats",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/images/stats"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/images/stats"
     },
     {
       "source": "/api/v1/health",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/v1/health"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/v1/health"
     },
     {
       "source": "/api/v1/news",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/v1/news"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/v1/news"
     },
     {
       "source": "/api/tunnel/info",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/tunnel/info"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/tunnel/info"
     },
     {
       "source": "/api/v1/suggest",
@@ -255,11 +255,11 @@
     },
     {
       "source": "/api/agent",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/agent"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/agent"
     },
     {
       "source": "/api/agent/:path*",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/agent/:path*"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/agent/:path*"
     },
     {
       "source": "/search",
@@ -331,119 +331,119 @@
     },
     {
       "source": "/api/ping",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/ping"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/dte/ping",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/ping"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/ping"
     },
     {
       "source": "/api/auth/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/auth/:path*"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/auth/:path*"
     },
     {
       "source": "/api/items",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/items"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/items"
     },
     {
       "source": "/api/items/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/items/:path*"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/items/:path*"
     },
     {
       "source": "/api/admin",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/admin"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/admin"
     },
     {
       "source": "/api/admin/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/admin/:path*"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/admin/:path*"
     },
     {
       "source": "/api/requests",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/requests"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/requests"
     },
     {
       "source": "/api/requests/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/requests/:path*"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/requests/:path*"
     },
     {
       "source": "/api/dte/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/:path*"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/uploads/:path*"
+      "destination": "https://adopted-fully-motorola-magnitude.trycloudflare.com/uploads/:path*"
     },
     {
       "source": "/api/ai/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/ai/:path*"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/ai/:path*"
     },
     {
       "source": "/api/news",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/news"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/news"
     },
     {
       "source": "/api/news/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/news/:path*"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/news/:path*"
     },
     {
       "source": "/api/tokoh",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/tokoh"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/tokoh"
     },
     {
       "source": "/api/tokoh/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/tokoh/:path*"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/tokoh/:path*"
     },
     {
       "source": "/api/geo",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/geo"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/geo"
     },
     {
       "source": "/api/geo/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/geo/:path*"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/geo/:path*"
     },
     {
       "source": "/api/crawl",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/crawl"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/crawl"
     },
     {
       "source": "/api/crawl/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/crawl/:path*"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/crawl/:path*"
     },
     {
       "source": "/api/economics",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/economics"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/economics"
     },
     {
       "source": "/api/economics/:path*",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/economics/:path*"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/economics/:path*"
     },
     {
       "source": "/api/proxy-image",
-      "destination": "https://04b3ba93eb2316.app.lhr.life/api/proxy-image"
+      "destination": "https://cod-each-vote-arising.trycloudflare.com/api/proxy-image"
     },
     {
       "source": "/api/upstream/:path*",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/:path*"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/api/:path*"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/auth/:path*"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/auth/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/v1/:path*"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/v1/:path*"
     },
     {
       "source": "/download/:path*",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/download/:path*"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/download/:path*"
     },
     {
       "source": "/watermarked/:path*",
-      "destination": "https://55e32c6ed4f5fa.app.lhr.life/watermarked/:path*"
+      "destination": "https://processors-released-arrange-alternatives.trycloudflare.com/watermarked/:path*"
     },
     {
       "source": "/((?!assets/|search/|dte/|api/|auth/|v1/|download/|order-dte\\.apk|DPN-Search\\.apk|deepernova-ai\\.apk|watermarked/|ceo\\.jpg|robots\\.txt|sitemap\\.xml|favicon|logo|llms\\.txt|ai-info\\.json|google|\\.well-known/).*)",

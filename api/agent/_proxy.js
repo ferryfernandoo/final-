@@ -1,6 +1,6 @@
 const FALLBACK_BACKEND_URL =
   (typeof globalThis !== 'undefined' && globalThis.process?.env?.PUBLIC_BACKEND_URL) ||
-  'https://55e32c6ed4f5fa.app.lhr.life';
+  'https://processors-released-arrange-alternatives.trycloudflare.com';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

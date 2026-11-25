@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const BACKEND_ORIGIN = 'https://55e32c6ed4f5fa.app.lhr.life';
+const BACKEND_ORIGIN = 'https://processors-released-arrange-alternatives.trycloudflare.com';
 
 export default async function handler(req) {
   try {

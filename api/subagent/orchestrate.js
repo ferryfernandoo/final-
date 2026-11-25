@@ -1,4 +1,4 @@
-const FALLBACK_BACKEND_URL = 'https://55e32c6ed4f5fa.app.lhr.life';
+const FALLBACK_BACKEND_URL = 'https://processors-released-arrange-alternatives.trycloudflare.com';
 
 export const config = {
   runtime: 'edge',

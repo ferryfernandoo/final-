@@ -1,16 +1,16 @@
 {
-  "backend": "https://55e32c6ed4f5fa.app.lhr.life",
-  "search": "https://04b3ba93eb2316.app.lhr.life",
-  "orderDte": "https://04b3ba93eb2316.app.lhr.life",
-  "backendUrl": "https://55e32c6ed4f5fa.app.lhr.life",
-  "searchEngineUrl": "https://04b3ba93eb2316.app.lhr.life",
-  "dteUrl": "https://04b3ba93eb2316.app.lhr.life",
-  "aiUrl": "https://55e32c6ed4f5fa.app.lhr.life",
+  "backend": "https://processors-released-arrange-alternatives.trycloudflare.com",
+  "search": "https://cod-each-vote-arising.trycloudflare.com",
+  "orderDte": "https://adopted-fully-motorola-magnitude.trycloudflare.com",
+  "backendUrl": "https://processors-released-arrange-alternatives.trycloudflare.com",
+  "searchEngineUrl": "https://cod-each-vote-arising.trycloudflare.com",
+  "dteUrl": "https://adopted-fully-motorola-magnitude.trycloudflare.com",
+  "aiUrl": "https://processors-released-arrange-alternatives.trycloudflare.com",
   "backendPort": 3001,
   "aiPort": 8000,
   "searchEnginePort": 4000,
   "dtePort": 5173,
   "mode": "VERCEL_FULLSTACK_NATIVE_DUAL",
   "status": "LIVE",
-  "updatedAt": "2026-11-25T19:39:44.331Z"
+  "updatedAt": "2026-11-25T19:52:54.726Z"
 }
