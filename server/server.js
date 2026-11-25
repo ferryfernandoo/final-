@@ -3685,28 +3685,40 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
         } catch (_e) { }
       };
 
-      await executeAutonomousAgentRun({
-        sessionId: sandboxSessionId,
-        prompt: rawPromptMsg || 'Selesaikan tugas otonom pengguna dengan standar profesional tertinggi.',
-        model: req.body.model || 'qwen2.5-vl-72b',
-        history: Array.isArray(req.body.chatHistory) ? req.body.chatHistory : [],
-        effort: req.body.effort || 'high',
-        language: req.body.language || 'id',
-        userId,
-        deferDeltaUntilDone: true,
-        onEvent: emitChatbotSubAgentEvent,
-        onCloseRegister: (cb) => {
-          res.on('close', () => {
-            if (!res.writableEnded) cb();
-          });
-        },
-        finishStream: () => {
-          if (!res.writableEnded) {
-            try { res.write('data: [DONE]\n\n'); } catch (_e) { }
-            res.end();
-          }
+      const subAgentKeepaliveTimer = setInterval(() => {
+        if (!res.writableEnded && !res.destroyed) {
+          try {
+            res.write(': keepalive\n\n');
+            if (typeof res.flush === 'function') res.flush();
+          } catch (_e) { }
         }
-      });
+      }, 9000);
+
+      try {
+        await executeAutonomousAgentRun({
+          sessionId: sandboxSessionId,
+          prompt: rawPromptMsg || 'Selesaikan tugas otonom pengguna dengan standar profesional tertinggi.',
+          model: req.body.model || 'qwen2.5-vl-72b',
+          history: Array.isArray(req.body.chatHistory) ? req.body.chatHistory : [],
+          effort: req.body.effort || 'high',
+          language: req.body.language || 'id',
+          userId,
+          deferDeltaUntilDone: true,
+          onEvent: emitChatbotSubAgentEvent,
+          onCloseRegister: (_cb) => {
+            // Keep server sandbox running cleanly even if mobile APK/proxy momentarily disconnects
+          },
+          finishStream: () => {
+            clearInterval(subAgentKeepaliveTimer);
+            if (!res.writableEnded) {
+              try { res.write('data: [DONE]\n\n'); } catch (_e) { }
+              res.end();
+            }
+          }
+        });
+      } finally {
+        clearInterval(subAgentKeepaliveTimer);
+      }
       return;
     }
 

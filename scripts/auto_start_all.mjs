@@ -435,12 +435,14 @@ function updateAllConfigs(backendUrl, searchEngineUrl, dteUrl, aiUrl = null) {
       path.join(dir, 'api', 'chat.js'),
       path.join(dir, 'api', 'agent', '_proxy.js'),
       path.join(dir, 'api', 'chat', 'jobs', '_proxy.js'),
+      path.join(dir, 'api', 'subagent', 'orchestrate.js'),
       path.join(dir, 'api', 'auth', 'me.js'),
       path.join(dir, 'api', 'chat', 'stop.js'),
     ];
     for (const ef of edgeFiles) {
       replaceTunnelUrlInEdgeFile(ef, backendUrl);
     }
+    replaceTunnelUrlInEdgeFile(path.join(dir, 'api', 'status.js'), searchEngineUrl);
 
     // 4. src/apiConfig.js
     const apiConfigPath = path.join(dir, 'src', 'apiConfig.js');
@@ -571,6 +573,8 @@ function buildAndDeployToVercel(reasonLabel = 'sync live tunnels') {
         'api/chat.js',
         'api/agent/_proxy.js',
         'api/chat/jobs/_proxy.js',
+        'api/subagent/orchestrate.js',
+        'api/status.js',
         'api/auth/me.js',
         'api/chat/stop.js',
         'scripts/auto_start_all.mjs',
