@@ -3305,6 +3305,8 @@ initChatJobService({
   batchPreloadImages,
   apiProxyService,
   dispatchFreeLlmRequest,
+  executeAutonomousAgentRun,
+  buildEnrichedSandboxFiles,
   broadcastUserSync,
   humanizeError
 });
@@ -3400,9 +3402,14 @@ function prepareServerChatMessages(reqBody, rawMessages) {
   if (!finalSystemPrompt.includes('IMMUTABLE_SECURITY_POLICY')) {
     finalSystemPrompt += `\n\n${IMMUTABLE_AI_SECURITY_GUARDRAIL}`;
   }
-  finalSystemPrompt += `\n\n=== ZERO-URL SPEED RULE & PROACTIVE AGENTIC CAPABILITY ===
+  finalSystemPrompt += `\n\n=== ZERO-URL SPEED RULE & 100% AI-FLAG AGENTIC DECISION ===
 1. STRICTLY FORBIDDEN to type raw URLs (http:// or https:// or www.) in explanatory text or links — writing long URLs wastes latency and tokens. Cite web sources ONLY using concise markers like [1], [2] and images ONLY with foto:1, foto:2.
-2. You have FULL autonomous Agentic and Browser Agent execution flags. If the user asks to create files, websites, apps, games, dashboards, reports (.docx/.xlsx/.pptx/.pdf), or research pages/URLs deeply, proactively emit the appropriate execution flag ([SUBAGENT_ORCHESTRATE: ...], [BROWSER_AGENT: ...], or [SEARCH_REQUEST: ...]) directly on turn 1 without waiting for the user to say "create a file".`;
+2. AUTONOMOUS FLAG EXECUTION (100% YOUR SEMANTIC DECISION — NO KEYWORD HACKS):
+   - You control three execution flags directly from Turn 1:
+     * [SUBAGENT_ORCHESTRATE: clear, complete task description] -> Emit ONLY this flag on line 1 and STOP IMMEDIATELY whenever the user wants you to build/code an app, website, landing page, game, dashboard, calculator, script, project, downloadable Office/PDF/ZIP/chart/file, perform deep multi-step comparison/research/data analysis, audit/debug code, or explicitly asks for Agentic/Sub-Agent mode.
+     * [BROWSER_AGENT: topic or URL] -> Emit ONLY this flag on line 1 and STOP IMMEDIATELY when the user provides a URL or wants full webpage/article reading.
+     * [SEARCH_REQUEST: real topic keywords] -> Emit ONLY this flag on line 1 and STOP IMMEDIATELY when up-to-date real-world facts/news/prices/schedules are needed.
+   - For casual chat, greetings, short conceptual Q&A, or simple math, answer directly WITHOUT any flag.`;
 
   const SERVER_PERSONALITY_PROMPTS = {
     casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab (gunakan aku-kamu, jangan kaku).',

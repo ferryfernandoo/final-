@@ -53,6 +53,7 @@ function sanitizeJobPayload(job) {
     searchImages: Array.isArray(job.searchImages) ? job.searchImages : [],
     searchSteps: Array.isArray(job.searchSteps) ? job.searchSteps : [],
     browserPages: Array.isArray(job.browserPages) ? job.browserPages : [],
+    subAgentData: job.subAgentData || null,
     browserAgentMode: job.browserAgentMode || 'auto',
     phaseDetail: job.phaseDetail || '',
     error: job.error || null,
@@ -367,7 +368,7 @@ async function consumeSseResponse(upstreamResp, signal, onToken) {
     const onAbort = () => {
       try {
         if (typeof body.destroy === 'function') body.destroy();
-      } catch {}
+      } catch { }
       const abortErr = new Error('Aborted');
       abortErr.name = 'AbortError';
       finish(abortErr);
@@ -457,6 +458,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
   let insideThinkTag = false;
   let searchTagFound = null;
   let browserTagFound = null;
+  let subAgentTagFound = null;
   let reasoningStartMs = null;
 
   const emitReasoning = (chunk) => {
@@ -485,8 +487,18 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
     }
     rawText += chunk;
 
-    // If initial turn emits [BROWSER_AGENT: ...] or [SEARCH_REQUEST: ...], stop forwarding immediately so we run server search/browser seamlessly
+    // If initial turn emits [SUBAGENT_ORCHESTRATE: ...], [BROWSER_AGENT: ...], or [SEARCH_REQUEST: ...], stop forwarding immediately so server executes it seamlessly
     if (options.detectSearchFlag) {
+      const isGrok46Model = String(job.model || '').toLowerCase().includes('grok-4.6');
+      if (!isGrok46Model) {
+        const sm = rawText.match(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([\s\S]+?)\]/i) ||
+          rawText.match(/<subagent(?:_orchestrate)?>\s*([\s\S]+?)\s*<\/subagent(?:_orchestrate)?>/i);
+        if (sm && sm[1]) {
+          subAgentTagFound = sm[1].trim().replace(/^["']|["']$/g, '');
+          localController.abort();
+          return;
+        }
+      }
       const bm = rawText.match(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):\s*(.+?)\]/i);
       if (bm && bm[1]) {
         browserTagFound = bm[1].trim();
@@ -502,8 +514,9 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
       }
       // Hold back rendering if leading characters are a partial search/browser/subagent tag
       const trimmedLead = rawText.trimStart();
-      if (/^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB|B|BR|BRO|BROW|BROWS|BROWSE|BROWSER|O|OP|OPE|OPEN)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(trimmedLead) ||
-          /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH|BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):[^\]]*$/i.test(rawText)) {
+      if (/^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|SU|SUB|SUBA|SUBAG|SUBAGE|SUBAGEN|SUBAGENT|SUB_|A|AC|ACT|ACTI|ACTIV|ACTIVA|ACTIVAT|ACTIVATE|AG|AGE|AGEN|AGENT|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB|B|BR|BRO|BROW|BROWS|BROWSE|BROWSER|O|OP|OPE|OPEN)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(trimmedLead) ||
+          /^<subagent(?:_orchestrate)?[^>]*$/i.test(trimmedLead) ||
+          /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH|BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL|SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[^\]]*$/i.test(rawText)) {
         return;
       }
     }
@@ -589,7 +602,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
   if (externalSignal) externalSignal.removeEventListener('abort', forwardAbort);
 
   // Flush remaining buffer
-  if (thinkBuffer && !searchTagFound && !browserTagFound) {
+  if (thinkBuffer && !searchTagFound && !browserTagFound && !subAgentTagFound) {
     if (insideThinkTag) emitReasoning(thinkBuffer);
     else emitContent(thinkBuffer);
     thinkBuffer = '';
@@ -604,6 +617,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
     reasoningText,
     searchTagFound,
     browserTagFound,
+    subAgentTagFound,
     usedStandbyFallback: false
   };
 }
@@ -674,6 +688,95 @@ function persistCompletionToChatTables(job) {
   }
 }
 
+const SANDBOX_STEP_BADGE_MAP_SERVER = {
+  plan: 'PLAN',
+  skill: 'SKILL',
+  write_file: 'WRITE',
+  read_file: 'READ',
+  edit_file: 'EDIT',
+  command: 'BASH',
+  run_python: 'PYTHON',
+  test_file: 'VERIFY',
+  search: 'SEARCH',
+  screenshot: 'CAPTURE',
+  zip_project: 'ZIP',
+  finish: 'DONE'
+};
+
+function formatBytesServer(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getSubAgentFileMetaServer(fileName = '') {
+  const ext = String(fileName).split('.').pop().toLowerCase();
+  const map = {
+    py: { lang: 'python', badge: 'PY', icon: 'code', color: '#3776ab', bg: 'rgba(55,118,171,0.12)', mime: 'text/x-python' },
+    js: { lang: 'javascript', badge: 'JS', icon: 'code', color: '#d97706', bg: 'rgba(217,119,6,0.12)', mime: 'application/javascript' },
+    jsx: { lang: 'jsx', badge: 'JSX', icon: 'code', color: '#0284c7', bg: 'rgba(2,132,199,0.12)', mime: 'text/jsx' },
+    ts: { lang: 'typescript', badge: 'TS', icon: 'code', color: '#2563eb', bg: 'rgba(37,99,235,0.12)', mime: 'application/typescript' },
+    tsx: { lang: 'tsx', badge: 'TSX', icon: 'code', color: '#2563eb', bg: 'rgba(37,99,235,0.12)', mime: 'text/tsx' },
+    html: { lang: 'html', badge: 'HTML', icon: 'globe', color: '#ea580c', bg: 'rgba(234,88,12,0.12)', mime: 'text/html' },
+    css: { lang: 'css', badge: 'CSS', icon: 'code', color: '#7c3aed', bg: 'rgba(124,58,237,0.12)', mime: 'text/css' },
+    json: { lang: 'json', badge: 'JSON', icon: 'code', color: '#059669', bg: 'rgba(5,150,105,0.12)', mime: 'application/json' },
+    md: { lang: 'markdown', badge: 'MD', icon: 'doc', color: '#475569', bg: 'rgba(71,85,105,0.12)', mime: 'text/markdown' },
+    docx: { lang: 'binary', badge: 'DOCX', icon: 'doc', color: '#2563eb', bg: 'rgba(37,99,235,0.12)', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+    xlsx: { lang: 'binary', badge: 'XLSX', icon: 'sheet', color: '#16a34a', bg: 'rgba(22,163,74,0.12)', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+    pptx: { lang: 'binary', badge: 'PPTX', icon: 'slide', color: '#ea580c', bg: 'rgba(234,88,12,0.12)', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' },
+    pdf: { lang: 'binary', badge: 'PDF', icon: 'doc', color: '#dc2626', bg: 'rgba(220,38,38,0.12)', mime: 'application/pdf' },
+    zip: { lang: 'binary', badge: 'ZIP', icon: 'archive', color: '#7c3aed', bg: 'rgba(124,58,237,0.12)', mime: 'application/zip' },
+    csv: { lang: 'csv', badge: 'CSV', icon: 'sheet', color: '#0d9488', bg: 'rgba(13,148,136,0.12)', mime: 'text/csv' }
+  };
+  return map[ext] || { lang: 'text', badge: (ext || 'FILE').toUpperCase().slice(0, 6), icon: 'file', color: '#64748b', bg: 'rgba(100,116,139,0.12)', mime: 'text/plain' };
+}
+
+function mapSandboxStepServer(step = {}, index = 0) {
+  const rawType = String(step.type || 'command').toLowerCase();
+  const badge = SANDBOX_STEP_BADGE_MAP_SERVER[rawType] || rawType.toUpperCase().slice(0, 12);
+  let agent = 'Engineer Sub-Agent';
+  if (['plan', 'skill', 'search'].includes(rawType)) agent = 'Planner Sub-Agent';
+  else if (['test_file', 'finish', 'screenshot', 'zip_project'].includes(rawType)) agent = 'Verifier Sub-Agent';
+  return {
+    id: step.id || `sb_step_${index}`,
+    agent,
+    badge,
+    title: step.title || 'Eksekusi Langkah Otonom',
+    detail: step.detail || '',
+    status: step.status === 'completed' || step.status === 'done' ? 'done' : step.status === 'failed' ? 'error' : 'running'
+  };
+}
+
+function mapSandboxFileServer(f = {}, index = 0) {
+  const cleanPath = String(f.path || f.name || `deliverable_${index + 1}.txt`).replace(/^[/\\]+/, '');
+  const cleanName = String(f.name || cleanPath.split('/').pop() || cleanPath);
+  const contentStr = typeof f.content === 'string' ? f.content : '';
+  const sizeBytes = Number.isFinite(f.size) ? f.size : (Number.isFinite(f.sizeBytes) ? f.sizeBytes : Buffer.byteLength(contentStr, 'utf8'));
+  const lineCount = contentStr ? contentStr.split('\n').length : 0;
+  const meta = getSubAgentFileMetaServer(cleanName);
+  return {
+    id: f.id || `sb_file_${cleanPath}_${index}`,
+    name: cleanName,
+    path: cleanPath,
+    description: f.description || `Berkas ${meta.badge} dari Workspace Sandbox`,
+    content: contentStr || null,
+    isServerFile: Boolean(f.isServerFile || f.downloadUrl || f.url),
+    url: f.url || null,
+    downloadUrl: f.downloadUrl || null,
+    sizeBytes,
+    sizeFormatted: formatBytesServer(sizeBytes),
+    lineCount,
+    language: meta.lang,
+    badge: meta.badge,
+    icon: meta.icon,
+    color: meta.color,
+    bg: meta.bg,
+    mime: meta.mime,
+    status: 'verified'
+  };
+}
+
 async function executeJobInBackground(job, params) {
   const signal = job.abortController.signal;
   try {
@@ -683,6 +786,7 @@ async function executeJobInBackground(job, params) {
       promptUrls.length > 0 ||
       /\b(peramban\s+agent|browser\s+agent|buka\s+(?:web|link|url|situs|halaman)|baca\s+artikel|rangkum\s+(?:web|artikel|halaman|situs)|scrape|crawl)\b/i.test(job.userPrompt || '');
 
+    let runSubAgentTask = null;
     let runBrowserQuery = (job.browserAgentMode === 'on' && params.searchQuery)
       ? sanitizeSearchQueryServer(params.searchQuery, job.userPrompt)
       : (userWantsBrowser && !params.hasImages && params.enableWebSearch !== false ? sanitizeSearchQueryServer(job.userPrompt, job.userPrompt) : null);
@@ -716,7 +820,10 @@ async function executeJobInBackground(job, params) {
         throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
       }
 
-      if (firstPass.browserTagFound && !params.hasImages && params.enableWebSearch !== false) {
+      const isSubAgentModelAllowed = !String(job.model || '').toLowerCase().includes('grok-4.6');
+      if (firstPass.subAgentTagFound && isSubAgentModelAllowed && typeof deps.executeAutonomousAgentRun === 'function') {
+        runSubAgentTask = firstPass.subAgentTagFound;
+      } else if (firstPass.browserTagFound && !params.hasImages && params.enableWebSearch !== false) {
         runBrowserQuery = sanitizeSearchQueryServer(firstPass.browserTagFound, job.userPrompt);
       } else if (firstPass.searchTagFound && !params.hasImages && params.enableWebSearch !== false) {
         if (job.browserAgentMode === 'on') {
@@ -737,7 +844,183 @@ async function executeJobInBackground(job, params) {
       }
     }
 
-    if (runBrowserQuery) {
+    if (runSubAgentTask) {
+      const subAgentStartMs = Date.now();
+      const sandboxSessionId = `subagent_${String(job.sessionId || 'chat').replace(/[^a-zA-Z0-9_-]/g, '').slice(-16)}_${Date.now().toString(36)}`;
+      job.text = '';
+      job.reasoningText = '';
+      job.reasoningDuration = null;
+      job.status = 'streaming';
+      job.phaseDetail = job.language === 'en'
+        ? 'Autonomous Sub-Agent executing task in server sandbox...'
+        : 'Sub-Agent Otonom mengeksekusi tugas di sandbox server...';
+
+      let thoughtSteps = [{
+        id: 'sb_init',
+        agent: 'Planner Sub-Agent',
+        badge: 'INIT',
+        title: job.language === 'en' ? 'Activating Autonomous Sandbox' : 'Mengaktifkan Sandbox Otonom',
+        detail: runSubAgentTask.slice(0, 180),
+        status: 'running'
+      }];
+      let currentFiles = [];
+      let cotText = '';
+      let finalAnswer = '';
+      let activeSkill = null;
+      let screenshotUrl = null;
+      let previewUrl = null;
+      let lastSubAgentEmit = 0;
+
+      const buildSubAgentSnapshot = (statusOverride = 'running', stageOverride = null) => {
+        const elapsedSec = ((Date.now() - subAgentStartMs) / 1000).toFixed(1);
+        const stage = stageOverride || (currentFiles.length > 0 ? 2 : 1);
+        return {
+          status: statusOverride,
+          taskDescription: runSubAgentTask,
+          sandboxSessionId,
+          currentStage: stage,
+          elapsedSec,
+          planText: '',
+          plannedFiles: currentFiles.map(f => f.path || f.name),
+          activeSkill,
+          cotText: cotText.slice(-8000),
+          thoughtSteps: thoughtSteps.slice(-40),
+          files: currentFiles,
+          activeWritingFile: null,
+          zipDownloadUrl: currentFiles.length > 0 ? `/api/agent/download-zip?sessionId=${encodeURIComponent(sandboxSessionId)}` : null,
+          screenshotUrl,
+          previewUrl,
+          finalAnswer
+        };
+      };
+
+      const pushSubAgentState = (force = false, statusOverride = 'running', stageOverride = null) => {
+        job.subAgentData = buildSubAgentSnapshot(statusOverride, stageOverride);
+        const now = Date.now();
+        if (force || now - lastSubAgentEmit >= 200) {
+          lastSubAgentEmit = now;
+          broadcastJobEvent(job, 'status', {
+            status: 'streaming',
+            phaseDetail: job.phaseDetail,
+            subAgentData: job.subAgentData
+          });
+          flushJobToDb(job, force);
+        }
+      };
+
+      pushSubAgentState(true, 'running', 1);
+
+      const agentHistory = (params.preparedMessages || [])
+        .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+        .slice(-12)
+        .map(m => ({ role: m.role, content: m.content.slice(0, 4000) }));
+
+      let sandboxFailedMsg = null;
+
+      await deps.executeAutonomousAgentRun({
+        sessionId: sandboxSessionId,
+        prompt: `${job.userPrompt || runSubAgentTask}\n\n[AI_ORCHESTRATOR_INTENT]: ${runSubAgentTask}`,
+        model: job.model || 'north-mini-code',
+        history: agentHistory,
+        effort: 'high',
+        language: job.language || 'id',
+        userId: job.userId || job.deviceId || 'chatbot_guest',
+        deferDeltaUntilDone: true,
+        onEvent: (eventType, data = {}) => {
+          if (signal.aborted || job.stopped) return;
+          if (eventType === 'step') {
+            if (thoughtSteps.length === 1 && thoughtSteps[0].id === 'sb_init') {
+              thoughtSteps[0] = { ...thoughtSteps[0], status: 'done' };
+            }
+            const mapped = mapSandboxStepServer(data, thoughtSteps.length);
+            thoughtSteps.push(mapped);
+            if (mapped.title) job.phaseDetail = mapped.title;
+            pushSubAgentState(true, 'running');
+          } else if (eventType === 'step_update') {
+            if (thoughtSteps.length > 0) {
+              const lastIdx = thoughtSteps.length - 1;
+              thoughtSteps[lastIdx] = {
+                ...thoughtSteps[lastIdx],
+                status: data.status === 'completed' || data.status === 'done' ? 'done' : data.status === 'failed' ? 'error' : thoughtSteps[lastIdx].status,
+                detail: data.detail || thoughtSteps[lastIdx].detail
+              };
+            }
+            if (data.screenshotUrl) screenshotUrl = data.screenshotUrl;
+            if (data.previewUrl) previewUrl = data.previewUrl;
+            pushSubAgentState(true, 'running');
+          } else if (eventType === 'skill_active') {
+            activeSkill = data.skill || data.name || data.title || null;
+            pushSubAgentState(true, 'running');
+          } else if (eventType === 'reasoning') {
+            const chunk = String(data.text || data.content || '');
+            if (chunk) {
+              cotText += chunk;
+              pushSubAgentState(false, 'running');
+            }
+          } else if (eventType === 'delta') {
+            const chunk = String(data.content || data.text || '');
+            if (chunk) {
+              finalAnswer += chunk;
+              pushSubAgentState(false, 'running', 3);
+            }
+          } else if (eventType === 'files_update') {
+            const rawFiles = Array.isArray(data.files) ? data.files : [];
+            const enriched = typeof deps.buildEnrichedSandboxFiles === 'function'
+              ? deps.buildEnrichedSandboxFiles(sandboxSessionId, rawFiles)
+              : rawFiles;
+            currentFiles = enriched.map((f, idx) => mapSandboxFileServer(f, idx));
+            pushSubAgentState(true, 'running', 2);
+          } else if (eventType === 'done') {
+            const rawFiles = Array.isArray(data.files) ? data.files : [];
+            if (rawFiles.length > 0) {
+              const enriched = typeof deps.buildEnrichedSandboxFiles === 'function'
+                ? deps.buildEnrichedSandboxFiles(sandboxSessionId, rawFiles)
+                : rawFiles;
+              currentFiles = enriched.map((f, idx) => mapSandboxFileServer(f, idx));
+            }
+            if (typeof data.content === 'string' && data.content.trim()) {
+              finalAnswer = data.content.trim();
+            }
+            if (data.screenshotUrl) screenshotUrl = data.screenshotUrl;
+            if (data.previewUrl) previewUrl = data.previewUrl;
+            thoughtSteps = thoughtSteps.map(s => (s.status === 'running' ? { ...s, status: 'done' } : s));
+            pushSubAgentState(true, 'completed', 3);
+          } else if (eventType === 'error') {
+            sandboxFailedMsg = data.error || 'Sub-Agent mengalami kendala saat mengeksekusi tugas.';
+            thoughtSteps = thoughtSteps.map(s => (s.status === 'running' ? { ...s, status: 'error' } : s));
+            pushSubAgentState(true, 'error', 3);
+          }
+        },
+        onCloseRegister: (cb) => {
+          if (signal.aborted) {
+            try { cb(); } catch {}
+          } else {
+            signal.addEventListener('abort', () => { try { cb(); } catch {} }, { once: true });
+          }
+        },
+        finishStream: () => {}
+      });
+
+      if (signal.aborted || job.stopped) {
+        throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
+      }
+
+      if (sandboxFailedMsg && !finalAnswer && currentFiles.length === 0) {
+        job.subAgentData = buildSubAgentSnapshot('error', 3);
+        job.text = sandboxFailedMsg;
+      } else {
+        if (!finalAnswer) {
+          finalAnswer = currentFiles.length > 0
+            ? (job.language === 'en'
+              ? `Task completed! Generated ${currentFiles.length} verified file(s) in the sandbox.`
+              : `Tugas selesai! Berhasil membuat ${currentFiles.length} berkas terverifikasi di sandbox.`)
+            : (job.language === 'en' ? 'Autonomous task execution completed.' : 'Eksekusi tugas otonom telah selesai.');
+        }
+        thoughtSteps = thoughtSteps.map(s => (s.status === 'running' ? { ...s, status: 'done' } : s));
+        job.subAgentData = buildSubAgentSnapshot('completed', 3);
+        job.text = '';
+      }
+    } else if (runBrowserQuery) {
       job.text = '';
       job.reasoningText = '';
       job.reasoningDuration = null;
@@ -919,7 +1202,7 @@ async function executeJobInBackground(job, params) {
         try {
           res.write('data: [DONE]\n\n');
           res.end();
-        } catch {}
+        } catch { }
       }
     }
     job.subscribers.clear();
@@ -960,6 +1243,7 @@ export function startChatJob(params) {
     searchImages: [],
     searchSteps: [],
     browserPages: [],
+    subAgentData: null,
     browserAgentMode: params.browserAgentMode || 'auto',
     phaseDetail: '',
     error: null,
@@ -1024,7 +1308,7 @@ export function getJobSnapshot(jobId, caller = {}) {
         if (dbJob.status === 'error' && !dbJob.error) {
           dbJob.error = 'Proses terhenti karena server dimulai ulang.';
         }
-        try { deps.chatJobDb.upsert(dbJob); } catch {}
+        try { deps.chatJobDb.upsert(dbJob); } catch { }
       }
       return sanitizeJobPayload(dbJob);
     }
@@ -1056,7 +1340,7 @@ export function listActiveOrRecentJobs(caller = {}, maxAgeMs = 15 * 60 * 1000) {
         if (dbJob.status === 'error' && !dbJob.error) {
           dbJob.error = 'Proses terhenti karena server dimulai ulang.';
         }
-        try { deps.chatJobDb.upsert(dbJob); } catch {}
+        try { deps.chatJobDb.upsert(dbJob); } catch { }
       }
       byId.set(dbJob.id, sanitizeJobPayload(dbJob));
     }
@@ -1140,7 +1424,7 @@ export function stopChatJobs({ userId = null, deviceId = null, sessionId = null,
       job.status = 'stopped';
       try {
         job.abortController.abort();
-      } catch {}
+      } catch { }
       stopped++;
     }
   }

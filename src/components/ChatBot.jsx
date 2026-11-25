@@ -2467,6 +2467,7 @@ const ChatBot = ({ onLogout, onLoginRequest, user, isAuthenticated, isGuest, onN
         searchSteps: Array.isArray(job.searchSteps) && job.searchSteps.length > 0
           ? job.searchSteps
           : (existingBotIdx >= 0 ? msgs[existingBotIdx].searchSteps : []),
+        subAgentData: job.subAgentData || (existingBotIdx >= 0 ? msgs[existingBotIdx].subAgentData : null),
         isStreaming: isRunningJob && job.status !== 'searching',
         isSearching: job.status === 'searching',
         isThinking: job.status === 'thinking' && !jobDisplayText,
@@ -6051,6 +6052,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       searchSteps: Array.isArray(existingBotMsg?.searchSteps) ? existingBotMsg.searchSteps : [],
       browserPages: Array.isArray(existingBotMsg?.browserPages) ? existingBotMsg.browserPages : []
     };
+    let latestSubAgentData = existingBotMsg?.subAgentData || null;
 
     let smoothTimer = null;
     let pendingDoneCtx = null;
@@ -6092,7 +6094,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       const subAgentAllowed = isAgenticMode && !isSubAgentForbiddenModel(selectedModel);
-      const parsedSubAgent = subAgentAllowed ? parseSubAgentFlag(finalText, userPrompt, userLanguage) : null;
+      const finalSubAgentData = finalJob?.subAgentData || latestSubAgentData || null;
+      const parsedSubAgent = (subAgentAllowed && !finalSubAgentData)
+        ? parseSubAgentFlag(finalText, userPrompt, userLanguage)
+        : null;
 
       currentStreamingTextRef.current = cleanedFinal;
       syncUiBotPatch({
@@ -6109,6 +6114,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         searchImages: finalImages,
         searchSteps: finalSteps,
         browserPages: finalBrowserPages || [],
+        ...(finalSubAgentData ? { subAgentData: finalSubAgentData } : {}),
         ...(createdReminder ? { reminder: createdReminder } : {})
       });
 
@@ -6255,6 +6261,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             if (snap.phaseDetail && currentConversationIdRef.current === sessionId) {
               setLoadingStatusMsg(snap.phaseDetail);
             }
+            if (snap.subAgentData) {
+              latestSubAgentData = snap.subAgentData;
+              activeAgentPhaseRef.current = 'agentic';
+            }
 
             isSearchingActive = snap.status === 'searching';
             if (enableReasoning && typeof snap.reasoningText === 'string' && snap.reasoningText.length > targetReasoningText.length) {
@@ -6292,6 +6302,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                   isStreaming: ['queued', 'searching', 'thinking', 'streaming'].includes(snap.status) && !isSearchingActive,
                   isReasoning: enableReasoning && snap.status === 'thinking',
                   isReasoningComplete: enableReasoning && Boolean(displayedReasoningText) && snap.status !== 'thinking',
+                  ...(latestSubAgentData ? { subAgentData: latestSubAgentData } : {}),
                   ...latestSearchMeta
                 });
               }
@@ -6305,6 +6316,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
                 isStreaming: ['queued', 'searching', 'thinking', 'streaming'].includes(snap.status) && !isSearchingActive,
                 isReasoning: enableReasoning && snap.status === 'thinking',
                 isReasoningComplete: enableReasoning && Boolean(displayedReasoningText) && snap.status !== 'thinking',
+                ...(latestSubAgentData ? { subAgentData: latestSubAgentData } : {}),
                 ...latestSearchMeta
               });
             }
@@ -6315,6 +6327,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             isSearchingActive = st?.status === 'searching';
             if (st?.status === 'searching') {
               activeAgentPhaseRef.current = (Array.isArray(st?.browserPages) && st.browserPages.length > 0) ? 'browser' : 'search';
+            }
+            if (st?.subAgentData) {
+              latestSubAgentData = st.subAgentData;
+              activeAgentPhaseRef.current = 'agentic';
+              targetFullText = '';
+              displayedFullText = '';
             }
             if (st?.phaseDetail && currentConversationIdRef.current === sessionId) {
               setLoadingStatusMsg(st.phaseDetail);
@@ -6328,8 +6346,9 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
               };
             }
             syncUiBotPatch({
+              ...(st?.subAgentData ? { text: '', subAgentData: latestSubAgentData } : {}),
               isSearching: isSearchingActive,
-              isThinking: !isSearchingActive && st?.status === 'thinking' && !displayedFullText,
+              isThinking: !isSearchingActive && !latestSubAgentData && st?.status === 'thinking' && !displayedFullText,
               isStreaming: !isSearchingActive,
               ...latestSearchMeta
             });
@@ -6750,12 +6769,14 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       return;
     }
 
-    // Autonomous Agentic Mode direct execution inside Chatbot Biasa (skips intermediate /api/chat delay for build/code/Office/ZIP tasks)
-    // Strictly disabled for models that forbid Sub-Agent (e.g. grok-4.6)
+    // 100% AI-Flag Driven Agentic Mode:
+    // Only route directly to client sandbox upload when user explicitly attached binary/project files (.zip/code/docs);
+    // for all text prompts, the AI model itself semantically decides via [SUBAGENT_ORCHESTRATE: ...] flag!
     if (
       isAgenticMode &&
       !isSubAgentForbiddenModel(selectedModel) &&
       imagesToPass.length === 0 &&
+      attachedFilesForTurn.length > 0 &&
       typeof handleSubAgentActionRef.current === 'function' &&
       detectExplicitSubAgentUserIntent(cleanUserText, attachedFilesForTurn, true, selectedModel)
     ) {
