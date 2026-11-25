@@ -1,4 +1,4 @@
-const FALLBACK_BACKEND_URL = 'https://amount-put-dense-sub.trycloudflare.com';
+const FALLBACK_BACKEND_URL = 'https://cdf5bd9fba7362.app.lhr.life';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

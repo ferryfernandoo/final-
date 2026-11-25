@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const BACKEND_ORIGIN = 'https://amount-put-dense-sub.trycloudflare.com';
+const BACKEND_ORIGIN = 'https://cdf5bd9fba7362.app.lhr.life';
 
 export default async function handler(req) {
   try {

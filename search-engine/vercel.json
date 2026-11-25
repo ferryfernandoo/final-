@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://substantially-holidays-compression-individually.trycloudflare.com/api/:path*"
+      "destination": "https://cdf5bd9fba7362.app.lhr.life/api/:path*"
     },
     {
       "source": "/(.*)",

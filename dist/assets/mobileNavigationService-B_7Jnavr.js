@@ -1,0 +1,21 @@
+import{t as e}from"./dist-cQ7jYXuo.js";var t=[],n=null,r=0,i=2e3,a=null;function o(e){n=e}function s(e,n=10){let r=`back_`+Math.random().toString(36).substring(2,9),i={id:r,priority:n,handler:e};return t.push(i),t.sort((e,t)=>t.priority-e.priority),()=>{t=t.filter(e=>e.id!==r)}}function c(e=`Tekan sekali lagi untuk keluar`){if(typeof document>`u`)return;let t=document.getElementById(`deepernova-back-exit-toast`);t&&t.remove(),a&&clearTimeout(a);let n=document.createElement(`div`);n.id=`deepernova-back-exit-toast`,n.innerText=e,n.style.cssText=`
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15, 23, 42, 0.92);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 10px 22px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 999999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  `,document.body.appendChild(n),requestAnimationFrame(()=>{n.style.opacity=`1`,n.style.transform=`translateX(-50%) translateY(0)`}),a=setTimeout(()=>{n.style.opacity=`0`,n.style.transform=`translateX(-50%) translateY(16px)`,setTimeout(()=>{n.parentNode&&n.parentNode.removeChild(n)},250)},i)}function l(e=!1){if(t.length>0)for(let n of t)try{if(n.handler()){if(e&&typeof window<`u`&&window.history)try{window.history.pushState({modalGuarded:!0},``,window.location.href)}catch{}return!0}}catch(e){console.warn(`[mobileNavigationService] Handler error:`,e)}if(n&&n.onNavigateBack()){if(e&&typeof window<`u`&&window.history)try{window.history.pushState({viewGuarded:!0},``,window.location.href)}catch{}return!0}let a=Date.now();if(a-r<i)return r=0,!1;if(r=a,c(`Tekan sekali lagi untuk keluar`),e&&typeof window<`u`&&window.history)try{window.history.pushState({rootGuarded:!0},``,window.location.href)}catch{}return!0}function u(){if(typeof window>`u`)return()=>{};try{window.history&&window.history.length<=1&&(window.history.replaceState({deepernova_root:!0},``,window.location.href),window.history.pushState({deepernova_active:!0},``,window.location.href))}catch{}let t=e=>{l(!0)};window.addEventListener(`popstate`,t);let n=null;(async()=>{try{let t=e.Plugins?.App||typeof window<`u`&&window.Capacitor?.Plugins?.App;if(t&&typeof t.addListener==`function`){let e=await t.addListener(`backButton`,()=>{l(!1)||typeof t.exitApp==`function`&&t.exitApp()});n=()=>e?.remove?.()}}catch(e){console.warn(`[mobileNavigationService] Capacitor back listener setup error:`,e)}})();let r=e=>{e&&e.preventDefault&&e.preventDefault(),!l(!1)&&navigator.app&&navigator.app.exitApp&&navigator.app.exitApp()};return document.addEventListener(`backbutton`,r,!1),()=>{window.removeEventListener(`popstate`,t),document.removeEventListener(`backbutton`,r),n&&n()}}export{s as n,o as r,u as t};

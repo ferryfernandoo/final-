@@ -1,4 +1,4 @@
-const FALLBACK_SEARCH_URL = 'https://substantially-holidays-compression-individually.trycloudflare.com';
+const FALLBACK_SEARCH_URL = 'https://cdf5bd9fba7362.app.lhr.life';
 
 export const config = {
   runtime: 'edge',

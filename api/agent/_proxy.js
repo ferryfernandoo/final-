@@ -1,6 +1,6 @@
 const FALLBACK_BACKEND_URL =
   (typeof globalThis !== 'undefined' && globalThis.process?.env?.PUBLIC_BACKEND_URL) ||
-  'https://amount-put-dense-sub.trycloudflare.com';
+  'https://cdf5bd9fba7362.app.lhr.life';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
