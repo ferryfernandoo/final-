@@ -208,9 +208,19 @@ function extractMeaningfulTokens(text = '') {
   ));
 }
 
+const GENERIC_QUERY_WORDS = new Set([
+  'harga', 'saham', 'berita', 'info', 'informasi', 'terbaru', 'hari', 'sekarang', 'berapa', 'perkembangan',
+  'update', 'nilai', 'kurs', 'data', 'daftar', 'cara', 'profil', 'tentang', 'indonesia', 'nusantara', 'tbk',
+  'price', 'stock', 'news', 'latest', 'today', 'current', 'value', 'rate', 'list', 'profile', 'about'
+]);
+
 function filterAndScoreRelevantSources(rawSources = [], query = '', userPrompt = '') {
   const qTokens = extractMeaningfulTokens(`${query} ${userPrompt}`);
   if (qTokens.length === 0) return rawSources.slice(0, 10);
+
+  // Identify distinctive/entity tokens (alphanumeric codes, proper-noun-like terms not in generic words)
+  const distinctiveTokens = qTokens.filter(t => !GENERIC_QUERY_WORDS.has(t));
+  const codeLikeTokens = qTokens.filter(t => /[a-z]/i.test(t) && /\d/.test(t) && t.length >= 4);
 
   const minTokenHits = qTokens.length >= 4 ? 2 : 1;
   const scored = [];
@@ -221,23 +231,35 @@ function filterAndScoreRelevantSources(rawSources = [], query = '', userPrompt =
     const combined = `${titleLower} ${snippetLower} ${domainLower}`;
     if (!combined.trim()) continue;
 
+    // If query has a specific alphanumeric code/identifier (e.g., "zxqv99281", "rtx5090"), source MUST match it!
+    if (codeLikeTokens.length > 0 && !codeLikeTokens.some(ct => combined.includes(ct))) {
+      continue;
+    }
+
     let hitCount = 0;
+    let distinctiveHits = 0;
     let relevanceScore = 0;
     for (const tok of qTokens) {
+      const isDist = !GENERIC_QUERY_WORDS.has(tok);
+      const mult = isDist ? 1.5 : 0.75;
       if (titleLower.includes(tok)) {
         hitCount += 1;
-        relevanceScore += 3;
+        if (isDist) distinctiveHits += 1;
+        relevanceScore += 3 * mult;
       } else if (snippetLower.includes(tok)) {
         hitCount += 1;
-        relevanceScore += 1.5;
+        if (isDist) distinctiveHits += 1;
+        relevanceScore += 1.5 * mult;
       } else if (domainLower.includes(tok)) {
         hitCount += 1;
-        relevanceScore += 1;
+        if (isDist) distinctiveHits += 1;
+        relevanceScore += 1 * mult;
       }
     }
 
-    // Strict anti-trash filter: drop results with zero or insufficient topical match
-    if (hitCount >= minTokenHits && relevanceScore >= 1.5) {
+    // Strict anti-trash filter: require at least 1 distinctive entity hit when distinctive tokens exist
+    const passesDistinctive = distinctiveTokens.length === 0 || distinctiveHits >= 1;
+    if (passesDistinctive && hitCount >= minTokenHits && relevanceScore >= 2.0) {
       scored.push({ ...s, _relevanceScore: relevanceScore, _hitCount: hitCount });
     }
   }
@@ -517,10 +539,10 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
     return { sources: [], verifiedImages: [], deepContextBlock: null, browserPages: [], noRelevantSources: true };
   }
 
-  // --- STEP 3: DEEP WEB PAGE FETCHING (Open & read top 2-3 relevant pages!) ---
+  // --- STEP 3: DEEP WEB PAGE FETCHING (Open & read top 2 relevant pages with 12s speed budget!) ---
   let deepContextBlock = null;
   let browserPages = [];
-  const topUrlsToRead = relevantSources.slice(0, 3).map(s => s.link).filter(Boolean);
+  const topUrlsToRead = relevantSources.slice(0, 2).map(s => s.link).filter(Boolean);
   if (topUrlsToRead.length > 0 && !(signal?.aborted || job.stopped)) {
     const fetchStep = {
       query: cleanQ,
@@ -536,6 +558,11 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
     job.searchSteps = [...steps];
     broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: cleanQ, searchSteps: job.searchSteps });
 
+    const deepFetchCtrl = new AbortController();
+    const forwardParentAbort = () => deepFetchCtrl.abort();
+    if (signal) signal.addEventListener('abort', forwardParentAbort, { once: true });
+    const deepTimer = setTimeout(() => deepFetchCtrl.abort(), 12000);
+
     try {
       const browserRes = await runBrowserAgent({
         query: cleanQ,
@@ -543,8 +570,8 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
         targetUrls: topUrlsToRead,
         language: language || 'id',
         webSearchService,
-        maxPages: 3,
-        signal,
+        maxPages: 2,
+        signal: deepFetchCtrl.signal,
         onStep: (st) => {
           if (st?.title) job.phaseDetail = st.title;
           if (Array.isArray(st?.browserPages)) {
@@ -577,6 +604,9 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
     } catch (err) {
       console.warn('[ChatJob] Deep web page fetch fallback to snippets:', err.message);
       fetchStep.isSearching = false;
+    } finally {
+      clearTimeout(deepTimer);
+      if (signal) signal.removeEventListener('abort', forwardParentAbort);
     }
   }
 

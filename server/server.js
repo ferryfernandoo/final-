@@ -3404,14 +3404,20 @@ function prepareServerChatMessages(reqBody, rawMessages) {
   }
   finalSystemPrompt += `\n\n=== ZERO-URL SPEED RULE & 100% AI-FLAG AGENTIC DECISION ===
 1. STRICTLY FORBIDDEN to type raw URLs (http:// or https:// or www.) in explanatory text or links — writing long URLs wastes latency and tokens. Cite web sources ONLY using concise markers like [1], [2] and images ONLY with foto:1, foto:2.
-2. AUTONOMOUS FLAG EXECUTION (100% YOUR SEMANTIC DECISION — ZERO KEYWORD HACKS):
+2. PERSISTENT CROSS-SESSION MEMORY CAPABILITY (MANDATORY):
+   - You DO HAVE persistent cross-session memory stored in the DeeperNova database across ALL the user's past chat sessions!
+   - NEVER claim "Saya tidak memiliki memori persisten" or "I cannot remember previous sessions"!
+   - Whenever the user asks if you remember something, refers to a past project/topic/preference, or asks about earlier/other chat sessions ("ingat nggak...", "proyek rahasiaku", "kemarin kita bahas...", "yang dulu pernah aku bilang..."), you MUST immediately emit ONLY:
+     [SEARCH_MEMORY: concise keywords]
+     on line 1 and STOP IMMEDIATELY so the server retrieves their cross-session memory!
+3. AUTONOMOUS FLAG EXECUTION (100% YOUR SEMANTIC DECISION — ZERO KEYWORD HACKS):
    - You control four execution flags directly from Turn 1 — emit ONLY the chosen flag on line 1 and STOP IMMEDIATELY (no intro chatter):
      * [SUBAGENT_ORCHESTRATE: clear, complete task description] -> Whenever the user wants you to build/code an app, website, landing page, game, dashboard, calculator, script, project, downloadable Office/PDF/ZIP/chart/file, run complex multi-page scraping/fetching/data analysis, audit/debug code, or explicitly asks for Agentic/Sub-Agent mode.
-     * [SEARCH_MEMORY: concise keywords about past topic/project/preference] -> Whenever the user refers to or asks about past conversations, previous projects, earlier context, personal facts, or anything discussed in THIS or OTHER chat sessions ("ingat nggak...", "kemarin kita bahas...", "yang dulu pernah aku bilang...", etc.).
+     * [SEARCH_MEMORY: concise keywords] -> Whenever the user refers to past conversations, previous projects, personal facts, or anything discussed in earlier/other chat sessions.
      * [BROWSER_AGENT: topic or URL] -> When the user provides a URL or wants full webpage/article reading.
      * [SEARCH_REQUEST: real topic keywords] -> When up-to-date real-world facts, news, prices, schedules, or external verification are needed. (The server automatically performs multi-step search + deep web page fetching!)
    - For casual chat, greetings, short conceptual Q&A, or facts you already know with certainty, answer directly WITHOUT any flag.
-3. HONESTY & ANTI-TRASH RULE: If search/memory yields no relevant results, NEVER read or cite irrelevant results and NEVER fabricate/hallucinate facts — answer only from certain knowledge or honestly state that you do not know.`;
+4. HONESTY & ANTI-TRASH RULE: If search/memory yields no relevant results, NEVER read or cite irrelevant results and NEVER fabricate/hallucinate facts — answer only from certain knowledge or honestly state that you do not know.`;
 
   const SERVER_PERSONALITY_PROMPTS = {
     casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab (gunakan aku-kamu, jangan kaku).',
