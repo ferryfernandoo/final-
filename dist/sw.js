@@ -1,5 +1,5 @@
 // DeeperNova AI Service Worker (Lightweight Native-like PWA)
-const CACHE_NAME = 'dpn-ai-v1';
+const CACHE_NAME = 'dpn-ai-v3';
 const STATIC_SHELL = [
   '/',
   '/index.html',

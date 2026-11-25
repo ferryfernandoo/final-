@@ -31,8 +31,6 @@ const ChatComposerCard = ({
   currentModelObj = DEEPERNOVA_MODELS[0],
   selectedModel,
   setSelectedModel = noop,
-  browserAgentMode = 'auto',
-  toggleBrowserAgentMode = noop,
   isReasoningCapable = false,
   isReasoningEnabled = true,
   reasoningByModel = {},
@@ -363,31 +361,6 @@ const ChatComposerCard = ({
                 </svg>
               </button>
             </div>
-
-            <button
-              type="button"
-              className={`claude-browser-agent-btn ${browserAgentMode === 'on' ? 'active' : ''}`}
-              onMouseDown={handleKeepFocusMouseDown}
-              onClick={() => toggleBrowserAgentMode()}
-              disabled={loading || currentModelObj?.id === 'grok-4.6'}
-              title={
-                browserAgentMode === 'on'
-                  ? (userLanguage === 'zh'
-                    ? '浏览器代理模式已强制开启（点击切回自动）'
-                    : userLanguage === 'id'
-                      ? 'Mode Peramban Agent AKTIF (AI otomatis membuka & membaca halaman web penuh)'
-                      : 'Browser Agent Mode ON (AI actively opens & reads full web pages)')
-                  : (userLanguage === 'zh'
-                    ? '浏览器代理：自动（点击强制开启）'
-                    : userLanguage === 'id'
-                      ? 'Mode Peramban Agent: Otomatis (Klik untuk selalu aktifkan)'
-                      : 'Browser Agent Mode: Auto (Click to force ON)')
-              }
-              tabIndex={isExpanded ? 0 : -1}
-            >
-              <i className="fa-solid fa-compass" style={{ fontSize: '12px' }}></i>
-              <span>{userLanguage === 'zh' ? '浏览器' : 'Peramban'}</span>
-            </button>
           </div>
         </div>
 

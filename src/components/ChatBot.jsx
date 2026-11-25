@@ -129,22 +129,8 @@ const ChatBot = ({ onLogout, onLoginRequest, user, isAuthenticated, isGuest, onN
   const activeJobSubscriptionsRef = useRef(new Map());
   const attachServerJobRef = useRef(null);
   const activeAgentPhaseRef = useRef('thinking');
-  const [browserAgentMode, setBrowserAgentMode] = useState(() => {
-    try {
-      const saved = localStorage.getItem('deepernova_browser_agent_mode');
-      return saved === 'on' ? 'on' : 'auto';
-    } catch (_) {
-      return 'auto';
-    }
-  });
-  const toggleBrowserAgentMode = useCallback(() => {
-    setBrowserAgentMode((prev) => {
-      const next = prev === 'on' ? 'auto' : 'on';
-      try {
-        localStorage.setItem('deepernova_browser_agent_mode', next);
-      } catch (_) { }
-      return next;
-    });
+  useEffect(() => {
+    try { localStorage.removeItem('deepernova_browser_agent_mode'); } catch (_) { }
   }, []);
   const [inputValue, setInputValue] = useState('');
   const [aiMode, setAiMode] = useState('brainstorm'); // 'brainstorm' | 'agent'
@@ -6328,7 +6314,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             clearLoadingPhaseTimers();
             isSearchingActive = st?.status === 'searching';
             if (st?.status === 'searching') {
-              activeAgentPhaseRef.current = (Array.isArray(st?.browserPages) && st.browserPages.length > 0) || browserAgentMode === 'on' ? 'browser' : 'search';
+              activeAgentPhaseRef.current = (Array.isArray(st?.browserPages) && st.browserPages.length > 0) ? 'browser' : 'search';
             }
             if (st?.phaseDetail && currentConversationIdRef.current === sessionId) {
               setLoadingStatusMsg(st.phaseDetail);
@@ -6592,23 +6578,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
     }, 4000);
 
-    // DeeperNova AI requires active connection
-    if (!navigator.onLine) {
-      console.warn('[ChatBot] Cannot send message: offline detected');
-      setIsSendGenerating(false);
-      isSendGeneratingRef.current = false;
-      setLoading(false);
-      isProcessingRef.current = false;
-      setConvLoading(false);
-      setConnectionErrorMessage(
-        userLanguage === 'id'
-          ? 'Tidak ada koneksi internet. Pastikan jaringan aktif untuk menggunakan DeeperNova AI.'
-          : 'No internet connection. Please ensure an active network to use DeeperNova AI.'
-      );
-      setShowConnectionErrorModal(true);
-      return;
-    }
-
     const safeStringify = (value, maxLen = 30000) => {
       if (value == null) return '';
       const str = typeof value === 'string' ? value : JSON.stringify(value);
@@ -6846,9 +6815,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     }
 
     const activeWaitingPrompt = cleanUserText || fullMessage;
-    activeAgentPhaseRef.current = browserAgentMode === 'on'
-      ? 'browser'
-      : (upfrontSearchQuery ? 'search' : 'thinking');
+    activeAgentPhaseRef.current = upfrontSearchQuery ? 'search' : 'thinking';
     setLoadingStatusMsg(
       buildContextualWaitingMessage(activeWaitingPrompt, 0, userLanguage, activeAgentPhaseRef.current)
     );
@@ -6903,12 +6870,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
         uploadedImages: imagesToPass,
         enableReasoning: effectiveEnableReasoning,
         enableWebSearch: true,
-        browserAgentMode,
+        browserAgentMode: 'auto',
         isPrivateMode: isPrivateTurn,
         userMessageId: userMessageForChat.id,
         assistantMessageId: placeholderId,
         userPrompt: cleanUserText || fullMessage,
-        searchQuery: browserAgentMode === 'on' ? null : (upfrontSearchQuery || null),
+        searchQuery: upfrontSearchQuery || null,
         abortController
       });
 
@@ -7033,15 +7000,13 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       }
 
       if (!jobAcceptedOnServer) {
-        // Server did not receive the job yet: restore user input and roll back optimistic bubbles
-        setInputValue(lastSentUserInputTextRef.current || fullMessage || '');
-        if (placeholderId || lastSentUserMessageIdRef.current) {
-          setMessages((prev) =>
-            prev.filter((m) => m.id !== placeholderId && m.id !== lastSentUserMessageIdRef.current)
-          );
-        }
-
         if (err?.tokenLimitError || err?.status === 429) {
+          setInputValue(lastSentUserInputTextRef.current || fullMessage || '');
+          if (placeholderId || lastSentUserMessageIdRef.current) {
+            setMessages((prev) =>
+              prev.filter((m) => m.id !== placeholderId && m.id !== lastSentUserMessageIdRef.current)
+            );
+          }
           showAlert(
             err?.message || (
               userLanguage === 'id'
@@ -7052,12 +7017,69 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             5000
           );
         } else {
-          setConnectionErrorMessage(
-            userLanguage === 'id'
-              ? 'Pesan Anda tidak terkirim karena masalah koneksi internet. Teks Anda telah dikembalikan ke kolom input.'
-              : 'Your message was not sent due to network connection issues. Your text has been restored to the input box.'
-          );
-          setShowConnectionErrorModal(true);
+          // Automatic seamless Edge /api/chat failover so chat NEVER stalls with a disconnect popup
+          let fallbackSucceeded = false;
+          try {
+            console.warn('[ChatBot] Server job start failed, failing over to Vercel Edge /api/chat:', err?.message || err);
+            const fallbackResp = await sendMessageToGrok(
+              fullMessage,
+              updatedConversationHistory,
+              userLanguage,
+              streamingConversationId,
+              selectedPersonality,
+              abortController,
+              selectedModel,
+              isAuthenticated,
+              isGuest,
+              userName || user?.name || '',
+              sessionMessageCount + 1,
+              imagesToPass,
+              effectiveEnableReasoning,
+              true,
+              isPrivateTurn
+            );
+            let edgeAccumulated = '';
+            let edgeReasoning = '';
+            await processStreamingResponse(
+              fallbackResp,
+              (chunk) => {
+                if (chunk?.type === 'reasoning') {
+                  edgeReasoning += chunk.content || '';
+                  setMessages((prev) =>
+                    prev.map((m) => (m.id === placeholderId ? { ...m, reasoningText: edgeReasoning, isReasoning: true, isThinking: false, isStreaming: true } : m))
+                  );
+                } else if (chunk?.type === 'content') {
+                  edgeAccumulated += chunk.content || '';
+                  const cleaned = sanitizeStreamingText(edgeAccumulated);
+                  setMessages((prev) =>
+                    prev.map((m) => (m.id === placeholderId ? { ...m, text: cleaned, isReasoning: false, isThinking: false, isStreaming: true } : m))
+                  );
+                }
+              },
+              abortController.signal,
+              { isAuthenticated, isGuest, conversationId: streamingConversationId }
+            );
+            const cleanedEdgeFinal = cleanResponseText(edgeAccumulated);
+            finishStreaming(placeholderId, cleanedEdgeFinal, null);
+            fallbackSucceeded = Boolean(cleanedEdgeFinal && cleanedEdgeFinal.trim());
+          } catch (edgeErr) {
+            console.warn('[ChatBot] Edge /api/chat failover also failed:', edgeErr?.message || edgeErr);
+          }
+
+          if (!fallbackSucceeded) {
+            setInputValue(lastSentUserInputTextRef.current || fullMessage || '');
+            if (placeholderId || lastSentUserMessageIdRef.current) {
+              setMessages((prev) =>
+                prev.filter((m) => m.id !== placeholderId && m.id !== lastSentUserMessageIdRef.current)
+              );
+            }
+            setConnectionErrorMessage(
+              userLanguage === 'id'
+                ? 'Pesan Anda tidak terkirim karena masalah koneksi internet. Teks Anda telah dikembalikan ke kolom input.'
+                : 'Your message was not sent due to network connection issues. Your text has been restored to the input box.'
+            );
+            setShowConnectionErrorModal(true);
+          }
         }
 
         autoRetryCountRef.current = 0;
@@ -9343,8 +9365,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
       currentModelObj={currentModelObj}
       selectedModel={selectedModel}
       setSelectedModel={setSelectedModel}
-      browserAgentMode={browserAgentMode}
-      toggleBrowserAgentMode={toggleBrowserAgentMode}
       isReasoningCapable={isReasoningCapable}
       isReasoningEnabled={isReasoningEnabled}
       reasoningByModel={reasoningByModel}
@@ -9989,8 +10009,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           setShowGlobalMemorySettings={setShowGlobalMemorySettings}
           selectedModel={selectedModel}
           setSelectedModel={setSelectedModel}
-          browserAgentMode={browserAgentMode}
-          toggleBrowserAgentMode={toggleBrowserAgentMode}
           isReasoningCapable={isReasoningCapable}
           isReasoningEnabled={isReasoningEnabled}
           reasoningByModel={reasoningByModel}

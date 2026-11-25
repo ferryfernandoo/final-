@@ -35,8 +35,6 @@ export const ChatEmptyHero = React.memo(({
   currentModelObj = DEEPERNOVA_MODELS[0],
   selectedModel,
   setSelectedModel,
-  browserAgentMode = 'auto',
-  toggleBrowserAgentMode,
   isReasoningCapable = false,
   isReasoningEnabled = true,
   reasoningByModel = {},
@@ -171,8 +169,6 @@ export const ChatEmptyHero = React.memo(({
         currentModelObj={currentModelObj}
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
-        browserAgentMode={browserAgentMode}
-        toggleBrowserAgentMode={toggleBrowserAgentMode}
         isReasoningCapable={isReasoningCapable}
         isReasoningEnabled={isReasoningEnabled}
         reasoningByModel={reasoningByModel}

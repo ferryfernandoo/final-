@@ -1,7 +1,7 @@
 // DeeperNova AI Service with Unified FreeLLM Gateway & Advanced Context Memory
 import { memoryService } from './memoryService.js';
 import { ragService } from './ragService.js';
-import { API_BASE_URL } from '../apiConfig.js';
+import { API_BASE_URL, CLOUDFLARE_BACKEND_URL } from '../apiConfig.js';
 import { getDeviceId } from './realtimeSyncService.js';
 import { PERSONALITIES, DEFAULT_PERSONALITY, sanitizeSelectedModelId } from '../components/chatbot/chatConstants.js';
 import localAiService, { extractResponseFromReasoning, generateInstantBoronResponse } from './localAiService.js';
@@ -1518,48 +1518,55 @@ export const startServerChatJob = async ({
     max_tokens: built.max_tokens
   };
 
-  let lastErr = null;
-  for (let attempt = 0; attempt <= 2; attempt++) {
-    try {
-      const resp = await fetchWithTimeout(
-        `${API_BASE_URL}/api/chat/jobs/start`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-device-id': deviceId
-          },
-          credentials: 'include',
-          signal: abortController?.signal,
-          body: JSON.stringify(payload)
-        },
-        15000
-      );
+  const endpoints = [ `${API_BASE_URL}/api/chat/jobs/start` ];
+  if (API_BASE_URL === '' && CLOUDFLARE_BACKEND_URL && !endpoints.includes(`${CLOUDFLARE_BACKEND_URL}/api/chat/jobs/start`)) {
+    endpoints.push(`${CLOUDFLARE_BACKEND_URL}/api/chat/jobs/start`);
+  }
 
-      if (!resp.ok) {
-        let errJson = null;
-        try { errJson = await resp.json(); } catch (_) { }
-        if (errJson?.isTokenLimitError) {
-          const limitErr = new Error(errJson.error || `API Error: ${resp.status}`);
-          limitErr.isTokenLimitError = true;
-          limitErr.resetTime = errJson.resetTime || null;
-          limitErr.usedTokens = errJson.usedTokens || 2000000;
-          throw limitErr;
+  let lastErr = null;
+  for (const targetEndpoint of endpoints) {
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      try {
+        const resp = await fetchWithTimeout(
+          targetEndpoint,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-device-id': deviceId
+            },
+            credentials: 'include',
+            signal: abortController?.signal,
+            body: JSON.stringify(payload)
+          },
+          18000
+        );
+
+        if (!resp.ok) {
+          let errJson = null;
+          try { errJson = await resp.json(); } catch (_) { }
+          if (errJson?.isTokenLimitError) {
+            const limitErr = new Error(errJson.error || `API Error: ${resp.status}`);
+            limitErr.isTokenLimitError = true;
+            limitErr.resetTime = errJson.resetTime || null;
+            limitErr.usedTokens = errJson.usedTokens || 2000000;
+            throw limitErr;
+          }
+          if (resp.status >= 500 && attempt < 1) {
+            await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+            continue;
+          }
+          throw new Error(errJson?.error || `HTTP ${resp.status}`);
         }
-        if (resp.status >= 500 && attempt < 2) {
-          await new Promise(r => setTimeout(r, 900 * (attempt + 1)));
+
+        return await resp.json();
+      } catch (err) {
+        lastErr = err;
+        if (err?.name === 'AbortError' || err?.isTokenLimitError) throw err;
+        if (attempt < 1) {
+          await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
           continue;
         }
-        throw new Error(errJson?.error || `HTTP ${resp.status}`);
-      }
-
-      return await resp.json();
-    } catch (err) {
-      lastErr = err;
-      if (err?.name === 'AbortError' || err?.isTokenLimitError) throw err;
-      if (attempt < 2) {
-        await new Promise(r => setTimeout(r, 900 * (attempt + 1)));
-        continue;
       }
     }
   }
