@@ -762,30 +762,37 @@
     gap: 8px;
     padding: 10px 12px;
   }
+
   .fv-header-left {
     flex: 1 1 100%;
     min-width: 0;
   }
+
   .fv-header-actions {
     width: 100%;
     justify-content: flex-end;
     gap: 6px;
   }
+
   .fv-btn {
     padding: 6px 10px;
     font-size: 12px;
   }
+
   .fv-zip-explorer {
     grid-template-columns: 1fr;
     grid-template-rows: 185px 1fr;
   }
+
   .fv-zip-sidebar {
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
   }
+
   .fv-pptx-visual-wrap {
     padding: 8px;
   }
+
   .fv-modal-backdrop {
     padding: 0;
   }

@@ -119,7 +119,7 @@ async function parsePptxTheme(zip, parser) {
       const hex = srgb?.getAttribute('val') || sysClr?.getAttribute('lastClr');
       if (hex && /^[0-9a-f]{6}$/i.test(hex)) map[key] = `#${hex}`;
     }
-  } catch {}
+  } catch { }
   return map;
 }
 
@@ -174,7 +174,7 @@ async function parsePptxSlides(bytes) {
           slideH = cy;
         }
       }
-    } catch {}
+    } catch { }
   }
   const slideWidthPt = (slideW / 914400) * 72;
   const slideHeightPt = (slideH / 914400) * 72;
@@ -1061,7 +1061,7 @@ export default function FileViewer({
               try {
                 const txt = await preferred.zipObj.async('string');
                 if (!cancelled) setSelectedZipEntry({ path: preferred.path, name: preferred.name, text: txt, size: preferred.size });
-              } catch {}
+              } catch { }
             }
           }
           return;

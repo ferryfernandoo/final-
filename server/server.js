@@ -3404,12 +3404,14 @@ function prepareServerChatMessages(reqBody, rawMessages) {
   }
   finalSystemPrompt += `\n\n=== ZERO-URL SPEED RULE & 100% AI-FLAG AGENTIC DECISION ===
 1. STRICTLY FORBIDDEN to type raw URLs (http:// or https:// or www.) in explanatory text or links — writing long URLs wastes latency and tokens. Cite web sources ONLY using concise markers like [1], [2] and images ONLY with foto:1, foto:2.
-2. AUTONOMOUS FLAG EXECUTION (100% YOUR SEMANTIC DECISION — NO KEYWORD HACKS):
-   - You control three execution flags directly from Turn 1:
-     * [SUBAGENT_ORCHESTRATE: clear, complete task description] -> Emit ONLY this flag on line 1 and STOP IMMEDIATELY whenever the user wants you to build/code an app, website, landing page, game, dashboard, calculator, script, project, downloadable Office/PDF/ZIP/chart/file, perform deep multi-step comparison/research/data analysis, audit/debug code, or explicitly asks for Agentic/Sub-Agent mode.
-     * [BROWSER_AGENT: topic or URL] -> Emit ONLY this flag on line 1 and STOP IMMEDIATELY when the user provides a URL or wants full webpage/article reading.
-     * [SEARCH_REQUEST: real topic keywords] -> Emit ONLY this flag on line 1 and STOP IMMEDIATELY when up-to-date real-world facts/news/prices/schedules are needed.
-   - For casual chat, greetings, short conceptual Q&A, or simple math, answer directly WITHOUT any flag.`;
+2. AUTONOMOUS FLAG EXECUTION (100% YOUR SEMANTIC DECISION — ZERO KEYWORD HACKS):
+   - You control four execution flags directly from Turn 1 — emit ONLY the chosen flag on line 1 and STOP IMMEDIATELY (no intro chatter):
+     * [SUBAGENT_ORCHESTRATE: clear, complete task description] -> Whenever the user wants you to build/code an app, website, landing page, game, dashboard, calculator, script, project, downloadable Office/PDF/ZIP/chart/file, run complex multi-page scraping/fetching/data analysis, audit/debug code, or explicitly asks for Agentic/Sub-Agent mode.
+     * [SEARCH_MEMORY: concise keywords about past topic/project/preference] -> Whenever the user refers to or asks about past conversations, previous projects, earlier context, personal facts, or anything discussed in THIS or OTHER chat sessions ("ingat nggak...", "kemarin kita bahas...", "yang dulu pernah aku bilang...", etc.).
+     * [BROWSER_AGENT: topic or URL] -> When the user provides a URL or wants full webpage/article reading.
+     * [SEARCH_REQUEST: real topic keywords] -> When up-to-date real-world facts, news, prices, schedules, or external verification are needed. (The server automatically performs multi-step search + deep web page fetching!)
+   - For casual chat, greetings, short conceptual Q&A, or facts you already know with certainty, answer directly WITHOUT any flag.
+3. HONESTY & ANTI-TRASH RULE: If search/memory yields no relevant results, NEVER read or cite irrelevant results and NEVER fabricate/hallucinate facts — answer only from certain knowledge or honestly state that you do not know.`;
 
   const SERVER_PERSONALITY_PROMPTS = {
     casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab (gunakan aku-kamu, jangan kaku).',

@@ -351,7 +351,7 @@ function parseSlidesFromContent(content, fallbackTitle = 'Presentasi DeeperNova'
         const parsed = JSON.parse(trimmed);
         if (parsed?.theme) themeName = String(parsed.theme).toLowerCase();
         rawSlides = Array.isArray(parsed) ? parsed : (parsed?.slides || parsed?.presentation?.slides || null);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     if (!Array.isArray(rawSlides) || rawSlides.length === 0) {
@@ -514,11 +514,11 @@ export async function buildPptxBlob(content, title = 'Presentasi DeeperNova') {
       const rightCards = s.hero
         ? (s.cards.length > 0 ? s.cards.slice(0, 2) : s.bullets.slice(0, 2).map((b, i) => ({ title: `Poin Kunci ${i + 1}`, desc: b })))
         : (s.cards.length > 1 ? s.cards.slice(1, 3) : s.bullets.slice(1, 5).reduce((acc, b, i) => {
-            const slot = i % 2;
-            if (!acc[slot]) acc[slot] = { title: slot === 0 ? 'Fokus Eksekusi' : 'Dampak Terukur', desc: b };
-            else acc[slot].desc += `\n• ${b}`;
-            return acc;
-          }, []));
+          const slot = i % 2;
+          if (!acc[slot]) acc[slot] = { title: slot === 0 ? 'Fokus Eksekusi' : 'Dampak Terukur', desc: b };
+          else acc[slot].desc += `\n• ${b}`;
+          return acc;
+        }, []));
 
       slide.addShape(pptx.ShapeType.roundRect, {
         x: 0.75, y: 1.72, w: 5.05, h: 4.98, rectRadius: 0.1,

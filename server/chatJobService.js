@@ -146,7 +146,9 @@ function cleanAssistantStreamingText(raw = '') {
     .replace(/<\/?(?:think|reasoning|thought)>/gi, '')
     .replace(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):[^\]]*\]\s*/gi, '')
     .replace(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):[^\]]*\]\s*/gi, '')
-    .replace(/<search(?:_request)?>[\s\S]*?<\/search(?:_request)?>\s*/gi, '')
+    .replace(/\[(?:SEARCH_MEMORY|RECALL_MEMORY|MEMORY_SEARCH):[^\]]*\]\s*/gi, '')
+    .replace(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[^\]]*\]\s*/gi, '')
+    .replace(/<(?:search(?:_request)?|search_memory|subagent(?:_orchestrate)?)>[\s\S]*?<\/(?:search(?:_request)?|search_memory|subagent(?:_orchestrate)?)>\s*/gi, '')
     .trimStart();
 }
 
@@ -187,34 +189,209 @@ function isValidExternalImageCandidate(u = '') {
   }
 }
 
-async function runServerSearchPipeline(job, query, userPrompt, language) {
-  const { webSearchService, batchPreloadImages } = deps;
-  const cleanQ = sanitizeSearchQueryServer(query, userPrompt);
-  job.status = 'searching';
-  job.searchQuery = cleanQ;
-  job.searchSteps = [{ query: cleanQ, label: 'Riset Web & Verifikasi Fakta', isSearching: true, sources: [], images: [] }];
-  job.updatedAt = Date.now();
-  broadcastJobEvent(job, 'status', { status: 'searching', searchQuery: cleanQ, searchSteps: job.searchSteps });
-  flushJobToDb(job, true);
+const SEARCH_STOPWORDS = new Set([
+  'yang', 'dan', 'di', 'ke', 'dari', 'pada', 'untuk', 'dengan', 'atau', 'ini', 'itu', 'adalah', 'apa', 'siapa',
+  'kapan', 'dimana', 'bagaimana', 'kenapa', 'mengapa', 'tolong', 'coba', 'bisa', 'carikan', 'cari', 'info',
+  'informasi', 'berita', 'tentang', 'soal', 'hari', 'ini', 'terbaru', 'sekarang', 'saya', 'aku', 'kamu', 'kita',
+  'the', 'is', 'are', 'was', 'were', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'what', 'who', 'when',
+  'where', 'how', 'why', 'please', 'find', 'search', 'latest', 'news', 'today', 'tell', 'me', 'can', 'you'
+]);
 
-  let resultsList = [];
-  let collectedImgCandidates = [];
+function extractMeaningfulTokens(text = '') {
+  return Array.from(new Set(
+    String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\u00c0-\u024f\s-]/gi, ' ')
+      .split(/\s+/)
+      .map(t => t.trim())
+      .filter(t => t.length >= 3 && !SEARCH_STOPWORDS.has(t))
+  ));
+}
 
-  try {
-    const searchRes = await webSearchService.searchGoogle(cleanQ, 16, language || 'id');
-    if (searchRes?.success && Array.isArray(searchRes.results)) {
-      resultsList = searchRes.results;
+function filterAndScoreRelevantSources(rawSources = [], query = '', userPrompt = '') {
+  const qTokens = extractMeaningfulTokens(`${query} ${userPrompt}`);
+  if (qTokens.length === 0) return rawSources.slice(0, 10);
+
+  const minTokenHits = qTokens.length >= 4 ? 2 : 1;
+  const scored = [];
+  for (const s of rawSources) {
+    const titleLower = String(s.title || '').toLowerCase();
+    const snippetLower = String(s.snippet || '').toLowerCase();
+    const domainLower = String(s.domain || '').toLowerCase();
+    const combined = `${titleLower} ${snippetLower} ${domainLower}`;
+    if (!combined.trim()) continue;
+
+    let hitCount = 0;
+    let relevanceScore = 0;
+    for (const tok of qTokens) {
+      if (titleLower.includes(tok)) {
+        hitCount += 1;
+        relevanceScore += 3;
+      } else if (snippetLower.includes(tok)) {
+        hitCount += 1;
+        relevanceScore += 1.5;
+      } else if (domainLower.includes(tok)) {
+        hitCount += 1;
+        relevanceScore += 1;
+      }
     }
-    if (Array.isArray(searchRes?.inline_images)) {
-      collectedImgCandidates = searchRes.inline_images;
+
+    // Strict anti-trash filter: drop results with zero or insufficient topical match
+    if (hitCount >= minTokenHits && relevanceScore >= 1.5) {
+      scored.push({ ...s, _relevanceScore: relevanceScore, _hitCount: hitCount });
     }
-  } catch (err) {
-    console.warn('[ChatJob] Search warning:', err.message);
   }
 
-  // Filter valid article sources (never image thumbnails)
-  const sources = [];
-  const seenSrcLinks = new Set();
+  scored.sort((a, b) => (b._relevanceScore - a._relevanceScore) || ((b.accuracyScore || 0) - (a.accuracyScore || 0)));
+  return scored.slice(0, 10).map((s, idx) => ({ ...s, position: idx + 1 }));
+}
+
+function buildSecondRoundQuery(firstQuery = '', userPrompt = '') {
+  const tokens = extractMeaningfulTokens(`${userPrompt} ${firstQuery}`);
+  if (tokens.length === 0) return null;
+  // Create an alternative sharper/broader query (distinct from firstQuery)
+  const coreTokens = tokens.slice(0, 5).join(' ');
+  const cleanFirst = String(firstQuery || '').toLowerCase().trim();
+  if (coreTokens && coreTokens !== cleanFirst) {
+    return coreTokens;
+  }
+  const year = new Date().getFullYear();
+  if (!cleanFirst.includes(String(year))) {
+    return `${firstQuery} ${year}`.trim().slice(0, 120);
+  }
+  return `${tokens.slice(0, 4).join(' ')} overview`.trim().slice(0, 120);
+}
+
+function searchCrossSessionMemory(job, rawQuery = '') {
+  const db = deps.db;
+  if (!db) return { memories: [], globalFacts: [], totalMatches: 0 };
+
+  const tokens = extractMeaningfulTokens(rawQuery || job.userPrompt || '');
+  const searchTerms = tokens.length > 0
+    ? tokens.slice(0, 6)
+    : [String(rawQuery || job.userPrompt || '').trim().toLowerCase().slice(0, 40)].filter(Boolean);
+
+  const userId = job.userId ? String(job.userId) : null;
+  const deviceId = job.deviceId ? String(job.deviceId) : null;
+  const currentSessionId = job.sessionId ? String(job.sessionId) : '';
+  const memories = [];
+  const seenKeys = new Set();
+
+  const scoreText = (txt = '') => {
+    const low = String(txt || '').toLowerCase();
+    let score = 0;
+    for (const t of searchTerms) {
+      if (t && low.includes(t)) score += 2;
+    }
+    return score;
+  };
+
+  try {
+    // 1. Search past chat_messages across ALL sessions of this user
+    if (userId) {
+      const rows = db.prepare(`
+        SELECT m.id, m.sessionId, m.role, m.content, m.createdAt, s.title AS sessionTitle
+        FROM chat_messages m
+        LEFT JOIN chat_sessions s ON s.id = m.sessionId
+        WHERE m.userId = ?
+        ORDER BY m.createdAt DESC
+        LIMIT 250
+      `).all(userId);
+
+      for (const r of rows) {
+        if (!r.content || r.content.length < 4) continue;
+        const sc = scoreText(`${r.sessionTitle || ''} ${r.content}`);
+        if (sc > 0) {
+          const key = `msg_${r.id}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          memories.push({
+            source: r.sessionId === currentSessionId ? 'Sesi Ini' : `Sesi Lain: "${r.sessionTitle || r.sessionId}"`,
+            role: r.role,
+            content: String(r.content).slice(0, 420),
+            createdAt: r.createdAt,
+            score: sc + (r.sessionId !== currentSessionId ? 0.5 : 0)
+          });
+        }
+      }
+    }
+
+    // 2. Also search chat_jobs (covers both logged-in users and guest deviceId cross-session history!)
+    if (userId || deviceId) {
+      const jobRows = userId
+        ? db.prepare(`
+            SELECT id, sessionId, userPrompt, text, createdAt
+            FROM chat_jobs
+            WHERE userId = ? AND status = 'done'
+            ORDER BY createdAt DESC
+            LIMIT 120
+          `).all(userId)
+        : db.prepare(`
+            SELECT id, sessionId, userPrompt, text, createdAt
+            FROM chat_jobs
+            WHERE deviceId = ? AND status = 'done'
+            ORDER BY createdAt DESC
+            LIMIT 120
+          `).all(deviceId);
+
+      for (const jr of jobRows) {
+        if (jr.id === job.id) continue;
+        const combined = `${jr.userPrompt || ''} ${jr.text || ''}`;
+        const sc = scoreText(combined);
+        if (sc > 0) {
+          const key = `job_${jr.id}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          memories.push({
+            source: jr.sessionId === currentSessionId ? 'Sesi Ini' : `Sesi Sebelumnya (${String(jr.sessionId || '').slice(-10)})`,
+            role: 'exchange',
+            content: `User: ${String(jr.userPrompt || '').slice(0, 200)}\nAI: ${String(jr.text || '').slice(0, 260)}`,
+            createdAt: jr.createdAt ? new Date(jr.createdAt).toISOString() : '',
+            score: sc
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[ChatJob] Cross-session chat search warning:', err.message);
+  }
+
+  const globalFacts = [];
+  try {
+    if (userId) {
+      const ltRows = db.prepare(`
+        SELECT fact, category, updatedAt
+        FROM memory_long_term
+        WHERE userId = ?
+        ORDER BY importance DESC, updatedAt DESC
+        LIMIT 60
+      `).all(userId);
+      for (const r of ltRows) {
+        if (r.fact && (scoreText(r.fact) > 0 || globalFacts.length < 5)) {
+          globalFacts.push(`[${r.category || 'Memori'}] ${r.fact}`);
+        }
+      }
+
+      const gRow = db.prepare(`SELECT memoryText FROM user_global_memory WHERE userId = ?`).get(userId);
+      if (gRow?.memoryText) {
+        globalFacts.push(`[Profil Memori Global] ${String(gRow.memoryText).slice(0, 600)}`);
+      }
+    }
+  } catch (err) {
+    console.warn('[ChatJob] Long-term memory lookup warning:', err.message);
+  }
+
+  memories.sort((a, b) => b.score - a.score);
+  const topMemories = memories.slice(0, 8);
+  return {
+    memories: topMemories,
+    globalFacts: globalFacts.slice(0, 8),
+    totalMatches: topMemories.length + globalFacts.length
+  };
+}
+
+function normalizeRawSearchResults(resultsList = [], cleanQ = '', seenSrcLinks = new Set()) {
+  const out = [];
   for (let i = 0; i < resultsList.length; i++) {
     const r = resultsList[i];
     const link = r?.link || r?.url || '';
@@ -228,20 +405,179 @@ async function runServerSearchPipeline(job, query, userPrompt, language) {
     if (!domain) {
       try { domain = new URL(link).hostname.replace(/^www\./i, ''); } catch { domain = 'web'; }
     }
-    sources.push({
+    out.push({
       title: r.title || cleanQ,
       link,
       url: link,
       snippet: r.snippet || r.description || r.content || '',
       domain: domain.replace(/^www\./i, ''),
       thumbnail: r.thumbnail || null,
-      position: sources.length + 1,
+      position: out.length + 1,
       accuracyScore: r.accuracyScore || r.score || 95,
       score: r.score || r.accuracyScore || 95,
       pagerank: r.pagerank ?? null,
       date: r.date || r.published_at || null,
       sourceEngine: r.sourceEngine || 'DeeperNova Hybrid'
     });
+  }
+  return out;
+}
+
+async function runServerSearchPipeline(job, query, userPrompt, language, signal) {
+  const { webSearchService, batchPreloadImages } = deps;
+  const cleanQ = sanitizeSearchQueryServer(query, userPrompt);
+  const steps = [{
+    query: cleanQ,
+    label: language === 'en' ? `Round 1 Search: ${cleanQ}` : `Pencarian Tahap 1: ${cleanQ}`,
+    isSearching: true,
+    sources: [],
+    images: []
+  }];
+  job.status = 'searching';
+  job.searchQuery = cleanQ;
+  job.phaseDetail = language === 'en' ? `Searching web (Step 1): "${cleanQ}"...` : `Menelusuri web (Tahap 1): "${cleanQ}"...`;
+  job.searchSteps = steps;
+  job.updatedAt = Date.now();
+  broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: cleanQ, searchSteps: job.searchSteps });
+  flushJobToDb(job, true);
+
+  const seenSrcLinks = new Set();
+  let allRawSources = [];
+  let collectedImgCandidates = [];
+
+  // --- ROUND 1 SEARCH ---
+  try {
+    const searchRes = await webSearchService.searchGoogle(cleanQ, 14, language || 'id');
+    if (searchRes?.success && Array.isArray(searchRes.results)) {
+      allRawSources.push(...normalizeRawSearchResults(searchRes.results, cleanQ, seenSrcLinks));
+    }
+    if (Array.isArray(searchRes?.inline_images)) {
+      collectedImgCandidates.push(...searchRes.inline_images);
+    }
+  } catch (err) {
+    console.warn('[ChatJob] Search Round 1 warning:', err.message);
+  }
+
+  let relevantSources = filterAndScoreRelevantSources(allRawSources, cleanQ, userPrompt);
+  steps[0].isSearching = false;
+  steps[0].sources = relevantSources.slice(0, 6);
+
+  // --- ROUND 2 MULTI-STEP AUTO-RETRY (if Round 1 had < 3 relevant results) ---
+  if (relevantSources.length < 3 && !(signal?.aborted || job.stopped)) {
+    const retryQ = buildSecondRoundQuery(cleanQ, userPrompt);
+    if (retryQ && retryQ.toLowerCase() !== cleanQ.toLowerCase()) {
+      const round2Step = {
+        query: retryQ,
+        label: language === 'en' ? `Round 2 Deeper Search: ${retryQ}` : `Pencarian Tahap 2 (Diperluas): ${retryQ}`,
+        isSearching: true,
+        sources: [],
+        images: []
+      };
+      steps.push(round2Step);
+      job.phaseDetail = language === 'en'
+        ? `Refining search (Step 2): "${retryQ}"...`
+        : `Info belum lengkap — mencari ulang tahap 2: "${retryQ}"...`;
+      job.searchSteps = [...steps];
+      broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: retryQ, searchSteps: job.searchSteps });
+      flushJobToDb(job, false);
+
+      try {
+        const searchRes2 = await webSearchService.searchGoogle(retryQ, 14, language || 'id');
+        if (searchRes2?.success && Array.isArray(searchRes2.results)) {
+          allRawSources.push(...normalizeRawSearchResults(searchRes2.results, retryQ, seenSrcLinks));
+        }
+        if (Array.isArray(searchRes2?.inline_images)) {
+          collectedImgCandidates.push(...searchRes2.inline_images);
+        }
+      } catch (err) {
+        console.warn('[ChatJob] Search Round 2 warning:', err.message);
+      }
+
+      relevantSources = filterAndScoreRelevantSources(allRawSources, `${cleanQ} ${retryQ}`, userPrompt);
+      round2Step.isSearching = false;
+      round2Step.sources = relevantSources.slice(0, 6);
+    }
+  }
+
+  // --- STRICT ANTI-TRASH CHECK: If ZERO relevant sources found after Round 1 & 2 ---
+  if (relevantSources.length === 0) {
+    job.searchSources = [];
+    job.searchImages = [];
+    job.browserPages = [];
+    job.searchSteps = steps.map(s => ({ ...s, isSearching: false }));
+    job.updatedAt = Date.now();
+    broadcastJobEvent(job, 'search', {
+      searchQuery: cleanQ,
+      searchSources: [],
+      searchImages: [],
+      searchSteps: job.searchSteps,
+      browserPages: []
+    });
+    flushJobToDb(job, true);
+    return { sources: [], verifiedImages: [], deepContextBlock: null, browserPages: [], noRelevantSources: true };
+  }
+
+  // --- STEP 3: DEEP WEB PAGE FETCHING (Open & read top 2-3 relevant pages!) ---
+  let deepContextBlock = null;
+  let browserPages = [];
+  const topUrlsToRead = relevantSources.slice(0, 3).map(s => s.link).filter(Boolean);
+  if (topUrlsToRead.length > 0 && !(signal?.aborted || job.stopped)) {
+    const fetchStep = {
+      query: cleanQ,
+      label: language === 'en'
+        ? `Deep-reading ${topUrlsToRead.length} relevant web pages...`
+        : `Membaca mendalam ${topUrlsToRead.length} halaman web relevan...`,
+      isSearching: true,
+      sources: [],
+      images: []
+    };
+    steps.push(fetchStep);
+    job.phaseDetail = fetchStep.label;
+    job.searchSteps = [...steps];
+    broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: cleanQ, searchSteps: job.searchSteps });
+
+    try {
+      const browserRes = await runBrowserAgent({
+        query: cleanQ,
+        userPrompt,
+        targetUrls: topUrlsToRead,
+        language: language || 'id',
+        webSearchService,
+        maxPages: 3,
+        signal,
+        onStep: (st) => {
+          if (st?.title) job.phaseDetail = st.title;
+          if (Array.isArray(st?.browserPages)) {
+            browserPages = st.browserPages;
+            job.browserPages = browserPages;
+          }
+          broadcastJobEvent(job, 'status', {
+            status: 'searching',
+            phaseDetail: job.phaseDetail,
+            searchQuery: cleanQ,
+            searchSteps: job.searchSteps,
+            browserPages: job.browserPages
+          });
+        }
+      });
+      if (browserRes?.llmContextBlock) {
+        deepContextBlock = browserRes.llmContextBlock;
+      }
+      if (Array.isArray(browserRes?.browserPages) && browserRes.browserPages.length > 0) {
+        browserPages = browserRes.browserPages;
+        job.browserPages = browserPages;
+      }
+      if (Array.isArray(browserRes?.images) && browserRes.images.length > 0) {
+        collectedImgCandidates.unshift(...browserRes.images.map(im => ({ imageUrl: im.url, title: im.title, sourceDomain: im.sourceDomain })));
+      }
+      fetchStep.isSearching = false;
+      fetchStep.label = language === 'en'
+        ? `Deep-read ${browserPages.length || topUrlsToRead.length} pages`
+        : `Selesai membaca ${browserPages.length || topUrlsToRead.length} halaman web`;
+    } catch (err) {
+      console.warn('[ChatJob] Deep web page fetch fallback to snippets:', err.message);
+      fetchStep.isSearching = false;
+    }
   }
 
   // Collect & verify downloadable real images on server
@@ -261,7 +597,7 @@ async function runServerSearchPipeline(job, query, userPrompt, language) {
   for (const img of collectedImgCandidates) {
     pushImg(img.imageUrl || img.thumbnail, img.title, img.source || img.link, img.sourceDomain);
   }
-  for (const s of sources) {
+  for (const s of relevantSources) {
     if (s.thumbnail) pushImg(s.thumbnail, s.title, s.link, s.domain);
   }
 
@@ -276,29 +612,35 @@ async function runServerSearchPipeline(job, query, userPrompt, language) {
     }
   }
 
-  job.searchSources = sources;
+  job.searchSources = relevantSources;
   job.searchImages = verifiedImages.slice(0, 8);
-  job.searchSteps = [{
-    query: cleanQ,
-    label: 'Riset Komprehensif (DeeperNova & Google)',
+  job.browserPages = browserPages;
+  job.searchSteps = steps.map((st, idx) => ({
+    ...st,
     isSearching: false,
-    sources,
-    images: verifiedImages.slice(0, 6)
-  }];
+    ...(idx === steps.length - 1 ? { sources: relevantSources, images: verifiedImages.slice(0, 6) } : {})
+  }));
   job.updatedAt = Date.now();
 
   broadcastJobEvent(job, 'search', {
     searchQuery: cleanQ,
     searchSources: job.searchSources,
     searchImages: job.searchImages,
-    searchSteps: job.searchSteps
+    searchSteps: job.searchSteps,
+    browserPages: job.browserPages
   });
   flushJobToDb(job, true);
 
-  return { sources, verifiedImages };
+  return {
+    sources: relevantSources,
+    verifiedImages,
+    deepContextBlock,
+    browserPages,
+    noRelevantSources: false
+  };
 }
 
-function buildSearchConclusionMessages(job, sources, verifiedImages, browserContextBlock = null) {
+function buildSearchConclusionMessages(job, sources, verifiedImages, browserContextBlock = null, opts = {}) {
   const nowTime = new Date();
   const currentYear = nowTime.getFullYear();
   const dateFormattedId = nowTime.toLocaleDateString('id-ID', {
@@ -308,15 +650,31 @@ function buildSearchConclusionMessages(job, sources, verifiedImages, browserCont
     year: 'numeric'
   });
 
+  if (opts.noRelevantSources || (!browserContextBlock && (!Array.isArray(sources) || sources.length === 0))) {
+    const honestSysPrompt =
+      `Kamu adalah asisten AI yang berjalan pada model ${job.model || 'Qwen 2.5 VL 72B'} melalui platform DeeperNova AI.\n` +
+      `[WAKTU REAL-TIME SEKARANG]: Tahun ${currentYear}, tanggal ${dateFormattedId}.\n` +
+      `ATURAN MUTLAK KEJUJURAN & ANTI-NYAMPAH:\n` +
+      `1. Pencarian web TIDAK menemukan sumber yang relevan untuk pertanyaan pengguna.\n` +
+      `2. DILARANG KERAS membacakan, menyebut, atau menyinggung hasil pencarian yang tidak nyambung.\n` +
+      `3. Jawablah murni berdasarkan pengetahuan yang BENAR-BENAR kamu ketahui dengan pasti.\n` +
+      `4. JANGAN MENGARANG / JANGAN HALUSINASI (jangan garang): Jika kamu memang tidak tahu atau data terbaru tidak tersedia, katakan dengan jujur, singkat, dan sopan bahwa kamu tidak mengetahui/belum memiliki data pastinya.\n` +
+      `5. DILARANG mengetik URL mentah dan DILARANG memicu [SEARCH_REQUEST] lagi.`;
+    return [
+      { role: 'system', content: honestSysPrompt },
+      { role: 'user', content: `Pertanyaan Pengguna: "${job.userPrompt}"\n\n(Catatan sistem: Tidak ada sumber web yang relevan. Jawab murni dari pengetahuan pasti kamu, atau akui jujur jika memang tidak tahu.)` }
+    ];
+  }
+
   const sysPrompt =
     `Kamu adalah asisten AI yang berjalan pada model ${job.model || 'Qwen 2.5 VL 72B'} melalui platform DeeperNova AI.\n` +
     `[WAKTU REAL-TIME SEKARANG]: Tahun ${currentYear}, tanggal ${dateFormattedId}.\n` +
-    `PERAN SINTESIS BERITA & HASIL PENELUSURAN WEB (MUTLAK):\n` +
-    `1. STRICT ANTI-HALUSINASI: Hanya nyatakan fakta, angka, tanggal, nama tokoh, dan detail yang BENAR-BENAR ada pada data terverifikasi yang diberikan. DILARANG mengarang detail yang tidak tertulis di sumber.\n` +
-    `2. LANGSUNG KE JAWABAN: Jangan berterima kasih atas hasil pencarian. Mulai paragraf pertama langsung menjawab pertanyaan.\n` +
-    `3. ATURAN ANTI-URL PANJANG (ZERO-URL SPEED POLICY): DILARANG KERAS mengetik URL mentah (http://, https://, www.) di dalam teks atau link markdown — mengetik URL memakan banyak token dan memperlambat jawaban! Gunakan penanda sitasi angka singkat [1], [2], dst.\n` +
-    `4. FORMAT RAPI: Awali ringkasan inti, gunakan subjudul \`###\` dan poin **tebal**. Jangan mengaitkan topik percakapan lama.\n` +
-    `5. DILARANG memicu [SEARCH_REQUEST] atau [BROWSER_AGENT] lagi.`;
+    `PERAN SINTESIS RISET MENDALAM & ANTI-NYAMPAH (MUTLAK):\n` +
+    `1. STRICT RELEVANSI & ANTI-HALUSINASI: Hanya gunakan fakta, angka, tanggal, dan detail dari sumber yang BENAR-BENAR RELEVAN dengan pertanyaan pengguna. Abaikan sumber yang melenceng — JANGAN bacakan hasil pencarian yang tidak nyambung! Jika info spesifik tidak ada di sumber, katakan jujur tidak tahu dan JANGAN mengarang.\n` +
+    `2. LANGSUNG KE JAWABAN: Jangan berterima kasih atas hasil pencarian. Mulai paragraf pertama langsung menjawab inti pertanyaan.\n` +
+    `3. ZERO-URL SPEED POLICY: DILARANG KERAS mengetik URL mentah (http://, https://, www.) — gunakan sitasi angka singkat [1], [2], dst.\n` +
+    `4. ESKALASI AGENT OTONOM (OPSIONAL): Jika setelah membaca hasil web kamu menyadari tugas pengguna membutuhkan scraping/fetching kompleks lanjutan, pengolahan data Python, pembuatan file/dokumen/aplikasi, keluarkan HANYA \`[SUBAGENT_ORCHESTRATE: deskripsi tugas lengkap]\` di baris pertama lalu berhenti.\n` +
+    `5. FORMAT RAPI: Awali ringkasan inti, gunakan subjudul \`###\` dan poin **tebal**. DILARANG memicu [SEARCH_REQUEST] atau [BROWSER_AGENT] lagi.`;
 
   let userMsg;
   if (browserContextBlock) {
@@ -327,7 +685,7 @@ function buildSearchConclusionMessages(job, sources, verifiedImages, browserCont
       return `[Sumber #${idx + 1} | Domain: ${s.domain || 'web'} | ${s.sourceEngine || 'Web'}${s.date ? ' | ' + s.date : ''}]\nJudul: ${s.title}\nKutipan:\n${snippet}`;
     }).join('\n\n---\n\n');
 
-    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"\n\n--- DATA HASIL PENCARIAN WEB TERVERIFIKASI ---\n${searchContext || 'Tidak ada hasil teks tambahan.'}\n\n`;
+    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"\n\n--- DATA HASIL PENCARIAN WEB RELEVAN ---\n${searchContext}\n\n`;
     if (verifiedImages.length > 0) {
       userMsg += `--- DAFTAR ID FOTO TERVERIFIKASI ---\n` +
         verifiedImages.slice(0, 4).map((img, i) => `- foto:${i + 1} -> "${String(img.title || '').replace(/[\[\]]/g, '').trim()}"`).join('\n') +
@@ -459,6 +817,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
   let searchTagFound = null;
   let browserTagFound = null;
   let subAgentTagFound = null;
+  let memoryTagFound = null;
   let reasoningStartMs = null;
 
   const emitReasoning = (chunk) => {
@@ -487,8 +846,8 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
     }
     rawText += chunk;
 
-    // If initial turn emits [SUBAGENT_ORCHESTRATE: ...], [BROWSER_AGENT: ...], or [SEARCH_REQUEST: ...], stop forwarding immediately so server executes it seamlessly
-    if (options.detectSearchFlag) {
+    const allowFlagScan = Boolean(options.detectSearchFlag || options.detectSubAgentOnly);
+    if (allowFlagScan) {
       const isGrok46Model = String(job.model || '').toLowerCase().includes('grok-4.6');
       if (!isGrok46Model) {
         const sm = rawText.match(/\[(?:SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):\s*([\s\S]+?)\]/i) ||
@@ -499,24 +858,33 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
           return;
         }
       }
-      const bm = rawText.match(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):\s*(.+?)\]/i);
-      if (bm && bm[1]) {
-        browserTagFound = bm[1].trim();
-        localController.abort();
-        return;
+      if (options.detectSearchFlag) {
+        const mm = rawText.match(/\[(?:SEARCH_MEMORY|RECALL_MEMORY|MEMORY_SEARCH):\s*([\s\S]+?)\]/i) ||
+          rawText.match(/<search_memory>\s*([\s\S]+?)\s*<\/search_memory>/i);
+        if (mm && mm[1]) {
+          memoryTagFound = mm[1].trim().replace(/^["']|["']$/g, '');
+          localController.abort();
+          return;
+        }
+        const bm = rawText.match(/\[(?:BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL):\s*(.+?)\]/i);
+        if (bm && bm[1]) {
+          browserTagFound = bm[1].trim();
+          localController.abort();
+          return;
+        }
+        const m = rawText.match(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/i) ||
+          rawText.match(/<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i);
+        if (m && m[1]) {
+          searchTagFound = m[1].trim();
+          localController.abort();
+          return;
+        }
       }
-      const m = rawText.match(/\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):\s*(.+?)\]/i) ||
-        rawText.match(/<search(?:_request)?>\s*([\s\S]+?)\s*<\/search(?:_request)?>/i);
-      if (m && m[1]) {
-        searchTagFound = m[1].trim();
-        localController.abort();
-        return;
-      }
-      // Hold back rendering if leading characters are a partial search/browser/subagent tag
+      // Hold back rendering if leading characters are a partial flag tag
       const trimmedLead = rawText.trimStart();
-      if (/^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|SU|SUB|SUBA|SUBAG|SUBAGE|SUBAGEN|SUBAGENT|SUB_|A|AC|ACT|ACTI|ACTIV|ACTIVA|ACTIVAT|ACTIVATE|AG|AGE|AGEN|AGENT|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB|B|BR|BRO|BROW|BROWS|BROWSE|BROWSER|O|OP|OPE|OPEN)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(trimmedLead) ||
-          /^<subagent(?:_orchestrate)?[^>]*$/i.test(trimmedLead) ||
-          /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH|BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL|SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE):[^\]]*$/i.test(rawText)) {
+      if (/^\[(?:S|SE|SEA|SEAR|SEARC|SEARCH|SU|SUB|SUBA|SUBAG|SUBAGE|SUBAGEN|SUBAGENT|SUB_|A|AC|ACT|ACTI|ACTIV|ACTIVA|ACTIVAT|ACTIVATE|AG|AGE|AGEN|AGENT|E|EX|EXE|EXEC|EXECU|EXECUT|EXECUTE|W|WE|WEB|B|BR|BRO|BROW|BROWS|BROWSE|BROWSER|O|OP|OPE|OPEN|R|RE|REC|RECA|RECAL|RECALL|M|ME|MEM|MEMO|MEMOR|MEMORY)(?:_[A-Z]*)?(?::[^\]]*)?$/i.test(trimmedLead) ||
+        /^<(?:subagent|search_memory)(?:_orchestrate)?[^>]*$/i.test(trimmedLead) ||
+        /\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH|BROWSER_AGENT|OPEN_BROWSER|BROWSE_URL|SUBAGENT_ORCHESTRATE|ACTIVATE_SUBAGENT|SUBAGENT_REQUEST|SUB_AGENT|AGENT_EXECUTE|SEARCH_MEMORY|RECALL_MEMORY|MEMORY_SEARCH):[^\]]*$/i.test(rawText)) {
         return;
       }
     }
@@ -589,8 +957,8 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
       if (contentDelta) processThinkAwareText(contentDelta);
     });
   } catch (streamErr) {
-    // Expected when searchTagFound triggered localController.abort()
-    if (!searchTagFound) {
+    // Expected when an AI flag triggered localController.abort()
+    if (!searchTagFound && !browserTagFound && !subAgentTagFound && !memoryTagFound) {
       if (externalSignal) externalSignal.removeEventListener('abort', forwardAbort);
       if (streamErr?.name === 'AbortError' && externalSignal?.aborted) {
         throw streamErr;
@@ -602,7 +970,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
   if (externalSignal) externalSignal.removeEventListener('abort', forwardAbort);
 
   // Flush remaining buffer
-  if (thinkBuffer && !searchTagFound && !browserTagFound && !subAgentTagFound) {
+  if (thinkBuffer && !searchTagFound && !browserTagFound && !subAgentTagFound && !memoryTagFound) {
     if (insideThinkTag) emitReasoning(thinkBuffer);
     else emitContent(thinkBuffer);
     thinkBuffer = '';
@@ -618,6 +986,7 @@ async function streamLlmToJob(job, messages, options = {}, externalSignal) {
     searchTagFound,
     browserTagFound,
     subAgentTagFound,
+    memoryTagFound,
     usedStandbyFallback: false
   };
 }
@@ -781,15 +1150,17 @@ async function executeJobInBackground(job, params) {
   const signal = job.abortController.signal;
   try {
     const promptUrls = extractUrlsFromText(job.userPrompt || '');
-    const userWantsBrowser =
-      job.browserAgentMode === 'on' ||
-      promptUrls.length > 0 ||
-      /\b(peramban\s+agent|browser\s+agent|buka\s+(?:web|link|url|situs|halaman)|baca\s+artikel|rangkum\s+(?:web|artikel|halaman|situs)|scrape|crawl)\b/i.test(job.userPrompt || '');
+    const isSubAgentModelAllowed = !String(job.model || '').toLowerCase().includes('grok-4.6');
 
+    // 100% AI-FLAG DRIVEN: Never force keyword/regex search or browser mode.
+    // Only auto-browse if user pasted a literal URL or explicitly locked browserAgentMode === 'on'.
     let runSubAgentTask = null;
-    let runBrowserQuery = (job.browserAgentMode === 'on' && params.searchQuery)
-      ? sanitizeSearchQueryServer(params.searchQuery, job.userPrompt)
-      : (userWantsBrowser && !params.hasImages && params.enableWebSearch !== false ? sanitizeSearchQueryServer(job.userPrompt, job.userPrompt) : null);
+    let runMemoryQuery = null;
+    let runBrowserQuery = (promptUrls.length > 0 && !params.hasImages && params.enableWebSearch !== false)
+      ? sanitizeSearchQueryServer(job.userPrompt, job.userPrompt)
+      : ((job.browserAgentMode === 'on' && params.searchQuery)
+        ? sanitizeSearchQueryServer(params.searchQuery, job.userPrompt)
+        : null);
 
     let runSearchWithQuery = (!runBrowserQuery && params.searchQuery)
       ? sanitizeSearchQueryServer(params.searchQuery, job.userPrompt)
@@ -820,9 +1191,10 @@ async function executeJobInBackground(job, params) {
         throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
       }
 
-      const isSubAgentModelAllowed = !String(job.model || '').toLowerCase().includes('grok-4.6');
       if (firstPass.subAgentTagFound && isSubAgentModelAllowed && typeof deps.executeAutonomousAgentRun === 'function') {
         runSubAgentTask = firstPass.subAgentTagFound;
+      } else if (firstPass.memoryTagFound) {
+        runMemoryQuery = firstPass.memoryTagFound;
       } else if (firstPass.browserTagFound && !params.hasImages && params.enableWebSearch !== false) {
         runBrowserQuery = sanitizeSearchQueryServer(firstPass.browserTagFound, job.userPrompt);
       } else if (firstPass.searchTagFound && !params.hasImages && params.enableWebSearch !== false) {
@@ -831,16 +1203,65 @@ async function executeJobInBackground(job, params) {
         } else {
           runSearchWithQuery = sanitizeSearchQueryServer(firstPass.searchTagFound, job.userPrompt);
         }
-      } else if (
-        !firstPass.usedStandbyFallback &&
-        params.enableWebSearch !== false &&
-        shouldFallbackSearchForUncertainty(firstPass.rawText, job)
-      ) {
-        if (job.browserAgentMode === 'on') {
-          runBrowserQuery = sanitizeSearchQueryServer(job.userPrompt, job.userPrompt);
-        } else {
-          runSearchWithQuery = sanitizeSearchQueryServer(job.userPrompt, job.userPrompt);
+      }
+    }
+
+    if (runMemoryQuery) {
+      job.text = '';
+      job.reasoningText = '';
+      job.reasoningDuration = null;
+      job.status = 'thinking';
+      job.phaseDetail = job.language === 'en'
+        ? `Searching cross-session memory for "${runMemoryQuery}"...`
+        : `Menelusuri memori obrolan lintas sesi untuk "${runMemoryQuery}"...`;
+      broadcastJobEvent(job, 'status', { status: 'thinking', phaseDetail: job.phaseDetail });
+      flushJobToDb(job, true);
+
+      let memRes = searchCrossSessionMemory(job, runMemoryQuery);
+      if (memRes.totalMatches === 0 && job.userPrompt && job.userPrompt !== runMemoryQuery) {
+        memRes = searchCrossSessionMemory(job, job.userPrompt);
+      }
+
+      const memoryBlock = memRes.totalMatches > 0
+        ? [
+            memRes.globalFacts.length > 0 ? `=== FAKTA MEMORI PENGGUNA ===\n${memRes.globalFacts.join('\n')}` : '',
+            memRes.memories.length > 0
+              ? `=== CUPLIKAN PERCAKAPAN LINTAS SESI TERKAIT ===\n` +
+                memRes.memories.map((m, i) => `[Memori #${i + 1} | ${m.source}${m.createdAt ? ` | ${String(m.createdAt).slice(0, 10)}` : ''}]\n${m.content}`).join('\n\n')
+              : ''
+          ].filter(Boolean).join('\n\n')
+        : 'Tidak ditemukan catatan percakapan atau memori lama yang cocok untuk topik ini. Jawablah dengan jujur bahwa kamu belum menemukan riwayat tersebut di memori tanpa mengarang.';
+
+      const memoryMessages = [
+        ...(params.preparedMessages || []),
+        {
+          role: 'system',
+          content: `[HASIL PENCARIAN MEMORI LINTAS SESI (${memRes.totalMatches} temuan)]:\n${memoryBlock}\n\nINSTRUKSI: Gunakan catatan memori di atas untuk menjawab pertanyaan pengguna secara alami, hangat, dan akurat. DILARANG mengarang memori palsu jika tidak ada di catatan. DILARANG memicu [SEARCH_MEMORY] lagi.`
         }
+      ];
+
+      const memPass = await streamLlmToJob(
+        job,
+        memoryMessages,
+        {
+          model: job.model,
+          enableReasoning: false,
+          hasImages: false,
+          temperature: 0.45,
+          maxTokens: 4096,
+          detectSubAgentOnly: isSubAgentModelAllowed && typeof deps.executeAutonomousAgentRun === 'function'
+        },
+        signal
+      );
+
+      if (signal.aborted || job.stopped) {
+        throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
+      }
+
+      if (memPass.subAgentTagFound && isSubAgentModelAllowed && typeof deps.executeAutonomousAgentRun === 'function') {
+        runSubAgentTask = memPass.subAgentTagFound;
+      } else {
+        job.text = cleanAssistantFinalText(memPass.rawText || job.text || '');
       }
     }
 
@@ -993,12 +1414,12 @@ async function executeJobInBackground(job, params) {
         },
         onCloseRegister: (cb) => {
           if (signal.aborted) {
-            try { cb(); } catch {}
+            try { cb(); } catch { }
           } else {
-            signal.addEventListener('abort', () => { try { cb(); } catch {} }, { once: true });
+            signal.addEventListener('abort', () => { try { cb(); } catch { } }, { once: true });
           }
         },
-        finishStream: () => {}
+        finishStream: () => { }
       });
 
       if (signal.aborted || job.stopped) {
@@ -1114,31 +1535,42 @@ async function executeJobInBackground(job, params) {
 
       let finalBrowserText = replaceCitationsServer(cleanAssistantFinalText(conclusionPass.rawText || job.text), bSources);
       if (!finalBrowserText || !finalBrowserText.trim()) {
-        if (bSources.length > 0) {
-          finalBrowserText = `Berdasarkan halaman yang dibaca oleh **Peramban Agent** mengenai **${job.userPrompt || job.searchQuery}**:\n\n` +
-            bSources.slice(0, 4).filter(s => s.snippet).map((s, idx) => `- **${s.title}**: ${s.snippet} [${idx + 1}]`).join('\n\n');
-        } else {
-          finalBrowserText = 'Maaf, Peramban Agent tidak menemukan konten halaman yang dapat dibaca saat ini.';
-        }
+        finalBrowserText = job.language === 'en'
+          ? 'I could not find reliable information on this topic right now.'
+          : 'Maaf, saya belum memiliki informasi yang pasti mengenai hal tersebut saat ini.';
       }
       job.text = finalBrowserText;
     } else if (runSearchWithQuery) {
-      // Wipe any pre-search speculation before running web search
+      // Wipe any pre-search speculation before running multi-step web search + deep page fetch
       job.text = '';
       job.reasoningText = '';
       job.reasoningDuration = null;
-      const { sources, verifiedImages } = await runServerSearchPipeline(job, runSearchWithQuery, job.userPrompt, job.language);
+      const { sources, verifiedImages, deepContextBlock, noRelevantSources } = await runServerSearchPipeline(
+        job,
+        runSearchWithQuery,
+        job.userPrompt,
+        job.language,
+        signal
+      );
 
       if (signal.aborted || job.stopped) {
         throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
       }
 
       job.status = 'thinking';
-      job.phaseDetail = job.language === 'id' ? 'Merangkum fakta terverifikasi...' : 'Synthesizing verified facts...';
+      job.phaseDetail = noRelevantSources
+        ? (job.language === 'id' ? 'Menjawab dari pengetahuan terverifikasi...' : 'Answering from verified knowledge...')
+        : (job.language === 'id' ? 'Merangkum fakta mendalam terverifikasi...' : 'Synthesizing verified deep research...');
       broadcastJobEvent(job, 'status', { status: 'thinking', phaseDetail: job.phaseDetail });
       flushJobToDb(job, true);
 
-      const conclusionMessages = buildSearchConclusionMessages(job, sources, verifiedImages);
+      const conclusionMessages = buildSearchConclusionMessages(
+        job,
+        sources,
+        verifiedImages,
+        deepContextBlock,
+        { noRelevantSources }
+      );
       const conclusionPass = await streamLlmToJob(
         job,
         conclusionMessages,
@@ -1146,9 +1578,10 @@ async function executeJobInBackground(job, params) {
           model: job.model,
           enableReasoning: false,
           hasImages: false,
-          temperature: 0.4,
+          temperature: 0.35,
           maxTokens: 4096,
-          detectSearchFlag: false
+          detectSearchFlag: false,
+          detectSubAgentOnly: isSubAgentModelAllowed && typeof deps.executeAutonomousAgentRun === 'function'
         },
         signal
       );
@@ -1157,17 +1590,89 @@ async function executeJobInBackground(job, params) {
         throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
       }
 
-      let finalSearchText = replaceCitationsServer(cleanAssistantFinalText(conclusionPass.rawText || job.text), sources);
-      if (!finalSearchText || !finalSearchText.trim()) {
-        if (sources.length > 0) {
-          finalSearchText = `Berdasarkan penelusuran web terkini mengenai **${job.userPrompt || job.searchQuery}**:\n\n` +
-            sources.slice(0, 4).filter(s => s.snippet).map((s, idx) => `- **${s.title}**: ${s.snippet} [${idx + 1}]`).join('\n\n');
-        } else {
-          finalSearchText = 'Maaf, belum ditemukan hasil pencarian yang cukup jelas saat ini.';
+      if (conclusionPass.subAgentTagFound && isSubAgentModelAllowed && typeof deps.executeAutonomousAgentRun === 'function') {
+        // Escalate seamlessly to Autonomous Sandbox Agent when AI emits [SUBAGENT_ORCHESTRATE: ...] after research
+        const escalatedTask = conclusionPass.subAgentTagFound;
+        const sandboxSessionId = `subagent_${String(job.sessionId || 'chat').replace(/[^a-zA-Z0-9_-]/g, '').slice(-16)}_${Date.now().toString(36)}`;
+        const escStartMs = Date.now();
+        let escSteps = [{
+          id: 'sb_esc_init',
+          agent: 'Planner Sub-Agent',
+          badge: 'AGENT',
+          title: job.language === 'en' ? 'Escalating Research to Autonomous Sandbox' : 'Mengeksekusi Riset Lanjutan di Sandbox Otonom',
+          detail: escalatedTask.slice(0, 180),
+          status: 'running'
+        }];
+        let escFiles = [];
+        let escFinal = '';
+        job.text = '';
+        job.status = 'streaming';
+        job.subAgentData = {
+          status: 'running',
+          taskDescription: escalatedTask,
+          sandboxSessionId,
+          currentStage: 1,
+          elapsedSec: '0.1',
+          thoughtSteps: escSteps,
+          files: [],
+          finalAnswer: ''
+        };
+        broadcastJobEvent(job, 'status', { status: 'streaming', phaseDetail: escSteps[0].title, subAgentData: job.subAgentData });
+        await deps.executeAutonomousAgentRun({
+          sessionId: sandboxSessionId,
+          prompt: `${job.userPrompt || escalatedTask}\n\n[AI_ORCHESTRATOR_INTENT]: ${escalatedTask}\n\n[PRELIMINARY_WEB_RESEARCH]:\n${String(deepContextBlock || '').slice(0, 3500)}`,
+          model: job.model || 'north-mini-code',
+          history: [],
+          effort: 'high',
+          language: job.language || 'id',
+          userId: job.userId || job.deviceId || 'chatbot_guest',
+          deferDeltaUntilDone: true,
+          onEvent: (ev, d = {}) => {
+            if (ev === 'step') {
+              escSteps.push(mapSandboxStepServer(d, escSteps.length));
+            } else if (ev === 'files_update' || ev === 'done') {
+              const rf = Array.isArray(d.files) ? d.files : [];
+              if (rf.length > 0) {
+                const enriched = typeof deps.buildEnrichedSandboxFiles === 'function' ? deps.buildEnrichedSandboxFiles(sandboxSessionId, rf) : rf;
+                escFiles = enriched.map((f, idx) => mapSandboxFileServer(f, idx));
+              }
+              if (typeof d.content === 'string' && d.content.trim()) escFinal = d.content.trim();
+            }
+            job.subAgentData = {
+              status: ev === 'done' ? 'completed' : 'running',
+              taskDescription: escalatedTask,
+              sandboxSessionId,
+              currentStage: ev === 'done' ? 3 : (escFiles.length > 0 ? 2 : 1),
+              elapsedSec: ((Date.now() - escStartMs) / 1000).toFixed(1),
+              thoughtSteps: escSteps.slice(-40),
+              files: escFiles,
+              zipDownloadUrl: escFiles.length > 0 ? `/api/agent/download-zip?sessionId=${encodeURIComponent(sandboxSessionId)}` : null,
+              finalAnswer: escFinal
+            };
+            broadcastJobEvent(job, 'status', { status: 'streaming', phaseDetail: job.phaseDetail, subAgentData: job.subAgentData });
+            flushJobToDb(job, ev === 'done');
+          },
+          onCloseRegister: (cb) => { signal.addEventListener('abort', () => { try { cb(); } catch {} }, { once: true }); },
+          finishStream: () => {}
+        });
+        job.subAgentData = {
+          ...job.subAgentData,
+          status: 'completed',
+          currentStage: 3,
+          thoughtSteps: escSteps.map(s => ({ ...s, status: s.status === 'running' ? 'done' : s.status })),
+          finalAnswer: escFinal || 'Eksekusi riset otonom di sandbox selesai.'
+        };
+        job.text = '';
+      } else {
+        let finalSearchText = replaceCitationsServer(cleanAssistantFinalText(conclusionPass.rawText || job.text), sources);
+        if (!finalSearchText || !finalSearchText.trim()) {
+          finalSearchText = job.language === 'en'
+            ? 'I do not have verified information on this topic right now.'
+            : 'Maaf, saya tidak memiliki informasi pasti mengenai hal tersebut saat ini.';
         }
+        job.text = finalSearchText;
       }
-      job.text = finalSearchText;
-    } else {
+    } else if (!runMemoryQuery) {
       job.text = cleanAssistantFinalText(firstPass?.rawText || job.text || '');
       if (!job.text && job.reasoningText) {
         job.text = cleanAssistantFinalText(job.reasoningText);

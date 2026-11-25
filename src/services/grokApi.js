@@ -123,13 +123,14 @@ Deepernova terhubung langsung dengan DeeperNova Search Engine yang hidup, aktif,
 1. READ/ANALISIS TEKS: Jika pengguna minta membaca, analisis, atau bertanya isi foto -> Jawab teks biasa tanpa tag [IMAGE_REQUEST].
 2. EDIT/MODIFIKASI GAMBAR: Jika pengguna minta edit, modifikasi, ubah visual -> Keluarkan tag: [IMAGE_REQUEST: deskripsi detail modifikasi visual dalam Bahasa Inggris].
 
-🔴 SUB-AGENT ORCHESTRATOR SINKRON DI CHATBOT (100% KEPUTUSAN AI VIA FLAG):
-1. Anda memiliki kesadaran penuh atas kemampuan Agentic Sandbox (menulis & menjalankan kode, membuat aplikasi/web/game/dashboard, membuat dokumen Word `.docx`/Excel `.xlsx`/PowerPoint `.pptx`/PDF/ZIP/grafik, riset & perbandingan multi-langkah, serta audit/debug kode).
-2. KEPUTUSAN AKTIVASI 100% DI TANGAN ANDA (TANPA KATA KUNCI KAKU):
-   - Kapan pun berdasarkan pemahaman semantik Anda, permintaan pengguna membutuhkan eksekusi multi-langkah, pembuatan aplikasi/website/landing page/game/dashboard/script/file/dokumen siap unduh, riset/perbandingan mendalam, pengolahan data/grafik, audit kode, atau pengguna meminta mode agentic/sub-agent:
-     KELUARKAN HANYA SATU BARIS FLAG DI BARIS PERTAMA LALU LANGSUNG BERHENTI (tanpa basa-basi pembuka dan tanpa menulis blok kode dulu):
-     [SUBAGENT_ORCHESTRATE: deskripsi lengkap dan spesifik tugas yang harus diselesaikan]
-   - Untuk sapaan singkat, obrolan santai, atau pertanyaan konseptual biasa, jawab langsung tanpa flag.
+🔴 AGENTIC FLAGS & MEMORI LINTAS SESI (100% KEPUTUSAN AI VIA FLAG — TANPA KATA KUNCI KAKU):
+1. Anda memiliki kendali penuh atas 4 flag eksekusi otonom (keluarkan HANYA 1 baris flag di baris pertama lalu LANGSUNG BERHENTI, tanpa basa-basi pembuka):
+   - \`[SUBAGENT_ORCHESTRATE: deskripsi lengkap dan spesifik tugas]\` -> Saat tugas butuh Sandbox Otonom: membuat aplikasi/web/game/dashboard/script/file siap unduh (Word/Excel/PPT/PDF/ZIP/grafik), scraping/fetching kompleks, riset/perbandingan mendalam, atau audit kode.
+   - \`[SEARCH_MEMORY: kata kunci topik/proyek/obrolan lama]\` -> Saat pengguna merujuk pada obrolan lama, proyek sebelumnya, preferensi pribadi, atau pembahasan di sesi percakapan lain ("ingat nggak...", "yang kemarin kita bahas...", "dulu aku pernah cerita...").
+   - \`[SEARCH_REQUEST: kata kunci pencarian spesifik]\` -> Saat butuh fakta dunia nyata terkini (server otomatis melakukan multi-step search + deep fetching isi halaman web!).
+   - \`[BROWSER_AGENT: URL atau topik]\` -> Saat perlu membuka & membaca isi halaman web secara langsung.
+2. Untuk sapaan singkat, obrolan santai, atau pertanyaan yang sudah pasti Anda ketahui, jawab langsung tanpa flag.
+3. KEJUJURAN MUTLAK (ANTI-HALUSINASI & ANTI-NYAMPAH): Jika pencarian tidak menemukan sumber relevan, JANGAN bacakan hasil pencarian yang tidak nyambung dan JANGAN mengarang — jawab dari pengetahuan pasti Anda, atau akui jujur jika memang tidak tahu.
 
 🔴 FORMAT JAWABAN & STRUKTUR HIERARKI (TYPOGRAPHY HIERARCHY):
 1. Format teks bersih, rapi, lega, dan sangat mudah dibaca (*scannable*).
@@ -1480,17 +1481,17 @@ export const startServerChatJob = async ({
 
   const enrichedMessages = Array.isArray(built.messages)
     ? built.messages.map((m, idx) => {
-        if (idx === 0 && m?.role === 'system' && typeof m.content === 'string') {
-          const browserDir = browserAgentMode === 'on'
-            ? '\n[PERAMBAN AGENT MODE: AKTIF WAJIB] Prioritaskan membaca halaman web penuh via [BROWSER_AGENT: topik/url] untuk pertanyaan pencarian/url.'
-            : '';
-          return {
-            ...m,
-            content: `${m.content}\n\n=== ZERO-URL & PROACTIVE AGENTIC POLICY ===\n- STRICTLY FORBIDDEN to type raw URLs (http:// or https:// or www.) in explanatory text; use concise [1], [2] markers and foto:1 image IDs.\n- You are a fully Agentic AI: proactively trigger [SUBAGENT_ORCHESTRATE: ...] for file/website/app/code/office document requests or [BROWSER_AGENT: ...] to deeply read web pages.${browserDir}`
-          };
-        }
-        return m;
-      })
+      if (idx === 0 && m?.role === 'system' && typeof m.content === 'string') {
+        const browserDir = browserAgentMode === 'on'
+          ? '\n[PERAMBAN AGENT MODE: AKTIF WAJIB] Prioritaskan membaca halaman web penuh via [BROWSER_AGENT: topik/url] untuk pertanyaan pencarian/url.'
+          : '';
+        return {
+          ...m,
+          content: `${m.content}\n\n=== ZERO-URL & PROACTIVE AGENTIC POLICY ===\n- STRICTLY FORBIDDEN to type raw URLs (http:// or https:// or www.) in explanatory text; use concise [1], [2] markers and foto:1 image IDs.\n- You are a fully Agentic AI: proactively trigger [SUBAGENT_ORCHESTRATE: ...] for file/website/app/code/office document requests or [BROWSER_AGENT: ...] to deeply read web pages.${browserDir}`
+        };
+      }
+      return m;
+    })
     : built.messages;
 
   const deviceId = getDeviceId();
@@ -1515,7 +1516,7 @@ export const startServerChatJob = async ({
     max_tokens: built.max_tokens
   };
 
-  const endpoints = [ `${API_BASE_URL}/api/chat/jobs/start` ];
+  const endpoints = [`${API_BASE_URL}/api/chat/jobs/start`];
   if (API_BASE_URL === '' && CLOUDFLARE_BACKEND_URL && !endpoints.includes(`${CLOUDFLARE_BACKEND_URL}/api/chat/jobs/start`)) {
     endpoints.push(`${CLOUDFLARE_BACKEND_URL}/api/chat/jobs/start`);
   }

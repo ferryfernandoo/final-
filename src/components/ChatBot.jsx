@@ -6803,11 +6803,10 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     const isPrivateTurn = isPrivateSession(streamingConversationId);
     const effectiveEnableReasoning = isReasoningCapable ? isReasoningEnabled : false;
 
-    // Detect upfront web search intent so the UI immediately enters searching state
-    // while the entire search + LLM synthesis executes detached on the server.
-    const upfrontSearchQuery = (imagesToPass.length === 0 && attachedFilesForTurn.length === 0)
-      ? detectUpfrontSearchIntent(cleanUserText, userLanguage)
-      : null;
+    // 100% AI-FLAG DRIVEN SEARCH: Never force keyword/regex search on the client.
+    // The AI model itself semantically decides whether to emit [SEARCH_REQUEST: ...],
+    // [BROWSER_AGENT: ...], [SEARCH_MEMORY: ...], or [SUBAGENT_ORCHESTRATE: ...].
+    const upfrontSearchQuery = null;
 
     if (upfrontSearchQuery) {
       clearLoadingPhaseTimers();

@@ -534,8 +534,8 @@ export const ReasoningSection = React.memo(({
   const buttonLabel = isReasoning
     ? (userLanguage === 'id' ? `Proses Penalaran ${displayModel} (Menalar...)` : `${displayModel} Reasoning (Thinking...)`)
     : (userLanguage === 'id'
-        ? `Proses Penalaran ${displayModel} (${reasoningDuration || '0.5'}s)`
-        : `${displayModel} Reasoning Process (${reasoningDuration || '0.5'}s)`);
+      ? `Proses Penalaran ${displayModel} (${reasoningDuration || '0.5'}s)`
+      : `${displayModel} Reasoning Process (${reasoningDuration || '0.5'}s)`);
 
   return (
     <div className="reasoning-completed-container">

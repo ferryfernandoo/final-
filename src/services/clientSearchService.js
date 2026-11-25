@@ -462,7 +462,7 @@ async function performProxySearch(query, limit, timeoutMs = 3500) {
 
   const promises = uniqueEndpoints.map(url => fetchEndpoint(url));
   const firstValid = await Promise.race(
-    promises.map(p => p.then(res => (res ? res : new Promise(() => {}))))
+    promises.map(p => p.then(res => (res ? res : new Promise(() => { }))))
   ).catch(() => null);
   if (firstValid) return firstValid;
 
@@ -602,8 +602,8 @@ async function performPublicWebFallback(query, limit = 8, timeoutMs = 3200) {
 
   try {
     const wikiQueries = coreTopicQuery.toLowerCase() !== query.toLowerCase()
-      ? [ { lang: 'id', q: coreTopicQuery }, { lang: 'id', q: query }, { lang: 'en', q: coreTopicQuery } ]
-      : [ { lang: 'id', q: query }, { lang: 'en', q: query } ];
+      ? [{ lang: 'id', q: coreTopicQuery }, { lang: 'id', q: query }, { lang: 'en', q: coreTopicQuery }]
+      : [{ lang: 'id', q: query }, { lang: 'en', q: query }];
 
     const wikiPromises = wikiQueries.slice(0, 2).map(async ({ lang, q }) => {
       const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&utf8=&format=json&origin=*&srlimit=1`;
@@ -845,7 +845,7 @@ export function extractMultiHopFacets(query, userPrompt = '') {
 
   // Comparison detection (A vs B, bandingkan X dan Y, bagusan mana)
   const compMatch = sourceText.match(/(?:banding(?:kan)?|perbandingan|komparasi|perbedaan|beda(?:nya)?|pilih\s+mana|bagusan\s+mana|mana\s+yang\s+lebih\s+(?:bagus|baik|unggul)|compare)\s+(.+?)\s+(?:dengan|dan|atau|sama|vs\.?|versus|dibanding(?:kan)?|and|with)\s+(.+)/i) ||
-                    sourceText.match(/(.+?)\s+(?:vs\.?|versus)\s+(.+)/i);
+    sourceText.match(/(.+?)\s+(?:vs\.?|versus)\s+(.+)/i);
   if (compMatch && compMatch[1] && compMatch[2]) {
     const cleanEntity = (raw) => raw
       .replace(/^(?:antara|mengenai|tentang|dari|kelebihan\s+dan\s+kekurangan)\s+/i, '')
@@ -954,7 +954,7 @@ export function reRankSearchResults(query, rawList, userPrompt = '') {
   if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
   const combinedQuery = `${query} ${userPrompt}`.toLowerCase();
-  
+
   // Extract significant search tokens (length >= 2, skip common indonesian filler words)
   const STOP_TOKENS = new Set([
     'dan', 'di', 'ke', 'dari', 'yang', 'untuk', 'pada', 'dengan', 'adalah', 'ini', 'itu',
@@ -966,7 +966,7 @@ export function reRankSearchResults(query, rawList, userPrompt = '') {
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
     .filter(t => t.length >= 2 && !STOP_TOKENS.has(t));
-  
+
   const queryTokens = [...new Set(rawTokens)];
   const exactPhrase = query.toLowerCase().trim();
 
@@ -1038,7 +1038,7 @@ export function reRankSearchResults(query, rawList, userPrompt = '') {
     // ── 4. Temporal Freshness ("Hari Ini" / Current Date Alignment) ──
     const dateLower = String(item.date || item.publishedAt || item.published_at || '').toLowerCase();
     const isTodayNews = dateLower.includes('jam') || dateLower.includes('menit') || dateLower.includes('hour') || dateLower.includes('min') || dateLower.includes('detik') || dateLower.includes('hari ini') || dateLower.includes('today');
-    
+
     if (hasTimeIntent) {
       if (isTodayNews) {
         score += 20; // Massive breaking news boost!
@@ -1058,10 +1058,10 @@ export function reRankSearchResults(query, rawList, userPrompt = '') {
 
     let domain = item.domain || '';
     if (!domain && rawUrl) {
-      try { domain = new URL(rawUrl).hostname.replace(/^www\./i, ''); } catch (e) {}
+      try { domain = new URL(rawUrl).hostname.replace(/^www\./i, ''); } catch (e) { }
     }
 
-    const favicon = isGoogle 
+    const favicon = isGoogle
       ? `https://www.google.com/s2/favicons?sz=64&domain=${domain || 'google.com'}`
       : (domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : 'https://img.icons8.com/ios-glyphs/30/4f46e5/globe.png');
 

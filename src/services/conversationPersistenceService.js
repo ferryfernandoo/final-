@@ -229,25 +229,25 @@ class ConversationPersistenceService {
                     isThinking: false,
                     isSearching: false,
                   };
-                if (msg.images && Array.isArray(msg.images)) {
-                  processedMsg.images = msg.images.map(img => {
-                    if (img && typeof img === 'object') {
-                      return {
-                        ...img,
-                        dataUrl: img.dataUrl || null,
-                        publicUrl: img.publicUrl || null,
-                        url: img.publicUrl || img.dataUrl || img.url || null
-                      };
-                    }
-                    return img;
-                  });
-                }
-                return processedMsg;
-              });
-              
+                  if (msg.images && Array.isArray(msg.images)) {
+                    processedMsg.images = msg.images.map(img => {
+                      if (img && typeof img === 'object') {
+                        return {
+                          ...img,
+                          dataUrl: img.dataUrl || null,
+                          publicUrl: img.publicUrl || null,
+                          url: img.publicUrl || img.dataUrl || img.url || null
+                        };
+                      }
+                      return img;
+                    });
+                  }
+                  return processedMsg;
+                });
+
               const totalImageCount = processedMessages.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
               console.log(`[ConversationPersistence] Saving conversation "${conv.title}" (${processedMessages.length} messages, ${totalImageCount} images)`);
-              
+
               return {
                 id: conv.id,
                 title: conv.title,
@@ -257,7 +257,7 @@ class ConversationPersistenceService {
                 isPrivate: conv.isPrivate || false,
               };
             })
-            .filter(c => c !== null);
+              .filter(c => c !== null);
 
             const totalImageCount = processedMessages.reduce((sum, msg) => sum + (msg.images?.length || 0), 0);
             console.log(`[ConversationPersistence] Saving conversation "${conv.title}" (${processedMessages.length} messages, ${totalImageCount} images)`);
@@ -414,18 +414,18 @@ class ConversationPersistenceService {
         ...(m.searchQuery ? { searchQuery: m.searchQuery } : {}),
         ...(hasSearch
           ? {
-              searchSources: m.searchSources.slice(0, 12).map((s) => ({
-                title: s.title,
-                link: s.link || s.url,
-                url: s.url || s.link,
-                domain: s.domain,
-                snippet: typeof s.snippet === 'string' ? s.snippet.slice(0, 400) : '',
-                thumbnail: s.thumbnail,
-                accuracyScore: s.accuracyScore,
-                date: s.date,
-                sourceEngine: s.sourceEngine,
-              })),
-            }
+            searchSources: m.searchSources.slice(0, 12).map((s) => ({
+              title: s.title,
+              link: s.link || s.url,
+              url: s.url || s.link,
+              domain: s.domain,
+              snippet: typeof s.snippet === 'string' ? s.snippet.slice(0, 400) : '',
+              thumbnail: s.thumbnail,
+              accuracyScore: s.accuracyScore,
+              date: s.date,
+              sourceEngine: s.sourceEngine,
+            })),
+          }
           : {}),
         ...(Array.isArray(m.searchImages) && m.searchImages.length > 0
           ? { searchImages: m.searchImages.slice(0, 8) }
