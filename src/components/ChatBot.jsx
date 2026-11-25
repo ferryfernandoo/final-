@@ -6010,7 +6010,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
     abortControllersMapRef.current.set(sessionId, subController);
     activeJobSubscriptionsRef.current.set(jobId, { controller: subController, sessionId });
 
-    const syncUiBotPatch = (patch) => {
+    const syncUiBotPatch = (patch, patchOpts = {}) => {
       if (currentConversationIdRef.current === sessionId) {
         setMessages((prev) => {
           const exists = prev.some(m => String(m.id) === String(assistantMessageId));
@@ -6018,6 +6018,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           return prev.map(m => (String(m.id) === String(assistantMessageId) ? { ...m, ...patch } : m));
         });
       }
+      // PERF: Never clone entire conversations array & trigger sidebar/storage effects on every 30fps typing frame!
+      if (patchOpts.skipConversationsSync) return;
       setConversations((prev) =>
         prev.map((c) => {
           if (String(c.id) !== String(sessionId)) return c;
@@ -6201,7 +6203,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
       if (updated) {
         const now = Date.now();
-        if (now - lastScrollTickRef.current > 75) {
+        if (now - lastScrollTickRef.current > 90) {
           lastScrollTickRef.current = now;
           smoothAutoScroll();
         }
@@ -6215,7 +6217,7 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
           isReasoningComplete: enableReasoning && (!isReasoningActive || displayedFullText.length > 0) && Boolean(displayedReasoningText),
           isStreaming: true,
           ...latestSearchMeta
-        });
+        }, { skipConversationsSync: true });
       }
 
       const doneReasoning = !enableReasoning || displayedReasoningText.length >= targetReasoningText.length;
@@ -6227,7 +6229,8 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
 
     const startSmoothTyping = () => {
       if (!smoothTimer && !finalized && !subController.signal.aborted) {
-        smoothTimer = setInterval(flushTypingTick, 18);
+        // 32ms (~30fps) cadence avoids 55fps React/Markdown main-thread thrashing while staying visually fluid
+        smoothTimer = setInterval(flushTypingTick, 32);
         smoothStreamTimerRef.current = smoothTimer;
       }
     };

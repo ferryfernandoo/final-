@@ -13,7 +13,7 @@ let deps = {};
 // Live running & recently completed jobs (kept 20m in RAM)
 const liveJobs = new Map();
 const LIVE_JOB_RETENTION_MS = 20 * 60 * 1000;
-const DB_FLUSH_INTERVAL_MS = 750;
+const DB_FLUSH_INTERVAL_MS = 2500;
 
 export function initChatJobService(injected) {
   deps = { ...deps, ...injected };

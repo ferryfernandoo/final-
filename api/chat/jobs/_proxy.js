@@ -16,13 +16,13 @@ export async function proxyChatJobs(req, targetPath) {
   cleanSearchParams.delete('jobId');
   const qs = cleanSearchParams.toString();
 
-  // Route /api/chat/jobs/... -> same-origin /api/upstream/chat/jobs/... first (matches api/chat.js & api/agent/_proxy.js)
+  // Single-hop direct to live tunnel FIRST (avoids double-proxy buffering via /api/upstream rewrite on Vercel!)
   const upstreamPath = targetPath.startsWith('/api/')
     ? `/api/upstream${targetPath.slice('/api'.length)}`
     : targetPath;
   const candidateUrls = Array.from(new Set([
-    new URL(`${upstreamPath}${qs ? `?${qs}` : ''}`, incomingUrl.origin).toString(),
-    `${FALLBACK_BACKEND_URL}${targetPath}${qs ? `?${qs}` : ''}`
+    `${FALLBACK_BACKEND_URL}${targetPath}${qs ? `?${qs}` : ''}`,
+    new URL(`${upstreamPath}${qs ? `?${qs}` : ''}`, incomingUrl.origin).toString()
   ]));
 
   const forwardHeaders = new Headers();

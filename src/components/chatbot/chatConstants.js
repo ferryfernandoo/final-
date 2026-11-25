@@ -864,11 +864,13 @@ export const getSmoothTypingStep = (diff, isFinished = false) => {
   if (diff <= 0) return 0;
 
   if (isFinished) {
-    return Math.min(diff, Math.max(8, Math.ceil(diff / 5)));
+    return Math.min(diff, Math.max(10, Math.ceil(diff / 5)));
   }
 
-  if (diff <= 14) return 2;
-  if (diff <= 50) return 4;
-  return Math.min(diff, Math.max(6, Math.ceil(diff / 9)));
+  // Smooth 30fps velocity curve: absorbs network bursts into steady, stutter-free flow
+  if (diff <= 10) return Math.min(diff, 2);
+  if (diff <= 36) return 4;
+  if (diff <= 90) return 7;
+  return Math.min(diff, Math.max(9, Math.ceil(diff / 9)));
 };
 
