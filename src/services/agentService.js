@@ -265,10 +265,13 @@ class AgentService {
   static async runTask({
     sessionId,
     prompt,
-    model = 'qwen2.5-vl-72b',
+    model = 'nemotron-3.5-lightning',
     history = [],
     effort = 'high',
     language,
+    customInstructions = '',
+    autoVerify = true,
+    enableWebSearch = true,
     signal,
     onDelta,
     onReasoning,
@@ -295,7 +298,10 @@ class AgentService {
           model,
           history,
           effort,
-          language: activeLang
+          language: activeLang,
+          customInstructions,
+          autoVerify,
+          enableWebSearch
         })
       });
 

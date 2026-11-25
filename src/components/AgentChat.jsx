@@ -10,30 +10,39 @@ import { getSmoothTypingStep } from './chatbot/chatConstants';
 import FileViewer from './FileViewer';
 import './AgentChat.css';
 
+const CODEX_MODELS = [
+  { id: 'nemotron-3.5-lightning', label: 'Nemotron 3.5 Lightning', badge: 'Recommended', desc: 'Cepat, stabil, dan akurat untuk eksekusi agent asinkron.' },
+  { id: 'north-mini-code', label: 'North Mini Code', badge: 'Code', desc: 'Spesialis koding, debugging, dan skrip sandbox.' },
+  { id: 'nemotron-3-ultra-550b', label: 'Nemotron 3 Ultra 550B', badge: 'Deep', desc: 'Penalaran arsitektur & analisis kompleks tingkat lanjut.' },
+  { id: 'free-router', label: 'FreeRouter Auto', badge: 'Auto', desc: 'Routing otomatis ke engine paling responsif.' },
+  { id: 'qwen2.5-vl-72b', label: 'Qwen 2.5 VL 72B', badge: 'Multimodal', desc: 'Analisis dokumen visual & sintesis umum.' }
+];
+
 const AGENT_I18N = {
   id: {
-    brandSubtitle: 'AI Agent',
-    newSession: 'Tugas Agent Baru',
-    searchSessions: 'Cari sesi tugas...',
-    autonomousTask: 'Tugas Otonom AI',
+    brandSubtitle: 'Codex',
+    newSession: 'Sesi Codex Baru',
+    searchSessions: 'Cari sesi Codex...',
+    autonomousTask: 'Tugas Codex Asinkron',
     deleteSession: 'Hapus sesi',
-    deleteConfirm: 'Hapus sesi agent dan seluruh berkas sandbox ini?',
+    deleteConfirm: 'Hapus sesi DeeperNova Codex dan seluruh berkas sandbox ini?',
     backHome: 'Kembali ke Beranda',
     menuSessions: 'Menu Sesi',
     switchChat: 'Chat Biasa',
     switchChatTitle: 'Beralih ke Chat Biasa',
     workspace: 'Workspace',
     openFiles: 'Buka panel berkas & workspace sandbox',
-    moreOptions: 'Opsi & Alat Agent',
-    effortTitle: 'Tingkat Usaha AI Agent',
+    moreOptions: 'Opsi & Alat Codex',
+    codexSettings: 'Pengaturan',
+    effortTitle: 'Tingkat Usaha DeeperNova Codex',
     effortLow: 'Usaha Rendah',
-    effortLowDesc: '1-3 iterasi · Eksekusi cepat & hemat token',
+    effortLowDesc: '1-4 iterasi · Eksekusi cepat & hemat token',
     effortMed: 'Usaha Sedang',
     effortMedDesc: 'Hingga 6 iterasi · Standar seimbang & teliti',
     effortHigh: 'Pantang Menyerah',
-    effortHighDesc: 'Hingga 10+ iterasi · Pantang menyerah, analisa eror & perbaiki sampai berhasil',
+    effortHighDesc: 'Hingga 14 iterasi · Analisa eror, auto-healing & verifikasi tuntas',
     activeCheck: '✓ Aktif',
-    toolsHeader: 'Menu Alat & Workspace',
+    toolsHeader: 'Workspace & Sandbox Tools',
     workspaceFiles: 'Berkas Workspace',
     workspaceFilesSub: 'Lihat file hasil generasi sandbox',
     terminalTitle: 'Terminal Console',
@@ -43,8 +52,8 @@ const AGENT_I18N = {
     skillTitle: 'Panduan SKILL.md',
     skillSub: 'Aturan & arsitektur dokumen',
     switchChatSub: 'Mode percakapan standar non-agent',
-    welcomeHeading: 'Ada yang bisa saya bantu hari ini?',
-    welcomeSub: 'Rekan berpikir dan asisten otonom untuk koding, analisis data, dokumen, dan riset.',
+    welcomeHeading: 'DeeperNova Codex',
+    welcomeSub: 'Asynchronous Autonomous Engineering Agent — bangun aplikasi, jalankan & verifikasi kode di sandbox terisolasi, susun dokumen eksekutif, dan lakukan riset mendalam.',
     starterDocxTitle: 'Dokumen Bisnis (.docx)',
     starterDocxSub: 'Proposal eksekutif & laporan formal',
     starterDocxPrompt: 'Buatkan dokumen proposal bisnis eksekutif profesional berformat .docx lengkap dengan tabel metrik KPI dan callout box.',
@@ -54,10 +63,10 @@ const AGENT_I18N = {
     starterWebTitle: 'Aplikasi Web Interaktif',
     starterWebSub: 'Bangun web HTML/CSS/JS di sandbox',
     starterWebPrompt: 'Buatkan aplikasi web dashboard analitik interaktif modern lengkap dengan index.html, CSS, dan JS interaktif di sandbox.',
-    starterChatTitle: 'Diskusi & Brainstorming',
-    starterChatSub: 'Tukar ide, strategi, atau tanya santai',
-    starterChatPrompt: 'Halo! Bisa bantu saya brainstorming ide dan berdiskusi santai tentang tren teknologi terkini?',
-    composerPlaceholder: 'Tanya apa saja atau delegasikan tugas...',
+    starterChatTitle: 'Automasi & Skrip Python',
+    starterChatSub: 'Tulis, jalankan, dan uji kode di sandbox',
+    starterChatPrompt: 'Buatkan skrip Python analitik data lengkap dengan unit test otomatis lalu jalankan dan verifikasi hasilnya di sandbox.',
+    composerPlaceholder: 'Delegasikan tugas engineering, kode, aplikasi, atau dokumen ke DeeperNova Codex...',
     uploadTooltip: 'Unggah Lampiran ke Sandbox',
     effortPillHigh: 'Mode Mendalam',
     effortPillLow: 'Mode Cepat',
@@ -326,7 +335,7 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
   const [, setActiveSkill] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
 
-  // AI Agent Effort Level ('low' | 'medium' | 'high' - Pantang Menyerah)
+  // DeeperNova Codex Engine & Execution Settings (persisted cleanly in localStorage)
   const [agentEffort, setAgentEffort] = useState(() => {
     try {
       return localStorage.getItem('deepernova_agent_effort') || 'high';
@@ -334,16 +343,79 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
       return 'high';
     }
   });
+  const [codexModel, setCodexModel] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_codex_model') || 'nemotron-3.5-lightning';
+    } catch {
+      return 'nemotron-3.5-lightning';
+    }
+  });
+  const [autoVerify, setAutoVerify] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_codex_autoverify') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const [enableWebSearch, setEnableWebSearch] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_codex_websearch') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const [autoOpenDrawer, setAutoOpenDrawer] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_codex_autodrawer') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [customInstructions, setCustomInstructions] = useState(() => {
+    try {
+      return localStorage.getItem('deepernova_codex_instructions') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [showCodexSettings, setShowCodexSettings] = useState(false);
 
   const handleSetEffort = (lvl) => {
     setAgentEffort(lvl);
-    try {
-      localStorage.setItem('deepernova_agent_effort', lvl);
-    } catch { }
+    try { localStorage.setItem('deepernova_agent_effort', lvl); } catch { }
+  };
+  const handleSetCodexModel = (mdl) => {
+    setCodexModel(mdl);
+    try { localStorage.setItem('deepernova_codex_model', mdl); } catch { }
+  };
+  const handleToggleAutoVerify = () => {
+    setAutoVerify(prev => {
+      const next = !prev;
+      try { localStorage.setItem('deepernova_codex_autoverify', String(next)); } catch { }
+      return next;
+    });
+  };
+  const handleToggleWebSearch = () => {
+    setEnableWebSearch(prev => {
+      const next = !prev;
+      try { localStorage.setItem('deepernova_codex_websearch', String(next)); } catch { }
+      return next;
+    });
+  };
+  const handleToggleAutoDrawer = () => {
+    setAutoOpenDrawer(prev => {
+      const next = !prev;
+      try { localStorage.setItem('deepernova_codex_autodrawer', String(next)); } catch { }
+      return next;
+    });
+  };
+  const handleChangeCustomInstructions = (val) => {
+    setCustomInstructions(val);
+    try { localStorage.setItem('deepernova_codex_instructions', val); } catch { }
   };
 
   // Terminal State
-  const [terminalLogs, setTerminalLogs] = useState('> Deepernova AI Agent Sandbox Terminal initialized.\n> Workspace jailed in isolated session.\n');
+  const [terminalLogs, setTerminalLogs] = useState('> DeeperNova Codex Asynchronous Sandbox Terminal initialized.\n> Isolated workspace jail active.\n');
   const [terminalInput, setTerminalInput] = useState('');
   const [isTermExecuting, setIsTermExecuting] = useState(false);
 
@@ -533,24 +605,29 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
     }
   };
 
-  // 3. Start a new agent session
+  // 3. Start a new Codex session (with resilient local fallback if server is momentarily busy)
   const startNewSession = async () => {
     if (isExecuting) return;
-    const newSession = await AgentService.createSession('Tugas Otonom Baru');
-    if (newSession) {
-      setSessions(prev => [newSession, ...prev]);
-      setCurrentSessionId(newSession.id);
-      setMessages([]);
-      setActiveChainOfWork([]);
-      setActiveSkill(null);
-      const files = await AgentService.getFiles(newSession.id);
-      setSandboxFiles(files);
-      setPreviewUrl(null);
-      const skill = await AgentService.readFile(newSession.id, 'SKILL.md');
-      if (skill) setSkillContent(skill);
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop = 0;
-      }
+    let newSession = await AgentService.createSession('Sesi Codex Baru');
+    if (!newSession) {
+      newSession = {
+        id: `codex_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        title: 'Sesi Codex Baru',
+        createdAt: new Date().toISOString()
+      };
+    }
+    setSessions(prev => [newSession, ...prev.filter(s => s.id !== newSession.id)]);
+    setCurrentSessionId(newSession.id);
+    setMessages([]);
+    setActiveChainOfWork([]);
+    setActiveSkill(null);
+    const files = await AgentService.getFiles(newSession.id);
+    setSandboxFiles(files);
+    setPreviewUrl(null);
+    const skill = await AgentService.readFile(newSession.id, 'SKILL.md');
+    if (skill) setSkillContent(skill);
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = 0;
     }
   };
 
@@ -764,10 +841,13 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
       await AgentService.runTask({
         sessionId: currentSessionId,
         prompt: textToSend,
-        model: 'qwen2.5-vl-72b',
+        model: codexModel || 'nemotron-3.5-lightning',
         history: messages,
         effort: agentEffort,
         language: userLanguage,
+        customInstructions,
+        autoVerify,
+        enableWebSearch,
         signal: abortController.signal,
         onDelta: (chunk) => {
           targetContent = stripActionPillTags(targetContent + (chunk || ''));
@@ -779,6 +859,10 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
         },
         onFilesUpdate: (newFiles) => {
           setSandboxFiles(newFiles);
+          if (autoOpenDrawer && Array.isArray(newFiles) && newFiles.length > 0) {
+            setActiveDrawerTab('files');
+            setIsDrawerOpen(true);
+          }
           setMessages(prev => prev.map(m => {
             if (m.id === botMsgId) {
               return { ...m, sandboxFiles: newFiles };
@@ -1076,10 +1160,10 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
       <aside className={`agent-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="agent-sidebar-header">
           <div className="agent-sidebar-brand" onClick={() => onNavigate?.('landing')}>
-            <img src="/logo.png" alt="Deepernova AI" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
+            <img src="/logo.png" alt="DeeperNova Codex" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#0f172a', lineHeight: 1.15 }}>Deepernova</span>
-              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: '#ea580c', letterSpacing: '0.5px' }}>AI Agent</span>
+              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.02em' }}>DeeperNova</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.1em', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>CODEX · ASYNC</span>
             </div>
           </div>
           {typeof window !== 'undefined' && window.innerWidth < 768 && (
@@ -1132,25 +1216,35 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
         <div className="agent-sidebar-footer">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: '#ea580c', color: '#ffffff',
+              width: 32, height: 32, borderRadius: 8, background: '#0f172a', color: '#ffffff',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13
             }}>
-              {(user?.name || user?.email || 'A')[0].toUpperCase()}
+              {(user?.name || user?.email || 'D')[0].toUpperCase()}
             </div>
-            <div style={{ overflow: 'hidden', maxWidth: 140 }}>
+            <div style={{ overflow: 'hidden', maxWidth: 125 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {user?.name || 'Developer'}
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>AI Agent</div>
+              <div style={{ fontSize: 10.5, color: '#64748b', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>DeeperNova Codex</div>
             </div>
           </div>
-          <button
-            onClick={() => onNavigate?.('landing')}
-            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 6, fontSize: 15 }}
-            title={t.backHome}
-          >
-            <i className="fa-solid fa-arrow-right-from-bracket" />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              type="button"
+              onClick={() => setShowCodexSettings(true)}
+              style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 6, fontSize: 14 }}
+              title="Pengaturan DeeperNova Codex"
+            >
+              <i className="fa-solid fa-sliders" />
+            </button>
+            <button
+              onClick={() => onNavigate?.('landing')}
+              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 6, fontSize: 14 }}
+              title={t.backHome}
+            >
+              <i className="fa-solid fa-arrow-right-from-bracket" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -1163,37 +1257,31 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
               <i className="fa-solid fa-bars" />
             </button>
             <div className="agent-header-brand-clean">
-              <span className="agent-header-brand-title">Deepernova</span>
-              <span className="agent-header-brand-badge">{t.brandSubtitle}</span>
+              <span className="agent-header-brand-title">DeeperNova Codex</span>
+              <span className="agent-header-brand-badge codex-badge">ASYNC AGENT</span>
             </div>
+            <button
+              type="button"
+              className="codex-model-status-chip"
+              onClick={() => setShowCodexSettings(true)}
+              title="Klik untuk mengganti model & pengaturan Codex"
+            >
+              <span className="codex-live-dot" />
+              <span>{(CODEX_MODELS.find(m => m.id === codexModel)?.label) || codexModel}</span>
+              <i className="fa-solid fa-chevron-down" style={{ fontSize: 9, opacity: 0.65 }} />
+            </button>
           </div>
 
           <div className="agent-header-right" ref={menuDropdownRef}>
-            {/* Quick Language Selector */}
-            <div className="agent-lang-selector" style={{ display: 'flex', alignItems: 'center', gap: 3, marginRight: 6 }}>
-              {LANGUAGE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.code}
-                  type="button"
-                  onClick={() => handleSelectLanguage(opt.code)}
-                  style={{
-                    padding: '3px 7px',
-                    borderRadius: 6,
-                    border: '1px solid',
-                    borderColor: userLanguage === opt.code ? '#ea580c' : 'rgba(0,0,0,0.08)',
-                    background: userLanguage === opt.code ? 'rgba(234, 88, 12, 0.1)' : 'transparent',
-                    color: userLanguage === opt.code ? '#ea580c' : '#64748b',
-                    fontSize: 11,
-                    fontWeight: userLanguage === opt.code ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                  title={opt.label}
-                >
-                  {opt.shortLabel}
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              className="codex-header-settings-btn"
+              onClick={() => setShowCodexSettings(true)}
+              title="Pengaturan DeeperNova Codex"
+            >
+              <i className="fa-solid fa-sliders" />
+              <span>{t.codexSettings || 'Pengaturan'}</span>
+            </button>
 
             <button
               type="button"
@@ -2235,6 +2323,151 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
             </div>
           </aside>
         </>
+      )}
+
+      {showCodexSettings && (
+        <div className="codex-settings-overlay" onClick={() => setShowCodexSettings(false)}>
+          <div className="codex-settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="codex-settings-header">
+              <div>
+                <div className="codex-settings-title">
+                  <i className="fa-solid fa-sliders" />
+                  <span>Pengaturan DeeperNova Codex</span>
+                </div>
+                <p className="codex-settings-subtitle">
+                  Konfigurasi engine, kedalaman eksekusi asinkron, verifikasi otomatis, dan instruksi workspace sandbox.
+                </p>
+              </div>
+              <button type="button" className="codex-settings-close" onClick={() => setShowCodexSettings(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="codex-settings-body">
+              {/* 1. Model Engine */}
+              <div className="codex-setting-section">
+                <label className="codex-setting-label">Model Engine Codex</label>
+                <div className="codex-model-grid">
+                  {CODEX_MODELS.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      className={`codex-model-option ${codexModel === m.id ? 'is-selected' : ''}`}
+                      onClick={() => handleSetCodexModel(m.id)}
+                    >
+                      <div className="codex-model-option-top">
+                        <span className="codex-model-name">{m.label}</span>
+                        <span className="codex-model-tag">{m.badge}</span>
+                      </div>
+                      <span className="codex-model-desc">{m.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Execution Depth / Effort */}
+              <div className="codex-setting-section">
+                <label className="codex-setting-label">Kedalaman Eksekusi (Autonomous Effort)</label>
+                <div className="codex-effort-row">
+                  {[
+                    { id: 'low', label: 'Cepat (1–4 iterasi)' },
+                    { id: 'medium', label: 'Seimbang (6 iterasi)' },
+                    { id: 'high', label: 'Pantang Menyerah (14 iterasi)' }
+                  ].map((lvl) => (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      className={`codex-effort-chip ${agentEffort === lvl.id ? 'is-active' : ''}`}
+                      onClick={() => handleSetEffort(lvl.id)}
+                    >
+                      {lvl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Autonomous Execution Switches */}
+              <div className="codex-setting-section">
+                <label className="codex-setting-label">Perilaku Sandbox & Keamanan</label>
+                <div className="codex-toggle-list">
+                  <div className="codex-toggle-row" onClick={handleToggleAutoVerify}>
+                    <div>
+                      <div className="codex-toggle-title">Auto-Verify & Self-Healing</div>
+                      <div className="codex-toggle-desc">Jalankan verifikasi & uji kode otomatis di sandbox, lalu perbaiki error sendiri hingga tuntas.</div>
+                    </div>
+                    <div className={`codex-switch ${autoVerify ? 'is-on' : ''}`}><span /></div>
+                  </div>
+
+                  <div className="codex-toggle-row" onClick={handleToggleWebSearch}>
+                    <div>
+                      <div className="codex-toggle-title">Autonomous Web Research</div>
+                      <div className="codex-toggle-desc">Izinkan Codex menelusuri dokumentasi & fakta terbaru dari internet saat dibutuhkan.</div>
+                    </div>
+                    <div className={`codex-switch ${enableWebSearch ? 'is-on' : ''}`}><span /></div>
+                  </div>
+
+                  <div className="codex-toggle-row" onClick={handleToggleAutoDrawer}>
+                    <div>
+                      <div className="codex-toggle-title">Buka Panel Workspace Otomatis</div>
+                      <div className="codex-toggle-desc">Tampilkan panel berkas sandbox otomatis setiap kali Codex menghasilkan file baru.</div>
+                    </div>
+                    <div className={`codex-switch ${autoOpenDrawer ? 'is-on' : ''}`}><span /></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Custom Workspace Instructions */}
+              <div className="codex-setting-section">
+                <label className="codex-setting-label">Instruksi Khusus Workspace (Opsional)</label>
+                <textarea
+                  className="codex-instructions-textarea"
+                  rows={3}
+                  value={customInstructions}
+                  onChange={(e) => handleChangeCustomInstructions(e.target.value)}
+                  placeholder="Contoh: Selalu gunakan TypeScript, sertakan unit test, gunakan gaya dokumentasi bersih dan ringkas..."
+                />
+              </div>
+
+              {/* 5. Interface Language */}
+              <div className="codex-setting-section">
+                <label className="codex-setting-label">Bahasa Antarmuka</label>
+                <div className="codex-effort-row">
+                  {LANGUAGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      className={`codex-effort-chip ${userLanguage === opt.code ? 'is-active' : ''}`}
+                      onClick={() => handleSelectLanguage(opt.code)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="codex-settings-footer">
+              <button
+                type="button"
+                className="codex-settings-secondary-btn"
+                onClick={() => {
+                  setShowCodexSettings(false);
+                  startNewSession();
+                }}
+              >
+                <i className="fa-solid fa-rotate" />
+                <span>Sesi Sandbox Bersih Baru</span>
+              </button>
+              <button
+                type="button"
+                className="codex-settings-primary-btn"
+                onClick={() => setShowCodexSettings(false)}
+              >
+                Simpan & Tutup
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {viewerFile && (

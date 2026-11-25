@@ -1129,11 +1129,14 @@ function buildComparisonSearchSteps(prompt = '') {
 export async function executeAutonomousAgentRun({
   sessionId,
   prompt,
-  model = 'qwen2.5-vl-72b',
+  model = 'nemotron-3.5-lightning',
   history = [],
   effort = 'high',
   language = 'id',
   userId = 'guest_agent_user',
+  customInstructions = '',
+  autoVerify = true,
+  enableWebSearch = true,
   deferDeltaUntilDone = false,
   onEvent,
   onCloseRegister,
@@ -1533,6 +1536,20 @@ JIKA TERJADI KENDALA TEKNIS APAPUN (syntax error, missing module/library, runtim
       MAX_AGENT_STEPS = 6;
       effortInstruction = `\n[TINGKAT USAHA AI AGENT: SEDANG / BALANCED MODE (MAKSIMAL 6 ITERASI)]\nSelesaikan tugas dengan terukur, teliti, dan pastikan hasil akhir terverifikasi.\n`;
     }
+    const nowCodex = new Date();
+    const codexWeekday = nowCodex.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
+    const codexDate = nowCodex.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' });
+    const codexTime = nowCodex.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\./g, ':');
+    effortInstruction += `\n[WAKTU REAL-TIME DEEPERNOVA CODEX]: Hari ${codexWeekday}, ${codexDate}, pukul ${codexTime} WIB.\n`;
+    if (autoVerify === false) {
+      effortInstruction += `[CODEX SETTING]: Auto-verify dimatikan oleh pengguna — prioritaskan kecepatan pembuatan kode/berkas.\n`;
+    }
+    if (enableWebSearch === false) {
+      effortInstruction += `[CODEX SETTING]: Pencarian web dinonaktifkan oleh pengguna — kerjakan langsung di sandbox lokal tanpa <search_web>.\n`;
+    }
+    if (customInstructions && String(customInstructions).trim()) {
+      effortInstruction += `\n[INSTRUKSI KHUSUS PENGGUNA (DEEPERNOVA CODEX SETTINGS)]:\n${String(customInstructions).trim().slice(0, 1500)}\n`;
+    }
 
     // Step 2: Intelligent Skill Requirement Evaluation & Mapping Index
     const skillEvaluation = agentSkillService.evaluateSkillRequirement(prompt);
@@ -1751,23 +1768,37 @@ ${isComparisonPrompt && !wantsDocx && !wantsPptx && !wantsXlsx ? `\n\n[MODE AGEN
       let upstreamRes = null;
       let lastErr = null;
 
-      // 1. FreeLLM Unified Gateway + Official Free-Tier Multi-Provider Failover
-      const agentDispatch = await dispatchFreeLlmRequest({
-        requestedModel: model || 'qwen2.5-vl-72b',
-        messages: apiMessages,
-        temperature: 0.5,
-        max_tokens: 4096,
-        stream: true,
-        hasImages: false,
-        enableReasoning: effort === 'high',
-        signal: upstreamAbortController.signal,
-        timeoutMs: 14000
-      });
-      if (agentDispatch.response && agentDispatch.response.ok) {
-        upstreamRes = agentDispatch.response;
-        lastErr = null;
-      } else {
-        lastErr = agentDispatch.lastError;
+      // 1. FreeLLM Unified Gateway + Automatic Multi-Model Failover (prevents 429/503 "Kendala Agent" crashes)
+      const primaryModel = model || 'nemotron-3.5-lightning';
+      const failoverModels = Array.from(new Set([
+        primaryModel,
+        'nemotron-3.5-lightning',
+        'north-mini-code',
+        'free-router',
+        'nemotron-3-ultra-550b'
+      ]));
+
+      for (const candidateModel of failoverModels) {
+        if (isAborted || upstreamAbortController.signal.aborted) break;
+        const agentDispatch = await dispatchFreeLlmRequest({
+          requestedModel: candidateModel,
+          messages: apiMessages,
+          temperature: 0.45,
+          max_tokens: 4096,
+          stream: true,
+          hasImages: false,
+          enableReasoning: effort === 'high' && candidateModel !== 'north-mini-code',
+          signal: upstreamAbortController.signal,
+          timeoutMs: 32000
+        });
+        if (agentDispatch.response && agentDispatch.response.ok) {
+          upstreamRes = agentDispatch.response;
+          lastErr = null;
+          break;
+        } else {
+          lastErr = agentDispatch.lastError;
+          console.warn(`[DeeperNova Codex] Model ${candidateModel} unavailable (${lastErr || 'no response'}), failing over...`);
+        }
       }
 
       // 2. Seamless Fallback: Native GPU Engine
@@ -2333,7 +2364,17 @@ export function buildEnrichedSandboxFiles(sessionId, files = []) {
 }
 
 router.post('/run', async (req, res) => {
-  const { sessionId, prompt, model = 'qwen2.5-vl-72b', history = [], effort = 'high', language = 'id' } = req.body;
+  const {
+    sessionId,
+    prompt,
+    model = 'nemotron-3.5-lightning',
+    history = [],
+    effort = 'high',
+    language = 'id',
+    customInstructions = '',
+    autoVerify = true,
+    enableWebSearch = true
+  } = req.body;
   const userId = getUserId(req);
 
   if (!sessionId || !prompt) {
@@ -2355,6 +2396,9 @@ router.post('/run', async (req, res) => {
     effort,
     language,
     userId,
+    customInstructions,
+    autoVerify,
+    enableWebSearch,
     onEvent: (eventType, data) => {
       res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
       if (typeof res.flush === 'function') res.flush();

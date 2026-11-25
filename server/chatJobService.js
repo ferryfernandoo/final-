@@ -1262,12 +1262,12 @@ async function executeJobInBackground(job, params) {
 
       const memoryBlock = memRes.totalMatches > 0
         ? [
-            memRes.globalFacts.length > 0 ? `=== FAKTA MEMORI PENGGUNA ===\n${memRes.globalFacts.join('\n')}` : '',
-            memRes.memories.length > 0
-              ? `=== CUPLIKAN PERCAKAPAN LINTAS SESI TERKAIT ===\n` +
-                memRes.memories.map((m, i) => `[Memori #${i + 1} | ${m.source}${m.createdAt ? ` | ${String(m.createdAt).slice(0, 10)}` : ''}]\n${m.content}`).join('\n\n')
-              : ''
-          ].filter(Boolean).join('\n\n')
+          memRes.globalFacts.length > 0 ? `=== FAKTA MEMORI PENGGUNA ===\n${memRes.globalFacts.join('\n')}` : '',
+          memRes.memories.length > 0
+            ? `=== CUPLIKAN PERCAKAPAN LINTAS SESI TERKAIT ===\n` +
+            memRes.memories.map((m, i) => `[Memori #${i + 1} | ${m.source}${m.createdAt ? ` | ${String(m.createdAt).slice(0, 10)}` : ''}]\n${m.content}`).join('\n\n')
+            : ''
+        ].filter(Boolean).join('\n\n')
         : 'Tidak ditemukan catatan percakapan atau memori lama yang cocok untuk topik ini. Jawablah dengan jujur bahwa kamu belum menemukan riwayat tersebut di memori tanpa mengarang.';
 
       const memoryMessages = [
@@ -1690,8 +1690,8 @@ async function executeJobInBackground(job, params) {
             broadcastJobEvent(job, 'status', { status: 'streaming', phaseDetail: job.phaseDetail, subAgentData: job.subAgentData });
             flushJobToDb(job, ev === 'done');
           },
-          onCloseRegister: (cb) => { signal.addEventListener('abort', () => { try { cb(); } catch {} }, { once: true }); },
-          finishStream: () => {}
+          onCloseRegister: (cb) => { signal.addEventListener('abort', () => { try { cb(); } catch { } }, { once: true }); },
+          finishStream: () => { }
         });
         job.subAgentData = {
           ...job.subAgentData,
