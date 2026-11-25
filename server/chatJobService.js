@@ -1314,6 +1314,14 @@ function mapSandboxFileServer(f = {}, index = 0) {
   };
 }
 
+function isStaleUnconfirmedAiClaim(rawText = '', job) {
+  if (!rawText || !job?.userPrompt || job.userPrompt.trim().length < 5 || job.hasImages) return false;
+  if (/^(?:hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|tes|test|ping|ok|oke|makasih|terima\s+kasih|thanks)[!?. ]*$/i.test(job.userPrompt.trim())) {
+    return false;
+  }
+  return /(?:(?:sampai|hingga)\s+(?:saat\s+ini|sekarang|kini)\s+(?:belum|tidak)\s+(?:ada\s+)?(?:konfirmasi|kepastian|pengumuman|kejelasan|informasi\s+resmi|rilis|dirilis)|belum\s+ada\s+(?:konfirmasi|pengumuman|kepastian|berita|info(?:rmasi)?)\s+resmi|belum\s+(?:resmi\s+)?(?:dikonfirmasi|diumumkan|dirilis|dipastikan)|masih\s+(?:berupa\s+|sebatas\s+)?(?:rumor|spekulasi|belum\s+pasti)|sejauh\s+(?:pengetahuan|informasi)\s+(?:saya|aku)|pengetahuan\s+(?:saya|aku)\s+(?:hanya\s+)?(?:sampai|terbatas)|keterbatasan\s+(?:pengetahuan|data)|tidak\s+(?:memiliki|punya)\s+(?:akses|informasi|data)\s+(?:terbaru|terkini|real-?time|internet)|no\s+official\s+confirmation|not\s+(?:yet\s+)?(?:confirmed|announced|released)|as\s+of\s+my\s+(?:last\s+)?knowledge|beyond\s+my\s+knowledge(?:\s+cutoff)?)/i.test(rawText);
+}
+
 async function executeJobInBackground(job, params) {
   const signal = job.abortController.signal;
   try {
@@ -1371,6 +1379,15 @@ async function executeJobInBackground(job, params) {
         } else {
           runSearchWithQuery = sanitizeSearchQueryServer(firstPass.searchTagFound, job.userPrompt);
         }
+      } else if (
+        !firstPass.usedStandbyFallback &&
+        !params.hasImages &&
+        params.enableWebSearch !== false &&
+        isStaleUnconfirmedAiClaim(firstPass.rawText, job)
+      ) {
+        // Epistemic guard: if AI lazily claimed "belum ada konfirmasi / belum diumumkan" from stale memory
+        // without checking the live web, automatically verify via 4-step search + 5-page deep fetch!
+        runSearchWithQuery = sanitizeSearchQueryServer(job.userPrompt, job.userPrompt);
       }
     }
 
