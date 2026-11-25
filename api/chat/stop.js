@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://cdf5bd9fba7362.app.lhr.life';
+const FALLBACK_BACKEND_URL = process.env.PUBLIC_BACKEND_URL || 'https://55e32c6ed4f5fa.app.lhr.life';
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {

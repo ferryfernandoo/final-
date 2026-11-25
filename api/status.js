@@ -1,4 +1,4 @@
-const FALLBACK_SEARCH_URL = 'https://cdf5bd9fba7362.app.lhr.life';
+const FALLBACK_SEARCH_URL = 'https://04b3ba93eb2316.app.lhr.life';
 
 export const config = {
   runtime: 'edge',
