@@ -125,46 +125,51 @@ const ChatMessageItemComponent = ({
           <>
             {message.searchSteps && message.searchSteps.length > 0 ? (
               <div className="multi-step-search-container" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-                {message.searchSteps.map((step, sIdx) => {
-                  const stepSources = (step.sources && step.sources.length > 0)
-                    ? step.sources
-                    : (message.searchSources && message.searchSources.length > 0)
-                      ? message.searchSources
-                      : [];
+                {(() => {
+                  const activeSearchStep = message.searchSteps.find(s => s.isSearching);
+                  const mergedSources = [];
+                  const seenLinks = new Set();
+                  for (const st of message.searchSteps) {
+                    for (const src of (Array.isArray(st.sources) ? st.sources : [])) {
+                      const key = src?.link || src?.url || src?.title;
+                      if (key && !seenLinks.has(key)) {
+                        seenLinks.add(key);
+                        mergedSources.push(src);
+                      }
+                    }
+                  }
+                  if (mergedSources.length === 0 && Array.isArray(message.searchSources)) {
+                    for (const src of message.searchSources) {
+                      const key = src?.link || src?.url || src?.title;
+                      if (key && !seenLinks.has(key)) {
+                        seenLinks.add(key);
+                        mergedSources.push(src);
+                      }
+                    }
+                  }
                   return (
-                    <div key={`step_${sIdx}_${step.query}`} className="search-step-block" style={{ animation: 'float-source-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}>
-                      {step.isSearching ? (
+                    <>
+                      {activeSearchStep && (
                         <div className="search-simple-indicator">
                           <span className="search-simple-spinner"></span>
                           <span className="search-simple-text">
-                            {userLanguage === 'id' ? `Mencari "${step.query}"...` : `Searching for "${step.query}"...`}
+                            {activeSearchStep.label || (userLanguage === 'id' ? `Mencari "${activeSearchStep.query}"...` : `Searching for "${activeSearchStep.query}"...`)}
                           </span>
                         </div>
-                      ) : (
-                        stepSources.length > 0 && (
-                          <div className="search-sources-section" style={{ marginTop: '4px', animation: 'float-source-in 0.35s ease both' }}>
-                            <SourceBubbleCarousel
-                              key={`carousel_${sIdx}_${step.query}_${stepSources.length}`}
-                              sources={stepSources}
-                              language={userLanguage}
-                              onShowAll={() => onShowSearchSources?.({ query: step.query || message.searchQuery, sources: stepSources })}
-                            />
-                          </div>
-                        )
                       )}
-                    </div>
+                      {mergedSources.length > 0 && (
+                        <div className="search-sources-section" style={{ marginTop: '4px', animation: 'float-source-in 0.35s ease both' }}>
+                          <SourceBubbleCarousel
+                            key={`carousel_unified_${mergedSources.length}`}
+                            sources={mergedSources}
+                            language={userLanguage}
+                            onShowAll={() => onShowSearchSources?.({ query: message.searchQuery || activeSearchStep?.query, sources: mergedSources })}
+                          />
+                        </div>
+                      )}
+                    </>
                   );
-                })}
-                {(!message.searchSteps.some(s => s.sources && s.sources.length > 0) && message.searchSources && message.searchSources.length > 0) && (
-                  <div className="search-sources-section" style={{ marginTop: '4px', animation: 'float-source-in 0.35s ease both' }}>
-                    <SourceBubbleCarousel
-                      key={`carousel_fallback_${message.searchSources.length}`}
-                      sources={message.searchSources}
-                      language={userLanguage}
-                      onShowAll={() => onShowSearchSources?.({ query: message.searchQuery, sources: message.searchSources })}
-                    />
-                  </div>
-                )}
+                })()}
               </div>
             ) : (
               <>

@@ -794,7 +794,7 @@ export const buildBackendChatPayload = ({
         'ATURAN SIKAP & GAYA KOMUNIKASI (MUTLAK):\n' +
         '1. SESUAIKAN GAYA DENGAN KEPRIBADIAN AKTIF (MUTLAK): Kamu WAJIB berbicara 100% mengikuti [ARAHAN KEPRIBADIAN MUTLAK] di atas. Jika Casual, bicaralah santai mengalir (gunakan panggilan luwes aku-kamu, santai, asyik, jangan kaku atau baku seperti buku pelajaran). Jika Friendly, bicaralah hangat, bersahabat, santun luwes. Jika Formal, bicaralah resmi dan profesional. Jika Witty, selipkan kecerdasan dan humor. Jika Cute, gunakan ekspresi imut, ceria, dan penuh energi.\n' +
         '2. NATURAL & TIDAK BERTELE-TELE: Untuk sapaan singkat atau pertanyaan simpel, jawab dengan padat, alami, dan sesuai gaya kepribadian (1-3 kalimat). Untuk penjelasan mendalam, tutorial, atau coding, berikan jawaban komprehensif, terstruktur rapi, dan tuntas.\n' +
-        '3. FOKUS UTAMA PADA TOPIK SAAT INI (MUTLAK): Pengguna bebas memulai obrolan baru atau berganti topik kapan saja. JAWAB TUNTAS TOPIK SAAT INI 100%. DILARANG KERAS mengungkit percakapan lama yang sudah tidak relevan.\n' +
+        '3. KESINAMBUNGAN KONTEKS OBROLAN (WAJIB): Kamu MEMILIKI riwayat percakapan lengkap di sesi ini (termasuk 2, 5, hingga 15+ chat sebelumnya). Hubungkan pertanyaan lanjutan secara mulus dan akurat dengan pembahasan sebelumnya! Hanya abaikan topik lama jika pengguna secara jelas pindah ke topik baru yang tidak berkaitan.\n' +
         searchInstruction +
         visionInstruction +
         privateCandidBlock +
@@ -811,14 +811,14 @@ export const buildBackendChatPayload = ({
       const historyPool = isLastItemUser ? rawHistory.slice(0, -1) : rawHistory;
 
       pastTurns = historyPool
-        .filter(m => m && !m.isSearching && (m.text || m.content))
+        .filter(m => m && !m.isSearching && (m.text || m.content || m.subAgentData?.finalAnswer))
         .filter(m => {
-          const txt = (m.text || m.content || '').trim();
+          const txt = (m.text || m.content || m.subAgentData?.finalAnswer || '').trim();
           return !/^\[(?:EXECUTE_SEARCH|SEARCH_REQUEST|SEARCH|WEB_SEARCH):/i.test(txt);
         })
         .map(m => ({
           role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
-          content: (m.text || m.content || '').trim()
+          content: (m.text || m.content || m.subAgentData?.finalAnswer || '').trim()
         }))
         .filter(m => m.content.length > 0);
     }

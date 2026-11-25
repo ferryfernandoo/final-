@@ -3433,7 +3433,8 @@ function prepareServerChatMessages(reqBody, rawMessages) {
      * [BROWSER_AGENT: topic or URL] -> When the user provides a URL or wants full webpage/article reading.
      * [SEARCH_REQUEST: real topic keywords] -> When up-to-date real-world facts, news, prices, schedules, or external verification are needed. (The server automatically performs multi-step search + deep web page fetching!)
    - For casual chat, greetings, short conceptual Q&A, or facts you already know with certainty, answer directly WITHOUT any flag.
-4. HONESTY & ANTI-TRASH RULE: If search/memory yields no relevant results, NEVER read or cite irrelevant results and NEVER fabricate/hallucinate facts — answer only from certain knowledge or honestly state that you do not know.`;
+4. HONESTY & ANTI-TRASH RULE: If search/memory yields no relevant results, NEVER read or cite irrelevant results and NEVER fabricate/hallucinate facts — answer only from certain knowledge or honestly state that you do not know.
+5. CONVERSATIONAL CONTEXT CONTINUITY (MANDATORY): You have full memory of ALL earlier turns in this conversation (2, 5, up to 20+ messages back). ALWAYS connect follow-up references ("yang tadi", "nomor 2", "lanjutkan", "itu", "bandingkan dengan sebelumnya", "proyek kita") seamlessly to earlier messages in this session! Only ignore prior context if the user clearly switches to a totally unrelated topic.`;
 
   const SERVER_PERSONALITY_PROMPTS = {
     casual: '\n\n[ARAHAN KEPRIBADIAN MUTLAK - CASUAL, SANTAI & AKRAB]:\n- Wajib bicara santai, luwes, dan akrab (gunakan aku-kamu, jangan kaku).',
@@ -3794,7 +3795,7 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
      * Uses tiered compression & dynamic token ceiling (maxInputTokens = 3500)
      * so that recent context has full fidelity while older turns are compactly retained without token explosion.
      */
-    const enforceChunkedContextMemory = (msgs, maxInputTokens = 3500) => {
+    const enforceChunkedContextMemory = (msgs, maxInputTokens = 10500) => {
       if (!Array.isArray(msgs) || msgs.length === 0) return msgs;
 
       const estimateTokens = (content) => {
@@ -3825,28 +3826,28 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       if (userQuery && EXPLICIT_TOPIC_SWITCH_REGEX.test(userQuery)) {
         console.log('[TOPIC SWITCH] Explicit topic switch detected in server! Dropping prior conversation history.');
         nonSystemMsgs = nonSystemMsgs.slice(-1);
-      } else if (nonSystemMsgs.length > 24) {
-        // Allow remembering up to 24 non-system messages (20+ turns!)
-        nonSystemMsgs = nonSystemMsgs.slice(-24);
+      } else if (nonSystemMsgs.length > 30) {
+        // Remember up to 30 non-system messages (15 full dialogue turns!)
+        nonSystemMsgs = nonSystemMsgs.slice(-30);
       }
 
-      // Tiered compression on older messages:
+      // Tiered compression on older messages (keeps last 8 messages / 4 full turns at FULL fidelity!):
       const totalCount = nonSystemMsgs.length;
       nonSystemMsgs = nonSystemMsgs.map((m, idx) => {
         const ageFromEnd = totalCount - 1 - idx;
         if (typeof m.content !== 'string') return m;
 
-        // Tier 1 (Most recent 4 messages): preserve high fidelity
-        if (ageFromEnd < 4) {
-          if (m.content.length > 1500) {
-            return { ...m, content: m.content.substring(0, 1500) + '...' };
+        // Tier 1 (Most recent 8 messages = 4 full turns): preserve high fidelity
+        if (ageFromEnd < 8) {
+          if (m.content.length > 1800) {
+            return { ...m, content: m.content.substring(0, 1800) + '...' };
           }
           return m;
         }
 
-        // Tier 2 (Intermediate 8 messages): compact summaries
-        if (ageFromEnd < 12) {
-          const maxChars = m.role === 'user' ? 350 : 300;
+        // Tier 2 (Messages 9 to 18): compact summaries preserving key facts
+        if (ageFromEnd < 18) {
+          const maxChars = m.role === 'user' ? 450 : 420;
           let text = m.content.replace(/```[a-z]*\n[\s\S]*?\n```/g, '[Kode diringkas]');
           if (text.length > maxChars) {
             text = text.substring(0, maxChars) + '...';
@@ -3854,8 +3855,8 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
           return { ...m, content: text };
         }
 
-        // Tier 3 (Older messages 13 to 24): ultra-compact memory chunks
-        const maxChars = m.role === 'user' ? 160 : 140;
+        // Tier 3 (Older messages 19 to 30): ultra-compact memory chunks
+        const maxChars = m.role === 'user' ? 220 : 200;
         let text = m.content.replace(/```[a-z]*\n[\s\S]*?\n```/g, '[Kode]');
         if (text.length > maxChars) {
           text = text.substring(0, maxChars) + '...';
@@ -3874,9 +3875,8 @@ app.post(['/api/chat', '/api/upstream/chat', '/api/subagent/orchestrate'], async
       let consolidated = systemMsg ? [systemMsg, ...nonSystemMsgs] : nonSystemMsgs;
       let currentTokens = calculateTotalTokens(consolidated);
 
-      // If overall payload exceeds maxInputTokens, drop the OLDEST non-system messages one-by-one
-      // (NEVER drop all history down to 2 messages!)
-      while (currentTokens > maxInputTokens && consolidated.length > 3) {
+      // Always preserve at least the last 10 non-system messages (5 full turns) unless truly huge!
+      while (currentTokens > maxInputTokens && consolidated.length > 11) {
         const dropIndex = systemMsg ? 1 : 0;
         consolidated.splice(dropIndex, 1);
         currentTokens = calculateTotalTokens(consolidated);

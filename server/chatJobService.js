@@ -268,20 +268,112 @@ function filterAndScoreRelevantSources(rawSources = [], query = '', userPrompt =
   return scored.slice(0, 10).map((s, idx) => ({ ...s, position: idx + 1 }));
 }
 
-function buildSecondRoundQuery(firstQuery = '', userPrompt = '') {
-  const tokens = extractMeaningfulTokens(`${userPrompt} ${firstQuery}`);
-  if (tokens.length === 0) return null;
-  // Create an alternative sharper/broader query (distinct from firstQuery)
-  const coreTokens = tokens.slice(0, 5).join(' ');
-  const cleanFirst = String(firstQuery || '').toLowerCase().trim();
-  if (coreTokens && coreTokens !== cleanFirst) {
-    return coreTokens;
-  }
+function buildIterativeRetryQueries(firstQuery = '', userPrompt = '') {
+  const cleanFirst = String(firstQuery || '').trim();
+  const seen = new Set([cleanFirst.toLowerCase()]);
+  const candidates = [];
+  const pushQ = (q) => {
+    const c = String(q || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (c.length >= 3 && !seen.has(c.toLowerCase())) {
+      seen.add(c.toLowerCase());
+      candidates.push(c);
+    }
+  };
+
+  const allTokens = extractMeaningfulTokens(`${userPrompt} ${cleanFirst}`);
+  const distinctiveTokens = allTokens.filter(t => !GENERIC_QUERY_WORDS.has(t));
   const year = new Date().getFullYear();
-  if (!cleanFirst.includes(String(year))) {
-    return `${firstQuery} ${year}`.trim().slice(0, 120);
+
+  // Round 2: Sharp core keywords (up to 5 tokens)
+  if (allTokens.length > 0) {
+    pushQ(allTokens.slice(0, 5).join(' '));
   }
-  return `${tokens.slice(0, 4).join(' ')} overview`.trim().slice(0, 120);
+  // Round 3: Distinctive entities + year/official/overview pivot
+  if (distinctiveTokens.length > 0) {
+    const baseDist = distinctiveTokens.slice(0, 4).join(' ');
+    pushQ(`${baseDist} ${year}`);
+    pushQ(`${baseDist} official information`);
+  }
+  // Round 4: Ultra-focused rare entity-only query (2-3 most specific terms)
+  if (distinctiveTokens.length >= 2) {
+    const longest = [...distinctiveTokens].sort((a, b) => b.length - a.length).slice(0, 3).join(' ');
+    pushQ(longest);
+  } else if (allTokens.length >= 2) {
+    pushQ(`${allTokens.slice(0, 3).join(' ')} fakta terbaru`);
+  }
+
+  return candidates.slice(0, 3); // Up to 3 retries = 4 total search steps!
+}
+
+/**
+ * Token-efficient extractive compressor: distills a long web page down to ONLY
+ * the highest-signal query-relevant sentences (~580 chars/page), so AI can read
+ * 5+ sources in parallel while burning ~65% fewer tokens!
+ */
+function compressPageExtractForQuery(rawText = '', query = '', userPrompt = '', maxChars = 580) {
+  const clean = sanitizeUntrustedWebContent(String(rawText || '').replace(/\s+/g, ' ').trim());
+  if (!clean) return '';
+  if (clean.length <= maxChars) return clean;
+
+  const qTokens = extractMeaningfulTokens(`${query} ${userPrompt}`);
+  const distTokens = qTokens.filter(t => !GENERIC_QUERY_WORDS.has(t));
+
+  // Split into sentences/clauses
+  const rawSentences = clean
+    .split(/(?<=[.!?])\s+|\s*\|\s*|\s*•\s*/)
+    .map(s => s.trim())
+    .filter(s => s.length >= 28 && s.length <= 420 && !/^(cookie|privacy|subscribe|sign in|login|menu|beranda|iklan|advertisement)/i.test(s));
+
+  if (rawSentences.length === 0) return clean.slice(0, maxChars);
+
+  const scored = rawSentences.map((s, idx) => {
+    const low = s.toLowerCase();
+    let score = idx === 0 ? 1.5 : 0; // slight lead-sentence bonus
+    for (const dt of distTokens) {
+      if (low.includes(dt)) score += 4;
+    }
+    for (const qt of qTokens) {
+      if (low.includes(qt)) score += 1.5;
+    }
+    if (/\d+(?:[.,]\d+)?%?|rp\s?\d|\$\d|\b202[4-9]\b/i.test(s)) {
+      score += 1.5; // facts, metrics, dates, prices
+    }
+    return { s, idx, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score || a.idx - b.idx);
+  const picked = [];
+  let used = 0;
+  for (const item of scored) {
+    if (used + item.s.length + 2 > maxChars && picked.length > 0) continue;
+    picked.push(item);
+    used += item.s.length + 2;
+    if (used >= maxChars - 40) break;
+  }
+  picked.sort((a, b) => a.idx - b.idx);
+  return picked.map(p => p.s).join(' ').slice(0, maxChars).trim();
+}
+
+function buildRecentConversationSummary(preparedMessages = [], maxChars = 950) {
+  if (!Array.isArray(preparedMessages) || preparedMessages.length <= 2) return '';
+  const nonSys = preparedMessages.filter(m => m && m.role !== 'system' && typeof m.content === 'string');
+  // Exclude the latest user turn (already in job.userPrompt), keep up to 6 prior messages (3 full turns)
+  const prior = nonSys.slice(0, -1).slice(-6);
+  if (prior.length === 0) return '';
+  let out = '';
+  for (const m of prior) {
+    const tag = m.role === 'user' ? 'User' : 'AI';
+    const snip = m.content.replace(/```[\s\S]*?```/g, '[Kode]').replace(/\s+/g, ' ').trim().slice(0, 170);
+    if (!snip) continue;
+    const line = `- ${tag}: ${snip}\n`;
+    if (out.length + line.length > maxChars) break;
+    out += line;
+  }
+  return out.trim();
+}
+
+function buildSecondRoundQuery(firstQuery = '', userPrompt = '') {
+  return buildIterativeRetryQueries(firstQuery, userPrompt)[0] || null;
 }
 
 function searchCrossSessionMemory(job, rawQuery = '') {
@@ -467,7 +559,10 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
   let allRawSources = [];
   let collectedImgCandidates = [];
 
-  // --- ROUND 1 SEARCH ---
+  // --- MULTI-STEP ITERATIVE SEARCH (Up to 4 distinct queries when info is not yet found!) ---
+  const retryQueries = buildIterativeRetryQueries(cleanQ, userPrompt);
+  const allQueriesRun = [cleanQ];
+
   try {
     const searchRes = await webSearchService.searchGoogle(cleanQ, 14, language || 'id');
     if (searchRes?.success && Array.isArray(searchRes.results)) {
@@ -481,52 +576,57 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
   }
 
   let relevantSources = filterAndScoreRelevantSources(allRawSources, cleanQ, userPrompt);
-  steps[0].isSearching = false;
-  steps[0].sources = relevantSources.slice(0, 6);
 
-  // --- ROUND 2 MULTI-STEP AUTO-RETRY (if Round 1 had < 3 relevant results) ---
-  if (relevantSources.length < 3 && !(signal?.aborted || job.stopped)) {
-    const retryQ = buildSecondRoundQuery(cleanQ, userPrompt);
-    if (retryQ && retryQ.toLowerCase() !== cleanQ.toLowerCase()) {
-      const round2Step = {
-        query: retryQ,
-        label: language === 'en' ? `Round 2 Deeper Search: ${retryQ}` : `Pencarian Tahap 2 (Diperluas): ${retryQ}`,
-        isSearching: true,
-        sources: [],
-        images: []
-      };
-      steps.push(round2Step);
-      job.phaseDetail = language === 'en'
-        ? `Refining search (Step 2): "${retryQ}"...`
-        : `Info belum lengkap — mencari ulang tahap 2: "${retryQ}"...`;
-      job.searchSteps = [...steps];
-      broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: retryQ, searchSteps: job.searchSteps });
-      flushJobToDb(job, false);
+  for (let rIdx = 0; rIdx < retryQueries.length; rIdx++) {
+    const minNeeded = rIdx < 2 ? 3 : 2;
+    if (relevantSources.length >= minNeeded || signal?.aborted || job.stopped) break;
+    const retryQ = retryQueries[rIdx];
+    const roundNum = rIdx + 2; // Rounds 2, 3, 4
+    allQueriesRun.push(retryQ);
 
-      try {
-        const searchRes2 = await webSearchService.searchGoogle(retryQ, 14, language || 'id');
-        if (searchRes2?.success && Array.isArray(searchRes2.results)) {
-          allRawSources.push(...normalizeRawSearchResults(searchRes2.results, retryQ, seenSrcLinks));
-        }
-        if (Array.isArray(searchRes2?.inline_images)) {
-          collectedImgCandidates.push(...searchRes2.inline_images);
-        }
-      } catch (err) {
-        console.warn('[ChatJob] Search Round 2 warning:', err.message);
+    job.phaseDetail = language === 'en'
+      ? `Refining search (Step ${roundNum}/4): "${retryQ}"...`
+      : `Info belum cukup — mencari ulang tahap ${roundNum}/4: "${retryQ}"...`;
+    // Keep 1 single unified step indicator so UI never stacks vertical rows!
+    job.searchSteps = [{
+      query: retryQ,
+      label: language === 'en' ? `Searching Step ${roundNum}/4: ${retryQ}` : `Pencarian Tahap ${roundNum}/4: ${retryQ}`,
+      isSearching: true,
+      sources: [],
+      images: []
+    }];
+    broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: retryQ, searchSteps: job.searchSteps });
+    flushJobToDb(job, false);
+
+    try {
+      const searchResNext = await webSearchService.searchGoogle(retryQ, 14, language || 'id');
+      if (searchResNext?.success && Array.isArray(searchResNext.results)) {
+        allRawSources.push(...normalizeRawSearchResults(searchResNext.results, retryQ, seenSrcLinks));
       }
-
-      relevantSources = filterAndScoreRelevantSources(allRawSources, `${cleanQ} ${retryQ}`, userPrompt);
-      round2Step.isSearching = false;
-      round2Step.sources = relevantSources.slice(0, 6);
+      if (Array.isArray(searchResNext?.inline_images)) {
+        collectedImgCandidates.push(...searchResNext.inline_images);
+      }
+    } catch (err) {
+      console.warn(`[ChatJob] Search Round ${roundNum} warning:`, err.message);
     }
+
+    relevantSources = filterAndScoreRelevantSources(allRawSources, allQueriesRun.join(' '), userPrompt);
   }
 
-  // --- STRICT ANTI-TRASH CHECK: If ZERO relevant sources found after Round 1 & 2 ---
+  // --- STRICT ANTI-TRASH CHECK: If ZERO relevant sources found after all rounds ---
   if (relevantSources.length === 0) {
     job.searchSources = [];
     job.searchImages = [];
     job.browserPages = [];
-    job.searchSteps = steps.map(s => ({ ...s, isSearching: false }));
+    job.searchSteps = [{
+      query: cleanQ,
+      label: language === 'en'
+        ? `Searched ${allQueriesRun.length} queries · No relevant sources found`
+        : `Selesai ${allQueriesRun.length} tahap pencarian · Sumber relevan tidak ditemukan`,
+      isSearching: false,
+      sources: [],
+      images: []
+    }];
     job.updatedAt = Date.now();
     broadcastJobEvent(job, 'search', {
       searchQuery: cleanQ,
@@ -536,32 +636,31 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
       browserPages: []
     });
     flushJobToDb(job, true);
-    return { sources: [], verifiedImages: [], deepContextBlock: null, browserPages: [], noRelevantSources: true };
+    return { sources: [], verifiedImages: [], deepContextBlock: null, browserPages: [], noRelevantSources: true, roundsRun: allQueriesRun.length };
   }
 
-  // --- STEP 3: DEEP WEB PAGE FETCHING (Open & read top 2 relevant pages with 12s speed budget!) ---
+  // --- TOKEN-EFFICIENT MULTI-SOURCE DEEP FETCHING (Read up to 5 relevant pages in parallel, compressed to high-signal facts!) ---
   let deepContextBlock = null;
   let browserPages = [];
-  const topUrlsToRead = relevantSources.slice(0, 2).map(s => s.link).filter(Boolean);
+  const topUrlsToRead = relevantSources.slice(0, 5).map(s => s.link).filter(Boolean);
   if (topUrlsToRead.length > 0 && !(signal?.aborted || job.stopped)) {
-    const fetchStep = {
+    const fetchLabel = language === 'en'
+      ? `Deep-reading ${topUrlsToRead.length} sources efficiently...`
+      : `Membaca mendalam ${topUrlsToRead.length} sumber web secara efisien...`;
+    job.phaseDetail = fetchLabel;
+    job.searchSteps = [{
       query: cleanQ,
-      label: language === 'en'
-        ? `Deep-reading ${topUrlsToRead.length} relevant web pages...`
-        : `Membaca mendalam ${topUrlsToRead.length} halaman web relevan...`,
+      label: fetchLabel,
       isSearching: true,
       sources: [],
       images: []
-    };
-    steps.push(fetchStep);
-    job.phaseDetail = fetchStep.label;
-    job.searchSteps = [...steps];
+    }];
     broadcastJobEvent(job, 'status', { status: 'searching', phaseDetail: job.phaseDetail, searchQuery: cleanQ, searchSteps: job.searchSteps });
 
     const deepFetchCtrl = new AbortController();
     const forwardParentAbort = () => deepFetchCtrl.abort();
     if (signal) signal.addEventListener('abort', forwardParentAbort, { once: true });
-    const deepTimer = setTimeout(() => deepFetchCtrl.abort(), 12000);
+    const deepTimer = setTimeout(() => deepFetchCtrl.abort(), 13000);
 
     try {
       const browserRes = await runBrowserAgent({
@@ -570,7 +669,7 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
         targetUrls: topUrlsToRead,
         language: language || 'id',
         webSearchService,
-        maxPages: 2,
+        maxPages: 5,
         signal: deepFetchCtrl.signal,
         onStep: (st) => {
           if (st?.title) job.phaseDetail = st.title;
@@ -587,9 +686,7 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
           });
         }
       });
-      if (browserRes?.llmContextBlock) {
-        deepContextBlock = browserRes.llmContextBlock;
-      }
+
       if (Array.isArray(browserRes?.browserPages) && browserRes.browserPages.length > 0) {
         browserPages = browserRes.browserPages;
         job.browserPages = browserPages;
@@ -597,13 +694,36 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
       if (Array.isArray(browserRes?.images) && browserRes.images.length > 0) {
         collectedImgCandidates.unshift(...browserRes.images.map(im => ({ imageUrl: im.url, title: im.title, sourceDomain: im.sourceDomain })));
       }
-      fetchStep.isSearching = false;
-      fetchStep.label = language === 'en'
-        ? `Deep-read ${browserPages.length || topUrlsToRead.length} pages`
-        : `Selesai membaca ${browserPages.length || topUrlsToRead.length} halaman web`;
+
+      // Build Token-Efficient Extractive Context Block (high-signal sentences from up to 5 pages + top snippets, ~750 tokens total!)
+      const bSources = Array.isArray(browserRes?.sources) ? browserRes.sources : [];
+      const compressedBlocks = [];
+      for (let i = 0; i < Math.min(relevantSources.length, 6); i++) {
+        const src = relevantSources[i];
+        const deepMatch = bSources.find(bs => bs.url === src.link || bs.link === src.link);
+        const pageMeta = browserPages.find(bp => bp.url === src.link);
+        const rawBody = (deepMatch?.snippet && deepMatch.snippet.length > (src.snippet || '').length)
+          ? deepMatch.snippet
+          : (pageMeta?.excerpt || src.snippet || '');
+        // Also extract matching section from browserRes.llmContextBlock if available
+        let fullSegment = rawBody;
+        if (browserRes?.llmContextBlock && src.domain) {
+          const domEsc = src.domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const segMatch = browserRes.llmContextBlock.match(new RegExp(`\\[Sumber #\\d+[^\\]]*${domEsc}[^\\]]*\\][\\s\\S]*?(?=\\n\\n---\\n\\n|$)`, 'i'));
+          if (segMatch && segMatch[0]) fullSegment = segMatch[0];
+        }
+        const distilled = compressPageExtractForQuery(fullSegment, allQueriesRun.join(' '), userPrompt, 580);
+        if (distilled) {
+          compressedBlocks.push(`[#${i + 1} | ${src.domain}${src.date ? ` | ${src.date}` : ''}] ${src.title}\n${distilled}`);
+        }
+      }
+      if (compressedBlocks.length > 0) {
+        deepContextBlock = `=== EKSTRAK PADAT HEMAT-TOKEN (${compressedBlocks.length} SUMBER TERVERIFIKASI, ${allQueriesRun.length} TAHAP RISET) ===\n${compressedBlocks.join('\n\n')}`;
+      } else if (browserRes?.llmContextBlock) {
+        deepContextBlock = browserRes.llmContextBlock.slice(0, 3600);
+      }
     } catch (err) {
-      console.warn('[ChatJob] Deep web page fetch fallback to snippets:', err.message);
-      fetchStep.isSearching = false;
+      console.warn('[ChatJob] Deep web page fetch fallback to compressed snippets:', err.message);
     } finally {
       clearTimeout(deepTimer);
       if (signal) signal.removeEventListener('abort', forwardParentAbort);
@@ -645,11 +765,16 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
   job.searchSources = relevantSources;
   job.searchImages = verifiedImages.slice(0, 8);
   job.browserPages = browserPages;
-  job.searchSteps = steps.map((st, idx) => ({
-    ...st,
+  // ALWAYS consolidate all search results into ONE single clean horizontal bubble row!
+  job.searchSteps = [{
+    query: cleanQ,
+    label: language === 'en'
+      ? `Multi-Step Research (${allQueriesRun.length} step${allQueriesRun.length > 1 ? 's' : ''} · ${relevantSources.length} sources${browserPages.length ? ` · ${browserPages.length} pages read` : ''})`
+      : `Riset ${allQueriesRun.length} Tahap · ${relevantSources.length} Sumber${browserPages.length ? ` · ${browserPages.length} Halaman Dibaca` : ''}`,
     isSearching: false,
-    ...(idx === steps.length - 1 ? { sources: relevantSources, images: verifiedImages.slice(0, 6) } : {})
-  }));
+    sources: relevantSources,
+    images: verifiedImages.slice(0, 6)
+  }];
   job.updatedAt = Date.now();
 
   broadcastJobEvent(job, 'search', {
@@ -666,7 +791,8 @@ async function runServerSearchPipeline(job, query, userPrompt, language, signal)
     verifiedImages,
     deepContextBlock,
     browserPages,
-    noRelevantSources: false
+    noRelevantSources: false,
+    roundsRun: allQueriesRun.length
   };
 }
 
@@ -688,19 +814,23 @@ function buildSearchConclusionMessages(job, sources, verifiedImages, browserCont
   }).replace(/\./g, ':');
   const realtimeStamp = `[WAKTU REAL-TIME SEKARANG]: Hari ${weekdayId}, tanggal ${dateFormattedId}, pukul ${timeWib} WIB (Tahun ${currentYear}).`;
 
+  const recentContextNote = opts.recentConversationSummary
+    ? `\n--- KONTEKS OBROLAN SEBELUMNYA DI SESI INI (HUBUNGKAN JIKA RELEVAN) ---\n${opts.recentConversationSummary}\n`
+    : '';
+
   if (opts.noRelevantSources || (!browserContextBlock && (!Array.isArray(sources) || sources.length === 0))) {
     const honestSysPrompt =
       `Kamu adalah asisten AI yang berjalan pada model ${job.model || 'Qwen 2.5 VL 72B'} melalui platform DeeperNova AI.\n` +
       `${realtimeStamp}\n` +
       `ATURAN MUTLAK KEJUJURAN & ANTI-NYAMPAH:\n` +
-      `1. Pencarian web TIDAK menemukan sumber yang relevan untuk pertanyaan pengguna.\n` +
+      `1. Pencarian web (multi-tahap) TIDAK menemukan sumber yang relevan untuk pertanyaan pengguna.\n` +
       `2. DILARANG KERAS membacakan, menyebut, atau menyinggung hasil pencarian yang tidak nyambung.\n` +
-      `3. Jawablah murni berdasarkan pengetahuan yang BENAR-BENAR kamu ketahui dengan pasti.\n` +
+      `3. Jawablah murni berdasarkan pengetahuan yang BENAR-BENAR kamu ketahui dengan pasti (dan hubungkan dengan konteks obrolan sebelumnya jika relevan).\n` +
       `4. JANGAN MENGARANG / JANGAN HALUSINASI (jangan garang): Jika kamu memang tidak tahu atau data terbaru tidak tersedia, katakan dengan jujur, singkat, dan sopan bahwa kamu tidak mengetahui/belum memiliki data pastinya.\n` +
       `5. DILARANG mengetik URL mentah dan DILARANG memicu [SEARCH_REQUEST] lagi.`;
     return [
       { role: 'system', content: honestSysPrompt },
-      { role: 'user', content: `Pertanyaan Pengguna: "${job.userPrompt}"\n\n(Catatan sistem: Tidak ada sumber web yang relevan. Jawab murni dari pengetahuan pasti kamu, atau akui jujur jika memang tidak tahu.)` }
+      { role: 'user', content: `Pertanyaan Pengguna: "${job.userPrompt}"${recentContextNote}\n\n(Catatan sistem: Tidak ada sumber web yang relevan. Jawab murni dari pengetahuan pasti kamu, atau akui jujur jika memang tidak tahu.)` }
     ];
   }
 
@@ -709,21 +839,21 @@ function buildSearchConclusionMessages(job, sources, verifiedImages, browserCont
     `${realtimeStamp}\n` +
     `PERAN SINTESIS RISET MENDALAM & ANTI-NYAMPAH (MUTLAK):\n` +
     `1. STRICT RELEVANSI & ANTI-HALUSINASI: Hanya gunakan fakta, angka, tanggal, dan detail dari sumber yang BENAR-BENAR RELEVAN dengan pertanyaan pengguna. Abaikan sumber yang melenceng — JANGAN bacakan hasil pencarian yang tidak nyambung! Jika info spesifik tidak ada di sumber, katakan jujur tidak tahu dan JANGAN mengarang.\n` +
-    `2. LANGSUNG KE JAWABAN: Jangan berterima kasih atas hasil pencarian. Mulai paragraf pertama langsung menjawab inti pertanyaan.\n` +
+    `2. LANGSUNG KE JAWABAN: Jangan berterima kasih atas hasil pencarian. Mulai paragraf pertama langsung menjawab inti pertanyaan dan hubungkan secara alami dengan konteks obrolan sebelumnya jika pertanyaan ini merupakan lanjutan.\n` +
     `3. ZERO-URL SPEED POLICY: DILARANG KERAS mengetik URL mentah (http://, https://, www.) — gunakan sitasi angka singkat [1], [2], dst.\n` +
     `4. ESKALASI AGENT OTONOM (OPSIONAL): Jika setelah membaca hasil web kamu menyadari tugas pengguna membutuhkan scraping/fetching kompleks lanjutan, pengolahan data Python, pembuatan file/dokumen/aplikasi, keluarkan HANYA \`[SUBAGENT_ORCHESTRATE: deskripsi tugas lengkap]\` di baris pertama lalu berhenti.\n` +
     `5. FORMAT RAPI: Awali ringkasan inti, gunakan subjudul \`###\` dan poin **tebal**. DILARANG memicu [SEARCH_REQUEST] atau [BROWSER_AGENT] lagi.`;
 
   let userMsg;
   if (browserContextBlock) {
-    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"\n\n${browserContextBlock}\n\n`;
+    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"${recentContextNote}\n\n${browserContextBlock}\n\n`;
   } else {
     const searchContext = sources.slice(0, 6).map((s, idx) => {
-      const snippet = sanitizeUntrustedWebContent(String(s.snippet || '').slice(0, 520).trim());
+      const snippet = compressPageExtractForQuery(s.snippet || '', job.searchQuery || '', job.userPrompt || '', 420);
       return `[Sumber #${idx + 1} | Domain: ${s.domain || 'web'} | ${s.sourceEngine || 'Web'}${s.date ? ' | ' + s.date : ''}]\nJudul: ${s.title}\nKutipan:\n${snippet}`;
     }).join('\n\n---\n\n');
 
-    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"\n\n--- DATA HASIL PENCARIAN WEB RELEVAN ---\n${searchContext}\n\n`;
+    userMsg = `Pertanyaan Pengguna: "${job.userPrompt}"${recentContextNote}\n\n--- DATA HASIL PENCARIAN WEB RELEVAN ---\n${searchContext}\n\n`;
     if (verifiedImages.length > 0) {
       userMsg += `--- DAFTAR ID FOTO TERVERIFIKASI ---\n` +
         verifiedImages.slice(0, 4).map((img, i) => `- foto:${i + 1} -> "${String(img.title || '').replace(/[\[\]]/g, '').trim()}"`).join('\n') +
@@ -1607,7 +1737,10 @@ async function executeJobInBackground(job, params) {
         sources,
         verifiedImages,
         deepContextBlock,
-        { noRelevantSources }
+        {
+          noRelevantSources,
+          recentConversationSummary: buildRecentConversationSummary(params.preparedMessages)
+        }
       );
       const conclusionPass = await streamLlmToJob(
         job,
