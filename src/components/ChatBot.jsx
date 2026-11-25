@@ -9736,26 +9736,6 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             <div className="header-right-actions">
               <button
                 type="button"
-                className="header-universe-btn"
-                onClick={() => onNavigate?.('universe')}
-                title={userLanguage === 'zh' ? '打开 Deepernova Universe' : userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="header-universe-icon"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="4.6" />
-                  <ellipse cx="12" cy="12" rx="10" ry="3.7" transform="rotate(-24 12 12)" />
-                </svg>
-              </button>
-              <button
-                type="button"
                 className={`header-agentic-btn ${showAgenticPanel ? 'active' : ''}`}
                 onClick={() => {
                   setShowAgenticPanel(!showAgenticPanel);
@@ -9776,32 +9756,12 @@ Bungkus hasil modifikasi final Anda di dalam tag [CONTENT_START] dan [CONTENT_EN
             <div className="header-right-actions">
               <button
                 type="button"
-                className="header-universe-btn"
-                onClick={() => onNavigate?.('universe')}
-                title={userLanguage === 'id' ? 'Buka Deepernova Universe' : 'Open Deepernova Universe'}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="header-universe-icon"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="4.6" />
-                  <ellipse cx="12" cy="12" rx="10" ry="3.7" transform="rotate(-24 12 12)" />
-                </svg>
-              </button>
-              <button
-                type="button"
                 className="header-switch-agent-btn"
                 onClick={() => onNavigate?.('agent')}
-                title={userLanguage === 'zh' ? '进入 AI Agent 模式 (代码执行与文件操作)' : userLanguage === 'id' ? 'Buka Mode AI Agent (Eksekusi Kode & File)' : 'Open AI Agent Mode'}
+                title={userLanguage === 'zh' ? '进入 DeeperNova Codex 模式 (异步代码执行与文件操作)' : userLanguage === 'id' ? 'Buka DeeperNova Codex (Async Agent & Sandbox)' : 'Open DeeperNova Codex'}
               >
-                <i className="fa-solid fa-bolt"></i>
-                <span>AI Agent</span>
+                <i className="fa-solid fa-terminal"></i>
+                <span>Codex</span>
               </button>
             </div>
           )}
