@@ -462,6 +462,149 @@ const LandingPage = ({
             </div>
           </div>
         </section>
+
+        {/* ===== POWERED BY & SECURED WITH — INFINITE LOGO MARQUEE ===== */}
+        <section className="lp-tech-marquee-section" aria-label="Powered by AI, Cloud & Security Ecosystem">
+          <div className="lp-container">
+            <div className="lp-marquee-header">
+              <span className="lp-eyebrow">
+                {currentLang === 'en'
+                  ? 'POWERED BY & SECURED WITH'
+                  : currentLang === 'zh'
+                    ? '核心驱动与安全生态'
+                    : 'DIDUKUNG & DIAMANKAN OLEH EKOSISTEM TEKNOLOGI'}
+              </span>
+              <p className="lp-marquee-sub">
+                {currentLang === 'en'
+                  ? 'Multi-model AI inference, autonomous search & sandbox infrastructure, and enterprise edge security.'
+                  : currentLang === 'zh'
+                    ? '多模型 AI 推理、自主搜索与沙盒引擎、企业级边缘网络与安全防护。'
+                    : 'Inferensi AI multi-model, mesin riset & sandbox otonom, serta keamanan jaringan edge berlapis.'}
+              </p>
+            </div>
+          </div>
+
+          {(() => {
+            const AI_ECOSYSTEM_LOGOS = [
+              { id: 'deepernova', name: 'DeeperNova AI', tag: 'Core Platform', color: '#ea580c', img: '/logo192.png' },
+              { id: 'codex', name: 'DeeperNova Codex', tag: 'Async Agent', color: '#0f172a', icon: 'fa-solid fa-terminal' },
+              { id: 'dpnsearch', name: 'DPN Search', tag: 'Live Crawler', color: '#2563eb', img: '/search/icons/icon-192.png' },
+              { id: 'nvidia', name: 'NVIDIA', tag: 'AI Compute', color: '#76b900', svg: 'nvidia' },
+              { id: 'nemotron', name: 'Nemotron 3.5', tag: 'Reasoning LLM', color: '#65a30d', svg: 'chip' },
+              { id: 'qwen', name: 'Qwen 2.5 VL', tag: 'Multimodal AI', color: '#6366f1', svg: 'qwen' },
+              { id: 'cohere', name: 'Cohere North', tag: 'Code Specialist', color: '#0d9488', svg: 'spark' },
+              { id: 'openrouter', name: 'OpenRouter', tag: 'Model Mesh', color: '#4f46e5', icon: 'fa-solid fa-diagram-project' },
+              { id: 'freellm', name: 'FreeLLM Engine', tag: 'Auto Failover', color: '#d97706', icon: 'fa-solid fa-bolt' },
+              { id: 'python', name: 'Python 3.13', tag: 'Sandbox Runtime', color: '#3776ab', icon: 'fa-brands fa-python' },
+              { id: 'nodejs', name: 'Node.js', tag: 'Async Backend', color: '#16a34a', icon: 'fa-brands fa-node-js' },
+              { id: 'react', name: 'React + Vite', tag: 'Edge UI', color: '#0284c7', icon: 'fa-brands fa-react' }
+            ];
+            const INFRA_SECURITY_LOGOS = [
+              { id: 'cloudflare', name: 'Cloudflare', tag: 'Edge Tunnel & CDN', color: '#f38020', svg: 'cloudflare' },
+              { id: 'vercel', name: 'Vercel Edge', tag: 'Global Network', color: '#0f172a', svg: 'vercel' },
+              { id: 'tls13', name: 'Secured with TLS 1.3', tag: 'HSTS Preload', color: '#16a34a', icon: 'fa-solid fa-lock' },
+              { id: 'shield', name: 'Cyber Security Shield', tag: 'Anti-SSRF & CSP', color: '#dc2626', icon: 'fa-solid fa-shield-halved' },
+              { id: 'promptguard', name: 'Prompt-Injection Guard', tag: 'Immutable Policy', color: '#7c3aed', icon: 'fa-solid fa-user-shield' },
+              { id: 'sqlite', name: 'SQLite WAL', tag: 'Persistent Memory', color: '#0369a1', icon: 'fa-solid fa-database' },
+              { id: 'sandbox', name: 'Isolated Sandbox', tag: 'Jailed Execution', color: '#0f172a', icon: 'fa-solid fa-cube' },
+              { id: 'chromium', name: 'Headless Chromium', tag: 'Browser Agent', color: '#2563eb', icon: 'fa-brands fa-chrome' },
+              { id: 'officepro', name: 'Office Suite Pro', tag: 'Word · Excel · PPT', color: '#ea580c', icon: 'fa-solid fa-file-excel' },
+              { id: 'matplotlib', name: 'Matplotlib 240-DPI', tag: 'Data Visuals', color: '#059669', icon: 'fa-solid fa-chart-column' }
+            ];
+
+            const renderBadgeIcon = (item) => {
+              if (item.img) {
+                return (
+                  <img
+                    src={item.img}
+                    alt={item.name}
+                    className="lp-marquee-img"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.src = '/logo192.png'; }}
+                  />
+                );
+              }
+              if (item.svg === 'nvidia') {
+                return (
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+                    <path d="M3 12.2C5.4 8.2 9.4 6.5 14 7.2c3.2.5 5.6 2.3 7 4.8-1.8 3.2-5 5.2-9 5.2-3.7 0-6.8-1.8-9-5Z" stroke="#76b900" strokeWidth="2" strokeLinejoin="round" />
+                    <circle cx="12.5" cy="12" r="2.7" fill="#76b900" />
+                  </svg>
+                );
+              }
+              if (item.svg === 'cloudflare') {
+                return (
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+                    <path d="M6.5 17.5h11a3.5 3.5 0 0 0 .7-6.93A5.2 5.2 0 0 0 8.1 9.1 4.1 4.1 0 0 0 6.5 17.5Z" fill="#f38020" />
+                  </svg>
+                );
+              }
+              if (item.svg === 'vercel') {
+                return (
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+                    <path d="M12 4L21 19.5H3L12 4Z" fill="#0f172a" />
+                  </svg>
+                );
+              }
+              if (item.svg === 'qwen') {
+                return (
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
+                    <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" stroke="#6366f1" strokeWidth="2" fill="rgba(99,102,241,0.12)" />
+                    <circle cx="12" cy="12" r="2.8" fill="#6366f1" />
+                  </svg>
+                );
+              }
+              if (item.svg === 'chip') {
+                return (
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
+                    <rect x="6" y="6" width="12" height="12" rx="2.5" stroke="#65a30d" strokeWidth="2" fill="rgba(101,163,13,0.12)" />
+                    <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" stroke="#65a30d" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                );
+              }
+              if (item.svg === 'spark') {
+                return (
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
+                    <path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2L12 3Z" fill="#0d9488" />
+                  </svg>
+                );
+              }
+              return <i className={item.icon} style={{ color: item.color, fontSize: 16 }} aria-hidden="true" />;
+            };
+
+            return (
+              <div className="lp-marquee-stack">
+                <div className="lp-marquee-viewport">
+                  <div className="lp-marquee-track lp-marquee-left">
+                    {[...AI_ECOSYSTEM_LOGOS, ...AI_ECOSYSTEM_LOGOS].map((item, idx) => (
+                      <div key={`ai_${item.id}_${idx}`} className="lp-marquee-pill">
+                        <span className="lp-marquee-icon-wrap">{renderBadgeIcon(item)}</span>
+                        <span className="lp-marquee-text">
+                          <strong>{item.name}</strong>
+                          <small>{item.tag}</small>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="lp-marquee-viewport">
+                  <div className="lp-marquee-track lp-marquee-right">
+                    {[...INFRA_SECURITY_LOGOS, ...INFRA_SECURITY_LOGOS].map((item, idx) => (
+                      <div key={`sec_${item.id}_${idx}`} className="lp-marquee-pill is-security">
+                        <span className="lp-marquee-icon-wrap">{renderBadgeIcon(item)}</span>
+                        <span className="lp-marquee-text">
+                          <strong>{item.name}</strong>
+                          <small>{item.tag}</small>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </section>
       </main>
 
       {/* ===== CLEAN PROFESSIONAL FOOTER ===== */}
