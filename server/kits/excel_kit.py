@@ -181,11 +181,83 @@ def _build_vba_module_text(macros_spec) -> str:
     return "\n\n".join(chunks) if chunks else "\n".join(VBA_LIBRARY.values())
 
 
-def build(spec: dict, out_path: str, recalc: bool = True) -> dict:
-    if not isinstance(spec, dict) or not isinstance(spec.get("sheets"), list):
-        raise ValueError('[excel-kit] spec harus memiliki array "sheets".')
+THEME_ALIASES = {
+    "red": "maroon", "crimson": "maroon", "merah": "maroon", "rose": "maroon",
+    "emerald": "green", "hijau": "green", "nature": "green", "forest": "green",
+    "blue": "navy", "biru": "navy", "corporate": "navy", "executive": "navy", "slate": "navy",
+    "purple": "tech", "violet": "tech", "ungu": "tech", "cyber": "tech", "dark": "tech", "indigo": "tech",
+    "orange": "warm", "oranye": "warm", "amber": "warm", "gold": "warm", "luxury": "warm", "sunset": "warm",
+    "gray": "mono", "grey": "mono", "black": "mono", "minimal": "mono",
+}
 
-    theme_name = spec.get("theme", "navy")
+
+def _normalize_excel_spec(spec: dict) -> dict:
+    """Make excel_kit 100% forgiving of common LLM JSON schema variations."""
+    if not isinstance(spec, dict):
+        raise ValueError('[excel-kit] spec harus berupa objek JSON.')
+    # Auto-wrap top-level tables/kpis if LLM omitted "sheets" array
+    if not isinstance(spec.get("sheets"), list) or len(spec["sheets"]) == 0:
+        if spec.get("tables") or spec.get("rows") or spec.get("data") or spec.get("kpis"):
+            spec = {
+                **spec,
+                "sheets": [{
+                    "name": spec.get("sheet_name") or spec.get("name") or "Ringkasan",
+                    "title": spec.get("title") or "LAPORAN EXCEL PROFESIONAL",
+                    "subtitle": spec.get("subtitle", ""),
+                    "kpis": spec.get("kpis", []),
+                    "tables": spec.get("tables") or [{
+                        "id": "tbl_1",
+                        "headers": spec.get("headers") or spec.get("columns") or [],
+                        "rows": spec.get("rows") or spec.get("data") or [],
+                        "totals": spec.get("totals"),
+                    }],
+                    "charts": spec.get("charts", []),
+                    "curves": spec.get("curves", []),
+                    "notes": spec.get("notes", []),
+                }]
+            }
+        else:
+            raise ValueError('[excel-kit] spec harus memiliki array "sheets".')
+
+    norm_sheets = []
+    for idx, sh in enumerate(spec["sheets"]):
+        if not isinstance(sh, dict):
+            continue
+        sh_copy = dict(sh)
+        sh_copy["name"] = str(sh_copy.get("name") or sh_copy.get("sheet_name") or sh_copy.get("title") or f"Sheet_{idx+1}").strip()
+        # Normalize tables (or direct rows/headers on sheet)
+        raw_tables = sh_copy.get("tables")
+        if not isinstance(raw_tables, list):
+            if sh_copy.get("rows") or sh_copy.get("data"):
+                raw_tables = [{
+                    "id": "tbl_1",
+                    "headers": sh_copy.get("headers") or sh_copy.get("columns") or [],
+                    "rows": sh_copy.get("rows") or sh_copy.get("data") or [],
+                    "totals": sh_copy.get("totals"),
+                }]
+            else:
+                raw_tables = []
+        norm_tables = []
+        for t_i, tbl in enumerate(raw_tables):
+            if not isinstance(tbl, dict):
+                continue
+            tc = dict(tbl)
+            tc["id"] = tc.get("id") or f"table_{t_i+1}"
+            tc["headers"] = tc.get("headers") or tc.get("columns") or []
+            tc["rows"] = tc.get("rows") or tc.get("data") or []
+            if not tc["headers"] and tc["rows"] and isinstance(tc["rows"][0], list):
+                tc["headers"] = [f"Kolom {c+1}" for c in range(len(tc["rows"][0]))]
+            norm_tables.append(tc)
+        sh_copy["tables"] = norm_tables
+        norm_sheets.append(sh_copy)
+    spec = {**spec, "sheets": norm_sheets}
+    return spec
+
+
+def build(spec: dict, out_path: str, recalc: bool = True) -> dict:
+    spec = _normalize_excel_spec(spec)
+    raw_theme = str(spec.get("theme", "navy")).lower().strip()
+    theme_name = THEME_ALIASES.get(raw_theme, raw_theme)
     theme = THEMES.get(theme_name, THEMES["navy"])
     wb = openpyxl.Workbook()
     wb.remove(wb.active)

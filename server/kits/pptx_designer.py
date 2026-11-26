@@ -134,7 +134,93 @@ THEMES = {
         "text_muted": "71717A",
         "badge_bg": "D97706",
         "badge_text": "FFFFFF"
+    },
+    "crimson": {
+        "name": "Modern Red Executive",
+        "bg_dark": "1A060A",      # Deep Crimson Obsidian
+        "bg_light": "FFF5F5",     # Crisp Soft Rose White
+        "card_bg": "FFFFFF",      # Pure White
+        "card_dark": "3B0A14",    # Deep Burgundy Card
+        "accent": "DC2626",       # Vivid Modern Red
+        "accent_alt": "F43F5E",   # Electric Coral Rose
+        "border": "FECACA",       # Soft Red Border
+        "text_dark": "18181B",    # Deep Charcoal
+        "text_light": "FFFFFF",   # Crisp White
+        "text_muted": "64748B",   # Neutral Slate
+        "badge_bg": "DC2626",
+        "badge_text": "FFFFFF"
+    },
+    "teal": {
+        "name": "Ocean Teal & Fintech",
+        "bg_dark": "042F2E",      # Deep Teal 950
+        "bg_light": "F0FDFA",     # Teal 50
+        "card_bg": "FFFFFF",
+        "card_dark": "115E59",
+        "accent": "0D9488",       # Teal 600
+        "accent_alt": "0284C7",   # Ocean Blue
+        "border": "99F6E4",
+        "text_dark": "0F172A",
+        "text_light": "F0FDFA",
+        "text_muted": "475569",
+        "badge_bg": "0D9488",
+        "badge_text": "FFFFFF"
+    },
+    "rose": {
+        "name": "Editorial Rose & Creative",
+        "bg_dark": "4C0519",      # Rose 950
+        "bg_light": "FFF1F2",     # Rose 50
+        "card_bg": "FFFFFF",
+        "card_dark": "881337",
+        "accent": "E11D48",       # Rose 600
+        "accent_alt": "F59E0B",   # Warm Gold
+        "border": "FECDD3",
+        "text_dark": "1F2937",
+        "text_light": "FFF1F2",
+        "text_muted": "6B7280",
+        "badge_bg": "E11D48",
+        "badge_text": "FFFFFF"
+    },
+    "obsidian": {
+        "name": "Pure Obsidian Monochrome",
+        "bg_dark": "09090B",      # Pure Black Slate
+        "bg_light": "18181B",     # Dark Zinc
+        "card_bg": "27272A",      # Zinc 800
+        "card_dark": "121215",
+        "accent": "F4F4F5",       # Crisp White Accent
+        "accent_alt": "38BDF8",   # Cool Sky Highlight
+        "border": "3F3F46",
+        "text_dark": "FAFAFA",
+        "text_light": "FFFFFF",
+        "text_muted": "A1A1AA",
+        "badge_bg": "38BDF8",
+        "badge_text": "09090B"
+    },
+    "corporate": {
+        "name": "Swiss Minimalist Corporate",
+        "bg_dark": "0F172A",
+        "bg_light": "FFFFFF",
+        "card_bg": "F8FAFC",
+        "card_dark": "1E293B",
+        "accent": "0F172A",
+        "accent_alt": "2563EB",
+        "border": "E2E8F0",
+        "text_dark": "0F172A",
+        "text_light": "FFFFFF",
+        "text_muted": "64748B",
+        "badge_bg": "0F172A",
+        "badge_text": "FFFFFF"
     }
+}
+
+THEME_ALIASES = {
+    "red": "crimson", "merah": "crimson", "maroon": "crimson", "scarlet": "crimson", "ruby": "crimson", "modern_red": "crimson", "modern-red": "crimson",
+    "green": "emerald", "hijau": "emerald", "nature": "emerald", "agri": "emerald",
+    "blue": "slate", "biru": "slate", "executive": "navy", "finance": "navy",
+    "dark": "cyber", "gelap": "cyber", "hitam": "obsidian", "black": "obsidian", "monochrome": "obsidian",
+    "ungu": "purple", "violet": "purple", "saas": "purple", "ai": "purple",
+    "gold": "luxury", "emas": "luxury", "premium": "luxury",
+    "orange": "sunset", "oranye": "sunset", "warm": "sunset",
+    "pink": "rose", "magenta": "rose", "cyan": "teal", "aqua": "teal", "minimal": "corporate", "swiss": "corporate"
 }
 
 def hex_to_rgb(hex_str: str) -> RGBColor:
@@ -145,7 +231,14 @@ class ModernDeck:
     """High-level builder for stunning 16:9 widescreen modern presentations"""
 
     def __init__(self, theme: str = "navy", title: str = "Presentasi Modern"):
-        self.theme_name = theme.lower() if theme.lower() in THEMES else "navy"
+        raw = str(theme or "navy").lower().strip().replace(" ", "_")
+        resolved = THEME_ALIASES.get(raw, raw)
+        if resolved not in THEMES:
+            for k, v in THEME_ALIASES.items():
+                if k in raw:
+                    resolved = v
+                    break
+        self.theme_name = resolved if resolved in THEMES else "navy"
         self.theme = THEMES[self.theme_name]
         self.deck_title = title
         
@@ -898,6 +991,304 @@ class ModernDeck:
         self._draw_footer(slide)
         return slide
 
+    def add_agenda(self, title: str, kicker: str = "AGENDA", items: list = None):
+        """Modern numbered executive agenda slide with accent index pills"""
+        self.slide_count += 1
+        slide = self.prs.slides.add_slide(self.blank_layout)
+        self._draw_background(slide, dark_mode=False)
+        self._draw_header(slide, title, kicker)
+        items = items or []
+        n = min(len(items), 6)
+        if n == 0:
+            return slide
+        cols = 2 if n > 3 else 1
+        rows = (n + cols - 1) // cols
+        start_y = 1.95
+        avail_h = 4.95
+        card_h = min(1.35, (avail_h - (rows - 1) * 0.2) / max(rows, 1))
+        card_w = (WIDTH_IN - 1.6 - (cols - 1) * 0.35) / cols
+        for idx, item in enumerate(items[:6]):
+            r = idx % rows
+            c = idx // rows
+            x = 0.8 + c * (card_w + 0.35)
+            y = start_y + r * (card_h + 0.2)
+            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(card_w), Inches(card_h))
+            card.adjustments[0] = 0.08
+            card.fill.solid()
+            card.fill.fore_color.rgb = hex_to_rgb(self.theme["card_bg"])
+            card.line.color.rgb = hex_to_rgb(self.theme["border"])
+            card.line.width = Pt(1)
+            # Number pill
+            pill = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x + 0.2), Inches(y + (card_h - 0.56) / 2), Inches(0.56), Inches(0.56))
+            pill.adjustments[0] = 0.22
+            pill.fill.solid()
+            pill.fill.fore_color.rgb = hex_to_rgb(self.theme["accent"])
+            pill.line.fill.background()
+            ptf = pill.text_frame
+            ptf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            pp = ptf.paragraphs[0]
+            pp.alignment = PP_ALIGN.CENTER
+            pp.text = f"{idx + 1:02d}"
+            pp.font.bold = True
+            pp.font.size = Pt(16)
+            pp.font.color.rgb = hex_to_rgb("FFFFFF")
+            # Text
+            it_title = item.get("title", str(item)) if isinstance(item, dict) else str(item)
+            it_desc = item.get("desc", item.get("subtitle", "")) if isinstance(item, dict) else ""
+            tb = slide.shapes.add_textbox(Inches(x + 0.92), Inches(y + 0.14), Inches(card_w - 1.12), Inches(card_h - 0.24))
+            tf = tb.text_frame
+            tf.word_wrap = True
+            tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            p1 = tf.paragraphs[0]
+            p1.text = str(it_title)[:75]
+            p1.font.bold = True
+            p1.font.size = Pt(15)
+            p1.font.color.rgb = hex_to_rgb(self.theme["text_dark"])
+            if it_desc:
+                p2 = tf.add_paragraph()
+                p2.text = str(it_desc)[:110]
+                p2.font.size = Pt(11.5)
+                p2.font.color.rgb = hex_to_rgb(self.theme["text_muted"])
+                p2.space_before = Pt(3)
+        self._draw_footer(slide)
+        return slide
+
+    def add_chart_slide(self, title: str, kicker: str = "ANALISIS VISUAL", chart_spec: dict = None, insights: list = None):
+        """High-resolution 240-DPI Matplotlib chart slide paired with executive insights card"""
+        import tempfile
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        self.slide_count += 1
+        slide = self.prs.slides.add_slide(self.blank_layout)
+        self._draw_background(slide, dark_mode=False)
+        self._draw_header(slide, title, kicker)
+
+        chart_spec = chart_spec or {}
+        insights = insights or chart_spec.get("insights", [])
+        ctype = str(chart_spec.get("chart_type", chart_spec.get("type", "bar"))).lower()
+        labels = [str(x) for x in (chart_spec.get("labels") or ["Q1", "Q2", "Q3", "Q4"])]
+        values = chart_spec.get("values") or [24, 38, 52, 68]
+        series = chart_spec.get("series")  # optional list of {"name": ..., "values": [...]}
+        is_dark_theme = self.theme_name in ("cyber", "obsidian")
+        bg_hex = "#" + self.theme["card_bg"]
+        fg_hex = "#" + self.theme["text_dark"]
+        acc1 = "#" + self.theme["accent"]
+        acc2 = "#" + self.theme["accent_alt"]
+        palette = [acc1, acc2, "#0EA5E9", "#10B981", "#F59E0B", "#8B5CF6"]
+
+        fig, ax = plt.subplots(figsize=(7.4, 4.4), dpi=240)
+        fig.patch.set_facecolor(bg_hex)
+        ax.set_facecolor(bg_hex)
+
+        try:
+            if ctype in ("pie", "donut", "doughnut"):
+                nums = [float(v) for v in values]
+                wedges, texts, autotexts = ax.pie(
+                    nums, labels=labels, autopct="%1.1f%%", startangle=140,
+                    colors=palette[:len(nums)],
+                    pctdistance=0.78 if ctype != "pie" else 0.65,
+                    wedgeprops=dict(width=0.45 if ctype != "pie" else 1.0, edgecolor=bg_hex, linewidth=2)
+                )
+                for t in texts:
+                    t.set_color(fg_hex); t.set_fontsize(9.5); t.set_fontweight("bold")
+                for at in autotexts:
+                    at.set_color("#FFFFFF"); at.set_fontsize(8.5); at.set_fontweight("bold")
+            elif ctype in ("line", "area"):
+                if isinstance(series, list) and len(series) > 0:
+                    for s_i, ser in enumerate(series[:4]):
+                        vals = [float(v) for v in ser.get("values", [])]
+                        col = palette[s_i % len(palette)]
+                        ax.plot(labels[:len(vals)], vals, marker="o", linewidth=2.6, markersize=6, color=col, label=ser.get("name", f"Seri {s_i+1}"))
+                        if ctype == "area":
+                            ax.fill_between(labels[:len(vals)], vals, alpha=0.14, color=col)
+                    ax.legend(frameon=False, fontsize=9, labelcolor=fg_hex)
+                else:
+                    nums = [float(v) for v in values]
+                    ax.plot(labels[:len(nums)], nums, marker="o", linewidth=2.8, markersize=7, color=acc1)
+                    ax.fill_between(labels[:len(nums)], nums, alpha=0.16, color=acc1)
+                    for i, v in enumerate(nums):
+                        ax.annotate(f"{v:g}", (i, v), textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8.5, fontweight="bold", color=fg_hex)
+            elif ctype in ("barh", "horizontal_bar"):
+                nums = [float(v) for v in values]
+                bars = ax.barh(labels[:len(nums)], nums, color=acc1, height=0.58)
+                ax.invert_yaxis()
+                for b in bars:
+                    w = b.get_width()
+                    ax.text(w + max(nums) * 0.02, b.get_y() + b.get_height() / 2, f"{w:g}", va="center", fontsize=8.5, fontweight="bold", color=fg_hex)
+            else:
+                if isinstance(series, list) and len(series) > 0:
+                    import numpy as np
+                    x_pos = np.arange(len(labels))
+                    bw = 0.72 / max(len(series), 1)
+                    for s_i, ser in enumerate(series[:4]):
+                        vals = [float(v) for v in ser.get("values", [])]
+                        col = palette[s_i % len(palette)]
+                        ax.bar(x_pos[:len(vals)] + s_i * bw, vals, width=bw * 0.9, color=col, label=ser.get("name", f"Seri {s_i+1}"))
+                    ax.set_xticks(x_pos + bw * (len(series) - 1) / 2)
+                    ax.set_xticklabels(labels)
+                    ax.legend(frameon=False, fontsize=9, labelcolor=fg_hex)
+                else:
+                    nums = [float(v) for v in values]
+                    bars = ax.bar(labels[:len(nums)], nums, color=[palette[i % len(palette)] if len(nums) <= 6 else acc1 for i in range(len(nums))], width=0.55)
+                    for b in bars:
+                        h = b.get_height()
+                        ax.text(b.get_x() + b.get_width() / 2, h + max(nums) * 0.02, f"{h:g}", ha="center", fontsize=8.5, fontweight="bold", color=fg_hex)
+
+            if ctype not in ("pie", "donut", "doughnut"):
+                ax.spines["top"].set_visible(False)
+                ax.spines["right"].set_visible(False)
+                ax.spines["left"].set_color("#94A3B8")
+                ax.spines["bottom"].set_color("#94A3B8")
+                ax.tick_params(colors=fg_hex, labelsize=9)
+                ax.yaxis.grid(True, linestyle="--", alpha=0.25, color="#94A3B8")
+                ax.set_axisbelow(True)
+                if chart_spec.get("ylabel"):
+                    ax.set_ylabel(str(chart_spec["ylabel"]), color=fg_hex, fontsize=9.5, fontweight="bold")
+            if chart_spec.get("chart_title"):
+                ax.set_title(str(chart_spec["chart_title"]), color=fg_hex, fontsize=11.5, fontweight="bold", pad=12)
+        except Exception:
+            pass
+
+        plt.tight_layout()
+        tmp_png = os.path.join(tempfile.gettempdir(), f"pptx_chart_{self.slide_count}_{os.getpid()}.png")
+        fig.savefig(tmp_png, dpi=240, facecolor=bg_hex)
+        plt.close(fig)
+
+        # Left chart card
+        has_insights = bool(insights)
+        chart_w = 7.45 if has_insights else 11.7
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.85), Inches(chart_w), Inches(5.05))
+        card.adjustments[0] = 0.04
+        card.fill.solid()
+        card.fill.fore_color.rgb = hex_to_rgb(self.theme["card_bg"])
+        card.line.color.rgb = hex_to_rgb(self.theme["border"])
+        card.line.width = Pt(1)
+        slide.shapes.add_picture(tmp_png, Inches(0.95), Inches(2.0), width=Inches(chart_w - 0.3), height=Inches(4.75))
+        try:
+            os.remove(tmp_png)
+        except Exception:
+            pass
+
+        # Right executive insights panel
+        if has_insights:
+            rc = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.55), Inches(1.85), Inches(3.98), Inches(5.05))
+            rc.adjustments[0] = 0.05
+            rc.fill.solid()
+            rc.fill.fore_color.rgb = hex_to_rgb(self.theme["bg_dark"])
+            rc.line.fill.background()
+            tb = slide.shapes.add_textbox(Inches(8.8), Inches(2.1), Inches(3.48), Inches(4.55))
+            tf = tb.text_frame
+            tf.word_wrap = True
+            p0 = tf.paragraphs[0]
+            p0.text = "KEY INSIGHTS"
+            p0.font.bold = True
+            p0.font.size = Pt(11.5)
+            p0.font.color.rgb = hex_to_rgb(self.theme["accent"])
+            p0.space_after = Pt(10)
+            for ins in insights[:5]:
+                pi = tf.add_paragraph()
+                pi.text = f"▪  {str(ins)[:140]}"
+                pi.font.size = Pt(12.5)
+                pi.font.color.rgb = hex_to_rgb("FFFFFF")
+                pi.space_after = Pt(10)
+
+        self._draw_footer(slide)
+        return slide
+
+    def add_table_slide(self, title: str, kicker: str = "DATA TABEL", headers: list = None, rows: list = None, caption: str = "", highlight_last: bool = False):
+        """Executive styled native PowerPoint data table slide"""
+        self.slide_count += 1
+        slide = self.prs.slides.add_slide(self.blank_layout)
+        self._draw_background(slide, dark_mode=False)
+        self._draw_header(slide, title, kicker)
+
+        headers = headers or ["Komponen", "Metrik", "Status"]
+        rows = (rows or [])[:9]
+        n_cols = max(len(headers), 1)
+        n_rows = len(rows) + 1
+        table_h = min(4.65, 0.55 + len(rows) * 0.48)
+
+        tbl_shape = slide.shapes.add_table(n_rows, n_cols, Inches(0.8), Inches(1.9), Inches(11.73), Inches(table_h))
+        table = tbl_shape.table
+        for c_i, h_text in enumerate(headers):
+            cell = table.cell(0, c_i)
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = hex_to_rgb(self.theme["bg_dark"])
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            p = cell.text_frame.paragraphs[0]
+            p.text = str(h_text)[:40]
+            p.font.bold = True
+            p.font.size = Pt(12.5)
+            p.font.color.rgb = hex_to_rgb("FFFFFF")
+            p.alignment = PP_ALIGN.LEFT if c_i == 0 else PP_ALIGN.CENTER
+
+        for r_i, row_data in enumerate(rows):
+            is_last = highlight_last and (r_i == len(rows) - 1)
+            bg_c = self.theme["accent"] if is_last else (self.theme["card_bg"] if r_i % 2 == 0 else self.theme["bg_light"])
+            fg_c = "FFFFFF" if is_last else self.theme["text_dark"]
+            for c_i in range(n_cols):
+                val = row_data[c_i] if c_i < len(row_data) else ""
+                cell = table.cell(r_i + 1, c_i)
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = hex_to_rgb(bg_c)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                p = cell.text_frame.paragraphs[0]
+                p.text = str(val)[:55]
+                p.font.bold = is_last or (c_i == 0)
+                p.font.size = Pt(11.5)
+                p.font.color.rgb = hex_to_rgb(fg_c)
+                p.alignment = PP_ALIGN.LEFT if c_i == 0 else PP_ALIGN.CENTER
+
+        if caption:
+            cb = slide.shapes.add_textbox(Inches(0.8), Inches(6.65), Inches(11.73), Inches(0.35))
+            cp = cb.text_frame.paragraphs[0]
+            cp.text = str(caption)[:150]
+            cp.font.italic = True
+            cp.font.size = Pt(10.5)
+            cp.font.color.rgb = hex_to_rgb(self.theme["text_muted"])
+
+        self._draw_footer(slide)
+        return slide
+
+    def add_quote_slide(self, quote: str, author: str = "", role: str = "", kicker: str = "EXECUTIVE INSIGHT"):
+        """High-impact full-bleed dark editorial statement/quote slide"""
+        self.slide_count += 1
+        slide = self.prs.slides.add_slide(self.blank_layout)
+        self._draw_background(slide, dark_mode=True)
+
+        # Accent vertical stripe
+        stripe = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(1.8), Inches(0.12), Inches(3.9))
+        stripe.fill.solid()
+        stripe.fill.fore_color.rgb = hex_to_rgb(self.theme["accent"])
+        stripe.line.fill.background()
+
+        tb = slide.shapes.add_textbox(Inches(1.5), Inches(1.75), Inches(10.6), Inches(4.2))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        p0 = tf.paragraphs[0]
+        p0.text = str(kicker).upper()
+        p0.font.bold = True
+        p0.font.size = Pt(12)
+        p0.font.color.rgb = hex_to_rgb(self.theme["accent"])
+        p0.space_after = Pt(16)
+
+        pq = tf.add_paragraph()
+        pq.text = f"“{str(quote).strip()}”"
+        pq.font.bold = True
+        pq.font.size = Pt(28 if len(str(quote)) < 130 else 22)
+        pq.font.color.rgb = hex_to_rgb("FFFFFF")
+        pq.space_after = Pt(22)
+
+        if author:
+            pa = tf.add_paragraph()
+            pa.text = f"— {author}" + (f" · {role}" if role else "")
+            pa.font.size = Pt(15)
+            pa.font.color.rgb = hex_to_rgb(self.theme["accent_alt"])
+
+        return slide
+
     def add_outro(self, title: str, subtitle: str = "Sesi Diskusi & Tanya Jawab"):
         """Closing high-contrast brand slide"""
         self.slide_count += 1
@@ -937,15 +1328,23 @@ if __name__ == "__main__":
     spec_path, out_path = sys.argv[1], sys.argv[2]
     with open(spec_path, "r", encoding="utf-8") as f:
         spec = json.load(f)
-    
+
     deck = ModernDeck(theme=spec.get("theme", "navy"), title=spec.get("title", "Presentasi Modern"))
     for s in spec.get("slides", []):
-        stype = s.get("type", "bento")
+        stype = str(s.get("type", "bento")).lower().strip()
         if stype == "cover":
             deck.add_cover(s.get("title", "Judul"), s.get("subtitle", ""), s.get("kicker", ""), s.get("meta", ""))
-        elif stype in ("bento", "pillars", "cards"):
+        elif stype in ("agenda", "toc", "outline"):
+            deck.add_agenda(s.get("title", "Agenda Presentasi"), s.get("kicker", "AGENDA"), s.get("items", s.get("bullets", [])))
+        elif stype in ("chart", "graph", "visual", "analytics"):
+            deck.add_chart_slide(s.get("title", "Analisis Data"), s.get("kicker", "VISUALISASI DATA"), s.get("chart", s), s.get("insights", s.get("bullets", [])))
+        elif stype in ("table", "data", "financials"):
+            deck.add_table_slide(s.get("title", "Ringkasan Data"), s.get("kicker", "TABEL EKSEKUTIF"), s.get("headers", s.get("columns", [])), s.get("rows", s.get("data", [])), s.get("caption", ""), bool(s.get("highlight_last", False)))
+        elif stype in ("quote", "statement", "highlight"):
+            deck.add_quote_slide(s.get("quote", s.get("title", "")), s.get("author", ""), s.get("role", ""), s.get("kicker", "EXECUTIVE STATEMENT"))
+        elif stype in ("bento", "pillars", "cards", "team"):
             deck.add_bento_cards(s.get("title", "Overview"), s.get("kicker", ""), s.get("cards", s.get("columns", [])))
-        elif stype in ("kpi", "stats"):
+        elif stype in ("kpi", "stats", "metrics"):
             deck.add_kpi_showcase(s.get("title", "KPI"), s.get("kicker", ""), s.get("kpis", s.get("cards", [])), s.get("bullets", []))
         elif stype in ("timeline", "process", "steps", "roadmap"):
             deck.add_process_steps(s.get("title", "Proses"), s.get("kicker", ""), s.get("steps", []))
@@ -955,9 +1354,12 @@ if __name__ == "__main__":
             deck.add_split_hero(s.get("title", "Deep Dive"), s.get("kicker", ""), s.get("left_card", {}), s.get("right_card", {}))
         elif stype in ("matrix", "grid", "swot"):
             deck.add_matrix_grid(s.get("title", "Matriks"), s.get("kicker", ""), s.get("quadrants", []))
-        elif stype == "outro":
+        elif stype in ("outro", "closing", "thank_you"):
             deck.add_outro(s.get("title", "Terima Kasih"), s.get("subtitle", ""))
-    
+        else:
+            # Safe fallback so unknown types never get silently skipped
+            deck.add_bento_cards(s.get("title", "Detail"), s.get("kicker", ""), s.get("cards", [{"tag": "INFO", "title": s.get("title", "Poin"), "desc": s.get("subtitle", ""), "bullets": s.get("bullets", [])}]))
+
     deck.save(out_path)
     print(f"OK -> {out_path}")
 

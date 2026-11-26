@@ -1315,6 +1315,34 @@ function mapSandboxFileServer(f = {}, index = 0) {
   };
 }
 
+function isSimpleAcknowledgementPrompt(prompt = '') {
+  const clean = String(prompt || '').trim().toLowerCase();
+  if (!clean || clean.length > 32) return false;
+  return /^(?:makasi(?:h)?|terima\s*kasih|thank(?:\s*you|s)?|thx|tq|oke+|ok|sip+|mantap+|bagus+|keren+|siap+|baik+|noted|halo+|hai+|hi|hello|hey|p|tes|test|wkwk+|haha+)[!?. \u{1F300}-\u{1FAFF}]*$/iu.test(clean);
+}
+
+function alignSubAgentTaskWithUserPrompt(userPrompt = '', aiTaskDesc = '') {
+  const up = String(userPrompt || '').trim();
+  const td = String(aiTaskDesc || '').trim();
+  if (!up) return td;
+  const upLower = up.toLowerCase();
+  const tdLower = td.toLowerCase();
+  const wantsXlsx = /\b(excel|xlsx|spreadsheet|laporan\s+keuangan|neraca|arus\s+kas|anggaran)\b/i.test(upLower);
+  const wantsPptx = /\b(ppt|pptx|powerpoint|slide|presentasi|deck)\b/i.test(upLower);
+  const wantsDocx = /\b(word|docx|proposal|makalah|surat|kontrak)\b/i.test(upLower);
+  // Prevent cross-turn bleed where AI accidentally repeats an earlier PPT task when user asked for Excel!
+  if (wantsXlsx && !wantsPptx && /\b(pptx|powerpoint|slide|presentasi)\b/i.test(tdLower)) {
+    return `${up} — Buat file Excel (.xlsx) profesional lengkap menggunakan kits/excel_kit.py dengan KPI cards, tabel rumus dinamis, grafik, dan formatting rapi.`;
+  }
+  if (wantsPptx && !wantsXlsx && /\b(xlsx|excel|spreadsheet)\b/i.test(tdLower)) {
+    return `${up} — Buat file PowerPoint (.pptx) 16:9 modern lengkap menggunakan kits/pptx_designer.py dengan variasi layout slide, grafik, dan tabel.`;
+  }
+  if (wantsDocx && !wantsPptx && !wantsXlsx && /\b(pptx|powerpoint|xlsx|excel)\b/i.test(tdLower)) {
+    return `${up} — Buat dokumen Word (.docx) profesional lengkap menggunakan kits/word_kit.py.`;
+  }
+  return td || up;
+}
+
 function isStaleUnconfirmedAiClaim(rawText = '', job) {
   if (!rawText || !job?.userPrompt || job.userPrompt.trim().length < 5 || job.hasImages) return false;
   if (/^(?:hai|halo|hallo|hi|hello|hey|pagi|siang|sore|malam|tes|test|ping|ok|oke|makasih|terima\s+kasih|thanks)[!?. ]*$/i.test(job.userPrompt.trim())) {
@@ -1368,8 +1396,13 @@ async function executeJobInBackground(job, params) {
         throw Object.assign(new Error('Stopped by user'), { name: 'AbortError' });
       }
 
-      if (firstPass.subAgentTagFound && isSubAgentModelAllowed && typeof deps.executeAutonomousAgentRun === 'function') {
-        runSubAgentTask = firstPass.subAgentTagFound;
+      if (
+        firstPass.subAgentTagFound &&
+        isSubAgentModelAllowed &&
+        typeof deps.executeAutonomousAgentRun === 'function' &&
+        !isSimpleAcknowledgementPrompt(job.userPrompt)
+      ) {
+        runSubAgentTask = alignSubAgentTaskWithUserPrompt(job.userPrompt, firstPass.subAgentTagFound);
       } else if (firstPass.memoryTagFound) {
         runMemoryQuery = firstPass.memoryTagFound;
       } else if (firstPass.browserTagFound && !params.hasImages && params.enableWebSearch !== false) {

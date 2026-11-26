@@ -1429,24 +1429,34 @@ Workspace Anda memiliki 'kits/pptx_designer.py' yang menghasilkan slide 16:9 mod
 <run_command>python kits/pptx_designer.py spec.json nama_file.pptx</run_command>
 <check_file path="nama_file.pptx" />
 
-PILIHAN TEMA WARNA ('theme'):
-- "emerald" : Peternakan, Sapi, Agribisnis, Alam, GreenTech, Sustainability
-- "cyber"   : Dark Mode Obsidian, AI, Cyber Security, Cloud, DeepTech
+PILIHAN TEMA WARNA ('theme' — 12 TEMA KURASI + ALIAS OTOMATIS):
+- "crimson" / "red" : Modern Red Executive (Merah modern kontras tinggi, elegan, tajam)
+- "emerald" : Peternakan, Agribisnis, Alam, GreenTech, Sustainability
+- "cyber"   : Dark Mode Obsidian & Neon Cyan, AI, Cyber Security, DeepTech
 - "navy"    : Eksekutif, McKinsey, Perbankan, Keuangan, Corporate
 - "purple"  : Startup Unicorn, SaaS, Sequoia Pitch Deck, AI Produk
-- "luxury"  : Gold & Charcoal, Desain Kreatif, Portofolio, Brand, Hospitality
-- "sunset"  : Warm Crimson, F&B, Retail, Energi Terbarukan
-- "slate"   : Minimalist Blue, Akademik, Konferensi Ilmiah, Tesis
+- "luxury"  : Gold & Charcoal, Brand Premium, Hospitality, Portofolio
+- "sunset"  : Warm Orange & Crimson, F&B, Retail, Energi
+- "teal"    : Ocean Teal & Fintech, Kesehatan, MedTech
+- "rose"    : Editorial Rose, Kreatif, Fashion, Media
+- "obsidian": Pure Monochrome Dark Executive
+- "slate" / "corporate" : Minimalist Swiss Blue & Akademik
 
-TIPE SLIDE YANG DIDUKUNG:
+TIPE SLIDE YANG DIDUKUNG (WAJIB BERAGAM & VARIATIF — JANGAN MONOTON!):
 - "cover"      : Slide sampul berlatar gelap elegan dengan pita vertikal & badge kategori
-- "comparison" : 2 kartu perbandingan sisi-ke-sisi (Konvensional vs Modern / Sebelum vs Sesudah)
+- "agenda"     : Daftar isi / agenda bernomor modern dengan pill indeks aksen (items: [{title, desc}])
 - "kpi"        : 4 kartu metrik besar (36-40pt bold) + kotak analisis strategis di bawah
-- "split"      : Artikel naratif mendalam di kiri (bebas overflow) + kartu spotlight KPI di kanan
+- "chart"      : Grafik Matplotlib 240-DPI NYATA (chart: {chart_type: "bar"|"barh"|"line"|"area"|"pie"|"donut", labels: [...], values: [...] atau series: [{name, values}], chart_title, ylabel}, insights: [...])
+- "table"      : Tabel data eksekutif bergaya zebra dengan header gelap (headers: [...], rows: [[...]], highlight_last: true, caption)
 - "bento"      : 2-4 kartu Bento Box rounded-corner dengan tag badges, stat highlight, dan bullet points
+- "comparison" : 2 kartu perbandingan sisi-ke-sisi (Konvensional vs Modern / Sebelum vs Sesudah)
+- "split"      : Artikel naratif mendalam di kiri + kartu spotlight KPI kontras di kanan
 - "matrix"     : Kuadran 2x2 kartu strategi (SWOT / 4 Pilar Inisiatif)
-- "timeline"   : Alur proses horizontal bertahap dengan lingkaran nomor aksen
+- "timeline"   : Alur proses / roadmap horizontal bertahap dengan lingkaran nomor aksen
+- "quote"      : Slide pernyataan / kutipan eksekutif berlatar gelap penuh (quote, author, role, kicker)
 - "outro"      : Slide penutup kontras tinggi untuk tanya jawab
+
+WAJIB: Setiap presentasi minimal menggunakan 6-8 variasi tipe slide berbeda (termasuk "cover", "agenda", "kpi", "chart" dengan data nyata, "table", "bento"/"comparison", "timeline"/"matrix", dan "outro") agar tampil sangat profesional, kaya visual, dan tidak membosankan!
 
 JIKA MENULIS SKRIP PYTHON MANUAL:
 Gunakan import dari pptx_designer agar bebas dari error koordinat:
