@@ -486,30 +486,31 @@ const LandingPage = ({
 
           {(() => {
             const AI_ECOSYSTEM_LOGOS = [
-              { id: 'deepernova', name: 'DeeperNova AI', tag: 'Core Platform', color: '#ea580c', img: '/logo192.png' },
-              { id: 'codex', name: 'DeeperNova Codex', tag: 'Async Agent', color: '#0f172a', icon: 'fa-solid fa-terminal' },
-              { id: 'dpnsearch', name: 'DPN Search', tag: 'Live Crawler', color: '#2563eb', img: '/search/icons/icon-192.png' },
-              { id: 'nvidia', name: 'NVIDIA', tag: 'AI Compute', color: '#76b900', svg: 'nvidia' },
-              { id: 'nemotron', name: 'Nemotron 3.5', tag: 'Reasoning LLM', color: '#65a30d', svg: 'chip' },
-              { id: 'qwen', name: 'Qwen 2.5 VL', tag: 'Multimodal AI', color: '#6366f1', svg: 'qwen' },
-              { id: 'cohere', name: 'Cohere North', tag: 'Code Specialist', color: '#0d9488', svg: 'spark' },
-              { id: 'openrouter', name: 'OpenRouter', tag: 'Model Mesh', color: '#4f46e5', icon: 'fa-solid fa-diagram-project' },
-              { id: 'freellm', name: 'FreeLLM Engine', tag: 'Auto Failover', color: '#d97706', icon: 'fa-solid fa-bolt' },
-              { id: 'python', name: 'Python 3.13', tag: 'Sandbox Runtime', color: '#3776ab', icon: 'fa-brands fa-python' },
-              { id: 'nodejs', name: 'Node.js', tag: 'Async Backend', color: '#16a34a', icon: 'fa-brands fa-node-js' },
-              { id: 'react', name: 'React + Vite', tag: 'Edge UI', color: '#0284c7', icon: 'fa-brands fa-react' }
+              { id: 'deepernova', name: 'DeeperNova AI', tag: 'Core Platform', img: '/logo192.png' },
+              { id: 'codex', name: 'DeeperNova Codex', tag: 'Async Agent', img: '/logo192.png' },
+              { id: 'dpnsearch', name: 'DPN Search', tag: 'Live Crawler', img: '/search/icons/icon-192.png' },
+              { id: 'nvidia', name: 'NVIDIA', tag: 'AI Compute', img: '/logos/nvidia.svg' },
+              { id: 'nemotron', name: 'NVIDIA Nemotron', tag: '3.5 Lightning & Ultra', img: '/logos/nemotron.svg' },
+              { id: 'qwen', name: 'Qwen 2.5 VL', tag: 'Multimodal AI', img: '/logos/qwen.svg' },
+              { id: 'cohere', name: 'Cohere North', tag: 'Code Specialist', img: '/logos/cohere.svg' },
+              { id: 'openrouter', name: 'OpenRouter', tag: 'Model Mesh', img: '/logos/openrouter.svg' },
+              { id: 'groq', name: 'Groq LPU', tag: 'Ultra-Low Latency', img: '/logos/groq.svg' },
+              { id: 'gemini', name: 'Google Gemini', tag: 'Edge Failover', img: '/logos/gemini.svg' },
+              { id: 'python', name: 'Python 3.13', tag: 'Sandbox Runtime', img: '/logos/python.svg' },
+              { id: 'nodejs', name: 'Node.js', tag: 'Async Backend', img: '/logos/nodejs.svg' },
+              { id: 'react', name: 'React', tag: 'Reactive UI', img: '/logos/react.svg' },
+              { id: 'vite', name: 'Vite', tag: 'Edge Bundler', img: '/logos/vite.svg' }
             ];
             const INFRA_SECURITY_LOGOS = [
-              { id: 'cloudflare', name: 'Cloudflare', tag: 'Edge Tunnel & CDN', color: '#f38020', svg: 'cloudflare' },
-              { id: 'vercel', name: 'Vercel Edge', tag: 'Global Network', color: '#0f172a', svg: 'vercel' },
-              { id: 'tls13', name: 'Secured with TLS 1.3', tag: 'HSTS Preload', color: '#16a34a', icon: 'fa-solid fa-lock' },
+              { id: 'cloudflare', name: 'Cloudflare', tag: 'Secured Tunnel & Edge', img: '/logos/cloudflare.svg' },
+              { id: 'vercel', name: 'Vercel Edge', tag: 'Global CDN Network', img: '/logos/vercel.svg' },
+              { id: 'letsencrypt', name: 'Secured with TLS 1.3', tag: 'HSTS Preload SSL', img: '/logos/letsencrypt.svg' },
               { id: 'shield', name: 'Cyber Security Shield', tag: 'Anti-SSRF & CSP', color: '#dc2626', icon: 'fa-solid fa-shield-halved' },
               { id: 'promptguard', name: 'Prompt-Injection Guard', tag: 'Immutable Policy', color: '#7c3aed', icon: 'fa-solid fa-user-shield' },
-              { id: 'sqlite', name: 'SQLite WAL', tag: 'Persistent Memory', color: '#0369a1', icon: 'fa-solid fa-database' },
-              { id: 'sandbox', name: 'Isolated Sandbox', tag: 'Jailed Execution', color: '#0f172a', icon: 'fa-solid fa-cube' },
-              { id: 'chromium', name: 'Headless Chromium', tag: 'Browser Agent', color: '#2563eb', icon: 'fa-brands fa-chrome' },
-              { id: 'officepro', name: 'Office Suite Pro', tag: 'Word · Excel · PPT', color: '#ea580c', icon: 'fa-solid fa-file-excel' },
-              { id: 'matplotlib', name: 'Matplotlib 240-DPI', tag: 'Data Visuals', color: '#059669', icon: 'fa-solid fa-chart-column' }
+              { id: 'sqlite', name: 'SQLite WAL', tag: 'Persistent Memory', img: '/logos/sqlite.svg' },
+              { id: 'docker', name: 'Isolated Sandbox', tag: 'Jailed Execution', img: '/logos/docker.svg' },
+              { id: 'chromium', name: 'Headless Chromium', tag: 'Browser Agent', img: '/logos/chromium.svg' },
+              { id: 'officepro', name: 'Office Suite Pro', tag: 'Word · Excel · PPT', img: '/logos/microsoftoffice.svg' }
             ];
 
             const renderBadgeIcon = (item) => {
@@ -522,51 +523,6 @@ const LandingPage = ({
                     loading="lazy"
                     onError={(e) => { e.currentTarget.src = '/logo192.png'; }}
                   />
-                );
-              }
-              if (item.svg === 'nvidia') {
-                return (
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-                    <path d="M3 12.2C5.4 8.2 9.4 6.5 14 7.2c3.2.5 5.6 2.3 7 4.8-1.8 3.2-5 5.2-9 5.2-3.7 0-6.8-1.8-9-5Z" stroke="#76b900" strokeWidth="2" strokeLinejoin="round" />
-                    <circle cx="12.5" cy="12" r="2.7" fill="#76b900" />
-                  </svg>
-                );
-              }
-              if (item.svg === 'cloudflare') {
-                return (
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-                    <path d="M6.5 17.5h11a3.5 3.5 0 0 0 .7-6.93A5.2 5.2 0 0 0 8.1 9.1 4.1 4.1 0 0 0 6.5 17.5Z" fill="#f38020" />
-                  </svg>
-                );
-              }
-              if (item.svg === 'vercel') {
-                return (
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-                    <path d="M12 4L21 19.5H3L12 4Z" fill="#0f172a" />
-                  </svg>
-                );
-              }
-              if (item.svg === 'qwen') {
-                return (
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
-                    <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" stroke="#6366f1" strokeWidth="2" fill="rgba(99,102,241,0.12)" />
-                    <circle cx="12" cy="12" r="2.8" fill="#6366f1" />
-                  </svg>
-                );
-              }
-              if (item.svg === 'chip') {
-                return (
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
-                    <rect x="6" y="6" width="12" height="12" rx="2.5" stroke="#65a30d" strokeWidth="2" fill="rgba(101,163,13,0.12)" />
-                    <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" stroke="#65a30d" strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
-                );
-              }
-              if (item.svg === 'spark') {
-                return (
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
-                    <path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2L12 3Z" fill="#0d9488" />
-                  </svg>
                 );
               }
               return <i className={item.icon} style={{ color: item.color, fontSize: 16 }} aria-hidden="true" />;
