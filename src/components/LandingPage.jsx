@@ -492,25 +492,40 @@ const LandingPage = ({
               { id: 'nvidia', name: 'NVIDIA', tag: 'AI Compute', img: '/logos/nvidia.svg' },
               { id: 'nemotron', name: 'NVIDIA Nemotron', tag: '3.5 Lightning & Ultra', img: '/logos/nemotron.svg' },
               { id: 'qwen', name: 'Qwen 2.5 VL', tag: 'Multimodal AI', img: '/logos/qwen.svg' },
+              { id: 'alibabacloud', name: 'Alibaba Cloud', tag: 'Qwen Ecosystem', img: '/logos/alibabacloud.svg' },
               { id: 'cohere', name: 'Cohere North', tag: 'Code Specialist', img: '/logos/cohere.svg' },
-              { id: 'openrouter', name: 'OpenRouter', tag: 'Model Mesh', img: '/logos/openrouter.svg' },
+              { id: 'mistral', name: 'Mistral AI', tag: 'Fast Inference', img: '/logos/mistral.svg' },
+              { id: 'meta', name: 'Meta Llama', tag: 'Open Weights', img: '/logos/meta.svg' },
+              { id: 'deepseek', name: 'DeepSeek', tag: 'Deep Reasoning', img: '/logos/deepseek.svg' },
+              { id: 'cerebras', name: 'Cerebras', tag: 'Wafer-Scale AI', img: '/logos/cerebras.svg' },
               { id: 'groq', name: 'Groq LPU', tag: 'Ultra-Low Latency', img: '/logos/groq.svg' },
               { id: 'gemini', name: 'Google Gemini', tag: 'Edge Failover', img: '/logos/gemini.svg' },
-              { id: 'python', name: 'Python 3.13', tag: 'Sandbox Runtime', img: '/logos/python.svg' },
-              { id: 'nodejs', name: 'Node.js', tag: 'Async Backend', img: '/logos/nodejs.svg' },
-              { id: 'react', name: 'React', tag: 'Reactive UI', img: '/logos/react.svg' },
-              { id: 'vite', name: 'Vite', tag: 'Edge Bundler', img: '/logos/vite.svg' }
+              { id: 'openrouter', name: 'OpenRouter', tag: 'Model Mesh', img: '/logos/openrouter.svg' },
+              { id: 'huggingface', name: 'Hugging Face', tag: 'Model Hub', img: '/logos/huggingface.svg' },
+              { id: 'python', name: 'Python 3.13', tag: 'Sandbox Engine', img: '/logos/python.svg' },
+              { id: 'numpy', name: 'NumPy & Analytics', tag: 'Scientific Compute', img: '/logos/numpy.svg' }
             ];
             const INFRA_SECURITY_LOGOS = [
-              { id: 'cloudflare', name: 'Cloudflare', tag: 'Secured Tunnel & Edge', img: '/logos/cloudflare.svg' },
-              { id: 'vercel', name: 'Vercel Edge', tag: 'Global CDN Network', img: '/logos/vercel.svg' },
+              { id: 'cloudflare', name: 'Cloudflare', tag: 'Secured Tunnel & CDN', img: '/logos/cloudflare.svg' },
+              { id: 'cfworkers', name: 'Cloudflare Edge', tag: 'Zero-Trust Routing', img: '/logos/cloudflareworkers.svg' },
+              { id: 'vercel', name: 'Vercel Edge', tag: 'Global Network', img: '/logos/vercel.svg' },
+              { id: 'gcloud', name: 'Google Cloud', tag: 'AI Infrastructure', img: '/logos/googlecloud.svg' },
               { id: 'letsencrypt', name: 'Secured with TLS 1.3', tag: 'HSTS Preload SSL', img: '/logos/letsencrypt.svg' },
-              { id: 'shield', name: 'Cyber Security Shield', tag: 'Anti-SSRF & CSP', color: '#dc2626', icon: 'fa-solid fa-shield-halved' },
-              { id: 'promptguard', name: 'Prompt-Injection Guard', tag: 'Immutable Policy', color: '#7c3aed', icon: 'fa-solid fa-user-shield' },
+              { id: 'openssl', name: 'OpenSSL 3', tag: 'End-to-End Crypto', img: '/logos/openssl.svg' },
+              { id: 'owasp', name: 'OWASP Security', tag: 'Anti-SSRF & CSP', img: '/logos/owasp.svg' },
+              { id: 'nodejs', name: 'Node.js', tag: 'Async Runtime', img: '/logos/nodejs.svg' },
+              { id: 'express', name: 'Express.js', tag: 'API Core', img: '/logos/express.svg' },
+              { id: 'react', name: 'React', tag: 'Reactive UI', img: '/logos/react.svg' },
+              { id: 'vite', name: 'Vite', tag: 'Edge Bundler', img: '/logos/vite.svg' },
               { id: 'sqlite', name: 'SQLite WAL', tag: 'Persistent Memory', img: '/logos/sqlite.svg' },
               { id: 'docker', name: 'Isolated Sandbox', tag: 'Jailed Execution', img: '/logos/docker.svg' },
-              { id: 'chromium', name: 'Headless Chromium', tag: 'Browser Agent', img: '/logos/chromium.svg' },
-              { id: 'officepro', name: 'Office Suite Pro', tag: 'Word · Excel · PPT', img: '/logos/microsoftoffice.svg' }
+              { id: 'puppeteer', name: 'Puppeteer', tag: 'Browser Automation', img: '/logos/puppeteer.svg' },
+              { id: 'chromium', name: 'Headless Chromium', tag: 'Peramban Agent', img: '/logos/chromium.svg' },
+              { id: 'android', name: 'Android Native', tag: 'Official APK', img: '/logos/android.svg' },
+              { id: 'capacitor', name: 'Capacitor', tag: 'Mobile Bridge', img: '/logos/capacitor.svg' },
+              { id: 'officepro', name: 'Office Suite Pro', tag: 'Word · Excel · PPT', img: '/logos/microsoftoffice.svg' },
+              { id: 'github', name: 'GitHub', tag: 'CI/CD Pipeline', img: '/logos/github.svg' },
+              { id: 'linux', name: 'Linux Core', tag: 'Server OS', img: '/logos/linux.svg' }
             ];
 
             const renderBadgeIcon = (item) => {

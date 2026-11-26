@@ -685,7 +685,7 @@ body[data-view="landing"] #root {
   overflow: hidden;
 }
 
-.lp-faq-row + .lp-faq-row {
+.lp-faq-row+.lp-faq-row {
   border-top: 1px solid var(--lp-border);
 }
 
@@ -832,9 +832,11 @@ body[data-view="landing"] #root {
   .lp-nav-links {
     display: none;
   }
+
   .lp-feature-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .lp-apk-grid {
     grid-template-columns: 1fr;
   }
@@ -844,18 +846,22 @@ body[data-view="landing"] #root {
   .lp-hero {
     padding: 52px 0 40px;
   }
+
   .lp-section {
     padding: 48px 0;
   }
+
   .lp-product-grid,
   .lp-feature-grid,
   .lp-metrics-strip {
     grid-template-columns: 1fr;
   }
+
   .lp-apk-card {
     flex-direction: column;
     align-items: stretch;
   }
+
   .lp-cta-box {
     padding: 28px 24px;
   }
@@ -921,6 +927,7 @@ body[data-view="landing"] #root {
   0% {
     transform: translate3d(0, 0, 0);
   }
+
   100% {
     transform: translate3d(-50%, 0, 0);
   }
@@ -930,6 +937,7 @@ body[data-view="landing"] #root {
   0% {
     transform: translate3d(-50%, 0, 0);
   }
+
   100% {
     transform: translate3d(0, 0, 0);
   }
@@ -1004,6 +1012,7 @@ body[data-view="landing"] #root {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .lp-marquee-left,
   .lp-marquee-right {
     animation: none;
