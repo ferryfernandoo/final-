@@ -200,11 +200,6 @@ const LandingPage = ({
         {/* ===== CLEAN PROFESSIONAL HERO ===== */}
         <section className="lp-hero">
           <div className="lp-container lp-hero-inner">
-            <div className="lp-badge">
-              <span className="lp-badge-dot" />
-              <span>{t.hero.badge}</span>
-            </div>
-
             <h1 className="lp-hero-title">
               {t.hero.titleLead}{' '}
               <span className="lp-text-accent">{t.hero.titleAccent}</span>{' '}
@@ -239,7 +234,6 @@ const LandingPage = ({
         <section id="produk" className="lp-section">
           <div className="lp-container">
             <div className="lp-section-head">
-              <span className="lp-eyebrow">{t.products.eyebrow}</span>
               <h2>{t.products.heading}</h2>
               <p>{t.products.sub}</p>
             </div>
@@ -251,7 +245,6 @@ const LandingPage = ({
                   <div className="lp-icon-box">
                     <i className="fa-solid fa-comments" />
                   </div>
-                  <span className="lp-card-tag">{t.products.chat.tag}</span>
                 </div>
                 <h3>{t.products.chat.title}</h3>
                 <p>{t.products.chat.desc}</p>
@@ -266,7 +259,6 @@ const LandingPage = ({
                   <div className="lp-icon-box">
                     <i className="fa-solid fa-code" />
                   </div>
-                  <span className="lp-card-tag">{t.products.agent.tag}</span>
                 </div>
                 <h3>{t.products.agent.title}</h3>
                 <p>{t.products.agent.desc}</p>
@@ -281,7 +273,6 @@ const LandingPage = ({
                   <div className="lp-icon-box">
                     <i className="fa-solid fa-file-lines" />
                   </div>
-                  <span className="lp-card-tag">{t.products.docs.tag}</span>
                 </div>
                 <h3>{t.products.docs.title}</h3>
                 <p>{t.products.docs.desc}</p>
@@ -296,7 +287,6 @@ const LandingPage = ({
                   <div className="lp-icon-box">
                     <i className="fa-solid fa-magnifying-glass" />
                   </div>
-                  <span className="lp-card-tag">{t.products.api.tag}</span>
                 </div>
                 <h3>{t.products.api.title}</h3>
                 <p>{t.products.api.desc}</p>
@@ -333,7 +323,6 @@ const LandingPage = ({
         <section id="fitur" className="lp-section lp-section-subtle">
           <div className="lp-container">
             <div className="lp-section-head">
-              <span className="lp-eyebrow">{t.features.eyebrow}</span>
               <h2>{t.features.heading}</h2>
             </div>
 
@@ -357,7 +346,6 @@ const LandingPage = ({
         <section id="unduh-apk" className="lp-section">
           <div className="lp-container">
             <div className="lp-section-head">
-              <span className="lp-eyebrow">{t.download.eyebrow}</span>
               <h2>{t.download.heading}</h2>
               <p>{t.download.sub}</p>
             </div>
@@ -417,7 +405,6 @@ const LandingPage = ({
         <section id="faq" className="lp-section lp-section-subtle">
           <div className="lp-container lp-container-narrow">
             <div className="lp-section-head">
-              <span className="lp-eyebrow">{t.faq.eyebrow}</span>
               <h2>{t.faq.heading}</h2>
             </div>
 
@@ -467,13 +454,6 @@ const LandingPage = ({
         <section className="lp-tech-marquee-section" aria-label="Powered by AI, Cloud & Security Ecosystem">
           <div className="lp-container">
             <div className="lp-marquee-header">
-              <span className="lp-eyebrow">
-                {currentLang === 'en'
-                  ? 'POWERED BY & SECURED WITH'
-                  : currentLang === 'zh'
-                    ? '核心驱动与安全生态'
-                    : 'DIDUKUNG & DIAMANKAN OLEH EKOSISTEM TEKNOLOGI'}
-              </span>
               <p className="lp-marquee-sub">
                 {currentLang === 'en'
                   ? 'Multi-model AI inference, autonomous search & sandbox infrastructure, and enterprise edge security.'

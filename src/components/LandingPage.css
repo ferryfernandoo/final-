@@ -352,7 +352,7 @@ body[data-view="landing"] #root {
 }
 
 .lp-hero-title {
-  margin-top: 22px;
+  margin-top: 0;
   max-width: 780px;
   font-size: clamp(32px, 4.8vw, 52px);
   line-height: 1.12;
