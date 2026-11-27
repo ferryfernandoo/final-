@@ -84,11 +84,6 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
           <span className="back-arrow">‹</span>
           <span className="back-text">Chat AI</span>
         </button>
-
-        <div className="brand-badge">
-          <span className="badge-dot"></span>
-          <span>DEEPERNOVA CREATIVE SUITE v2.5</span>
-        </div>
       </header>
 
       {/* Hero Title Section */}
@@ -136,10 +131,7 @@ const DeepernovaUniverse = ({ onNavigate, isAuthenticated = false, isGuest = tru
             role="button"
             tabIndex={0}
           >
-            <div className="card-top-bar">
-              <span className="app-tag-badge" style={{ backgroundColor: `${app.badgeColor}22`, color: app.badgeColor, borderColor: `${app.badgeColor}44` }}>
-                {app.tag}
-              </span>
+            <div className="card-top-bar" style={{ justifyContent: 'flex-end' }}>
               <span className="launch-icon">↗</span>
             </div>
 

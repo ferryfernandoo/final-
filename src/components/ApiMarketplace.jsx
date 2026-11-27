@@ -462,7 +462,6 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
           <span>
             <strong>Free Developer Quota:</strong> 1.000.000 Token Input & Output Gratis (Semua Akun Aktif)
           </span>
-          <span className="token-free-badge">100% FREE ACTIVE</span>
         </div>
         <div className="token-welcome-right">
           <span>Sisa Saldo: <strong>{remainingTokens.toLocaleString()}</strong> Token</span>
@@ -480,7 +479,6 @@ const ApiMarketplace = ({ onLogout, onNavigate, user, isAuthenticated, onLoginRe
         {currentPage === 'landing' && (
           <div className="api-landing-page">
             <header className="hero-section">
-              <div className="hero-badge">⚡ DUA API POWERFUL DALAM SATU PLATFORM</div>
               <h1 className="hero-title">
                 AI Gateway Generasi Baru & <br />
                 <span className="gradient-text">Mesin Pencari Berkecepatan Tinggi</span>
@@ -650,7 +648,6 @@ console.log(data.choices[0].message.content);`}</code>
                   <h3>📈 Grafik Tren Penggunaan Token Harian (7 Hari Terakhir)</h3>
                   <p className="chart-subtitle">Akumulasi input dan output token per hari yang tercatat di server.</p>
                 </div>
-                <span className="chart-badge">Live Server Database Sync</span>
               </div>
 
               <div className="chart-canvas-container">
@@ -947,7 +944,6 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
                       <h3>3. Model FreeLLM Aktif yang Tersedia</h3>
                       <div className="models-catalog-grid">
                         <div className="model-catalog-card">
-                          <span className="catalog-badge silicon" style={{ background: 'linear-gradient(135deg, #06b6d4, #0284c7)' }}>QWEN 72B</span>
                           <h4>qwen2.5-vl-72b</h4>
                           <p>Model multimodal Qwen 2.5 VL 72B untuk teks dan vision dengan respons cepat (~1.2 detik) tanpa jeda berpikir.</p>
                           <div className="catalog-specs">
@@ -958,7 +954,6 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
                         </div>
 
                         <div className="model-catalog-card">
-                          <span className="catalog-badge">550B • 800K</span>
                           <h4>nemotron-3-ultra-550b</h4>
                           <p>NVIDIA Nemotron 3 Ultra 550B berkapasitas besar untuk penalaran mendalam dan konteks hingga 800K token.</p>
                           <div className="catalog-specs">
@@ -969,7 +964,6 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
                         </div>
 
                         <div className="model-catalog-card">
-                          <span className="catalog-badge pro">CODE &amp; LIGHTNING</span>
                           <h4>north-mini-code / nemotron-3.5-lightning</h4>
                           <p>Model cepat khusus coding (Cohere North Mini Code ~0.8s) dan pemrosesan dokumen panjang NVIDIA Nemotron 3.5 Lightning (838K).</p>
                           <div className="catalog-specs">
@@ -1006,7 +1000,6 @@ print(data["choices"][0]["message"]["content"])`}</code></pre>
               <div className="docs-content-wrapper">
                 <div className="docs-body" style={{ width: '100%' }}>
                   <section className="docs-section">
-                    <div className="search-docs-badge">SUB-20MS ULTRA-FAST WEB SEARCH • PUBLIC & ENTERPRISE SERP</div>
                     <h3>DeeperNova Search Engine API (Mandiri & Terdistribusi)</h3>
                     <p>
                       Akses indeks web mandiri DeeperNova dengan pencarian berbasis algoritma <strong>BM25 & PageRank</strong>, latensi sub-20ms, dan ringkasan <strong>AI Context</strong> yang siap diintegrasikan ke sistem <strong>RAG (Retrieval-Augmented Generation)</strong>, agen AI otonom, peramban web, atau bot.
@@ -1485,7 +1478,6 @@ curl -X GET "${publicApiBaseUrl}/api/v1/images?q=ai+indonesia&limit=8" \\
           <div className="dashboard-page">
             <div className="dashboard-hero">
               <div className="dashboard-hero-copy">
-                <span className="eyebrow">DeeperNova Developer Console</span>
                 <h2>Dashboard & Live API Management</h2>
                 <p>Kelola API Key, pantau saldo 1.000.000 token gratis, dan uji coba langsung respons API secara live.</p>
               </div>
@@ -1503,10 +1495,8 @@ curl -X GET "${publicApiBaseUrl}/api/v1/images?q=ai+indonesia&limit=8" \\
             <div className="live-tester-card">
               <div className="live-tester-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pulse-dot"></span>
                   <h3>Live Interactive API Hit Tester</h3>
                 </div>
-                <span className="live-tester-badge">Hit API Nyata</span>
               </div>
               <p className="live-tester-subtitle">
                 Uji coba panggilan API secara langsung ke endpoint backend DeeperNova tanpa perlu membuka Postman atau terminal.

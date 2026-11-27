@@ -47,11 +47,6 @@ const DtePortal = ({ onNavigate }) => {
       {/* Main Container */}
       <main className="dte-simple-main">
         <div className="dte-card-box">
-          <div className="dte-badge">
-            <span className="dte-badge-icon">🏭</span>
-            <span>PORTAL RESMI DTE • TERPROTEKSI DTE SHIELD</span>
-          </div>
-
           <h1 className="dte-main-title">
             Order & Maintenance <span className="dte-text-orange">DTE</span>
           </h1>

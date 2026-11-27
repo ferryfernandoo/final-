@@ -1162,8 +1162,7 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
           <div className="agent-sidebar-brand" onClick={() => onNavigate?.('landing')}>
             <img src="/logo.png" alt="DeeperNova Codex" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.02em' }}>DeeperNova</span>
-              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.1em', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>CODEX · ASYNC</span>
+              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.02em' }}>DeeperNova Codex</span>
             </div>
           </div>
           {typeof window !== 'undefined' && window.innerWidth < 768 && (
@@ -1258,7 +1257,6 @@ export default function AgentChat({ user, isAuthenticated: _isAuthenticated, isG
             </button>
             <div className="agent-header-brand-clean">
               <span className="agent-header-brand-title">DeeperNova Codex</span>
-              <span className="agent-header-brand-badge codex-badge">ASYNC AGENT</span>
             </div>
             <button
               type="button"

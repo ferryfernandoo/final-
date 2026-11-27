@@ -528,11 +528,6 @@ export default function HelpCenter({ onNavigate }) {
       {/* Header Bar */}
       <header className="help-header">
         <div className="help-header-content">
-          <div className="help-brand-badge" onClick={() => setShowCeoModal(true)} style={{ cursor: 'pointer' }}>
-            <span className="badge-pulse" />
-            <span>Pusat Bantuan Resmi • Deepernova AI</span>
-          </div>
-
           <h1 className="help-title">
             Pusat Bantuan &amp; <span className="gradient-text">Solusi Pintar</span>
           </h1>
